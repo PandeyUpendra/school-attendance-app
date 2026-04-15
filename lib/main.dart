@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
+import 'screens/class_selection_screen.dart';
 
 void main() {
   runApp(const SchoolApp());
@@ -14,7 +14,7 @@ class SchoolApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'School Attendance',
       theme: ThemeData(primarySwatch: Colors.red),
-      home: const HomeScreen(),
+      home: const ClassSelectionScreen(),
     );
   }
 }
