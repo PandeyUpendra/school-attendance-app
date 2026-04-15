@@ -16,7 +16,7 @@ class HomeScreen extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AttendanceScreen(),
+                builder: (context) => const AttendanceScreen(className: "Class 9-A"),
               ),
             );
           },

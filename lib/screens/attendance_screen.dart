@@ -1,75 +1,56 @@
 import 'package:flutter/material.dart';
 import '../models/student.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import '../data/student_data.dart';
+import '../services/attendance_service.dart';
+import 'history_screen.dart';
+import 'add_student_screen.dart';
+import 'scan_students_screen.dart';
 
 class AttendanceScreen extends StatefulWidget {
-  const AttendanceScreen({super.key});
+  final String className;
+
+  const AttendanceScreen({
+    super.key,
+    required this.className,
+  });
 
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
-
   final DateTime today = DateTime.now();
-
-  final List<Student> students = [
-    Student(roll: 1, name: "Rahul Sharma"),
-    Student(roll: 2, name: "Ananya Singh"),
-    Student(roll: 3, name: "Rohan Verma"),
-    Student(roll: 4, name: "Priya Gupta"),
-    Student(roll: 5, name: "Aman Yadav"),
-  ];
-
+  String searchQuery = "";
+  late List<Student> students;
   final Map<int, bool> attendance = {};
 
   @override
   void initState() {
     super.initState();
-
-    // Default all students as absent
+    students = List.from(classStudents[widget.className] ?? []);
     for (var student in students) {
       attendance[student.roll] = false;
     }
-
-    // Load saved attendance if it exists
     loadAttendance();
   }
 
   Future<void> saveAttendance() async {
-
-    print("Saving attendance...");
-
-    final prefs = await SharedPreferences.getInstance();
-
-    String todayKey =
-        "${today.year}-${today.month}-${today.day}";
-
-    Map<String, bool> stringKeyMap =
-    attendance.map((key, value) => MapEntry(key.toString(), value));
-
-    String data = jsonEncode(stringKeyMap);
-
-    await prefs.setString(todayKey, data);
-
-    print("Saved successfully");
+    await AttendanceService.saveAttendance(
+      className: widget.className,
+      date: today,
+      attendance: attendance,
+    );
   }
 
   Future<void> loadAttendance() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    String todayKey =
-        "${today.year}-${today.month}-${today.day}";
-
-    String? data = prefs.getString(todayKey);
-
-    if (data != null) {
-      Map<String, dynamic> decoded = jsonDecode(data);
-
+    final saved = await AttendanceService.loadAttendance(
+      className: widget.className,
+      date: today,
+    );
+    if (saved != null) {
       setState(() {
-        decoded.forEach((key, value) {
-          attendance[int.parse(key)] = value;
+        saved.forEach((roll, present) {
+          attendance[roll] = present;
         });
       });
     }
@@ -77,74 +58,188 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Take Attendance"),
+        title: Text("Attendance - ${widget.className}"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.document_scanner),
+            tooltip: "Scan student list",
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ScanStudentsScreen(),
+                ),
+              );
+              if (result != null && result is List<Student>) {
+                setState(() {
+                  for (final s in result) {
+                    if (!students.any((e) => e.roll == s.roll)) {
+                      students.add(s);
+                      attendance[s.roll] = false;
+                    }
+                  }
+                });
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_add),
+            tooltip: "Add student",
+            onPressed: () async {
+              final student = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AddStudentScreen(),
+                ),
+              );
+              if (student != null) {
+                setState(() {
+                  students.add(student);
+                  attendance[student.roll] = false;
+                });
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: "View history",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => HistoryScreen(className: widget.className),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.done_all),
+            tooltip: "Mark all present",
+            onPressed: () {
+              setState(() {
+                for (var student in students) {
+                  attendance[student.roll] = true;
+                }
+              });
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.restart_alt),
+            tooltip: "Reset attendance",
+            onPressed: () {
+              setState(() {
+                for (var student in students) {
+                  attendance[student.roll] = false;
+                }
+              });
+            },
+          ),
+        ],
       ),
-
-      body: ListView.builder(
-        itemCount: students.length,
-        itemBuilder: (context, index) {
-
-          final student = students[index];
-          bool isPresent = attendance[student.roll] ?? false;
-
-          return ListTile(
-            leading: CircleAvatar(
-              child: Text(student.roll.toString()),
-            ),
-
-            title: Text(student.name),
-
-            trailing: Switch(
-              value: isPresent,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: TextField(
+              decoration: const InputDecoration(
+                hintText: "Search student by name or roll",
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
               onChanged: (value) {
                 setState(() {
-                  attendance[student.roll] = value;
+                  searchQuery = value.toLowerCase();
                 });
               },
             ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: students.length,
+              itemBuilder: (context, index) {
+                final student = students[index];
 
-            subtitle: Text(
-              isPresent ? "Present" : "Absent",
-              style: TextStyle(
-                color: isPresent ? Colors.green : Colors.red,
+                if (searchQuery.isNotEmpty &&
+                    !student.name.toLowerCase().contains(searchQuery) &&
+                    !student.roll.toString().contains(searchQuery)) {
+                  return const SizedBox.shrink();
+                }
+
+                final bool isPresent = attendance[student.roll] ?? false;
+
+                return ListTile(
+                  leading: CircleAvatar(
+                    child: Text(student.roll.toString()),
+                  ),
+                  title: Text(student.name),
+                  subtitle: Text(
+                    isPresent ? "Present" : "Absent",
+                    style: TextStyle(
+                      color: isPresent ? Colors.green : Colors.red,
+                    ),
+                  ),
+                  trailing: Switch(
+                    value: isPresent,
+                    onChanged: (value) {
+                      setState(() {
+                        attendance[student.roll] = value;
+                      });
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        tooltip: "Save & summarize",
+        child: const Icon(Icons.check),
+        onPressed: () async {
+          final int present = attendance.values.where((v) => v).length;
+          final int absent = students.length - present;
+          final List<String> absentNames = [
+            for (var s in students)
+              if (attendance[s.roll] == false) s.name,
+          ];
+
+          await saveAttendance();
+
+          if (!context.mounted) return;
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text("Attendance Summary"),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text("Present: $present"),
+                    Text("Absent: $absent"),
+                    if (absentNames.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      const Text(
+                        "Absent Students:",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      for (final name in absentNames) Text("• $name"),
+                    ],
+                  ],
+                ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("OK"),
+                ),
+              ],
             ),
           );
         },
-      ),
-
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.check),
-          onPressed: () async {
-
-            int present = attendance.values.where((v) => v).length;
-            int absent = students.length - present;
-
-            await saveAttendance();
-
-            showDialog(
-              context: context,
-              builder: (context) {
-                return AlertDialog(
-                  title: const Text("Attendance Summary"),
-                  content: Text(
-                    "Present: $present\nAbsent: $absent",
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      child: const Text("OK"),
-                    )
-                  ],
-                );
-              },
-            );
-          }
       ),
     );
   }
