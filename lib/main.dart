@@ -1,7 +1,19 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'firebase_options.dart';
+import 'screens/role_selection_screen.dart';
+import 'screens/coordinator_dashboard.dart';
 import 'screens/home_screen.dart';
+import 'screens/principal_dashboard.dart';
+import 'screens/guardian_dashboard.dart';
+import 'services/auth_service.dart';
+import 'services/timetable_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const SchoolApp());
 }
 
@@ -12,9 +24,102 @@ class SchoolApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'School Attendance',
+      title: 'School App',
       theme: ThemeData(primarySwatch: Colors.red),
-      home: const HomeScreen(),
+      home: const _SplashGate(),
+    );
+  }
+}
+
+/// Checks for a saved session and redirects to the appropriate screen.
+/// Shows a spinner while loading.
+class _SplashGate extends StatefulWidget {
+  const _SplashGate();
+
+  @override
+  State<_SplashGate> createState() => _SplashGateState();
+}
+
+class _SplashGateState extends State<_SplashGate> {
+  @override
+  void initState() {
+    super.initState();
+    _checkSession();
+  }
+
+  Future<void> _checkSession() async {
+    final session = await AuthService().getSession();
+
+    if (!mounted) return;
+
+    if (session == null) {
+      _go(const RoleSelectionScreen());
+      return;
+    }
+
+    final role = session['role'] as String? ?? '';
+
+    switch (role) {
+      case 'coordinator':
+        _go(const CoordinatorDashboard());
+        return;
+
+      case 'principal':
+        _go(const PrincipalDashboard());
+        return;
+
+      case 'guardian':
+        final sClass = session['studentClass'] as String?;
+        final sRoll  = session['studentRoll']  as int?;
+        if (sClass != null && sRoll != null) {
+          _go(GuardianDashboard(
+              studentClass: sClass, studentRoll: sRoll));
+          return;
+        }
+        // Guardian session missing student link → re-login
+        _go(const RoleSelectionScreen());
+        return;
+
+      case 'teacher':
+        final teacherId = session['teacherId'] as String?;
+        if (teacherId != null) {
+          final teacher =
+              await TimetableService().getTeacherById(teacherId);
+          if (!mounted) return;
+          if (teacher != null) {
+            _go(HomeScreen(teacher: teacher));
+            return;
+          }
+        }
+        // Teacher session exists but no valid teacherId → re-login
+        _go(const RoleSelectionScreen());
+        return;
+
+      default:
+        _go(const RoleSelectionScreen());
+    }
+  }
+
+  void _go(Widget screen) {
+    if (!mounted) return;
+    Navigator.pushReplacement(
+        context, MaterialPageRoute(builder: (_) => screen));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.school, size: 56, color: Colors.indigo),
+            SizedBox(height: 20),
+            CircularProgressIndicator(color: Colors.indigo),
+          ],
+        ),
+      ),
     );
   }
 }
