@@ -6,6 +6,7 @@ import '../models/exam.dart';
 import '../models/student.dart';
 import '../services/exam_service.dart';
 import '../services/student_service.dart';
+import '../theme.dart';
 
 /// Report card screen — shows all students' results for one exam.
 /// Includes class rank, grade, pass/fail and a printable PDF.
@@ -282,11 +283,8 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
   Widget build(BuildContext context) {
     final exam = widget.exam;
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -314,7 +312,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
                       style: TextStyle(color: Colors.grey.shade500)))
               : RefreshIndicator(
                   onRefresh: _load,
-                  color: Colors.deepPurple,
+                  color: AppTheme.primary,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(12),
@@ -378,7 +376,7 @@ class _TopperBanner extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF4A148C), Color(0xFF7B1FA2)],
+          colors: [AppTheme.primaryDark, AppTheme.primary],
         ),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -442,8 +440,8 @@ class _StatsSummary extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _Cell('${students.length}', 'Students', Colors.indigo),
-          _Cell('${results.length}', 'Results', Colors.deepPurple),
+          _Cell('${students.length}', 'Students', AppTheme.primary),
+          _Cell('${results.length}', 'Results', AppTheme.primaryMid),
           _Cell('$passCount', 'Passed', Colors.green),
           _Cell('${results.length - passCount}', 'Failed', Colors.red),
           _Cell('${avgPct.toStringAsFixed(1)}%', 'Avg %',

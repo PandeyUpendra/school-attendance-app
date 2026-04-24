@@ -3,6 +3,8 @@ import '../models/exam.dart';
 import '../models/student.dart';
 import '../services/exam_service.dart';
 import '../services/student_service.dart';
+import '../theme.dart';
+import '../theme.dart';
 
 /// Teacher/Coordinator enters marks per student per subject for an exam.
 class MarksEntryScreen extends StatefulWidget {
@@ -120,11 +122,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
   Widget build(BuildContext context) {
     final exam = widget.exam;
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -182,7 +181,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                                 style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.deepPurple),
+                                    color: AppTheme.primary),
                               ),
                             )),
                         const SizedBox(width: 50), // total column
@@ -215,7 +214,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                             icon: const Icon(Icons.save_outlined),
                             label: const Text('Save All Marks'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.deepPurple,
+                              backgroundColor: AppTheme.primary,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
                                   vertical: 14),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/timetable_service.dart';
+import '../theme.dart';
 
 enum ClassPickerMode { attendance, studentList, reports }
 
@@ -39,13 +40,7 @@ class _ClassPickerScreenState extends State<ClassPickerScreen> {
     }
   }
 
-  Color get _color {
-    switch (widget.mode) {
-      case ClassPickerMode.attendance: return Colors.red;
-      case ClassPickerMode.reports:    return Colors.indigo;
-      default:                         return Colors.teal;
-    }
-  }
+  Color get _color => AppTheme.primary;
 
   IconData get _icon {
     switch (widget.mode) {
@@ -61,9 +56,6 @@ class _ClassPickerScreenState extends State<ClassPickerScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(_title),
-        backgroundColor: _color,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

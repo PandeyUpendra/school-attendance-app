@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import '../services/timetable_service.dart';
 
 class AdminScreen extends StatefulWidget {
@@ -22,10 +23,10 @@ class _AdminScreenState extends State<AdminScreen> {
   bool _showPass = false;
 
   static const _roles = [
-    {'value': 'teacher',     'label': 'Teacher',     'color': 0xFFD32F2F},
-    {'value': 'coordinator', 'label': 'Coordinator', 'color': 0xFF3949AB},
-    {'value': 'principal',   'label': 'Principal',   'color': 0xFF00796B},
-    {'value': 'guardian',    'label': 'Guardian',    'color': 0xFF7B1FA2},
+    {'value': 'teacher',     'label': 'Teacher',     'color': 0xFF1565C0},
+    {'value': 'coordinator', 'label': 'Coordinator', 'color': 0xFF1565C0},
+    {'value': 'principal',   'label': 'Principal',   'color': 0xFF1565C0},
+    {'value': 'guardian',    'label': 'Guardian',    'color': 0xFF1565C0},
   ];
 
   @override
@@ -164,7 +165,7 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,14 +176,11 @@ class _AdminScreenState extends State<AdminScreen> {
                 style: TextStyle(fontSize: 11, color: Colors.white70)),
           ],
         ),
-        backgroundColor: Colors.deepOrange,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
       body: Column(children: [
         // ── Add user form ───────────────────────────────────────────────────
         Container(
-          color: Colors.deepOrange,
+          color: AppTheme.primary,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(children: [
             // Role dropdown
@@ -196,7 +194,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 child: DropdownButton<String>(
                   value: _selectedRole,
                   isExpanded: true,
-                  dropdownColor: Colors.deepOrange.shade700,
+                  dropdownColor: AppTheme.primaryDark,
                   style: const TextStyle(color: Colors.white, fontSize: 14),
                   iconEnabledColor: Colors.white70,
                   items: _roles.map((r) {
@@ -241,7 +239,7 @@ class _AdminScreenState extends State<AdminScreen> {
                           "Child's class",
                           style: TextStyle(color: Colors.white60, fontSize: 14),
                         ),
-                        dropdownColor: Colors.deepOrange.shade700,
+                        dropdownColor: AppTheme.primaryDark,
                         style: const TextStyle(
                             color: Colors.white, fontSize: 14),
                         iconEnabledColor: Colors.white70,
@@ -338,7 +336,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 onPressed: _saving ? null : _add,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
-                  foregroundColor: Colors.deepOrange,
+                  foregroundColor: AppTheme.primary,
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -348,7 +346,7 @@ class _AdminScreenState extends State<AdminScreen> {
                     ? const SizedBox(
                         width: 18, height: 18,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.deepOrange))
+                            strokeWidth: 2, color: AppTheme.primary))
                     : const Text('Add',
                         style: TextStyle(fontWeight: FontWeight.bold)),
               ),

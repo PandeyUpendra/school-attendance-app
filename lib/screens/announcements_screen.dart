@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/announcement.dart';
 import '../services/announcement_service.dart';
 import '../services/notification_service.dart';
+import '../theme.dart';
 
 /// Announcements / Notice Board.
 /// - Everyone can view (filtered by audience).
@@ -190,7 +191,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                   icon: const Icon(Icons.send_outlined, size: 18),
                   label: Text(editing == null ? 'Post' : 'Save'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepOrange,
+                    backgroundColor: AppTheme.primary,
                     foregroundColor: Colors.white,
                   ),
                 ),
@@ -239,9 +240,6 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: Colors.deepOrange,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -256,7 +254,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       floatingActionButton: _canPost
           ? FloatingActionButton.extended(
               onPressed: () => _openComposer(),
-              backgroundColor: Colors.deepOrange,
+              backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),
               label: const Text('New'),

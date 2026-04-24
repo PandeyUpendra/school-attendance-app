@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../services/timetable_service.dart';
+import '../theme.dart';
 
 /// Wrapper so we can distinguish "dismissed" (null) from "cleared" (teacherId=null).
 class _PickResult {
@@ -216,8 +217,6 @@ class _TimetableEditorScreenState extends State<TimetableEditorScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Timetable Editor'),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
         actions: [
           IconButton(
               icon: const Icon(Icons.refresh),
@@ -317,7 +316,7 @@ class _TimetableEditorScreenState extends State<TimetableEditorScreen> {
                   height: cellH,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: i.isEven ? Colors.indigo.shade50 : Colors.white,
+                    color: i.isEven ? AppTheme.primary.withOpacity(0.05) : Colors.white,
                     border: Border.all(color: Colors.grey.shade200),
                   ),
                   child: Text(_classes[i],
@@ -341,8 +340,8 @@ class _TimetableEditorScreenState extends State<TimetableEditorScreen> {
       height: h,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isCorner ? Colors.indigo.shade800 : Colors.indigo.shade700,
-        border: Border.all(color: Colors.indigo.shade900),
+        color: isCorner ? AppTheme.primaryDark : AppTheme.primary,
+        border: Border.all(color: AppTheme.primaryDark),
       ),
       child: Text(label,
           style: const TextStyle(

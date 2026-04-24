@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../services/timetable_service.dart';
+import '../theme.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Teacher Management List
@@ -135,15 +136,12 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: const Text('Manage Teachers'),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openDialog(),
         icon: const Icon(Icons.person_add),
         label: const Text('Add Teacher'),
-        backgroundColor: Colors.teal,
+        backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
       ),
       body: _loading
@@ -912,7 +910,7 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                       ElevatedButton(
                         onPressed: _addNewClass,
                         style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.teal,
+                            backgroundColor: AppTheme.primary,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 14, vertical: 15),
@@ -991,7 +989,7 @@ class _TeacherDialogState extends State<_TeacherDialog> {
             }
           },
           style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.teal,
+              backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white),
           child: Text(_isEdit ? 'Save' : 'Add'),
         ),

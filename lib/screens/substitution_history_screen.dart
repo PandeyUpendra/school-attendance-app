@@ -3,6 +3,7 @@ import '../models/substitution_record.dart';
 import '../models/teacher.dart';
 import '../services/substitution_history_service.dart';
 import '../services/timetable_service.dart';
+import '../theme.dart';
 
 /// Coordinator screen — full substitution history + per-teacher statistics.
 class SubstitutionHistoryScreen extends StatefulWidget {
@@ -82,11 +83,8 @@ class _SubstitutionHistoryScreenState
         : 'All substitution records';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -172,7 +170,7 @@ class _HistoryList extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: () async {},
-      color: Colors.teal,
+      color: AppTheme.primary,
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(12),
@@ -193,11 +191,11 @@ class _HistoryList extends StatelessWidget {
               Container(
                 width: 42, height: 42,
                 decoration: BoxDecoration(
-                  color: Colors.teal.withOpacity(0.1),
+                  color: AppTheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.swap_horiz_outlined,
-                    color: Colors.teal, size: 22),
+                    color: AppTheme.primary, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -212,7 +210,7 @@ class _HistoryList extends StatelessWidget {
                     if (showTeacher)
                       Text('Sub: ${r.substituteTeacherName}',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.teal.shade700)),
+                              fontSize: 12, color: AppTheme.primary.shade700)),
                     if (r.originalTeacherName.isNotEmpty)
                       Text('For: ${r.originalTeacherName}',
                           style: TextStyle(
@@ -358,7 +356,7 @@ class _LeaderboardTab extends StatelessWidget {
                         minHeight: 5,
                         backgroundColor: Colors.grey.shade200,
                         valueColor: const AlwaysStoppedAnimation<Color>(
-                            Colors.teal),
+                            AppTheme.primary),
                       ),
                     ),
                   ],
@@ -372,7 +370,7 @@ class _LeaderboardTab extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
-                          color: Colors.teal)),
+                          color: AppTheme.primary)),
                   Text('times',
                       style: TextStyle(
                           fontSize: 10, color: Colors.grey.shade500)),

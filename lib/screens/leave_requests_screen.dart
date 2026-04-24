@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import 'free_bells_screen.dart';
+import '../theme.dart';
 
 class LeaveRequestsScreen extends StatefulWidget {
   const LeaveRequestsScreen({super.key});
@@ -89,7 +90,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,9 +101,6 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
                 style: TextStyle(fontSize: 11, color: Colors.white70)),
           ],
         ),
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-        elevation: 0,
         bottom: TabBar(
           controller: _tabCtrl,
           indicatorColor: Colors.white,
@@ -166,7 +164,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
 
     return RefreshIndicator(
       onRefresh: _load,
-      color: Colors.deepPurple,
+      color: AppTheme.primary,
       child: ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: apps.length,

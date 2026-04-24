@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
@@ -84,11 +85,8 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -148,7 +146,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
       ),
       body: RefreshIndicator(
         onRefresh: _loadAll,
-        color: Colors.indigo,
+        color: AppTheme.primary,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
@@ -156,7 +154,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _SectionHeader('ANNOUNCEMENTS'),
             _FeatureTile(
               icon: Icons.campaign_outlined,
-              color: Colors.deepOrange,
+              color: AppTheme.primary,
               title: 'Notice Board',
               subtitle: 'Post and manage school announcements',
               onTap: () => _navigate(AnnouncementsScreen(
@@ -169,7 +167,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _SectionHeader('FEE MANAGEMENT'),
             _FeatureTile(
               icon: Icons.account_balance_wallet_outlined,
-              color: Colors.green.shade700,
+              color: AppTheme.success,
               title: 'Fee Structure',
               subtitle: 'Set annual fee and components per class',
               onTap: () => _navigate(const FeeStructureScreen()),
@@ -177,7 +175,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             const _Divider(),
             _FeatureTile(
               icon: Icons.currency_rupee_outlined,
-              color: Colors.green,
+              color: AppTheme.success,
               title: 'Fee Collection',
               subtitle: 'Record payments and view outstanding dues',
               onTap: () => _navigate(const FeeCollectionScreen()),
@@ -187,7 +185,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _SectionHeader('EXAMS & MARKS'),
             _FeatureTile(
               icon: Icons.quiz_outlined,
-              color: Colors.deepPurple,
+              color: AppTheme.primary,
               title: 'Exam Management',
               subtitle: 'Create exams, enter marks and view report cards',
               onTap: () => _navigate(
@@ -198,7 +196,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _SectionHeader('COPY CHECKING'),
             _FeatureTile(
               icon: Icons.menu_book_outlined,
-              color: Colors.indigo,
+              color: AppTheme.primary,
               title: 'Copy Checking Overview',
               subtitle: 'View copy-checking status across all classes',
               onTap: () => _navigate(const CopyCheckOverviewScreen()),
@@ -208,7 +206,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _SectionHeader('HOMEWORK'),
             _FeatureTile(
               icon: Icons.assignment_outlined,
-              color: Colors.teal,
+              color: AppTheme.primary,
               title: 'Homework Overview',
               subtitle: 'View all assignments posted across classes',
               onTap: () => _navigate(const HomeworkOverviewScreen()),
@@ -218,7 +216,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _SectionHeader('TIMETABLE'),
             _FeatureTile(
               icon: Icons.table_chart_outlined,
-              color: Colors.indigo,
+              color: AppTheme.primary,
               title: 'Timetable & Settings',
               subtitle: 'Bell schedule, classes and teacher assignments',
               onTap: () => _navigate(const TimetableSettingsScreen()),
@@ -226,7 +224,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             const _Divider(),
             _FeatureTile(
               icon: Icons.picture_as_pdf_outlined,
-              color: Colors.deepPurple,
+              color: AppTheme.primary,
               title: 'School Timetable (PDF)',
               subtitle: 'View & share class timetables as PDF',
               onTap: () => _navigate(const MyTimetableScreen()),
@@ -234,7 +232,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             const _Divider(),
             _FeatureTile(
               icon: Icons.assignment_outlined,
-              color: Colors.teal,
+              color: AppTheme.primary,
               title: 'Assign Duties',
               subtitle: 'Assembly, lunch duty, gate duty and more',
               onTap: () => _navigate(const AssignDutiesScreen()),
@@ -244,7 +242,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _SectionHeader('STAFF'),
             _FeatureTile(
               icon: Icons.people_outline,
-              color: Colors.purple,
+              color: AppTheme.primary,
               title: 'Manage Teachers',
               subtitle: 'Add or remove teachers from the school',
               onTap: () => _navigate(const TeacherManagementScreen()),
@@ -254,7 +252,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _SectionHeader('STUDENTS'),
             _FeatureTile(
               icon: Icons.school_outlined,
-              color: Colors.pink,
+              color: AppTheme.primary,
               title: 'Student Details',
               subtitle: 'View and manage student records by class',
               onTap: () => _navigate(const StudentDetailsScreen()),
@@ -264,7 +262,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _SectionHeader('FREE BELLS'),
             _FeatureTile(
               icon: Icons.swap_horiz_outlined,
-              color: Colors.orange,
+              color: AppTheme.warning,
               title: "Teacher's Free Bells",
               subtitle: 'View free periods & assign substitutions',
               onTap: () => _navigate(const FreeBellsScreen()),
@@ -284,7 +282,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _SectionHeader('ANALYTICS'),
             _FeatureTile(
               icon: Icons.analytics_outlined,
-              color: Colors.purple,
+              color: AppTheme.primary,
               title: 'Analytics Dashboard',
               subtitle: 'Attendance trends, absences, fee progress & charts',
               onTap: () => _navigate(const AnalyticsScreen()),
@@ -294,7 +292,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _SectionHeader('REPORTS'),
             _FeatureTile(
               icon: Icons.bar_chart_outlined,
-              color: Colors.indigo,
+              color: AppTheme.primary,
               title: 'Attendance Reports',
               subtitle: 'Monthly history, % per student & low-attendance flags',
               onTap: () async {
@@ -478,11 +476,11 @@ class _LeaveRequestTile extends StatelessWidget {
           Container(
             width: 44, height: 44,
             decoration: BoxDecoration(
-              color: Colors.deepPurple.withOpacity(0.12),
+              color: AppTheme.warning.withOpacity(0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.event_busy_outlined,
-                color: Colors.deepPurple, size: 22),
+                color: AppTheme.warning, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(child: Column(

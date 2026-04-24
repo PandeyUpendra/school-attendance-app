@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/copy_check.dart';
 import '../services/copy_check_service.dart';
 import '../services/timetable_service.dart';
+import '../theme.dart';
 
 /// Coordinator screen — view copy-checking status across all classes.
 class CopyCheckOverviewScreen extends StatefulWidget {
@@ -59,9 +60,6 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -260,9 +258,6 @@ class _CoordCheckDetailScreenState extends State<_CoordCheckDetailScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

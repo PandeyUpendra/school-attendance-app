@@ -3,6 +3,7 @@ import '../models/teacher.dart';
 import '../services/timetable_service.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
+import '../theme.dart';
 
 /// Shown when a user picks "Teacher" from the role selector.
 /// They must select their own profile from the list added by the coordinator.
@@ -18,9 +19,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   bool _loading = true;
 
   static const _colors = [
-    Colors.teal, Colors.indigo, Colors.orange, Colors.pink,
-    Colors.purple, Colors.green, Colors.red, Colors.brown,
-    Colors.cyan, Colors.deepPurple,
+    AppTheme.primary, AppTheme.primaryDark, AppTheme.primaryMid, AppTheme.primaryLight,
+    Color(0xFF0D47A1), Color(0xFF1976D2), Color(0xFF42A5F5), Color(0xFF1565C0),
+    Color(0xFF0277BD), Color(0xFF0288D1),
   ];
 
   @override
@@ -69,9 +70,6 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                 style: TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
-        backgroundColor: Colors.red,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -95,7 +93,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                 )
               : Column(children: [
                   Container(
-                    color: Colors.red,
+                    color: AppTheme.primary,
                     width: double.infinity,
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
                     child: const Text(
@@ -163,16 +161,16 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 7, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: Colors.teal.shade50,
+                                    color: AppTheme.primary.shade50,
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
-                                        color: Colors.teal.shade300),
+                                        color: AppTheme.primary.shade300),
                                   ),
                                   child: Text('Class Teacher',
                                       style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
-                                          color: Colors.teal.shade700)),
+                                          color: AppTheme.primary.shade700)),
                                 ),
                               const SizedBox(width: 4),
                               Icon(Icons.chevron_right,

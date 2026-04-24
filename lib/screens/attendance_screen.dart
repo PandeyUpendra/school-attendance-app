@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
@@ -281,7 +282,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               valueColor: AlwaysStoppedAnimation<Color>(
                   _total > 0 && _present == _total
                       ? Colors.green
-                      : Colors.indigo),
+                      : AppTheme.primary),
             ),
           ),
           const SizedBox(height: 6),
@@ -387,7 +388,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: _buildAppBar(),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -399,9 +400,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      elevation: 0,
-      backgroundColor: const Color(0xFFB71C1C),
-      foregroundColor: Colors.white,
       title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(widget.className,
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
@@ -495,7 +493,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         style: TextStyle(color: Colors.grey.shade400)))
                 : RefreshIndicator(
                     onRefresh: _refresh,
-                    color: const Color(0xFFB71C1C),
+                    color: AppTheme.primary,
                     child: ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.only(bottom: 90),
@@ -610,7 +608,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFB71C1C), width: 1.5),
+            borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
           ),
         ),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import '../models/teacher.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
@@ -46,11 +47,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final teacher = widget.teacher;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.red,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -142,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _SectionHeader('ACADEMICS'),
           _FeatureTile(
             icon: Icons.fact_check_outlined,
-            color: Colors.red,
+            color: AppTheme.primary,
             title: 'Take Attendance',
             subtitle: 'Mark attendance for ${teacher!.classTeacherOf}',
             onTap: () => Navigator.push(
@@ -156,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const _Divider(),
           _FeatureTile(
             icon: Icons.calendar_month_outlined,
-            color: Colors.indigo,
+            color: AppTheme.primary,
             title: 'My Timetable',
             subtitle: 'View your personal bell schedule',
             onTap: () => Navigator.push(context,
@@ -166,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const _Divider(),
           _FeatureTile(
             icon: Icons.swap_horiz_outlined,
-            color: Colors.teal,
+            color: AppTheme.primary,
             title: 'My Substitution Duties',
             subtitle: 'Classes I have covered as substitute',
             onTap: () => Navigator.push(
@@ -183,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _SectionHeader('STUDENTS'),
           _FeatureTile(
             icon: Icons.people_outline,
-            color: Colors.teal,
+            color: AppTheme.primary,
             title: 'Student List',
             subtitle: 'View and manage students in ${teacher!.classTeacherOf}',
             onTap: () => Navigator.push(
@@ -199,7 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const _Divider(),
           _FeatureTile(
             icon: Icons.bar_chart_outlined,
-            color: Colors.indigo,
+            color: AppTheme.primary,
             title: 'Attendance History',
             subtitle: 'Monthly reports, % per student & low-attendance flags',
             onTap: () => Navigator.push(
@@ -214,7 +212,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _SectionHeader('CALLS'),
           _FeatureTile(
             icon: Icons.phone_callback_outlined,
-            color: Colors.teal,
+            color: AppTheme.primary,
             title: 'Daily Calls',
             subtitle: 'Track guardian calls for absent/leave students',
             onTap: () => Navigator.push(
@@ -227,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _SectionHeader('LEAVE'),
           _FeatureTile(
             icon: Icons.event_busy_outlined,
-            color: Colors.orange,
+            color: AppTheme.warning,
             title: 'Apply for Leave',
             subtitle: 'Submit a leave application to coordinator or principal',
             onTap: () => Navigator.push(
@@ -240,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _SectionHeader('COPY CHECKING'),
           _FeatureTile(
             icon: Icons.menu_book_outlined,
-            color: Colors.indigo,
+            color: AppTheme.primary,
             title: 'Copy Checking',
             subtitle: 'Mark student copies for your classes',
             onTap: () {
@@ -258,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _SectionHeader('HOMEWORK'),
           _FeatureTile(
             icon: Icons.assignment_outlined,
-            color: Colors.teal,
+            color: AppTheme.primary,
             title: 'Homework',
             subtitle: 'Post and manage assignments for your classes',
             onTap: () {
@@ -275,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _SectionHeader('EXAMS & MARKS'),
           _FeatureTile(
             icon: Icons.quiz_outlined,
-            color: Colors.deepPurple,
+            color: AppTheme.primary,
             title: 'Exams & Marks',
             subtitle: 'Enter marks and view report cards',
             onTap: () => Navigator.push(
@@ -289,7 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _SectionHeader('ANNOUNCEMENTS'),
           _FeatureTile(
             icon: Icons.campaign_outlined,
-            color: Colors.deepOrange,
+            color: AppTheme.primary,
             title: 'Notice Board',
             subtitle: 'View school announcements and notices',
             onTap: () => Navigator.push(
@@ -305,13 +303,13 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // Change 1: Regular teacher — NO Take Attendance (only class teachers can)
+    // Regular teacher — NO Take Attendance (only class teachers can)
     return ListView(
       children: [
         _SectionHeader('ACADEMICS'),
         _FeatureTile(
           icon: Icons.calendar_month_outlined,
-          color: Colors.indigo,
+          color: AppTheme.primary,
           title: 'My Timetable',
           subtitle: 'View your bell schedule for all classes',
           onTap: () => Navigator.push(context,
@@ -321,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const _Divider(),
         _FeatureTile(
           icon: Icons.swap_horiz_outlined,
-          color: Colors.teal,
+          color: AppTheme.primary,
           title: 'My Substitution Duties',
           subtitle: 'Classes I have covered as substitute',
           onTap: () => Navigator.push(
@@ -339,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _SectionHeader('STUDENTS'),
         _FeatureTile(
           icon: Icons.people_outline,
-          color: Colors.teal,
+          color: AppTheme.primary,
           title: 'Student List',
           subtitle: 'View student records by class',
           onTap: () async {
@@ -366,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _SectionHeader('LEAVE'),
         _FeatureTile(
           icon: Icons.event_busy_outlined,
-          color: Colors.orange,
+          color: AppTheme.warning,
           title: 'Apply for Leave',
           subtitle: 'Submit a leave application to coordinator or principal',
           onTap: () {
@@ -384,7 +382,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _SectionHeader('COPY CHECKING'),
         _FeatureTile(
           icon: Icons.menu_book_outlined,
-          color: Colors.indigo,
+          color: AppTheme.primary,
           title: 'Copy Checking',
           subtitle: 'Mark student copies for your classes',
           onTap: () {
@@ -402,7 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _SectionHeader('HOMEWORK'),
         _FeatureTile(
           icon: Icons.assignment_outlined,
-          color: Colors.teal,
+          color: AppTheme.primary,
           title: 'Homework',
           subtitle: 'Post and manage assignments for your classes',
           onTap: () {
@@ -419,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _SectionHeader('EXAMS & MARKS'),
         _FeatureTile(
           icon: Icons.quiz_outlined,
-          color: Colors.deepPurple,
+          color: AppTheme.primary,
           title: 'Exams & Marks',
           subtitle: 'Enter marks and view report cards',
           onTap: () => Navigator.push(
@@ -433,7 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _SectionHeader('ANNOUNCEMENTS'),
         _FeatureTile(
           icon: Icons.campaign_outlined,
-          color: Colors.deepOrange,
+          color: AppTheme.primary,
           title: 'Notice Board',
           subtitle: 'View school announcements and notices',
           onTap: () => Navigator.push(

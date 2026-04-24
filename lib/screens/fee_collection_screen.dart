@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -102,11 +103,8 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.green.shade700,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -500,7 +498,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                   icon: const Icon(Icons.check, size: 18),
                   label: const Text('Save Payment'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
+                    backgroundColor: AppTheme.primary,
                     foregroundColor: Colors.white,
                   ),
                 ),
@@ -600,11 +598,8 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
     final total = widget.structure.totalAnnualFee;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.green.shade700,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

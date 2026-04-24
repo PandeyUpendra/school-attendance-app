@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../services/timetable_service.dart';
+import '../theme.dart';
 
 // ── Bell model ────────────────────────────────────────────────────────────────
 
@@ -402,9 +403,6 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Timetable & Settings'),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
         bottom: TabBar(
           controller: _tabCtrl,
           indicatorColor: Colors.white,
@@ -455,7 +453,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
             label: const Text('Save Settings',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
+              backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
@@ -645,7 +643,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
         ElevatedButton(
           onPressed: _addClass,
           style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
+              backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
               padding:
                   const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
@@ -1371,7 +1369,7 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
               icon: const Icon(Icons.check, size: 16),
               label: const Text('Assign'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigo,
+                backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: Colors.grey.shade200,
                 disabledForegroundColor: Colors.grey.shade500,
@@ -1462,7 +1460,7 @@ class _DurationDialogState extends State<_DurationDialog> {
         ElevatedButton(
           onPressed: _submit,
           style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
+              backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white),
           child: const Text('Set'),
         ),

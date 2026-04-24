@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import '../services/auth_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
@@ -131,11 +132,8 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -186,11 +184,11 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       ),
       body: RefreshIndicator(
         onRefresh: _loadAll,
-        color: Colors.teal,
+        color: AppTheme.primary,
         child: _loading
             ? ListView(children: const [
                 SizedBox(height: 120),
-                Center(child: CircularProgressIndicator(color: Colors.teal)),
+                Center(child: CircularProgressIndicator(color: AppTheme.primary)),
               ])
             : ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -255,7 +253,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   _SectionHeader('ANALYTICS'),
                   _FeatureTile(
                     icon: Icons.analytics_outlined,
-                    color: Colors.purple,
+                    color: AppTheme.primary,
                     title: 'Analytics Dashboard',
                     subtitle:
                         'Attendance trends, absences, fee progress & charts',
@@ -265,7 +263,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   _SectionHeader('TOOLS'),
                   _FeatureTile(
                     icon: Icons.campaign_outlined,
-                    color: Colors.deepOrange,
+                    color: AppTheme.primary,
                     title: 'Announcements',
                     subtitle: 'Post and view school notices',
                     onTap: () => _navigate(AnnouncementsScreen(
@@ -276,7 +274,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   const Divider(height: 1, indent: 72),
                   _FeatureTile(
                     icon: Icons.hourglass_top_outlined,
-                    color: Colors.deepPurple,
+                    color: AppTheme.warning,
                     title: 'Leave Requests',
                     subtitle:
                         'Review & approve pending applications from teachers',
@@ -291,7 +289,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   const Divider(height: 1, indent: 72),
                   _FeatureTile(
                     icon: Icons.bar_chart_outlined,
-                    color: Colors.indigo,
+                    color: AppTheme.primary,
                     title: 'Attendance Reports',
                     subtitle:
                         'Monthly history, % per student & low-attendance flags',
@@ -311,7 +309,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   const Divider(height: 1, indent: 72),
                   _FeatureTile(
                     icon: Icons.table_chart_outlined,
-                    color: Colors.teal,
+                    color: AppTheme.primary,
                     title: 'School Timetable',
                     subtitle: 'View & share class timetables as PDF',
                     onTap: () => _navigate(const MyTimetableScreen()),
@@ -365,7 +363,7 @@ class _SchoolTodayCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF00695C), Color(0xFF26A69A)],
+          colors: [AppTheme.primaryDark, AppTheme.primaryMid],
           begin: Alignment.topLeft, end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),

@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/teacher.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
+import '../theme.dart';
 
 class AttendanceClassDetailScreen extends StatefulWidget {
   final ClassSummary summary;
@@ -58,7 +59,7 @@ class _AttendanceClassDetailScreenState
     final onLeave = s.absentLeave.where((n) => n.status == 'Leave').toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,9 +72,6 @@ class _AttendanceClassDetailScreenState
                     fontSize: 11, color: Colors.white70)),
           ],
         ),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -347,7 +345,7 @@ class _StudentDetailRow extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade600,
+                    color: AppTheme.primary,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Row(

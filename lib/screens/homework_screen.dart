@@ -3,6 +3,7 @@ import '../models/homework.dart';
 import '../models/teacher.dart';
 import '../services/homework_service.dart';
 import '../services/copy_check_service.dart'; // for getClassesForTeacher
+import '../theme.dart';
 
 class HomeworkScreen extends StatefulWidget {
   final Teacher teacher;
@@ -110,9 +111,6 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: Colors.red,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -130,7 +128,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Colors.red,
+        backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Post Homework'),
@@ -587,7 +585,7 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
               child: ElevatedButton(
                 onPressed: _saving ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
+                  backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(

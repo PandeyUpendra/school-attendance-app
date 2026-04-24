@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../theme.dart';
 import '../models/student.dart';
 import '../models/fee.dart';
 import '../models/homework.dart';
@@ -158,11 +159,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.purple,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -222,11 +220,11 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       ),
       body: RefreshIndicator(
         onRefresh: _loadAll,
-        color: Colors.purple,
+        color: AppTheme.primary,
         child: _loading
             ? ListView(children: const [
                 SizedBox(height: 120),
-                Center(child: CircularProgressIndicator(color: Colors.purple)),
+                Center(child: CircularProgressIndicator(color: AppTheme.primary)),
               ])
             : _student == null
                 ? ListView(children: [
@@ -331,8 +329,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                               Icons.workspace_premium_outlined),
                           label: const Text('Attendance Certificate'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.indigo,
-                            side: const BorderSide(color: Colors.indigo),
+                            foregroundColor: AppTheme.primary,
+                            side: const BorderSide(color: AppTheme.primary),
                             padding:
                                 const EdgeInsets.symmetric(vertical: 14),
                           ),
@@ -351,8 +349,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                         icon: const Icon(Icons.campaign_outlined),
                         label: const Text('School Announcements'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.deepOrange,
-                          side: const BorderSide(color: Colors.deepOrange),
+                          foregroundColor: AppTheme.primary,
+                          side: const BorderSide(color: AppTheme.primary),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                       ),
@@ -364,8 +362,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                         icon: const Icon(Icons.call_outlined),
                         label: const Text('Contact School'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.purple,
-                          side: const BorderSide(color: Colors.purple),
+                          foregroundColor: AppTheme.primary,
+                          side: const BorderSide(color: AppTheme.primary),
                           padding:
                               const EdgeInsets.symmetric(vertical: 14),
                         ),
@@ -397,13 +395,13 @@ class _StudentCard extends StatelessWidget {
       child: Row(children: [
         CircleAvatar(
           radius: 28,
-          backgroundColor: Colors.purple.withOpacity(0.12),
+          backgroundColor: AppTheme.primary.withOpacity(0.12),
           child: Text(
             student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
             style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: Colors.purple),
+                color: AppTheme.primary),
           ),
         ),
         const SizedBox(width: 14),
@@ -574,7 +572,7 @@ class _MonthSummaryCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _StatCell(value: '$workingDays', label: 'Days',
-                  color: Colors.indigo),
+                  color: AppTheme.primary),
               _StatCell(value: '$present', label: 'Present',
                   color: Colors.green),
               _StatCell(value: '$absent', label: 'Absent',
@@ -927,11 +925,11 @@ class _HomeworkSection extends StatelessWidget {
               Container(
                 width: 32, height: 32,
                 decoration: BoxDecoration(
-                  color: Colors.teal.shade50,
+                  color: AppTheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.assignment_outlined,
-                    color: Colors.teal, size: 18),
+                    color: AppTheme.primary, size: 18),
               ),
               const SizedBox(width: 10),
               const Text('Homework',

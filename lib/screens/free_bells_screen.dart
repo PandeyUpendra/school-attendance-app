@@ -4,6 +4,7 @@ import '../models/timetable_entry.dart';
 import '../models/substitution_record.dart';
 import '../services/timetable_service.dart';
 import '../services/substitution_history_service.dart';
+import '../theme.dart';
 import 'substitution_history_screen.dart';
 
 class FreeBellsScreen extends StatefulWidget {
@@ -171,7 +172,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
                 const SizedBox(height: 4),
                 Text('★ = Suggested (least covered this month)',
                     style: TextStyle(
-                        fontSize: 10, color: Colors.teal.shade600)),
+                        fontSize: 10, color: AppTheme.primaryDark)),
               ]),
             ),
             const Divider(height: 1),
@@ -215,7 +216,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
                               child: Container(
                                 width: 14, height: 14,
                                 decoration: const BoxDecoration(
-                                  color: Colors.teal,
+                                  color: AppTheme.primary,
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Center(
@@ -276,7 +277,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
                   icon: const Icon(Icons.check, size: 16),
                   label: const Text('Assign'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
+                    backgroundColor: AppTheme.primary,
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: Colors.grey.shade200,
                   ),
@@ -343,9 +344,6 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
                     const TextStyle(fontSize: 11, color: Colors.white70)),
           ],
         ),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.history_outlined),
@@ -365,7 +363,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
               ? _emptyState()
               : RefreshIndicator(
                   onRefresh: _load,
-                  color: Colors.teal,
+                  color: AppTheme.primary,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(0, 8, 0, 32),
@@ -398,7 +396,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
         Container(
           padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
           decoration: BoxDecoration(
-            color: Colors.teal.shade50,
+            color: AppTheme.primary.withOpacity(0.06),
             borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(14)),
           ),
@@ -407,7 +405,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
               width: 32, height: 32,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: Colors.teal,
+                color: AppTheme.primary,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text('$bell',

@@ -4,6 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
+import '../theme.dart';
 
 // ── Top-level helpers ──────────────────────────────────────────────────────────
 
@@ -257,7 +258,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,9 +271,6 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                     const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf_outlined),
@@ -285,7 +283,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
       body: Column(children: [
         // ── Month picker ───────────────────────────────────────────────────
         Container(
-          color: Colors.indigo,
+          color: AppTheme.primary,
           padding: const EdgeInsets.fromLTRB(4, 0, 4, 14),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -330,7 +328,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                 _SumCell(
                     label: 'Working Days',
                     value: '$_workingDays',
-                    color: Colors.indigo),
+                    color: AppTheme.primary),
                 Container(
                     width: 1, height: 36,
                     color: Colors.grey.shade200),
@@ -367,7 +365,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                           'No attendance recorded\nin ${_monthLabel(_month)}')
                       : RefreshIndicator(
                           onRefresh: _loadAll,
-                          color: Colors.indigo,
+                          color: AppTheme.primary,
                           child: ListView.builder(
                             physics:
                                 const AlwaysScrollableScrollPhysics(),
@@ -666,15 +664,12 @@ class _StudentCalendarScreenState extends State<_StudentCalendarScreen> {
             ),
           ],
         ),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
       body: SingleChildScrollView(
         child: Column(children: [
           // Month nav
           Container(
-            color: Colors.indigo,
+            color: AppTheme.primary,
             padding: const EdgeInsets.fromLTRB(4, 0, 4, 14),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import '../models/fee.dart';
 import '../services/fee_service.dart';
 import '../services/timetable_service.dart';
@@ -222,7 +223,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                     icon: const Icon(Icons.save_outlined, size: 18),
                     label: const Text('Save'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade700,
+                      backgroundColor: AppTheme.primary,
                       foregroundColor: Colors.white,
                     ),
                   ),
@@ -242,11 +243,8 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.green.shade700,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -323,7 +321,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
       floatingActionButton: _selectedClass != null && _classes.isNotEmpty
           ? FloatingActionButton.extended(
               onPressed: _editStructure,
-              backgroundColor: Colors.green.shade700,
+              backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.edit),
               label: const Text('Edit'),
@@ -341,8 +339,8 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.green.shade700, Colors.green.shade500],
+            gradient: const LinearGradient(
+              colors: [AppTheme.primaryDark, AppTheme.primaryMid],
               begin: Alignment.topLeft, end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(16),

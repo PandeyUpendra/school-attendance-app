@@ -4,6 +4,7 @@ import '../models/student.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/fee_service.dart';
+import '../theme.dart';
 
 /// Analytics Dashboard — coordinator / principal only.
 /// Tabs: Overview · Attendance · Absences · Fee
@@ -44,11 +45,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -143,7 +141,7 @@ class _OverviewTabState extends State<_OverviewTab>
           _StatCard(
             label: 'Classes Marked',
             value: '${markedSummaries.length}/${_summaries.length}',
-            color: Colors.indigo,
+            color: AppTheme.primary,
             icon: Icons.fact_check_outlined,
           ),
           const SizedBox(width: 10),
@@ -419,7 +417,7 @@ class _AttendanceTrendTabState extends State<_AttendanceTrendTab>
                 child: ChoiceChip(
                   label: Text(cls),
                   selected: sel,
-                  selectedColor: Colors.indigo,
+                  selectedColor: AppTheme.primary,
                   labelStyle: TextStyle(
                     color: sel ? Colors.white : null,
                     fontWeight: sel ? FontWeight.bold : FontWeight.normal,
@@ -468,21 +466,21 @@ class _AttendanceTrendTabState extends State<_AttendanceTrendTab>
                     LineChartBarData(
                       spots: _spots,
                       isCurved: true,
-                      color: Colors.indigo,
+                      color: AppTheme.primary,
                       barWidth: 2.5,
                       dotData: FlDotData(
                         show: true,
                         getDotPainter: (spot, _, __, ___) =>
                             FlDotCirclePainter(
                           radius: 3,
-                          color: Colors.indigo,
+                          color: AppTheme.primary,
                           strokeWidth: 1.5,
                           strokeColor: Colors.white,
                         ),
                       ),
                       belowBarData: BarAreaData(
                         show: true,
-                        color: Colors.indigo.withOpacity(0.08),
+                        color: AppTheme.primary.withOpacity(0.08),
                       ),
                     ),
                   ],
@@ -596,7 +594,7 @@ class _DaySummaryRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _MiniStat('Days', '${spots.length}', Colors.indigo),
+          _MiniStat('Days', '${spots.length}', AppTheme.primary),
           _MiniStat('Avg%', avg.toStringAsFixed(1), Colors.blue),
           _MiniStat(
               'Best',
@@ -700,7 +698,7 @@ class _AbsenceLeaderboardTabState extends State<_AbsenceLeaderboardTab>
                 child: ChoiceChip(
                   label: Text(cls),
                   selected: sel,
-                  selectedColor: Colors.indigo,
+                  selectedColor: AppTheme.primary,
                   labelStyle: TextStyle(
                     color: sel ? Colors.white : null,
                     fontWeight: sel ? FontWeight.bold : FontWeight.normal,
@@ -940,7 +938,7 @@ class _FeeTabState extends State<_FeeTab>
                   child: _FeeStatCell(
                     label: 'Total Billed',
                     value: '₹${_compact(totalFeeAll)}',
-                    color: Colors.indigo,
+                    color: AppTheme.primary,
                   ),
                 ),
                 Expanded(

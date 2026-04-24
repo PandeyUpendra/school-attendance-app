@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'firebase_options.dart';
+import 'theme.dart';
 import 'screens/role_selection_screen.dart';
 import 'screens/coordinator_dashboard.dart';
 import 'screens/home_screen.dart';
@@ -25,7 +26,7 @@ class SchoolApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'School App',
-      theme: ThemeData(primarySwatch: Colors.red),
+      theme: AppTheme.light,
       home: const _SplashGate(),
     );
   }
@@ -114,9 +115,9 @@ class _SplashGateState extends State<_SplashGate> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.school, size: 56, color: Colors.indigo),
+            Icon(Icons.school, size: 56, color: AppTheme.primary),
             SizedBox(height: 20),
-            CircularProgressIndicator(color: Colors.indigo),
+            CircularProgressIndicator(color: AppTheme.primary),
           ],
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
+import '../theme.dart';
 import 'add_student_screen.dart';
 import 'attendance_certificate_screen.dart';
 
@@ -94,14 +95,11 @@ class _StudentListScreenState extends State<StudentListScreen> {
                     const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
       floatingActionButton: widget.isClassTeacher
           ? FloatingActionButton.extended(
               onPressed: _openAdd,
-              backgroundColor: Colors.teal,
+              backgroundColor: AppTheme.primary,
               icon: const Icon(Icons.person_add, color: Colors.white),
               label: const Text('Add Student',
                   style: TextStyle(color: Colors.white)),
@@ -375,9 +373,6 @@ class _StudentDetailPageState extends State<_StudentDetailPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Text('Student Profile'),
         actions: [
           if (widget.canEdit) ...[

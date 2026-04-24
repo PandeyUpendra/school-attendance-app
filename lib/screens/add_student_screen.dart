@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
+import '../theme.dart';
 
 class AddStudentScreen extends StatefulWidget {
   final String className;
@@ -116,9 +117,6 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(_isEdit ? 'Edit Student' : 'Add Student'),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-        elevation: 0,
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
@@ -284,7 +282,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               child: ElevatedButton(
                 onPressed: _saving ? null : _save,
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
+                    backgroundColor: AppTheme.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(

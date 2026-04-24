@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -42,7 +43,7 @@ class _DailyCallsScreenState extends State<DailyCallsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,9 +54,6 @@ class _DailyCallsScreenState extends State<DailyCallsScreen>
                 style: TextStyle(fontSize: 11, color: Colors.white70)),
           ],
         ),
-        backgroundColor: Colors.red.shade700,
-        foregroundColor: Colors.white,
-        elevation: 0,
         bottom: TabBar(
           controller: _tabCtrl,
           indicatorColor: Colors.white,
@@ -245,7 +243,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
                 Navigator.pop(ctx, r);
               },
               style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade700,
+                  backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white),
               child: const Text('Save'),
             ),

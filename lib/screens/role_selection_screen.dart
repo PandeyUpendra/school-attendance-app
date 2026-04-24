@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import '../services/timetable_service.dart';
 import '../services/auth_service.dart';
 import 'coordinator_dashboard.dart';
@@ -210,14 +211,7 @@ class RoleSelectionScreen extends StatelessWidget {
     return true;
   }
 
-  Color _roleColor(String role) {
-    switch (role) {
-      case 'coordinator': return Colors.indigo;
-      case 'principal':   return Colors.teal;
-      case 'guardian':    return Colors.purple;
-      default:            return Colors.red;
-    }
-  }
+  Color _roleColor(String role) => AppTheme.primary;
 
   IconData _roleIcon(String role) {
     switch (role) {
@@ -239,7 +233,7 @@ class RoleSelectionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 48),
-              const Icon(Icons.school, size: 48, color: Colors.indigo),
+              const Icon(Icons.school, size: 48, color: AppTheme.primary),
               const SizedBox(height: 16),
               const Text('School App',
                   style: TextStyle(
@@ -255,7 +249,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 icon: Icons.manage_accounts_outlined,
                 title: 'Admin',
                 subtitle: 'Manage registered users & login access',
-                color: Colors.deepOrange,
+                color: AppTheme.primary,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const AdminScreen()),
@@ -268,7 +262,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 icon: Icons.admin_panel_settings_outlined,
                 title: 'Coordinator',
                 subtitle: 'Manage timetable, teachers, duties & students',
-                color: Colors.indigo,
+                color: AppTheme.primary,
                 onTap: () => _loginAsRole(
                     context, 'coordinator', const CoordinatorDashboard()),
               ),
@@ -279,7 +273,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 icon: Icons.person_outline,
                 title: 'Teacher',
                 subtitle: 'Take attendance, manage your students',
-                color: Colors.red,
+                color: AppTheme.primary,
                 onTap: () => _loginAsRole(
                     context, 'teacher', const TeacherProfileScreen()),
               ),
@@ -290,7 +284,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 icon: Icons.business_outlined,
                 title: 'Principal',
                 subtitle: 'School overview, attendance & leave approvals',
-                color: Colors.teal,
+                color: AppTheme.primary,
                 onTap: () => _loginAsRole(
                     context, 'principal', const PrincipalDashboard()),
               ),
@@ -301,9 +295,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 icon: Icons.family_restroom_outlined,
                 title: 'Guardian',
                 subtitle: "View your child's attendance & progress",
-                color: Colors.purple,
-                // Guardian's destination is decided inside _loginAsRole
-                // after fetching the student link — pass a placeholder.
+                color: AppTheme.primary,
                 onTap: () => _loginAsRole(
                     context, 'guardian', const _PlaceholderDestination()),
               ),

@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../services/timetable_service.dart';
+import '../theme.dart';
 
 class MyTimetableScreen extends StatefulWidget {
   /// When provided → shows this teacher's personal schedule.
@@ -202,9 +203,6 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(_isPersonal ? 'My Timetable' : 'School Timetable'),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
         actions: [
           if (!_isPersonal && !_loading && _classes.isNotEmpty)
             IconButton(
@@ -454,7 +452,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
               icon: const Icon(Icons.share_outlined),
               label: const Text('Download / Share PDF'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigo,
+                backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(

@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
+import '../theme.dart';
 
 class StudentDetailsScreen extends StatefulWidget {
   const StudentDetailsScreen({super.key});
@@ -51,9 +52,6 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Student Details'),
-        backgroundColor: Colors.pink,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -215,9 +213,6 @@ class _ClassStudentsViewState extends State<_ClassStudentsView> {
           Text(widget.className,
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
-        backgroundColor: Colors.pink,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

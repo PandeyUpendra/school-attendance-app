@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/notification_service.dart';
+import '../theme.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final String  role;
@@ -64,7 +65,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'leave_submitted': return Colors.orange;
       case 'leave_resolved':  return Colors.green;
       case 'announcement':    return Colors.deepOrange;
-      default:                return Colors.indigo;
+      default:                return AppTheme.primary;
     }
   }
 
@@ -82,17 +83,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Text('Notifications',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
-        color: Colors.indigo,
+        color: AppTheme.primary,
         child: _loading
             ? ListView(children: const [
                 SizedBox(height: 120),

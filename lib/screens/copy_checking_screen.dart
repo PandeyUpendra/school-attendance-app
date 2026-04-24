@@ -5,6 +5,7 @@ import '../models/student.dart';
 import '../models/teacher.dart';
 import '../services/copy_check_service.dart';
 import '../services/student_service.dart';
+import '../theme.dart';
 
 /// Teacher's copy-checking screen.
 /// Shows all classes the teacher teaches → create sessions → mark students.
@@ -127,7 +128,7 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
                       if (ctx.mounted) Navigator.pop(ctx, true);
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigo,
+                backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
               ),
               child: const Text('Create'),
@@ -191,9 +192,6 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -208,7 +206,7 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
       floatingActionButton: _selectedClass != null && !_loading
           ? FloatingActionButton.extended(
               onPressed: _createSession,
-              backgroundColor: Colors.indigo,
+              backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),
               label: const Text('New Session'),
@@ -506,9 +504,6 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -646,7 +641,7 @@ class _AllStudentsTab extends StatelessWidget {
                 icon: const Icon(Icons.save_outlined),
                 label: const Text('Save All'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo,
+                  backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),

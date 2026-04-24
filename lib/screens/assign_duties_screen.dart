@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/teacher.dart';
 import '../services/timetable_service.dart';
+import '../theme.dart';
 
 class AssignDutiesScreen extends StatefulWidget {
   const AssignDutiesScreen({super.key});
@@ -109,7 +110,7 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide:
-                  const BorderSide(color: Colors.teal, width: 1.5),
+                  const BorderSide(color: AppTheme.primary, width: 1.5),
             ),
           ),
           onSubmitted: (v) {
@@ -127,7 +128,7 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
               if (t.isNotEmpty) Navigator.pop(ctx, t);
             },
             style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
+                backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white),
             child: const Text('Assign'),
           ),
@@ -167,9 +168,6 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
                     const TextStyle(fontSize: 11, color: Colors.white70)),
           ],
         ),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-        elevation: 0,
         actions: [
           if (_dirty)
             TextButton(
@@ -440,9 +438,9 @@ class _DutyDropdown extends StatelessWidget {
           // Custom option
           ListTile(
             leading: Icon(Icons.add_circle_outline,
-                color: Colors.teal.shade400, size: 20),
+                color: AppTheme.primary, size: 20),
             title: const Text('Custom duty…',
-                style: TextStyle(color: Colors.teal)),
+                style: TextStyle(color: AppTheme.primary)),
             onTap: () {
               Navigator.pop(context);
               onCustom();

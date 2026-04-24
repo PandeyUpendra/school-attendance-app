@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/timetable_service.dart';
+import '../theme.dart';
 
 class BellSettingsScreen extends StatefulWidget {
   const BellSettingsScreen({super.key});
@@ -71,8 +72,6 @@ class _BellSettingsScreenState extends State<BellSettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bell & Class Settings'),
-        backgroundColor: Colors.orange,
-        foregroundColor: Colors.white,
         actions: [
           TextButton.icon(
             onPressed: _save,
@@ -102,7 +101,7 @@ class _BellSettingsScreenState extends State<BellSettingsScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.remove_circle_outline, size: 36),
-                        color: Colors.orange,
+                        color: AppTheme.primary,
                         onPressed:
                             _bellCount > 1 ? () => setState(() => _bellCount--) : null,
                       ),
@@ -113,7 +112,7 @@ class _BellSettingsScreenState extends State<BellSettingsScreen> {
                       const SizedBox(width: 20),
                       IconButton(
                         icon: const Icon(Icons.add_circle_outline, size: 36),
-                        color: Colors.orange,
+                        color: AppTheme.primary,
                         onPressed:
                             _bellCount < 12 ? () => setState(() => _bellCount++) : null,
                       ),
@@ -153,7 +152,7 @@ class _BellSettingsScreenState extends State<BellSettingsScreen> {
                     ElevatedButton(
                       onPressed: _addClass,
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
+                          backgroundColor: AppTheme.primary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 20, vertical: 14)),

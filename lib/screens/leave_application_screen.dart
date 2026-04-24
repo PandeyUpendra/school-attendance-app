@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import '../models/teacher.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
@@ -112,7 +113,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,9 +124,6 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
                 style: TextStyle(fontSize: 11, color: Colors.white70)),
           ],
         ),
-        backgroundColor: Colors.orange,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -136,15 +134,15 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.orange.shade100),
+              border: Border.all(color: AppTheme.primary.withOpacity(0.15)),
             ),
             child: Row(children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: Colors.orange.shade100,
+                backgroundColor: AppTheme.primary.withOpacity(0.1),
                 child: Text(widget.teacher.name[0].toUpperCase(),
-                    style: TextStyle(
-                        color: Colors.orange.shade700,
+                    style: const TextStyle(
+                        color: AppTheme.primary,
                         fontWeight: FontWeight.bold,
                         fontSize: 20)),
               ),
@@ -307,7 +305,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
                 : const Icon(Icons.send_outlined),
             label: Text(_submitting ? 'Submitting…' : 'Submit Application'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
+              backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(

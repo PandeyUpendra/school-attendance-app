@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
+import '../theme.dart';
 
 /// One-click attendance certificate for a student.
 /// Can be opened from the guardian dashboard or student list.
@@ -360,9 +361,6 @@ class _AttendanceCertificateScreenState
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -395,13 +393,13 @@ class _AttendanceCertificateScreenState
             child: Row(children: [
               CircleAvatar(
                 radius: 28,
-                backgroundColor: Colors.indigo.withOpacity(0.12),
+                backgroundColor: AppTheme.primary.withOpacity(0.12),
                 child: Text(
                   s.name.isNotEmpty ? s.name[0].toUpperCase() : '?',
                   style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: Colors.indigo),
+                      color: AppTheme.primary),
                 ),
               ),
               const SizedBox(width: 14),
@@ -617,7 +615,7 @@ class _AttendanceCertificateScreenState
                         fontSize: 15, fontWeight: FontWeight.bold)),
                 onPressed: _exportPdf,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo,
+                  backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(

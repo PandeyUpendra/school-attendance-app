@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/exam.dart';
 import '../services/exam_service.dart';
 import '../services/timetable_service.dart';
+import '../theme.dart';
 import 'marks_entry_screen.dart';
 import 'report_card_screen.dart';
 
@@ -237,7 +238,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                     icon: const Icon(Icons.save_outlined, size: 18),
                     label: Text(editing == null ? 'Create' : 'Save'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
+                      backgroundColor: AppTheme.primary,
                       foregroundColor: Colors.white,
                     ),
                   ),
@@ -284,9 +285,6 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -301,7 +299,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
       floatingActionButton: _canManage && _selectedClass != null
           ? FloatingActionButton.extended(
               onPressed: () => _createOrEditExam(),
-              backgroundColor: Colors.deepPurple,
+              backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),
               label: const Text('New Exam'),
@@ -532,7 +530,7 @@ class _ExamCard extends StatelessWidget {
                 icon: const Icon(Icons.assessment_outlined, size: 16),
                 label: const Text('Report Card'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
+                  backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 8),
                 ),

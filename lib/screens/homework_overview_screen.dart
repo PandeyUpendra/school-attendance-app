@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/homework.dart';
 import '../services/homework_service.dart';
 import '../services/timetable_service.dart';
+import '../theme.dart';
 
 /// Coordinator screen — view all homework across classes.
 class HomeworkOverviewScreen extends StatefulWidget {
@@ -77,11 +78,8 @@ class _HomeworkOverviewScreenState extends State<HomeworkOverviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -118,7 +116,7 @@ class _HomeworkOverviewScreenState extends State<HomeworkOverviewScreen> {
                             child: ChoiceChip(
                               label: const Text('All'),
                               selected: _selectedClass == null,
-                              selectedColor: Colors.indigo,
+                              selectedColor: AppTheme.primary,
                               labelStyle: TextStyle(
                                 color: _selectedClass == null
                                     ? Colors.white
@@ -137,7 +135,7 @@ class _HomeworkOverviewScreenState extends State<HomeworkOverviewScreen> {
                               child: ChoiceChip(
                                 label: Text(cls),
                                 selected: sel,
-                                selectedColor: Colors.indigo,
+                                selectedColor: AppTheme.primary,
                                 labelStyle: TextStyle(
                                   color: sel ? Colors.white : null,
                                   fontWeight: sel
@@ -165,7 +163,7 @@ class _HomeworkOverviewScreenState extends State<HomeworkOverviewScreen> {
                         _StatBadge(
                           label: 'Total',
                           count: _filtered.length,
-                          color: Colors.indigo,
+                          color: AppTheme.primary,
                         ),
                         const SizedBox(width: 8),
                         _StatBadge(

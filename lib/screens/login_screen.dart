@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -42,10 +43,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: 96,
                   height: 96,
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
+                    color: AppTheme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: const Icon(Icons.school, size: 56, color: Colors.red),
+                  child: const Icon(Icons.school, size: 56, color: AppTheme.primary),
                 ),
                 const SizedBox(height: 28),
                 const Text(
