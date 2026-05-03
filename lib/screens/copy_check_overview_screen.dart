@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/copy_check.dart';
+import '../models/student.dart';
 import '../services/copy_check_service.dart';
+import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
 
@@ -94,7 +96,7 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
                               child: ChoiceChip(
                                 label: Text(cls),
                                 selected: selected,
-                                selectedColor: Colors.indigo,
+                                selectedColor: AppTheme.primary,
                                 labelStyle: TextStyle(
                                   color: selected ? Colors.white : null,
                                   fontWeight: selected
@@ -131,7 +133,7 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
                           : RefreshIndicator(
                               onRefresh: () =>
                                   _selectClass(_selectedClass!),
-                              color: Colors.indigo,
+                              color: AppTheme.primary,
                               child: ListView.separated(
                                 physics:
                                     const AlwaysScrollableScrollPhysics(),
@@ -158,14 +160,14 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
                                         Container(
                                           width: 42, height: 42,
                                           decoration: BoxDecoration(
-                                            color: Colors.indigo
+                                            color: AppTheme.primary
                                                 .withOpacity(0.1),
                                             borderRadius:
                                                 BorderRadius.circular(10),
                                           ),
                                           child: const Icon(
                                               Icons.menu_book_outlined,
-                                              color: Colors.indigo,
+                                              color: AppTheme.primary,
                                               size: 22),
                                         ),
                                         const SizedBox(width: 12),
@@ -220,7 +222,8 @@ class _CoordCheckDetailScreen extends StatefulWidget {
 
 class _CoordCheckDetailScreenState extends State<_CoordCheckDetailScreen>
     with SingleTickerProviderStateMixin {
-  final _service = CopyCheckService();
+  final _service        = CopyCheckService();
+  final _studentService = StudentService();
   late TabController _tab;
   bool _loading = true;
   List<CopyStatus> _all     = [];
@@ -238,7 +241,27 @@ class _CoordCheckDetailScreenState extends State<_CoordCheckDetailScreen>
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final all     = await _service.getStatuses(widget.check.id);
+    final results = await Future.wait([
+      _service.getStatuses(widget.check.id),
+      _studentService.getStudentsByClass(widget.check.className),
+    ]);
+    final raw      = results[0] as List<CopyStatus>;
+    final students = results[1] as List<Student>;
+
+    // Build O(1) lookup map and overlay live name/phone over denormalized copies.
+    final studentMap = {for (final s in students) s.roll: s};
+    final all = raw.map((s) {
+      final live = studentMap[s.roll];
+      if (live == null) return s;
+      return CopyStatus(
+        roll:          s.roll,
+        studentName:   live.name,   // live from students/ collection
+        guardianPhone: live.phone,  // live from students/ collection
+        status:        s.status,
+        remarks:       s.remarks,
+      );
+    }).toList();
+
     final pending = all
         .where((s) => s.status == 'incomplete' || s.status == 'not_done')
         .toList();

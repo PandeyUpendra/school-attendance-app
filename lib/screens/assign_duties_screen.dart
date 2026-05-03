@@ -29,7 +29,7 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
   ];
 
   static const _colors = [
-    Colors.teal, Colors.indigo, Colors.orange, Colors.pink,
+    AppTheme.primary, AppTheme.primaryDark, AppTheme.primaryMid, AppTheme.accent,
     Colors.purple, Colors.green, Colors.red, Colors.brown,
     Colors.cyan, Colors.deepPurple,
   ];
@@ -68,7 +68,7 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          backgroundColor: Colors.teal.shade700,
+          backgroundColor: AppTheme.primaryDark,
           duration: const Duration(seconds: 2),
           content: const Row(children: [
             Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
@@ -193,7 +193,7 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
               : Column(children: [
                   // Stats strip
                   Container(
-                    color: Colors.teal,
+                    color: AppTheme.primary,
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
                     child: Row(children: [
                       _StatBadge('${_teachers.length}', 'Teachers'),
@@ -206,7 +206,7 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
                   Expanded(
                     child: RefreshIndicator(
                       onRefresh: _load,
-                      color: Colors.teal,
+                      color: AppTheme.primary,
                       child: ListView.separated(
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(0, 8, 0, 80),

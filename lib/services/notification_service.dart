@@ -95,6 +95,22 @@ class NotificationService {
     });
   }
 
+  // ── Deleters ───────────────────────────────────────────────────────────────
+
+  /// Deletes a single notification by its Firestore document ID.
+  Future<void> deleteNotification(String id) async {
+    await _coll.doc(id).delete();
+  }
+
+  /// Deletes all notifications whose IDs are in [ids].
+  Future<void> deleteAll(List<String> ids) async {
+    final batch = _db.batch();
+    for (final id in ids) {
+      batch.delete(_coll.doc(id));
+    }
+    await batch.commit();
+  }
+
   // ── Readers ────────────────────────────────────────────────────────────────
 
   /// Returns all notifications visible to this viewer, newest first.

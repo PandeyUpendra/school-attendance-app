@@ -68,4 +68,23 @@ class AnnouncementService {
   Future<void> setPinned(String id, bool pinned) async {
     await _coll.doc(id).update({'isPinned': pinned});
   }
+
+  /// Fetches all announcements posted by a specific role (e.g. 'principal'),
+  /// sorted newest first. Used for the Principal's notification log.
+  Future<List<Announcement>> getAnnouncementsByRole(String role) async {
+    final snap = await _coll.get();
+    final list = snap.docs
+        .map((d) => Announcement.fromDoc(d.id, d.data()))
+        .where((a) => a.postedByRole == role)
+        .toList();
+    list.sort((a, b) {
+      final ta = a.postedAt;
+      final tb = b.postedAt;
+      if (ta == null && tb == null) return 0;
+      if (ta == null) return 1;
+      if (tb == null) return -1;
+      return tb.compareTo(ta);
+    });
+    return list;
+  }
 }

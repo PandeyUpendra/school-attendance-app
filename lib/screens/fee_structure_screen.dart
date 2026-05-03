@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme.dart';
 import '../models/fee.dart';
 import '../services/fee_service.dart';
@@ -64,6 +65,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
       }),
     );
 
+    final formKey = GlobalKey<FormState>();
     bool saving = false;
 
     void addComponent(StateSetter setS) {
@@ -88,7 +90,9 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
             left: 18, right: 18, top: 16,
             bottom: MediaQuery.of(ctx).viewInsets.bottom + 18,
           ),
-          child: SingleChildScrollView(
+          child: Form(
+            key: formKey,
+            child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,15 +113,25 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                 const SizedBox(height: 14),
 
                 // Total annual fee
-                TextField(
+                TextFormField(
                   controller: annualCtrl,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                  ],
                   decoration: InputDecoration(
                     labelText: 'Total Annual Fee (₹)',
                     prefixIcon: const Icon(Icons.currency_rupee),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
                   ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    final n = double.tryParse(v.trim());
+                    if (n == null || n < 1 || n > 9999999) return '1–9,999,999';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 
@@ -152,23 +166,40 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                     child: Row(children: [
                       Expanded(
                         flex: 5,
-                        child: TextField(
+                        child: TextFormField(
                           controller: components[i]['name'],
+                          maxLength: 40,
+                          maxLengthEnforcement:
+                              MaxLengthEnforcement.enforced,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[a-zA-Z ]')),
+                          ],
                           decoration: InputDecoration(
                             labelText: 'Name (e.g. Tuition)',
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8)),
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 10),
+                            counterText: '',
                           ),
+                          validator: (v) =>
+                              (v == null || v.trim().isEmpty)
+                                  ? 'Required'
+                                  : null,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         flex: 4,
-                        child: TextField(
+                        child: TextFormField(
                           controller: components[i]['amount'],
-                          keyboardType: TextInputType.number,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[0-9.]')),
+                          ],
                           decoration: InputDecoration(
                             labelText: '₹ Amount',
                             border: OutlineInputBorder(
@@ -176,6 +207,12 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 10),
                           ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return 'Required';
+                            final n = double.tryParse(v.trim());
+                            if (n == null || n <= 0) return '> 0';
+                            return null;
+                          },
                         ),
                       ),
                       IconButton(
@@ -198,6 +235,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                     onPressed: saving
                         ? null
                         : () async {
+                            if (!formKey.currentState!.validate()) return;
                             final annual =
                                 double.tryParse(annualCtrl.text.trim()) ?? 0;
                             final comps = components
@@ -229,6 +267,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                   ),
                 ]),
               ],
+            ),
             ),
           ),
         ),

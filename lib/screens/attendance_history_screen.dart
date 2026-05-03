@@ -648,7 +648,7 @@ class _StudentCalendarScreenState extends State<_StudentCalendarScreen> {
     final isLow        = _workingDays > 0 && _pct < 75;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -731,7 +731,7 @@ class _StudentCalendarScreenState extends State<_StudentCalendarScreen> {
                       value: _workingDays > 0
                           ? '${_pct.toStringAsFixed(1)}%'
                           : '—',
-                      color: isLow ? Colors.red : Colors.indigo),
+                      color: isLow ? Colors.red : AppTheme.primary),
                 ],
               ),
             ),

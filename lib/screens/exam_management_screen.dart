@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/exam.dart';
 import '../services/exam_service.dart';
 import '../services/timetable_service.dart';
@@ -52,6 +53,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
   Future<void> _createOrEditExam({Exam? editing}) async {
     if (_selectedClass == null) return;
 
+    final formKey      = GlobalKey<FormState>();
     final nameCtrl     = TextEditingController(text: editing?.name ?? '');
     final maxMarksCtrl = TextEditingController(
         text: editing?.maxMarks.toString() ?? '100');
@@ -63,6 +65,10 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
 
     DateTime examDate = editing?.examDate ?? DateTime.now();
     bool saving = false;
+
+    // Multi-class selection (only for new exams; editing locks to existing class)
+    final Set<String> selectedClasses =
+        editing != null ? {editing.className} : {_selectedClass!};
 
     Future<void> pickDate(StateSetter setS) async {
       final picked = await showDatePicker(
@@ -86,7 +92,9 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
             bottom: MediaQuery.of(ctx).viewInsets.bottom + 18,
           ),
           child: SingleChildScrollView(
-            child: Column(
+            child: Form(
+              key: formKey,
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -104,25 +112,37 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                     style: const TextStyle(
                         fontSize: 17, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 14),
-                TextField(
+                TextFormField(
                   controller: nameCtrl,
+                  maxLength: 60,
+                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
                   decoration: InputDecoration(
                     labelText: 'Exam Name (e.g. Unit Test 1)',
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
+                    counterText: '',
                   ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Exam name is required' : null,
                 ),
                 const SizedBox(height: 10),
                 Row(children: [
                   Expanded(
-                    child: TextField(
+                    child: TextFormField(
                       controller: maxMarksCtrl,
                       keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: InputDecoration(
                         labelText: 'Max Marks per Subject',
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10)),
                       ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Required';
+                        final n = int.tryParse(v.trim());
+                        if (n == null || n < 1 || n > 200) return '1–200';
+                        return null;
+                      },
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -143,6 +163,44 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                   ),
                 ]),
                 const SizedBox(height: 14),
+                // Class selection (multi for new, locked for edit)
+                if (editing == null) ...[
+                  const Text('Classes',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  StatefulBuilder(
+                    builder: (_, setChips) => Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: _classes.map((cls) {
+                        final sel = selectedClasses.contains(cls);
+                        return FilterChip(
+                          label: Text(cls),
+                          selected: sel,
+                          selectedColor: Colors.deepPurple.withOpacity(0.15),
+                          checkmarkColor: Colors.deepPurple,
+                          labelStyle: TextStyle(
+                            color: sel ? Colors.deepPurple : null,
+                            fontWeight: sel
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                          onSelected: (v) {
+                            setChips(() {
+                              if (v) {
+                                selectedClasses.add(cls);
+                              } else if (selectedClasses.length > 1) {
+                                selectedClasses.remove(cls);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -164,15 +222,24 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(children: [
                       Expanded(
-                        child: TextField(
+                        child: TextFormField(
                           controller: subjectCtrls[i],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[a-zA-Z ]')),
+                          ],
+                          maxLength: 30,
+                          maxLengthEnforcement: MaxLengthEnforcement.enforced,
                           decoration: InputDecoration(
                             labelText: 'Subject ${i + 1}',
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8)),
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 10),
+                            counterText: '',
                           ),
+                          validator: (v) =>
+                              (v == null || v.trim().isEmpty) ? 'Required' : null,
                         ),
                       ),
                       if (subjectCtrls.length > 1)
@@ -196,42 +263,40 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                     onPressed: saving
                         ? null
                         : () async {
+                            if (!formKey.currentState!.validate()) return;
                             final name = nameCtrl.text.trim();
                             final subjects = subjectCtrls
                                 .map((c) => c.text.trim())
                                 .where((s) => s.isNotEmpty)
                                 .toList();
-                            if (name.isEmpty) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Enter exam name')),
-                              );
-                              return;
-                            }
-                            if (subjects.isEmpty) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(
-                                    content: Text(
-                                        'Add at least one subject')),
-                              );
-                              return;
-                            }
                             setS(() => saving = true);
-                            final exam = Exam(
-                              id:        editing?.id ?? '',
-                              name:      name,
-                              className: _selectedClass!,
-                              subjects:  subjects,
-                              maxMarks:  int.tryParse(
-                                          maxMarksCtrl.text.trim()) ??
-                                      100,
-                              examDate:  examDate,
-                              createdBy: '',
-                            );
+                            final maxMarksVal = int.tryParse(
+                                    maxMarksCtrl.text.trim()) ??
+                                100;
                             if (editing == null) {
-                              await _examService.createExam(exam);
+                              await Future.wait(
+                                selectedClasses.map((cls) =>
+                                  _examService.createExam(Exam(
+                                    id:        '',
+                                    name:      name,
+                                    className: cls,
+                                    subjects:  subjects,
+                                    maxMarks:  maxMarksVal,
+                                    examDate:  examDate,
+                                    createdBy: '',
+                                  )),
+                                ),
+                              );
                             } else {
-                              await _examService.updateExam(exam);
+                              await _examService.updateExam(Exam(
+                                id:        editing.id,
+                                name:      name,
+                                className: editing.className,
+                                subjects:  subjects,
+                                maxMarks:  maxMarksVal,
+                                examDate:  examDate,
+                                createdBy: '',
+                              ));
                             }
                             if (ctx.mounted) Navigator.pop(ctx, true);
                           },
@@ -244,6 +309,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                   ),
                 ]),
               ],
+            ),
             ),
           ),
         ),

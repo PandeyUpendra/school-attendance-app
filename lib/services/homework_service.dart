@@ -19,33 +19,35 @@ class HomeworkService {
   Future<List<Homework>> getHomeworkForTeacher(String teacherId) async {
     final snap = await _col
         .where('teacherId', isEqualTo: teacherId)
-        .orderBy('postedAt', descending: true)
         .get();
-    return snap.docs
+    final list = snap.docs
         .map((d) => Homework.fromDoc(d.id, d.data() as Map<String, dynamic>))
         .toList();
+    list.sort((a, b) => b.postedAt.compareTo(a.postedAt)); // newest first
+    return list;
   }
 
   // ── Guardian / Student: get homework for a class, newest first ────────────
   Future<List<Homework>> getHomeworkForClass(String className) async {
     final snap = await _col
         .where('className', isEqualTo: className)
-        .orderBy('postedAt', descending: true)
         .get();
-    return snap.docs
+    final list = snap.docs
         .map((d) => Homework.fromDoc(d.id, d.data() as Map<String, dynamic>))
         .toList();
+    list.sort((a, b) => b.postedAt.compareTo(a.postedAt)); // newest first
+    return list;
   }
 
   // ── Coordinator: all homework across all classes, newest first ────────────
   Future<List<Homework>> getAllHomework({int limit = 100}) async {
-    final snap = await _col
-        .orderBy('postedAt', descending: true)
-        .limit(limit)
-        .get();
-    return snap.docs
+    final snap = await _col.get();
+    final list = snap.docs
         .map((d) => Homework.fromDoc(d.id, d.data() as Map<String, dynamic>))
         .toList();
+    list.sort((a, b) => b.postedAt.compareTo(a.postedAt)); // newest first
+    if (list.length > limit) return list.sublist(0, limit);
+    return list;
   }
 
   // ── Teacher: mark reviewed ────────────────────────────────────────────────

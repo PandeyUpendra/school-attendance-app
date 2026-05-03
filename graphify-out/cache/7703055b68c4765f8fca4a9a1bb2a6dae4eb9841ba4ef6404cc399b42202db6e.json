@@ -1,0 +1,1 @@
+{"nodes": [{"id": "linux_my_application_h", "label": "my_application.h", "file_type": "code", "source_file": "linux/my_application.h", "source_location": "L1"}], "edges": [{"source": "linux_my_application_h", "target": "gtk", "relation": "imports", "confidence": "EXTRACTED", "source_file": "linux/my_application.h", "source_location": "L4", "weight": 1.0}], "raw_calls": []}

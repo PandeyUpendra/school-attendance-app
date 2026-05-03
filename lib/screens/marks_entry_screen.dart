@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/exam.dart';
 import '../models/student.dart';
 import '../services/exam_service.dart';
 import '../services/student_service.dart';
-import '../theme.dart';
 import '../theme.dart';
 
 /// Teacher/Coordinator enters marks per student per subject for an exam.
@@ -74,8 +74,25 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
   }
 
   Future<void> _saveAll() async {
-    setState(() => _saving = true);
     final exam = widget.exam;
+    for (final s in _students) {
+      final ctrls = _controllers[s.roll]!;
+      for (final sub in exam.subjects) {
+        final txt = ctrls[sub]!.text.trim();
+        if (txt.isNotEmpty) {
+          final v = double.tryParse(txt);
+          if (v == null || v < 0 || v > exam.maxMarks) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(
+                  '${s.name}: marks for "$sub" must be 0–${exam.maxMarks}'),
+              backgroundColor: Colors.red.shade700,
+            ));
+            return;
+          }
+        }
+      }
+    }
+    setState(() => _saving = true);
 
     final futures = <Future>[];
     for (final s in _students) {
@@ -266,6 +283,13 @@ class _StudentMarksRowState extends State<_StudentMarksRow> {
     if (mounted) setState(() => _total = t);
   }
 
+  bool _isInvalid(String sub) {
+    final txt = widget.controllers[sub]?.text.trim() ?? '';
+    if (txt.isEmpty) return false;
+    final v = double.tryParse(txt);
+    return v == null || v < 0 || v > widget.exam.maxMarks;
+  }
+
   @override
   void dispose() {
     for (final ctrl in widget.controllers.values) {
@@ -312,7 +336,12 @@ class _StudentMarksRowState extends State<_StudentMarksRow> {
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: TextField(
                     controller: widget.controllers[sub],
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'[0-9.]')),
+                    ],
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 13),
                     decoration: InputDecoration(
@@ -320,8 +349,25 @@ class _StudentMarksRowState extends State<_StudentMarksRow> {
                           horizontal: 4, vertical: 8),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8)),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: _isInvalid(sub)
+                              ? Colors.red
+                              : Colors.grey.shade300,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: _isInvalid(sub)
+                              ? Colors.red
+                              : AppTheme.primary,
+                        ),
+                      ),
                       hintText: '—',
-                      hintStyle: TextStyle(color: Colors.grey.shade300),
+                      hintStyle:
+                          TextStyle(color: Colors.grey.shade300),
                     ),
                   ),
                 ),

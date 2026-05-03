@@ -1,4 +1,8 @@
+import 'dart:io';
+import 'package:csv/csv.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../services/timetable_service.dart';
@@ -21,8 +25,11 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   List<Teacher> _teachers = [];
   bool _loading = true;
 
+  Set<String> _selectedIds = {};
+  bool        _selectMode  = false;
+
   static const _colors = [
-    Colors.teal, Colors.indigo, Colors.orange, Colors.pink,
+    AppTheme.primary, AppTheme.primaryDark, AppTheme.primaryMid, AppTheme.accent,
     Colors.purple, Colors.green, Colors.red, Colors.brown,
     Colors.cyan, Colors.deepPurple,
   ];
@@ -42,6 +49,63 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     });
   }
 
+  // ── Multi-select helpers ─────────────────────────────────────────────────
+
+  void _enterSelectMode(Teacher t) {
+    setState(() { _selectMode = true; _selectedIds = {t.id}; });
+  }
+
+  void _exitSelectMode() {
+    setState(() { _selectMode = false; _selectedIds = {}; });
+  }
+
+  void _toggleSelect(Teacher t) {
+    setState(() {
+      if (_selectedIds.contains(t.id)) {
+        _selectedIds.remove(t.id);
+        if (_selectedIds.isEmpty) _selectMode = false;
+      } else {
+        _selectedIds.add(t.id);
+      }
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    final count = _selectedIds.length;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Teachers'),
+        content: Text(
+            'Remove $count teacher${count == 1 ? '' : 's'}? '
+            'Their timetable assignments will be cleared.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    for (final id in _selectedIds) {
+      await _service.removeTeacher(id);
+    }
+    if (!mounted) return;
+    setState(() { _selectMode = false; _selectedIds = {}; });
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: Text(
+              '$count teacher${count == 1 ? '' : 's'} removed')),
+    );
+  }
+
   // ── Open the Add/Edit dialog ─────────────────────────────────────────────
 
   Future<void> _openDialog({Teacher? existing}) async {
@@ -57,7 +121,9 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
         (t) =>
             t.id != teacher.id &&
             t.isClassTeacher &&
-            t.classTeacherOf == teacher.classTeacherOf,
+            t.classTeacherOf == teacher.classTeacherOf &&
+            t.section.trim().toLowerCase() ==
+                teacher.section.trim().toLowerCase(),
         orElse: () =>
             const Teacher(id: '', name: '', subject: '', email: ''),
       );
@@ -128,6 +194,125 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     }
   }
 
+  // ── CSV import ────────────────────────────────────────────────────────────
+
+  Future<void> _importCSV() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv', 'txt'],
+    );
+    if (result == null || result.files.isEmpty || !mounted) return;
+    final path = result.files.first.path;
+    if (path == null) return;
+
+    final content = await File(path).readAsString();
+    List<List<dynamic>> rows;
+    try {
+      rows = const CsvToListConverter(eol: '\n').convert(content);
+    } catch (_) {
+      rows = const CsvToListConverter(eol: '\r\n').convert(content);
+    }
+    if (rows.isEmpty || !mounted) return;
+
+    // Detect header row
+    int dataStart = 0;
+    Map<String, int> colMap = {};
+    final firstRow =
+        rows[0].map((e) => e.toString().trim().toLowerCase()).toList();
+    if (firstRow.any((c) => ['name', 'teacher'].any((k) => c.contains(k)))) {
+      dataStart = 1;
+      for (final h in ['name', 'subject', 'email', 'section', 'phone']) {
+        final idx = firstRow.indexWhere((c) => c.contains(h));
+        if (idx >= 0) colMap[h] = idx;
+      }
+    }
+
+    String get(List<dynamic> row, String key) {
+      final idx = colMap[key];
+      if (idx == null || idx >= row.length) return '';
+      return row[idx].toString().trim();
+    }
+
+    final teachers = <Teacher>[];
+    for (int i = dataStart; i < rows.length; i++) {
+      final row = rows[i];
+      if (row.isEmpty) continue;
+      final name = colMap.containsKey('name')
+          ? get(row, 'name')
+          : row[0].toString().trim();
+      if (name.isEmpty) continue;
+      teachers.add(Teacher(
+        id: DateTime.now().millisecondsSinceEpoch.toString() + '_$i',
+        name: name,
+        subject: get(row, 'subject'),
+        email: get(row, 'email'),
+        section: get(row, 'section'),
+      ));
+    }
+
+    if (teachers.isEmpty || !mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No valid teachers found in CSV')));
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Import ${teachers.length} Teachers'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 260,
+          child: ListView.builder(
+            itemCount: teachers.length,
+            itemBuilder: (_, i) {
+              final t = teachers[i];
+              return ListTile(
+                dense: true,
+                leading: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: AppTheme.primary.withOpacity(0.1),
+                  child: Text(t.name[0].toUpperCase(),
+                      style: const TextStyle(
+                          fontSize: 13, color: AppTheme.primary)),
+                ),
+                title: Text(t.name,
+                    style: const TextStyle(fontSize: 13)),
+                subtitle: t.subject.isNotEmpty
+                    ? Text(t.subject,
+                        style: const TextStyle(fontSize: 11))
+                    : null,
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(_, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(_, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white),
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    for (final t in teachers) {
+      await _service.addTeacher(t);
+    }
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Imported ${teachers.length} teachers'),
+      backgroundColor: Colors.green,
+    ));
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
@@ -135,15 +320,41 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Manage Teachers'),
+        leading: _selectMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _exitSelectMode,
+              )
+            : null,
+        title: _selectMode
+            ? Text('${_selectedIds.length} selected')
+            : const Text('Manage Teachers'),
+        actions: _selectMode
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Remove selected',
+                  onPressed:
+                      _selectedIds.isNotEmpty ? _deleteSelected : null,
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.upload_file_outlined),
+                  tooltip: 'Import from CSV',
+                  onPressed: _importCSV,
+                ),
+              ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openDialog(),
-        icon: const Icon(Icons.person_add),
-        label: const Text('Add Teacher'),
-        backgroundColor: AppTheme.primary,
-        foregroundColor: Colors.white,
-      ),
+      floatingActionButton: _selectMode
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _openDialog(),
+              icon: const Icon(Icons.person_add),
+              label: const Text('Add Teacher'),
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+            ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _teachers.isEmpty
@@ -168,99 +379,124 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                   separatorBuilder: (_, __) =>
                       const Divider(height: 1, indent: 72),
                   itemBuilder: (_, i) {
-                    final t     = _teachers[i];
-                    final color = _colors[i % _colors.length];
-                    return InkWell(
-                      onTap: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => TeacherDetailScreen(
-                              teacher: t,
-                              color:   color,
-                              onEdit: () async {
-                                Navigator.pop(context);
-                                await _openDialog(existing: t);
-                              },
-                              onDelete: () async {
-                                Navigator.pop(context);
-                                await _confirmRemove(t);
-                              },
-                            ),
-                          ),
-                        );
-                        _load(); // refresh in case of edit
-                      },
-                      child: Container(
-                        color: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        child: Row(children: [
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundColor: color,
-                            child: Text(t.name[0].toUpperCase(),
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18)),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                              Row(children: [
-                                Expanded(
-                                  child: Text(t.name,
-                                      style: const TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600)),
-                                ),
-                                if (t.isClassTeacher)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 7, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: Colors.teal.shade50,
-                                      borderRadius:
-                                          BorderRadius.circular(20),
-                                      border: Border.all(
-                                          color: Colors.teal.shade300),
+                    final t        = _teachers[i];
+                    final color    = _colors[i % _colors.length];
+                    final selected = _selectedIds.contains(t.id);
+                    return Container(
+                      color: selected
+                          ? AppTheme.primary.withOpacity(0.08)
+                          : Colors.white,
+                      child: InkWell(
+                        onTap: _selectMode
+                            ? () => _toggleSelect(t)
+                            : () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => TeacherDetailScreen(
+                                      teacher: t,
+                                      color:   color,
+                                      onEdit: () async {
+                                        Navigator.pop(context);
+                                        await _openDialog(existing: t);
+                                      },
+                                      onDelete: () async {
+                                        Navigator.pop(context);
+                                        await _confirmRemove(t);
+                                      },
                                     ),
-                                    child: Text('Class Teacher',
-                                        style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            color:
-                                                Colors.teal.shade700)),
                                   ),
+                                );
+                                _load();
+                              },
+                        onLongPress: _selectMode
+                            ? null
+                            : () => _enterSelectMode(t),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          child: Row(children: [
+                            _selectMode
+                                ? SizedBox(
+                                    width: 48,
+                                    height: 48,
+                                    child: Center(
+                                      child: Checkbox(
+                                        value:       selected,
+                                        onChanged:   (_) => _toggleSelect(t),
+                                        activeColor: AppTheme.primary,
+                                        shape:       const CircleBorder(),
+                                      ),
+                                    ),
+                                  )
+                                : CircleAvatar(
+                                    radius: 24,
+                                    backgroundColor: color,
+                                    child: Text(t.name[0].toUpperCase(),
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18)),
+                                  ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                Row(children: [
+                                  Expanded(
+                                    child: Text(t.name,
+                                        style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600)),
+                                  ),
+                                  if (t.isClassTeacher)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 7, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primary
+                                            .withOpacity(0.08),
+                                        borderRadius:
+                                            BorderRadius.circular(20),
+                                        border: Border.all(
+                                            color: AppTheme.primary
+                                                .withOpacity(0.3)),
+                                      ),
+                                      child: const Text('Class Teacher',
+                                          style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppTheme.primary)),
+                                    ),
+                                ]),
+                                const SizedBox(height: 2),
+                                Text(
+                                  [
+                                    t.subject,
+                                    if (t.section.isNotEmpty)
+                                      'Sec ${t.section}',
+                                    if (t.isClassTeacher &&
+                                        t.classTeacherOf != null)
+                                      t.classTeacherOf!,
+                                  ].join('  ·  '),
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600),
+                                ),
+                                if (t.email.isNotEmpty)
+                                  Text(t.email,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade400)),
                               ]),
-                              const SizedBox(height: 2),
-                              Text(
-                                [
-                                  t.subject,
-                                  if (t.section.isNotEmpty)
-                                    'Sec ${t.section}',
-                                  if (t.isClassTeacher &&
-                                      t.classTeacherOf != null)
-                                    t.classTeacherOf!,
-                                ].join('  ·  '),
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600),
-                              ),
-                              if (t.email.isNotEmpty)
-                                Text(t.email,
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade400)),
-                            ]),
-                          ),
-                          Icon(Icons.chevron_right,
-                              color: Colors.grey.shade400, size: 20),
-                        ]),
+                            ),
+                            if (!_selectMode)
+                              Icon(Icons.chevron_right,
+                                  color: Colors.grey.shade400, size: 20),
+                          ]),
+                        ),
                       ),
                     );
                   },
@@ -768,6 +1004,11 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                     labelText: 'Full Name',
                     prefixIcon: Icon(Icons.person_outline)),
                 textCapitalization: TextCapitalization.words,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z ]')),
+                ],
+                maxLength: 50,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
@@ -778,6 +1019,11 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                     labelText: 'Subject',
                     prefixIcon: Icon(Icons.book_outlined)),
                 textCapitalization: TextCapitalization.words,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z /]')),
+                ],
+                maxLength: 40,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
@@ -790,7 +1036,9 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                 keyboardType: TextInputType.emailAddress,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return 'Required';
-                  if (!v.contains('@')) return 'Enter a valid email';
+                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(v.trim())) {
+                    return 'Enter a valid email address';
+                  }
                   return null;
                 },
               ),
@@ -801,12 +1049,12 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                 margin: const EdgeInsets.only(top: 4),
                 decoration: BoxDecoration(
                   color: _isClassTeacher
-                      ? Colors.teal.shade50
+                      ? AppTheme.primary.withOpacity(0.07)
                       : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                       color: _isClassTeacher
-                          ? Colors.teal.shade300
+                          ? AppTheme.primary.withOpacity(0.3)
                           : Colors.grey.shade300),
                 ),
                 child: SwitchListTile(
@@ -818,14 +1066,14 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                       _sectionCtrl.clear();
                     }
                   }),
-                  activeColor: Colors.teal,
+                  activeColor: AppTheme.primary,
                   title: Text(
                     'Class Teacher',
                     style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: _isClassTeacher
-                            ? Colors.teal.shade700
+                            ? AppTheme.primaryDark
                             : Colors.grey.shade700),
                   ),
                   subtitle: Text(
@@ -835,7 +1083,7 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                     style: TextStyle(
                         fontSize: 11,
                         color: _isClassTeacher
-                            ? Colors.teal.shade600
+                            ? AppTheme.primaryMid
                             : Colors.grey.shade500),
                   ),
                   dense: true,
@@ -894,7 +1142,7 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                             hintText: 'e.g. Class 6A',
                             prefixIcon: const Icon(
                                 Icons.add_circle_outline,
-                                color: Colors.teal),
+                                color: AppTheme.primary),
                             border: OutlineInputBorder(
                                 borderRadius:
                                     BorderRadius.circular(10)),
@@ -944,7 +1192,7 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                         label: const Text('Add new class',
                             style: TextStyle(fontSize: 12)),
                         style: TextButton.styleFrom(
-                            foregroundColor: Colors.teal,
+                            foregroundColor: AppTheme.primary,
                             padding:
                                 const EdgeInsets.only(top: 4)),
                       ),
@@ -956,10 +1204,23 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                 TextFormField(
                   controller: _sectionCtrl,
                   decoration: const InputDecoration(
-                      labelText: 'Section (optional)',
+                      labelText: 'Section',
                       prefixIcon: Icon(Icons.group_work_outlined),
                       hintText: 'e.g. A, B, C'),
                   textCapitalization: TextCapitalization.characters,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z]')),
+                    LengthLimitingTextInputFormatter(1),
+                  ],
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Section is required for class teachers';
+                    }
+                    if (!RegExp(r'^[A-Za-z]$').hasMatch(v.trim())) {
+                      return 'Must be a single letter A–Z';
+                    }
+                    return null;
+                  },
                 ),
               ],
             ],

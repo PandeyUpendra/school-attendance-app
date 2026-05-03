@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/homework.dart';
 import '../models/teacher.dart';
 import '../services/homework_service.dart';
@@ -65,7 +66,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => _PostHomeworkSheet(
@@ -109,7 +110,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
     final classes = _classSubjectMap.keys.toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -396,6 +397,7 @@ class _PostHomeworkSheet extends StatefulWidget {
 
 class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
   final _service   = HomeworkService();
+  final _formKey   = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
   final _descCtrl  = TextEditingController();
 
@@ -429,14 +431,9 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
   }
 
   Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
     final title = _titleCtrl.text.trim();
     final desc  = _descCtrl.text.trim();
-    if (title.isEmpty || desc.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Title and description are required.')),
-      );
-      return;
-    }
     setState(() => _saving = true);
     final hw = Homework(
       id:          '',
@@ -465,7 +462,9 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
         left: 20, right: 20, top: 24,
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      child: SingleChildScrollView(
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -524,23 +523,30 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
             const SizedBox(height: 16),
 
             // Title
-            TextField(
+            TextFormField(
               controller: _titleCtrl,
               textCapitalization: TextCapitalization.sentences,
+              maxLength: 80,
+              maxLengthEnforcement: MaxLengthEnforcement.enforced,
               decoration: InputDecoration(
                 labelText: 'Homework Title',
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 14, vertical: 12),
+                counterText: '',
               ),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Title is required' : null,
             ),
             const SizedBox(height: 14),
 
             // Description
-            TextField(
+            TextFormField(
               controller: _descCtrl,
               maxLines: 4,
+              maxLength: 500,
+              maxLengthEnforcement: MaxLengthEnforcement.enforced,
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
                 labelText: 'Description / Instructions',
@@ -550,6 +556,11 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 14, vertical: 12),
               ),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Description is required';
+                if (v.trim().length < 10) return 'At least 10 characters';
+                return null;
+              },
             ),
             const SizedBox(height: 14),
 
@@ -603,6 +614,7 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

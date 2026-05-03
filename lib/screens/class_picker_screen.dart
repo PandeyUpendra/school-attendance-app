@@ -53,7 +53,7 @@ class _ClassPickerScreenState extends State<ClassPickerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Text(_title),
       ),
