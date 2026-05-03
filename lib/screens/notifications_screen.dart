@@ -32,6 +32,43 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _load();
   }
 
+  bool get _canDelete => widget.role == 'principal';
+
+  Future<void> _deleteOne(Map<String, dynamic> n) async {
+    final id = n['id'] as String?;
+    if (id == null) return;
+    setState(() => _items.remove(n));
+    await _service.deleteNotification(id);
+  }
+
+  Future<void> _clearAll() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Clear All Notifications'),
+        content: const Text(
+            'Delete all notifications? This removes them for everyone.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Clear All'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final ids = _items
+        .map((n) => n['id'] as String?)
+        .whereType<String>()
+        .toList();
+    setState(() => _items.clear());
+    await _service.deleteAll(ids);
+  }
+
   Future<void> _load() async {
     setState(() => _loading = true);
     final items = await _service.getFor(
@@ -87,6 +124,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       appBar: AppBar(
         title: const Text('Notifications',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+        actions: _canDelete && _items.isNotEmpty
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                  tooltip: 'Clear all',
+                  onPressed: _clearAll,
+                ),
+              ]
+            : null,
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -115,10 +161,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     separatorBuilder: (_, __) =>
                         const SizedBox(height: 8),
                     itemBuilder: (_, i) {
-                      final n = _items[i];
-                      final type = (n['type'] as String?) ?? '';
+                      final n     = _items[i];
+                      final type  = (n['type'] as String?) ?? '';
                       final color = _colorFor(type);
-                      return Container(
+                      final card  = Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -166,6 +212,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             ),
                           ],
                         ),
+                      );
+
+                      if (!_canDelete) return card;
+
+                      return Dismissible(
+                        key: ValueKey(n['id'] ?? i),
+                        direction: DismissDirection.endToStart,
+                        onDismissed: (_) => _deleteOne(n),
+                        background: Container(
+                          margin: const EdgeInsets.only(left: 40),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade400,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          child: const Icon(Icons.delete_outline,
+                              color: Colors.white, size: 26),
+                        ),
+                        child: card,
                       );
                     },
                   ),

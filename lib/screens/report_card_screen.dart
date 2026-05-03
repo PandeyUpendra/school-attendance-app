@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -28,6 +29,8 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
   final _examService    = ExamService();
   final _studentService = StudentService();
 
+  StreamSubscription<List<Student>>? _studentSub;
+
   bool _loading = true;
   List<Student>      _students = [];
   List<ExamResult>   _results  = [];
@@ -37,6 +40,19 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
   void initState() {
     super.initState();
     _load();
+    // Keep the student roster in sync so deletions are reflected immediately.
+    _studentSub = _studentService
+        .watchStudentsByClass(widget.className)
+        .listen((list) {
+      if (!mounted) return;
+      setState(() => _students = list);
+    });
+  }
+
+  @override
+  void dispose() {
+    _studentSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -66,7 +82,153 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
     }
   }
 
-  Future<void> _printClassReport() async {
+  Future<void> _shareStudentReport(Student s, ExamResult r) async {
+    final doc  = pw.Document();
+    final exam = widget.exam;
+
+    doc.addPage(pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      build: (pw.Context ctx) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Center(
+            child: pw.Text('STUDENT REPORT CARD',
+                style: pw.TextStyle(
+                    fontSize: 20, fontWeight: pw.FontWeight.bold)),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Center(
+            child: pw.Text(exam.name,
+                style: const pw.TextStyle(fontSize: 13)),
+          ),
+          pw.SizedBox(height: 20),
+
+          // Student info box
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              border: pw.Border.all(width: 0.5),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                _pdfInfoRow('Student Name', s.name),
+                pw.SizedBox(height: 4),
+                _pdfInfoRow('Roll No', '${s.roll}'),
+                pw.SizedBox(height: 4),
+                _pdfInfoRow('Class', exam.className),
+                pw.SizedBox(height: 4),
+                _pdfInfoRow('Exam Date',
+                    '${exam.examDate.day}/${exam.examDate.month}/${exam.examDate.year}'),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 16),
+
+          // Subject marks table
+          pw.Text('Subject-wise Marks',
+              style: pw.TextStyle(
+                  fontSize: 12, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 6),
+          pw.Table(
+            border: pw.TableBorder.all(width: 0.5),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(3),
+              1: const pw.FlexColumnWidth(2),
+              2: const pw.FlexColumnWidth(2),
+              3: const pw.FlexColumnWidth(2),
+            },
+            children: [
+              pw.TableRow(
+                decoration:
+                    const pw.BoxDecoration(color: PdfColors.grey300),
+                children: [
+                  _pdfCell('Subject', bold: true),
+                  _pdfCell('Marks', bold: true),
+                  _pdfCell('Max', bold: true),
+                  _pdfCell('Status', bold: true),
+                ],
+              ),
+              for (final sub in exam.subjects)
+                pw.TableRow(
+                  children: [
+                    _pdfCell(sub),
+                    _pdfCell(r.marks[sub] != null
+                        ? r.marks[sub]!.toStringAsFixed(0)
+                        : 'Absent'),
+                    _pdfCell('${exam.maxMarks}'),
+                    _pdfCell(
+                      r.marks[sub] == null
+                          ? 'Absent'
+                          : r.marks[sub]! >= (exam.maxMarks * 0.33)
+                              ? 'Pass'
+                              : 'Fail',
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          pw.SizedBox(height: 16),
+
+          // Summary row
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(
+                vertical: 10, horizontal: 12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey200,
+              border: pw.Border.all(width: 0.5),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+              children: [
+                _pdfSummaryCol('Total',
+                    '${r.total.toStringAsFixed(0)}/${exam.maxMarks * exam.subjects.length}'),
+                _pdfSummaryCol('Percentage',
+                    '${r.percentage.toStringAsFixed(1)}%'),
+                _pdfSummaryCol('Grade', r.grade),
+                _pdfSummaryCol('Rank',
+                    _ranks[s.roll] != null ? '#${_ranks[s.roll]}' : '—'),
+                _pdfSummaryCol(
+                    'Result', r.isPassed ? 'PASS' : 'FAIL'),
+              ],
+            ),
+          ),
+          pw.Spacer(),
+          pw.Text(
+            'Pass criteria: >= 33%  |  Generated by School App',
+            style: const pw.TextStyle(fontSize: 8),
+          ),
+        ],
+      ),
+    ));
+
+    await Printing.sharePdf(
+      bytes: await doc.save(),
+      filename:
+          'report_${s.name.replaceAll(' ', '_')}_${exam.name.replaceAll(' ', '_')}.pdf',
+    );
+  }
+
+  pw.Widget _pdfInfoRow(String label, String value) => pw.Row(children: [
+        pw.Text('$label: ',
+            style: pw.TextStyle(
+                fontSize: 10, fontWeight: pw.FontWeight.bold)),
+        pw.Text(value, style: const pw.TextStyle(fontSize: 10)),
+      ]);
+
+  pw.Widget _pdfSummaryCol(String label, String value) => pw.Column(
+        children: [
+          pw.Text(label,
+              style: const pw.TextStyle(fontSize: 9)),
+          pw.SizedBox(height: 2),
+          pw.Text(value,
+              style: pw.TextStyle(
+                  fontSize: 13, fontWeight: pw.FontWeight.bold)),
+        ],
+      );
+
+  Future<void> _shareClassReport() async {
     final doc  = pw.Document();
     final exam = widget.exam;
 
@@ -149,122 +311,16 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
         ),
         pw.SizedBox(height: 12),
         pw.Text(
-          'Pass criteria: ≥ 33%  •  Generated by School App',
+          'Pass criteria: >= 33%  |  Generated by School App',
           style: const pw.TextStyle(fontSize: 8),
         ),
       ],
     ));
 
-    await Printing.layoutPdf(
-      onLayout: (_) => doc.save(),
-      name: 'report_${exam.name.replaceAll(' ', '_')}_${widget.className}',
-    );
-  }
-
-  Future<void> _printStudentReport(Student s, ExamResult? result) async {
-    final doc  = pw.Document();
-    final exam = widget.exam;
-
-    doc.addPage(pw.Page(
-      pageFormat: PdfPageFormat.a5,
-      build: (pw.Context context) => pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Center(
-            child: pw.Text('REPORT CARD',
-                style: pw.TextStyle(
-                    fontSize: 20, fontWeight: pw.FontWeight.bold)),
-          ),
-          pw.SizedBox(height: 6),
-          pw.Center(
-            child: pw.Text(exam.name,
-                style: const pw.TextStyle(fontSize: 13)),
-          ),
-          pw.Divider(height: 20),
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text('Name: ${s.name}',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text('Roll: ${s.roll}'),
-            ],
-          ),
-          pw.SizedBox(height: 4),
-          pw.Text('Class: ${s.className}  •  '
-              '${exam.examDate.day}/${exam.examDate.month}/${exam.examDate.year}'),
-          pw.Divider(height: 16),
-          if (result == null)
-            pw.Text('No marks recorded for this student.',
-                style: const pw.TextStyle(fontSize: 12))
-          else ...[
-            pw.Table(
-              border: pw.TableBorder.all(width: 0.5),
-              children: [
-                pw.TableRow(
-                  decoration:
-                      const pw.BoxDecoration(color: PdfColors.grey300),
-                  children: [
-                    _pdfCell('Subject', bold: true),
-                    _pdfCell('Marks', bold: true),
-                    _pdfCell('Max', bold: true),
-                  ],
-                ),
-                for (final sub in exam.subjects)
-                  pw.TableRow(children: [
-                    _pdfCell(sub),
-                    _pdfCell(result.marks[sub] != null
-                        ? result.marks[sub]!.toStringAsFixed(0)
-                        : 'Absent'),
-                    _pdfCell('${exam.maxMarks}'),
-                  ]),
-              ],
-            ),
-            pw.SizedBox(height: 12),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Total: ${result.total.toStringAsFixed(0)} / '
-                    '${exam.maxMarks * exam.subjects.length}'),
-                pw.Text(
-                    'Percentage: ${result.percentage.toStringAsFixed(1)}%'),
-              ],
-            ),
-            pw.SizedBox(height: 4),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Grade: ${result.grade}',
-                    style:
-                        pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                pw.Text('Class Rank: #${_ranks[s.roll] ?? '—'}',
-                    style:
-                        pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              ],
-            ),
-            pw.SizedBox(height: 4),
-            pw.Text(
-              result.isPassed ? 'Result: PASS' : 'Result: FAIL',
-              style: pw.TextStyle(
-                fontWeight: pw.FontWeight.bold,
-                color: result.isPassed
-                    ? PdfColors.green800
-                    : PdfColors.red800,
-              ),
-            ),
-          ],
-          pw.Spacer(),
-          pw.Divider(),
-          pw.Center(
-            child: pw.Text('Generated by School App',
-                style: const pw.TextStyle(fontSize: 8)),
-          ),
-        ],
-      ),
-    ));
-
-    await Printing.layoutPdf(
-      onLayout: (_) => doc.save(),
-      name: 'report_${s.name.replaceAll(' ', '_')}_${exam.name}',
+    await Printing.sharePdf(
+      bytes: await doc.save(),
+      filename:
+          'report_${exam.name.replaceAll(' ', '_')}_${widget.className}.pdf',
     );
   }
 
@@ -298,9 +354,9 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.print_outlined),
-            tooltip: 'Print Class Report',
-            onPressed: _loading ? null : _printClassReport,
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'Share PDF',
+            onPressed: _loading ? null : _shareClassReport,
           ),
         ],
       ),
@@ -317,10 +373,11 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(12),
                     children: [
-                      // Topper banner
+                      // Topper banner — pass live student map so name is never stale
                       _TopperBanner(
-                        results: _results,
-                        ranks:   _ranks,
+                        results:    _results,
+                        ranks:      _ranks,
+                        studentMap: {for (final s in _students) s.roll: s},
                       ),
                       const SizedBox(height: 12),
 
@@ -345,8 +402,9 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
                             rank:     _ranks[s.roll],
                             subjects: exam.subjects,
                             maxMarks: exam.maxMarks,
-                            onPrint: () =>
-                                _printStudentReport(s, result),
+                            onShare:  result != null
+                                ? () => _shareStudentReport(s, result)
+                                : null,
                           ),
                         );
                       }),
@@ -360,10 +418,15 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
 // ─── Topper banner ────────────────────────────────────────────────────────────
 
 class _TopperBanner extends StatelessWidget {
-  final List<ExamResult> results;
-  final Map<int, int>    ranks;
+  final List<ExamResult>  results;
+  final Map<int, int>     ranks;
+  final Map<int, Student> studentMap;
 
-  const _TopperBanner({required this.results, required this.ranks});
+  const _TopperBanner({
+    required this.results,
+    required this.ranks,
+    required this.studentMap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -371,6 +434,8 @@ class _TopperBanner extends StatelessWidget {
     final toppers = results.where((r) => ranks[r.roll] == 1).toList();
     if (toppers.isEmpty) return const SizedBox.shrink();
     final top = toppers.first;
+    // Prefer live name from students/ collection; fall back to stored name.
+    final name = studentMap[top.roll]?.name ?? top.studentName;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -390,7 +455,7 @@ class _TopperBanner extends StatelessWidget {
               const Text('Class Topper',
                   style: TextStyle(
                       color: Colors.white70, fontSize: 11)),
-              Text(top.studentName,
+              Text(name,
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -477,12 +542,12 @@ class _Cell extends StatelessWidget {
 // ─── Per-student result card ──────────────────────────────────────────────────
 
 class _StudentResultCard extends StatelessWidget {
-  final Student     student;
-  final ExamResult? result;
-  final int?        rank;
+  final Student      student;
+  final ExamResult?  result;
+  final int?         rank;
   final List<String> subjects;
-  final int         maxMarks;
-  final VoidCallback onPrint;
+  final int          maxMarks;
+  final VoidCallback? onShare;
 
   const _StudentResultCard({
     required this.student,
@@ -490,7 +555,7 @@ class _StudentResultCard extends StatelessWidget {
     required this.rank,
     required this.subjects,
     required this.maxMarks,
-    required this.onPrint,
+    this.onShare,
   });
 
   Color get _gradeColor {
@@ -564,15 +629,18 @@ class _StudentResultCard extends StatelessWidget {
                       fontWeight: FontWeight.bold),
                 ),
               ),
-            const SizedBox(width: 6),
-            IconButton(
-              icon: Icon(Icons.print_outlined,
-                  size: 18, color: Colors.deepPurple),
-              onPressed: onPrint,
-              tooltip: 'Print Receipt',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
+            if (onShare != null) ...[
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.share_outlined, size: 18),
+                tooltip: 'Share PDF',
+                color: AppTheme.primary,
+                padding: EdgeInsets.zero,
+                constraints:
+                    const BoxConstraints(minWidth: 30, minHeight: 30),
+                onPressed: onShare,
+              ),
+            ],
           ]),
           if (r != null) ...[
             const SizedBox(height: 10),

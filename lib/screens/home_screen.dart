@@ -17,6 +17,7 @@ import 'exam_management_screen.dart';
 import 'copy_checking_screen.dart';
 import 'homework_screen.dart';
 import 'substitution_history_screen.dart';
+import 'gallery/gallery_home_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -48,81 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final teacher = widget.teacher;
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(teacher?.name ?? 'School App',
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold)),
-            Text(
-                teacher != null
-                    ? (teacher.isClassTeacher
-                        ? [
-                            'Class Teacher',
-                            if (teacher.classTeacherOf != null)
-                              teacher.classTeacherOf!,
-                          ].join('  •  ')
-                        : 'Teacher  •  ${teacher.subject}')
-                    : 'Teacher',
-                style:
-                    const TextStyle(fontSize: 12, color: Colors.white70)),
-          ],
-        ),
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined),
-                tooltip: 'Notifications',
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => NotificationsScreen(
-                        role:      'teacher',
-                        teacherId: teacher?.id,
-                      ),
-                    ),
-                  );
-                  _loadNotifCount();
-                },
-              ),
-              if (_unreadNotifCount > 0)
-                Positioned(
-                  right: 8, top: 8,
-                  child: Container(
-                    width: 14, height: 14,
-                    decoration: const BoxDecoration(
-                      color: Colors.red, shape: BoxShape.circle),
-                    child: Center(
-                      child: Text(
-                        _unreadNotifCount > 9 ? '9+' : '$_unreadNotifCount',
-                        style: const TextStyle(
-                            fontSize: 8,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () async {
-              await AuthService().clearSession();
-              if (context.mounted) {
-                Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const RoleSelectionScreen()));
-              }
-            },
-          ),
-        ],
-      ),
       body: _buildBody(context),
     );
   }
@@ -132,11 +58,189 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _isClassTeacher =>
       teacher?.isClassTeacher == true && teacher?.classTeacherOf != null;
 
+  // ── Wave hero card ────────────────────────────────────────────────────────
+
+  Widget _buildHero() {
+    final t = teacher;
+    final now = DateTime.now();
+    const wdays  = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun',
+                    'Jul','Aug','Sep','Oct','Nov','Dec'];
+    final dateStr =
+        '${wdays[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}';
+
+    final roleStr = t == null
+        ? 'Teacher'
+        : t.isClassTeacher && t.classTeacherOf != null
+            ? 'Class Teacher  ·  ${t.classTeacherOf}'
+            : 'Teacher  ·  ${t.subject}';
+
+    return ClipPath(
+      clipper: _WaveClipper(),
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppTheme.primaryDark, Color(0xFF880E4F)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 8, 52),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Top action row (bell + logout) ──────────────────────
+                Row(children: [
+                  // Date label
+                  const Icon(Icons.person_outlined,
+                      color: Colors.white60, size: 14),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'TEACHER  ·  $dateStr',
+                      style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.9),
+                    ),
+                  ),
+                  // Notification bell
+                  Stack(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.notifications_outlined,
+                            color: Colors.white, size: 22),
+                        tooltip: 'Notifications',
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => NotificationsScreen(
+                                role:      'teacher',
+                                teacherId: t?.id,
+                              ),
+                            ),
+                          );
+                          _loadNotifCount();
+                        },
+                      ),
+                      if (_unreadNotifCount > 0)
+                        Positioned(
+                          right: 8, top: 8,
+                          child: Container(
+                            width: 14, height: 14,
+                            decoration: const BoxDecoration(
+                              color: AppTheme.accent,
+                              shape: BoxShape.circle),
+                            child: Center(
+                              child: Text(
+                                _unreadNotifCount > 9
+                                    ? '9+'
+                                    : '$_unreadNotifCount',
+                                style: const TextStyle(
+                                    fontSize: 8,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  // Logout
+                  IconButton(
+                    icon: const Icon(Icons.logout,
+                        color: Colors.white70, size: 20),
+                    tooltip: 'Logout',
+                    onPressed: () async {
+                      await AuthService().clearSession();
+                      if (context.mounted) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  const RoleSelectionScreen()),
+                        );
+                      }
+                    },
+                  ),
+                ]),
+
+                const SizedBox(height: 6),
+
+                // ── Teacher name ─────────────────────────────────────────
+                Text(
+                  t?.name ?? 'School App',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      height: 1.1),
+                ),
+                const SizedBox(height: 3),
+                Text(roleStr,
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 13)),
+                const SizedBox(height: 14),
+
+                // ── Stats glass card ─────────────────────────────────────
+                if (t != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.13),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(children: [
+                      _HeroInfo(
+                        label: 'Subject',
+                        value: t.subject.isNotEmpty ? t.subject : '—',
+                      ),
+                      _vDivider(),
+                      _HeroInfo(
+                        label: 'My Class',
+                        value: t.isClassTeacher &&
+                                t.classTeacherOf != null
+                            ? t.classTeacherOf!
+                            : '—',
+                      ),
+                      _vDivider(),
+                      _HeroInfo(
+                        label: 'Alerts',
+                        value: _unreadNotifCount > 0
+                            ? '$_unreadNotifCount'
+                            : 'None',
+                        highlight: _unreadNotifCount > 0,
+                      ),
+                    ]),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _vDivider() => Container(
+        width: 1,
+        height: 28,
+        color: Colors.white24,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+      );
+
   Widget _buildBody(BuildContext context) {
     if (_isClassTeacher) {
-      // Change 1 & 4: Class teacher gets Attendance + My Timetable + Students
       return ListView(
         children: [
+          _buildHero(),
+          const SizedBox(height: 4),
+
           _SectionHeader('ACADEMICS'),
           _FeatureTile(
             icon: Icons.fact_check_outlined,
@@ -147,7 +251,10 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               MaterialPageRoute(
                 builder: (_) =>
-                    AttendanceScreen(className: teacher!.classTeacherOf!),
+                    AttendanceScreen(
+                      className: teacher!.classTeacherOf!,
+                      section: teacher!.section,
+                    ),
               ),
             ),
           ),
@@ -183,13 +290,16 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icons.people_outline,
             color: AppTheme.primary,
             title: 'Student List',
-            subtitle: 'View and manage students in ${teacher!.classTeacherOf}',
+            subtitle:
+                'View and manage students in ${teacher!.classTeacherOf}',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => StudentListScreen(
                   className: teacher!.classTeacherOf!,
+                  section: teacher!.section,
                   isClassTeacher: true,
+                  teacherId: teacher!.id,
                 ),
               ),
             ),
@@ -199,7 +309,8 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icons.bar_chart_outlined,
             color: AppTheme.primary,
             title: 'Attendance History',
-            subtitle: 'Monthly reports, % per student & low-attendance flags',
+            subtitle:
+                'Monthly reports, % per student & low-attendance flags',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -227,11 +338,13 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icons.event_busy_outlined,
             color: AppTheme.warning,
             title: 'Apply for Leave',
-            subtitle: 'Submit a leave application to coordinator or principal',
+            subtitle:
+                'Submit a leave application to coordinator or principal',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (_) => LeaveApplicationScreen(teacher: teacher!)),
+                  builder: (_) =>
+                      LeaveApplicationScreen(teacher: teacher!)),
             ),
           ),
 
@@ -298,14 +411,34 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          _SectionHeader('GALLERY'),
+          _FeatureTile(
+            icon: Icons.photo_library_outlined,
+            color: AppTheme.primary,
+            title: 'Event Gallery',
+            subtitle: 'View school event photos',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GalleryHomeScreen(
+                  role:      'teacher',
+                  userEmail: teacher?.id ?? '',
+                ),
+              ),
+            ),
+          ),
+
           const SizedBox(height: 32),
         ],
       );
     }
 
-    // Regular teacher — NO Take Attendance (only class teachers can)
+    // Regular teacher
     return ListView(
       children: [
+        _buildHero(),
+        const SizedBox(height: 4),
+
         _SectionHeader('ACADEMICS'),
         _FeatureTile(
           icon: Icons.calendar_month_outlined,
@@ -333,7 +466,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        // ── Students ──────────────────────────────────────────────────────
         _SectionHeader('STUDENTS'),
         _FeatureTile(
           icon: Icons.people_outline,
@@ -360,13 +492,13 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
 
-        // ── Leave ─────────────────────────────────────────────────────────
         _SectionHeader('LEAVE'),
         _FeatureTile(
           icon: Icons.event_busy_outlined,
           color: AppTheme.warning,
           title: 'Apply for Leave',
-          subtitle: 'Submit a leave application to coordinator or principal',
+          subtitle:
+              'Submit a leave application to coordinator or principal',
           onTap: () {
             if (teacher != null) {
               Navigator.push(
@@ -442,13 +574,82 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
+        _SectionHeader('GALLERY'),
+        _FeatureTile(
+          icon: Icons.photo_library_outlined,
+          color: AppTheme.primary,
+          title: 'Event Gallery',
+          subtitle: 'View school event photos',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => GalleryHomeScreen(
+                role:      'teacher',
+                userEmail: teacher?.id ?? '',
+              ),
+            ),
+          ),
+        ),
+
         const SizedBox(height: 32),
       ],
     );
   }
 }
 
-// ── Shared widgets ─────────────────────────────────────────────────────────────
+// ── Wave clipper ──────────────────────────────────────────────────────────────
+
+class _WaveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height - 30);
+    path.quadraticBezierTo(
+        size.width * 0.25, size.height + 4,
+        size.width * 0.5, size.height - 18);
+    path.quadraticBezierTo(
+        size.width * 0.75, size.height - 40,
+        size.width, size.height - 18);
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(_WaveClipper old) => false;
+}
+
+// ── Hero info cell ────────────────────────────────────────────────────────────
+
+class _HeroInfo extends StatelessWidget {
+  final String label, value;
+  final bool highlight;
+  const _HeroInfo(
+      {required this.label, required this.value, this.highlight = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(value,
+              style: TextStyle(
+                  color: highlight
+                      ? const Color(0xFFF48FB1)
+                      : Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 2),
+          Text(label,
+              style: const TextStyle(color: Colors.white60, fontSize: 10),
+              textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Shared widgets ────────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
   final String title;
@@ -496,7 +697,8 @@ class _FeatureTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      child: Padding(
+      child: Container(
+        color: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(children: [
           Container(

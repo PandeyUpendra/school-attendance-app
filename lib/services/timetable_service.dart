@@ -193,31 +193,81 @@ class TimetableService {
 
   // ── Allowed Users (Admin manages who can log in) ──────────────────────────
 
-  Future<List<Map<String, String>>> getAllowedUsers() async {
+  Future<List<Map<String, dynamic>>> getAllowedUsers() async {
     final snap = await _allowedUsers.get();
     return snap.docs.map((d) {
       final data = Map<String, dynamic>.from(d.data());
-      return {'email': d.id, 'role': (data['role'] as String? ?? 'teacher')};
+      final rawClasses = data['assignedClasses'];
+      return <String, dynamic>{
+        'email':          d.id,
+        'role':           (data['role']         as String? ?? 'teacher'),
+        'studentClass':   (data['studentClass'] as String? ?? ''),
+        'studentRoll':    (data['studentRoll']  as int?    ?? 0),
+        'assignedClasses': rawClasses != null
+            ? List<String>.from(rawClasses as List)
+            : <String>[],
+      };
     }).toList()
-      ..sort((a, b) => a['email']!.compareTo(b['email']!));
+      ..sort((a, b) => (a['email'] as String).compareTo(b['email'] as String));
+  }
+
+  /// Returns the assigned classes for a coordinator/principal, or null if not set.
+  Future<List<String>?> getAssignedClasses(String email) async {
+    final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
+    if (!doc.exists || doc.data() == null) return null;
+    final raw = doc.data()!['assignedClasses'];
+    if (raw == null) return null;
+    final list = List<String>.from(raw as List);
+    return list.isEmpty ? null : list;
+  }
+
+  Future<void> updateAllowedUser(
+    String email, {
+    required String role,
+    String?       newPassword,
+    String?       studentClass,
+    int?          studentRoll,
+    List<String>? assignedClasses,
+  }) async {
+    final docRef = _allowedUsers.doc(email.toLowerCase().trim());
+    final data   = <String, dynamic>{'role': role};
+    if (newPassword != null && newPassword.isNotEmpty) {
+      data['password'] = newPassword;
+    }
+    if (role == 'guardian' && studentClass != null && studentRoll != null) {
+      data['studentClass'] = studentClass;
+      data['studentRoll']  = studentRoll;
+    } else {
+      data['studentClass'] = null;
+      data['studentRoll']  = null;
+    }
+    if (role == 'coordinator' || role == 'principal') {
+      data['assignedClasses'] = assignedClasses ?? [];
+    } else {
+      data['assignedClasses'] = null;
+    }
+    await docRef.update(data);
   }
 
   Future<void> addAllowedUser(
     String email,
     String password,
     String role, {
-    String? studentClass,
-    int? studentRoll,
+    String?       studentClass,
+    int?          studentRoll,
+    List<String>? assignedClasses,
   }) async {
     final data = <String, dynamic>{
-      'role': role,
-      'email': email.toLowerCase().trim(),
+      'role':     role,
+      'email':    email.toLowerCase().trim(),
       'password': password,
     };
-    // For guardian accounts we also store which student they can view.
     if (role == 'guardian' && studentClass != null && studentRoll != null) {
       data['studentClass'] = studentClass;
       data['studentRoll']  = studentRoll;
+    }
+    if (role == 'coordinator' || role == 'principal') {
+      data['assignedClasses'] = assignedClasses ?? [];
     }
     await _allowedUsers.doc(email.toLowerCase().trim()).set(data);
   }
@@ -322,6 +372,58 @@ class TimetableService {
     final update = <String, dynamic>{'status': status};
     if (note != null && note.isNotEmpty) update['coordinatorNote'] = note;
     await _leaveApps.doc(id).update(update);
+  }
+
+  // ── Absent-teacher info for dashboard ────────────────────────────────────
+
+  /// Returns how many teachers are on approved leave today and how many of
+  /// their timetable bells haven't been covered by a substitution yet.
+  Future<Map<String, int>> getTodayAbsentTeachersInfo() async {
+    final now = DateTime.now();
+
+    final allLeavesFuture  = getLeaveApplications();
+    final timetableFuture  = getTimetable();
+    final subsFuture       = getTodaySubstitutions();
+
+    final allLeaves = await allLeavesFuture;
+    final timetable = await timetableFuture;
+    final subs      = await subsFuture;
+
+    // Collect teacher IDs whose approved leave covers today.
+    final absentIds = <String>{};
+    for (final app in allLeaves) {
+      if (app['status'] != 'approved') continue;
+      final startStr = app['startDate'] as String?;
+      if (startStr == null) continue;
+      final start = DateTime.tryParse(startStr);
+      if (start == null) continue;
+      final days = (app['numberOfDays'] as num?)?.toInt() ?? 1;
+      final end  = start.add(Duration(days: days - 1));
+      final today = DateTime(now.year, now.month, now.day);
+      if (!today.isBefore(DateTime(start.year, start.month, start.day)) &&
+          !today.isAfter(DateTime(end.year, end.month, end.day))) {
+        final tid = app['teacherId'] as String?;
+        if (tid != null && tid.isNotEmpty) absentIds.add(tid);
+      }
+    }
+
+    // Count timetable bells for today assigned to absent teachers with no sub.
+    const dayNames = [
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
+    ];
+    final todayName = dayNames[(now.weekday - 1).clamp(0, 5)];
+    var unassigned = 0;
+    timetable.forEach((className, dayMap) {
+      final bellMap = dayMap[todayName] ?? {};
+      bellMap.forEach((bell, entry) {
+        if (entry.teacherId != null && absentIds.contains(entry.teacherId)) {
+          final key = '${className}_$bell';
+          if (!subs.containsKey(key)) unassigned++;
+        }
+      });
+    });
+
+    return {'absentCount': absentIds.length, 'unassignedBells': unassigned};
   }
 
   // ── Substitutions ─────────────────────────────────────────────────────────

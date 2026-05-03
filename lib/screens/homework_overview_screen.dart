@@ -213,7 +213,7 @@ class _HomeworkOverviewScreenState extends State<HomeworkOverviewScreen> {
                         )
                       : RefreshIndicator(
                           onRefresh: _load,
-                          color: Colors.indigo,
+                          color: AppTheme.primary,
                           child: ListView.separated(
                             physics:
                                 const AlwaysScrollableScrollPhysics(),

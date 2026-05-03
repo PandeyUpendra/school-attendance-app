@@ -10,9 +10,12 @@ class StudentService {
   StudentService._();
   factory StudentService() => _instance;
 
-  // Firestore document ID — class name + roll, spaces → underscores
-  String _sid(int roll, String className) =>
-      '${className.replaceAll(' ', '_')}_$roll';
+  // Firestore document ID — class name + section + roll, spaces → underscores
+  String _sid(int roll, String className, [String section = '']) {
+    final base = className.replaceAll(' ', '_');
+    final sec = section.trim().replaceAll(' ', '_');
+    return sec.isEmpty ? '${base}_$roll' : '${base}_${sec}_$roll';
+  }
 
   // ── Students ──────────────────────────────────────────────────────────────
 
@@ -25,10 +28,24 @@ class StudentService {
     return list;
   }
 
-  Future<List<Student>> getStudentsByClass(String className) async {
-    final snap = await _students
-        .where('className', isEqualTo: className)
-        .get();
+  /// Fetch students for a class/section, optionally scoped to one teacher.
+  /// Pass [teacherId] to return only students added by that class teacher.
+  /// Omit it (or pass null) for coordinator/principal views that need all students.
+  ///
+  /// Note: if you add a teacherId filter alongside className+section, Firestore
+  /// may require a composite index — the console error will include a direct link
+  /// to create it.
+  Future<List<Student>> getStudentsByClass(String className,
+      {String section = '', String? teacherId}) async {
+    Query<Map<String, dynamic>> q =
+        _students.where('className', isEqualTo: className);
+    if (section.trim().isNotEmpty) {
+      q = q.where('section', isEqualTo: section.trim());
+    }
+    if (teacherId != null && teacherId.isNotEmpty) {
+      q = q.where('teacherId', isEqualTo: teacherId);
+    }
+    final snap = await q.get();
     final list = snap.docs
         .map((d) => Student.fromJson(Map<String, dynamic>.from(d.data())))
         .toList()
@@ -36,30 +53,110 @@ class StudentService {
     return list;
   }
 
-  /// Returns a single student by class + roll (used by Guardian Portal).
-  Future<Student?> getStudentByRoll(String className, int roll) async {
-    final doc = await _students.doc(_sid(roll, className)).get();
+  /// Real-time stream of students for a class/section.
+  /// Emits a new sorted list on every Firestore change (add / update / delete).
+  /// Pass [teacherId] to scope the stream to one class teacher's students only.
+  Stream<List<Student>> watchStudentsByClass(String className,
+      {String section = '', String? teacherId}) {
+    Query<Map<String, dynamic>> q =
+        _students.where('className', isEqualTo: className);
+    if (section.trim().isNotEmpty) {
+      q = q.where('section', isEqualTo: section.trim());
+    }
+    if (teacherId != null && teacherId.isNotEmpty) {
+      q = q.where('teacherId', isEqualTo: teacherId);
+    }
+    return q.snapshots().map((snap) {
+      final list = snap.docs
+          .map((d) => Student.fromJson(Map<String, dynamic>.from(d.data())))
+          .toList()
+        ..sort((a, b) => a.roll.compareTo(b.roll));
+      return list;
+    });
+  }
+
+  /// Real-time stream of ALL students across every class.
+  /// Used by coordinator/principal dashboards to detect roster changes.
+  Stream<List<Student>> watchStudents() {
+    return _students.snapshots().map((snap) {
+      final list = snap.docs
+          .map((d) => Student.fromJson(Map<String, dynamic>.from(d.data())))
+          .toList()
+        ..sort((a, b) => a.roll.compareTo(b.roll));
+      return list;
+    });
+  }
+
+  /// Returns a single student by class + section + roll (used by Guardian Portal).
+  Future<Student?> getStudentByRoll(String className, int roll,
+      {String section = ''}) async {
+    final doc = await _students.doc(_sid(roll, className, section)).get();
     if (!doc.exists || doc.data() == null) return null;
     return Student.fromJson(Map<String, dynamic>.from(doc.data()!));
   }
 
+  /// Fetch multiple students by list of rolls within a class.
+  /// Fires all doc-gets in parallel via Future.wait() — O(N) reads, no sequential waits.
+  Future<List<Student>> getStudentsByRolls(String className, List<int> rolls,
+      {String section = ''}) async {
+    if (rolls.isEmpty) return [];
+    final results = await Future.wait(
+      rolls.map((r) => getStudentByRoll(className, r, section: section)),
+    );
+    return results.whereType<Student>().toList();
+  }
+
   /// Returns null on success, error string on duplicate roll.
   Future<String?> addStudent(Student student) async {
-    final id  = _sid(student.roll, student.className);
+    final id  = _sid(student.roll, student.className, student.section);
     final doc = await _students.doc(id).get();
     if (doc.exists) {
-      return 'Roll number ${student.roll} already exists in ${student.className}.';
+      final sec = student.section.isNotEmpty ? ' Section ${student.section}' : '';
+      return 'Roll number ${student.roll} already exists in ${student.className}$sec.';
     }
     await _students.doc(id).set(student.toJson());
     return null;
   }
 
   Future<void> updateStudent(Student updated) async {
-    await _students.doc(_sid(updated.roll, updated.className)).set(updated.toJson());
+    await _students
+        .doc(_sid(updated.roll, updated.className, updated.section))
+        .set(updated.toJson());
   }
 
-  Future<void> removeStudent(int roll, String className) async {
-    await _students.doc(_sid(roll, className)).delete();
+  Future<void> removeStudent(int roll, String className,
+      {String section = ''}) async {
+    await _students.doc(_sid(roll, className, section)).delete();
+    await _cascadeDeleteAttendance(roll, className, section: section);
+  }
+
+  /// Removes a student's roll number from every attendance document in their
+  /// class+section. Uses a Firestore document-ID prefix query so only that
+  /// class/section's attendance docs are scanned.
+  Future<void> _cascadeDeleteAttendance(int roll, String className,
+      {String section = ''}) async {
+    final attKey = section.trim().isEmpty
+        ? className
+        : '$className ${section.trim()}';
+    final prefix = '${attKey.replaceAll(' ', '_')}_';
+
+    final snap = await _attendance
+        .where(FieldPath.documentId, isGreaterThanOrEqualTo: prefix)
+        .where(FieldPath.documentId, isLessThan: '$prefix')
+        .get();
+
+    if (snap.docs.isEmpty) return;
+
+    final batch = _db.batch();
+    for (final doc in snap.docs) {
+      final rolls = Map<String, dynamic>.from(
+          (doc.data()['rolls'] as Map?) ?? {});
+      if (rolls.containsKey(roll.toString())) {
+        batch.update(doc.reference,
+            {'rolls.$roll': FieldValue.delete()});
+      }
+    }
+    await batch.commit();
   }
 
   // ── Attendance ─────────────────────────────────────────────────────────────
@@ -285,6 +382,46 @@ class StudentService {
       });
     }
     return result;
+  }
+
+  /// Returns roll → number of consecutive school days the student has been
+  /// absent or on leave, counting backwards from today.
+  /// Days with no attendance record (weekends, holidays) are skipped.
+  Future<Map<int, int>> loadConsecutiveAbsenceDays(
+      String className, {int maxDays = 20}) async {
+    final now    = DateTime.now();
+    final prefix = className.replaceAll(' ', '_');
+
+    final docs = await Future.wait(
+      List.generate(maxDays, (i) {
+        final date = now.subtract(Duration(days: i));
+        final key  = '${prefix}_${date.year}-${date.month}-${date.day}';
+        return _attendance.doc(key).get();
+      }),
+    );
+
+    final streaks = <int, int>{};
+    final broken  = <int>{};
+
+    for (final doc in docs) {
+      if (!doc.exists || doc.data() == null) continue;
+      final rolls = Map<String, dynamic>.from(
+          (doc.data()!['rolls'] as Map?) ?? {});
+      if (rolls.isEmpty) continue;
+
+      rolls.forEach((rollStr, status) {
+        final roll = int.tryParse(rollStr);
+        if (roll == null || broken.contains(roll)) return;
+        final isAbsent = status == 'Absent' || status == 'Leave' ||
+            status == false;
+        if (isAbsent) {
+          streaks[roll] = (streaks[roll] ?? 0) + 1;
+        } else {
+          broken.add(roll);
+        }
+      });
+    }
+    return streaks;
   }
 
   /// Load attendance doc for a specific date (for history).

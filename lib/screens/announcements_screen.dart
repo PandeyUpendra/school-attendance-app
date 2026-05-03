@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/announcement.dart';
 import '../services/announcement_service.dart';
 import '../services/notification_service.dart';
@@ -6,7 +7,9 @@ import '../theme.dart';
 
 /// Announcements / Notice Board.
 /// - Everyone can view (filtered by audience).
-/// - Coordinator & Principal can post, pin, and delete.
+/// - Coordinator & Principal can post, pin, edit, and delete.
+/// - Coordinator & Principal also see a "Principal's Log" tab with a full
+///   audit trail of every announcement the Principal has sent.
 class AnnouncementsScreen extends StatefulWidget {
   /// 'coordinator' | 'principal' | 'teacher' | 'guardian'
   final String viewerRole;
@@ -24,13 +27,19 @@ class AnnouncementsScreen extends StatefulWidget {
   State<AnnouncementsScreen> createState() => _AnnouncementsScreenState();
 }
 
-class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
+class _AnnouncementsScreenState extends State<AnnouncementsScreen>
+    with SingleTickerProviderStateMixin {
   final _service = AnnouncementService();
+
   bool _loading = true;
   List<Announcement> _items = [];
 
-  // Audience filter for "viewer" — teachers & guardians only see their own
-  // + 'all'. Coordinator/Principal see everything.
+  bool _logLoading = false;
+  List<Announcement> _principalLog = [];
+
+  TabController? _tabController;
+
+  // Audience filter for viewers — teachers/guardians only see their own + 'all'.
   String? get _filterAudience {
     if (widget.viewerRole == 'teacher')  return 'teachers';
     if (widget.viewerRole == 'guardian') return 'guardians';
@@ -44,9 +53,17 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   @override
   void initState() {
     super.initState();
+    if (_canPost) {
+      _tabController = TabController(length: 2, vsync: this);
+    }
     _load();
-    // Mark "last seen" so the dashboard's unread badge clears.
     NotificationService().markAnnouncementsSeen();
+  }
+
+  @override
+  void dispose() {
+    _tabController?.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -57,9 +74,21 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       _items = items;
       _loading = false;
     });
+    if (_canPost) _loadPrincipalLog();
+  }
+
+  Future<void> _loadPrincipalLog() async {
+    setState(() => _logLoading = true);
+    final items = await _service.getAnnouncementsByRole('principal');
+    if (!mounted) return;
+    setState(() {
+      _principalLog = items;
+      _logLoading = false;
+    });
   }
 
   Future<void> _openComposer({Announcement? editing}) async {
+    final formKey   = GlobalKey<FormState>();
     final titleCtrl = TextEditingController(text: editing?.title ?? '');
     final bodyCtrl  = TextEditingController(text: editing?.body ?? '');
     String audience = editing?.audience ?? 'all';
@@ -77,7 +106,9 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
             left: 18, right: 18, top: 16,
             bottom: MediaQuery.of(ctx).viewInsets.bottom + 18,
           ),
-          child: Column(
+          child: Form(
+            key: formKey,
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -95,24 +126,36 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                   style: const TextStyle(
                       fontSize: 17, fontWeight: FontWeight.bold)),
               const SizedBox(height: 14),
-              TextField(
+              TextFormField(
                 controller: titleCtrl,
+                maxLength: 80,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 decoration: InputDecoration(
                   labelText: 'Title',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10)),
+                  counterText: '',
                 ),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Title is required' : null,
               ),
               const SizedBox(height: 10),
-              TextField(
+              TextFormField(
                 controller: bodyCtrl,
                 maxLines: 5,
+                maxLength: 1000,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 decoration: InputDecoration(
                   labelText: 'Body',
                   alignLabelWithHint: true,
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10)),
                 ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Body is required';
+                  if (v.trim().length < 10) return 'At least 10 characters';
+                  return null;
+                },
               ),
               const SizedBox(height: 14),
               const Text('Audience',
@@ -154,15 +197,9 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                   onPressed: saving
                       ? null
                       : () async {
+                          if (!formKey.currentState!.validate()) return;
                           final title = titleCtrl.text.trim();
                           final body  = bodyCtrl.text.trim();
-                          if (title.isEmpty || body.isEmpty) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              const SnackBar(content:
-                                  Text('Title and body are required')),
-                            );
-                            return;
-                          }
                           setS(() => saving = true);
                           final ann = Announcement(
                             id:           editing?.id ?? '',
@@ -175,14 +212,12 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                           );
                           if (editing == null) {
                             await _service.postAnnouncement(ann);
-                            // Fire a notification so everyone sees it.
                             await NotificationService().addAnnouncementNotice(
                               title: title,
                               body:  body,
                               audience: audience,
                             );
                           } else {
-                            // Re-post edits = delete + re-add (simpler).
                             await _service.deleteAnnouncement(editing.id);
                             await _service.postAnnouncement(ann);
                           }
@@ -197,6 +232,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                 ),
               ]),
             ],
+            ),
           ),
         ),
       ),
@@ -235,74 +271,149 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     _load();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Announcements',
-                style:
-                    TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('School notice board',
-                style: TextStyle(fontSize: 12, color: Colors.white70)),
-          ],
-        ),
-      ),
-      floatingActionButton: _canPost
-          ? FloatingActionButton.extended(
-              onPressed: () => _openComposer(),
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.add),
-              label: const Text('New'),
-            )
-          : null,
-      body: RefreshIndicator(
-        onRefresh: _load,
-        color: Colors.deepOrange,
-        child: _loading
-            ? ListView(children: const [
-                SizedBox(height: 120),
-                Center(child: CircularProgressIndicator()),
-              ])
-            : _items.isEmpty
-                ? ListView(children: [
-                    const SizedBox(height: 100),
-                    Icon(Icons.campaign_outlined,
-                        size: 64, color: Colors.grey.shade300),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: Text(
-                        _canPost
-                            ? 'No announcements yet.\nTap + to post one.'
-                            : 'No announcements yet.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontSize: 14, color: Colors.grey.shade500),
-                      ),
-                    ),
-                  ])
-                : ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _items.length,
-                    itemBuilder: (_, i) => _Card(
-                      announcement: _items[i],
-                      canManage: _canPost,
-                      onPin: () => _togglePin(_items[i]),
-                      onEdit: () => _openComposer(editing: _items[i]),
-                      onDelete: () => _confirmDelete(_items[i]),
+  // ── Notice board list ──────────────────────────────────────────────────────
+
+  Widget _buildNoticeBoard() {
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: Colors.deepOrange,
+      child: _loading
+          ? ListView(children: const [
+              SizedBox(height: 120),
+              Center(child: CircularProgressIndicator()),
+            ])
+          : _items.isEmpty
+              ? ListView(children: [
+                  const SizedBox(height: 100),
+                  Icon(Icons.campaign_outlined,
+                      size: 64, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Text(
+                      _canPost
+                          ? 'No announcements yet.\nTap + to post one.'
+                          : 'No announcements yet.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 14, color: Colors.grey.shade500),
                     ),
                   ),
+                ])
+              : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(12),
+                  itemCount: _items.length,
+                  itemBuilder: (_, i) => _Card(
+                    announcement: _items[i],
+                    canManage: _canPost,
+                    onPin:    () => _togglePin(_items[i]),
+                    onEdit:   () => _openComposer(editing: _items[i]),
+                    onDelete: () => _confirmDelete(_items[i]),
+                  ),
+                ),
+    );
+  }
+
+  // ── Principal's log ────────────────────────────────────────────────────────
+
+  Widget _buildPrincipalLog() {
+    return RefreshIndicator(
+      onRefresh: () async => _loadPrincipalLog(),
+      color: AppTheme.primary,
+      child: _logLoading
+          ? ListView(children: const [
+              SizedBox(height: 120),
+              Center(child: CircularProgressIndicator()),
+            ])
+          : _principalLog.isEmpty
+              ? ListView(children: [
+                  const SizedBox(height: 100),
+                  Icon(Icons.history, size: 64, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Text(
+                      'No notifications sent by the Principal yet.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 14, color: Colors.grey.shade500),
+                    ),
+                  ),
+                ])
+              : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(12),
+                  itemCount: _principalLog.length,
+                  itemBuilder: (_, i) => _LogCard(
+                    announcement: _principalLog[i],
+                    canManage: _canPost,
+                    onEdit:   () => _openComposer(editing: _principalLog[i]),
+                    onDelete: () => _confirmDelete(_principalLog[i]),
+                  ),
+                ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appBar = AppBar(
+      title: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Announcements',
+              style:
+                  TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          Text('School notice board',
+              style: TextStyle(fontSize: 12, color: Colors.white70)),
+        ],
       ),
+      bottom: _canPost
+          ? TabBar(
+              controller: _tabController,
+              indicatorColor: Colors.white,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white60,
+              tabs: const [
+                Tab(text: 'Notice Board'),
+                Tab(text: "Principal's Log"),
+              ],
+            )
+          : null,
+    );
+
+    final fab = _canPost
+        ? FloatingActionButton.extended(
+            onPressed: () => _openComposer(),
+            backgroundColor: AppTheme.primary,
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.add),
+            label: const Text('New'),
+          )
+        : null;
+
+    if (_canPost) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        appBar: appBar,
+        floatingActionButton: fab,
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildNoticeBoard(),
+            _buildPrincipalLog(),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      appBar: appBar,
+      body: _buildNoticeBoard(),
     );
   }
 }
 
-// ─── Announcement card ───────────────────────────────────────────────────────
+// ─── Notice Board card ────────────────────────────────────────────────────────
 
 class _Card extends StatelessWidget {
   final Announcement announcement;
@@ -319,12 +430,12 @@ class _Card extends StatelessWidget {
 
   String _fmtDate(DateTime? d) {
     if (d == null) return '';
-    final now = DateTime.now();
+    final now  = DateTime.now();
     final diff = now.difference(d);
-    if (diff.inMinutes < 1)  return 'just now';
-    if (diff.inHours   < 1)  return '${diff.inMinutes}m ago';
-    if (diff.inDays    < 1)  return '${diff.inHours}h ago';
-    if (diff.inDays    < 7)  return '${diff.inDays}d ago';
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inHours   < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays    < 1) return '${diff.inHours}h ago';
+    if (diff.inDays    < 7) return '${diff.inDays}d ago';
     return '${d.day}/${d.month}/${d.year}';
   }
 
@@ -332,13 +443,13 @@ class _Card extends StatelessWidget {
     switch (a) {
       case 'teachers':  return Colors.red;
       case 'guardians': return Colors.purple;
-      default:          return Colors.indigo;
+      default:          return AppTheme.primary;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final a = announcement;
+    final a        = announcement;
     final audColor = _audienceColor(a.audience);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -439,6 +550,159 @@ class _Card extends StatelessWidget {
               ),
             ],
           ]),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Principal's Log card ─────────────────────────────────────────────────────
+
+class _LogCard extends StatelessWidget {
+  final Announcement announcement;
+  final bool         canManage;
+  final VoidCallback onEdit, onDelete;
+
+  const _LogCard({
+    required this.announcement,
+    required this.canManage,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  String _fullDate(DateTime? d) {
+    if (d == null) return '—';
+    final hour   = d.hour.toString().padLeft(2, '0');
+    final minute = d.minute.toString().padLeft(2, '0');
+    const months = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${d.day} ${months[d.month]} ${d.year}  $hour:$minute';
+  }
+
+  Color _audienceColor(String a) {
+    switch (a) {
+      case 'teachers':  return Colors.red;
+      case 'guardians': return Colors.purple;
+      default:          return AppTheme.primary;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final a        = announcement;
+    final audColor = _audienceColor(a.audience);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row — timestamp + audience badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withOpacity(0.06),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+            child: Row(children: [
+              Icon(Icons.history, size: 14, color: AppTheme.primary),
+              const SizedBox(width: 6),
+              Text(_fullDate(a.postedAt),
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.w600)),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: audColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  a.audience == 'all'
+                      ? 'Everyone'
+                      : '${a.audience[0].toUpperCase()}${a.audience.substring(1)}',
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: audColor,
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
+            ]),
+          ),
+          // Body
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  if (a.isPinned) ...[
+                    const Icon(Icons.push_pin,
+                        color: Colors.deepOrange, size: 14),
+                    const SizedBox(width: 4),
+                  ],
+                  Expanded(
+                    child: Text(a.title,
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold)),
+                  ),
+                ]),
+                const SizedBox(height: 4),
+                Text(a.body,
+                    style: TextStyle(
+                        fontSize: 12,
+                        height: 1.45,
+                        color: Colors.grey.shade700)),
+              ],
+            ),
+          ),
+          // Footer — poster name + actions
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 4, 6, 6),
+            child: Row(children: [
+              Icon(Icons.person_outline,
+                  size: 13, color: Colors.grey.shade500),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(a.postedBy,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 11, color: Colors.grey.shade600)),
+              ),
+              const Spacer(),
+              if (canManage) ...[
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined,
+                      size: 17, color: Colors.grey),
+                  onPressed: onEdit,
+                  tooltip: 'Edit',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline,
+                      size: 17, color: Colors.redAccent),
+                  onPressed: onDelete,
+                  tooltip: 'Delete',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+              ],
+            ]),
+          ),
         ],
       ),
     );

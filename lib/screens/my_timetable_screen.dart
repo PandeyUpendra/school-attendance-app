@@ -21,6 +21,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
   final _service = TimetableService();
   List<String>  _classes  = [];
   int           _bellCount = 8;
+  List<Map<String, dynamic>> _bells = [];
   Map<String, Map<String, Map<int, TimetableEntry>>> _timetable = {};
   List<Teacher> _teachers = [];
   bool   _loading     = true;
@@ -53,13 +54,36 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
     final tt        = await _service.getTimetable();
     final teachers  = await _service.getTeachers();
     if (!mounted) return;
+
+    final bellsRaw = settings['bells'] as List? ?? [];
+    final List<Map<String, dynamic>> bells;
+    if (bellsRaw.isNotEmpty) {
+      bells = bellsRaw.cast<Map<String, dynamic>>();
+    } else {
+      final n = settings['numberOfBells'] as int? ?? 8;
+      bells = List.generate(n, (_) => {'isLunch': false, 'duration': 45});
+    }
+
     setState(() {
       _classes   = List<String>.from(settings['classes'] as List);
-      _bellCount = settings['numberOfBells'] as int;
+      _bells     = bells;
+      _bellCount = bells.length;
       _timetable = tt;
       _teachers  = teachers;
       _loading   = false;
     });
+  }
+
+  bool _isLunchBell(int zeroIdx) =>
+      zeroIdx < _bells.length &&
+      (_bells[zeroIdx]['isLunch'] as bool? ?? false);
+
+  int _bellDisplayNumber(int zeroIdx) {
+    int count = 0;
+    for (int i = 0; i <= zeroIdx; i++) {
+      if (!(_bells[i]['isLunch'] as bool? ?? false)) count++;
+    }
+    return count;
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -93,10 +117,12 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
     final slots = <_PersonalSlot>[];
     for (final cls in _classes) {
       for (int b = 1; b <= _bellCount; b++) {
+        if (_isLunchBell(b - 1)) continue; // skip lunch positions
         final entry = _timetable[cls]?[_selectedDay]?[b];
         if (entry?.teacherId == tid) {
           slots.add(_PersonalSlot(
             bell:      b,
+            bellDisplayNum: _bellDisplayNumber(b - 1),
             className: cls,
             subject:   _subjectLabel(entry),
           ));
@@ -149,7 +175,13 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
                   children: [
                     _pdfCell('Day', bold: true, light: true),
                     for (int b = 1; b <= _bellCount; b++)
-                      _pdfCell('Bell $b', bold: true, light: true),
+                      _pdfCell(
+                        _isLunchBell(b - 1)
+                            ? 'Lunch'
+                            : 'Bell ${_bellDisplayNumber(b - 1)}',
+                        bold: true,
+                        light: true,
+                      ),
                   ],
                 ),
                 // Days
@@ -200,7 +232,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Text(_isPersonal ? 'My Timetable' : 'School Timetable'),
         actions: [
@@ -242,7 +274,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
     return Column(children: [
       // Teacher info strip
       Container(
-        color: Colors.indigo,
+        color: AppTheme.primary,
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
         child: Row(children: [
@@ -303,15 +335,17 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
   // ── Full school grid (coordinator) ───────────────────────────────────────────
 
   Widget _buildFullGrid() {
+    final regularBells =
+        _bells.where((b) => !(b['isLunch'] as bool? ?? false)).length;
     return Column(children: [
       // Info strip
       Container(
-        color: Colors.indigo,
+        color: AppTheme.primary,
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         child: Row(children: [
           _Badge(label: 'Classes',   value: '${_classes.length}'),
           const SizedBox(width: 8),
-          _Badge(label: 'Bells/Day', value: '$_bellCount'),
+          _Badge(label: 'Bells/Day', value: '$regularBells'),
         ]),
       ),
       _daySelector(),
@@ -326,7 +360,11 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
                 Row(children: [
                   _HeaderCell('Class', width: 90, isCorner: true),
                   for (int b = 1; b <= _bellCount; b++)
-                    _HeaderCell('Bell $b', width: 110),
+                    _isLunchBell(b - 1)
+                        ? _LunchHeaderCell(width: 110)
+                        : _HeaderCell(
+                            'Bell ${_bellDisplayNumber(b - 1)}',
+                            width: 110),
                 ]),
                 for (int i = 0; i < _classes.length; i++)
                   GestureDetector(
@@ -337,7 +375,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: i % 2 == 0
-                              ? Colors.indigo.shade50
+                              ? AppTheme.primary.withOpacity(0.06)
                               : Colors.white,
                           border: Border.all(color: Colors.grey.shade200),
                         ),
@@ -348,15 +386,17 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
                                 fontWeight: FontWeight.w600)),
                       ),
                       for (int b = 1; b <= _bellCount; b++)
-                        _ReadCell(
-                          name:    _teacherName(
-                              _timetable[_classes[i]]?[_selectedDay]?[b]),
-                          subject: _subjectLabel(
-                              _timetable[_classes[i]]?[_selectedDay]?[b]),
-                          color:   _teacherColor(
-                              _timetable[_classes[i]]?[_selectedDay]?[b]),
-                          isEven:  i % 2 == 0,
-                        ),
+                        _isLunchBell(b - 1)
+                            ? _LunchCell(isEven: i % 2 == 0)
+                            : _ReadCell(
+                                name:    _teacherName(
+                                    _timetable[_classes[i]]?[_selectedDay]?[b]),
+                                subject: _subjectLabel(
+                                    _timetable[_classes[i]]?[_selectedDay]?[b]),
+                                color:   _teacherColor(
+                                    _timetable[_classes[i]]?[_selectedDay]?[b]),
+                                isEven:  i % 2 == 0,
+                              ),
                     ]),
                   ),
               ],
@@ -385,11 +425,11 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 16, vertical: 7),
                 decoration: BoxDecoration(
-                  color: sel ? Colors.indigo : Colors.grey.shade100,
+                  color: sel ? AppTheme.primary : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                       color: sel
-                          ? Colors.indigo
+                          ? AppTheme.primary
                           : Colors.grey.shade300),
                 ),
                 child: Text(_dayAbbr[d]!,
@@ -470,10 +510,12 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
 
 class _PersonalSlot {
   final int    bell;
+  final int    bellDisplayNum;
   final String className;
   final String subject;
   const _PersonalSlot({
     required this.bell,
+    required this.bellDisplayNum,
     required this.className,
     required this.subject,
   });
@@ -490,20 +532,20 @@ class _PersonalSlotCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.indigo.shade50,
+        color: AppTheme.primary.withOpacity(0.07),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.indigo.shade100),
+        border: Border.all(color: AppTheme.primary.withOpacity(0.18)),
       ),
       child: Row(children: [
         Container(
           width: 44, height: 44,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: Colors.indigo,
+            color: AppTheme.primary,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
-            '${slot.bell}',
+            '${slot.bellDisplayNum}',
             style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -522,10 +564,10 @@ class _PersonalSlotCard extends StatelessWidget {
                       fontSize: 12, color: Colors.grey.shade600)),
           ]),
         ),
-        Text('Bell ${slot.bell}',
-            style: TextStyle(
+        Text('Bell ${slot.bellDisplayNum}',
+            style: const TextStyle(
                 fontSize: 11,
-                color: Colors.indigo.shade400,
+                color: AppTheme.primaryMid,
                 fontWeight: FontWeight.w500)),
       ]),
     );
@@ -576,14 +618,59 @@ class _HeaderCell extends StatelessWidget {
       width: width, height: 42,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isCorner ? Colors.indigo.shade800 : Colors.indigo.shade700,
-        border: Border.all(color: Colors.indigo.shade900),
+        color: isCorner ? AppTheme.primaryDark : AppTheme.primary,
+        border: Border.all(color: AppTheme.primaryDark),
       ),
       child: Text(text,
           style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.white,
               fontSize: 12)),
+    );
+  }
+}
+
+class _LunchHeaderCell extends StatelessWidget {
+  final double width;
+  const _LunchHeaderCell({required this.width});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width, height: 42,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.orange.shade700,
+        border: Border.all(color: Colors.orange.shade900),
+      ),
+      child: const Text('🍽 Lunch',
+          style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 11)),
+    );
+  }
+}
+
+class _LunchCell extends StatelessWidget {
+  final bool isEven;
+  const _LunchCell({required this.isEven});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 110, height: 58,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        border: Border.all(color: Colors.orange.shade100),
+      ),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(Icons.restaurant, color: Colors.orange.shade300, size: 18),
+        Text('Lunch',
+            style:
+                TextStyle(fontSize: 9, color: Colors.orange.shade400)),
+      ]),
     );
   }
 }

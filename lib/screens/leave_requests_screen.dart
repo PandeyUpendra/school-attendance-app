@@ -43,6 +43,45 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
     });
   }
 
+  Future<void> _act(Map<String, dynamic> app, String status) async {
+    final id          = app['id']          as String;
+    final teacherId   = app['teacherId']   as String? ?? '';
+    final teacherName = app['teacherName'] as String? ?? '';
+    await _service.updateLeaveApplication(id, status);
+    if (teacherId.isNotEmpty &&
+        (status == 'approved' || status == 'rejected')) {
+      NotificationService().addLeaveResolved(
+        teacherId:   teacherId,
+        teacherName: teacherName,
+        status:      status,
+      );
+    }
+    _load();
+    if (!mounted) return;
+    if (status == 'approved') {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text(
+            'Leave approved. Use Free Bells screen to assign substitutes.'),
+        backgroundColor: Colors.green.shade700,
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'Free Bells',
+          textColor: Colors.white,
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const FreeBellsScreen()),
+          ),
+        ),
+      ));
+    } else if (status == 'forwarded_to_principal') {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Leave request forwarded to Principal.'),
+        backgroundColor: Colors.indigo,
+        duration: Duration(seconds: 3),
+      ));
+    }
+  }
+
   Future<void> _showDetail(Map<String, dynamic> app) async {
     await showModalBottomSheet(
       context: context,
@@ -52,36 +91,8 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
       builder: (_) => _LeaveDetailSheet(
         app: app,
         onAction: (id, status) async {
-          await _service.updateLeaveApplication(id, status);
-          // Notify the teacher that their leave was resolved.
-          final teacherId   = app['teacherId']   as String? ?? '';
-          final teacherName = app['teacherName'] as String? ?? '';
-          if (teacherId.isNotEmpty) {
-            NotificationService().addLeaveResolved(
-              teacherId:   teacherId,
-              teacherName: teacherName,
-              status:      status,
-            );
-          }
-          Navigator.pop(context);
-          _load();
-          if (mounted && status == 'approved') {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Leave approved. '
-                  'Use Free Bells screen to assign substitutes.'),
-              backgroundColor: Colors.green.shade700,
-              duration: const Duration(seconds: 4),
-              action: SnackBarAction(
-                label: 'Free Bells',
-                textColor: Colors.white,
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const FreeBellsScreen()),
-                ),
-              ),
-            ));
-          }
+          await _act(app, status);
+          if (mounted) Navigator.pop(context);
         },
       ),
     );
@@ -171,6 +182,11 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
         itemBuilder: (_, i) => _LeaveCard(
           app: apps[i],
           onTap: () => _showDetail(apps[i]),
+          onAccept: showActions ? () => _act(apps[i], 'approved')  : null,
+          onReject: showActions ? () => _act(apps[i], 'rejected')  : null,
+          onForward: showActions
+              ? () => _act(apps[i], 'forwarded_to_principal')
+              : null,
         ),
       ),
     );
@@ -182,8 +198,17 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
 class _LeaveCard extends StatelessWidget {
   final Map<String, dynamic> app;
   final VoidCallback onTap;
+  final VoidCallback? onAccept;
+  final VoidCallback? onReject;
+  final VoidCallback? onForward;
 
-  const _LeaveCard({required this.app, required this.onTap});
+  const _LeaveCard({
+    required this.app,
+    required this.onTap,
+    this.onAccept,
+    this.onReject,
+    this.onForward,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -251,11 +276,11 @@ class _LeaveCard extends StatelessWidget {
           Row(children: [
             _chip(Icons.calendar_today_outlined,
                 _formatDate(app['startDate'] as String? ?? ''),
-                Colors.indigo),
+                AppTheme.primary),
             const SizedBox(width: 8),
             _chip(Icons.access_time_outlined,
                 '${app['numberOfDays']} day${(app['numberOfDays'] as int? ?? 1) > 1 ? 's' : ''}',
-                Colors.teal),
+                AppTheme.primaryMid),
             const SizedBox(width: 8),
             _chip(Icons.send_outlined,
                 'To: ${(app['toRole'] as String? ?? '').capitalize()}',
@@ -265,6 +290,40 @@ class _LeaveCard extends StatelessWidget {
           Text('Reason: ${app['reason'] ?? '—'}',
               style: TextStyle(
                   fontSize: 12, color: Colors.grey.shade600)),
+          if (onAccept != null || onReject != null || onForward != null) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                child: _ActionButton(
+                  label: 'Accept',
+                  icon: Icons.check,
+                  color: Colors.green,
+                  onPressed: onAccept,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ActionButton(
+                  label: 'Reject',
+                  icon: Icons.close,
+                  color: Colors.red,
+                  onPressed: onReject,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: _ActionButton(
+                  label: 'Forward to Principal',
+                  icon: Icons.forward_to_inbox_outlined,
+                  color: Colors.indigo,
+                  onPressed: onForward,
+                ),
+              ),
+            ]),
+          ],
         ]),
       ),
     );
@@ -299,6 +358,39 @@ class _LeaveCard extends StatelessWidget {
     ];
     final m = int.tryParse(parts[1]) ?? 0;
     return '${parts[2]} ${months[m]} ${parts[0]}';
+  }
+}
+
+// ── Inline action button ──────────────────────────────────────────────────────
+
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onPressed;
+
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 14),
+      label: Text(label, style: const TextStyle(fontSize: 11)),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color.withOpacity(0.6)),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        minimumSize: const Size(0, 34),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
   }
 }
 
@@ -360,8 +452,8 @@ class _LeaveDetailSheetState extends State<_LeaveDetailSheet> {
             controller: sc,
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             children: [
-              Text('Leave Application',
-                  style: const TextStyle(
+              const Text('Leave Application',
+                  style: TextStyle(
                       fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
 

@@ -49,7 +49,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('Student Details'),
       ),
@@ -77,7 +77,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                 )
               : Column(children: [
                   Container(
-                    color: Colors.pink,
+                    color: AppTheme.primary,
                     width: double.infinity,
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
                     child: const Text('Select a class to view students',
@@ -87,7 +87,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                   Expanded(
                     child: RefreshIndicator(
                       onRefresh: _reload,
-                      color: Colors.pink,
+                      color: AppTheme.primary,
                       child: ListView.separated(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -116,11 +116,11 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                                 height: 44,
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: Colors.pink.shade50,
+                                  color: AppTheme.primaryLight.withOpacity(0.25),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(Icons.school_outlined,
-                                    color: Colors.pink.shade400, size: 22),
+                                    color: AppTheme.primary, size: 22),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -204,7 +204,7 @@ class _ClassStudentsViewState extends State<_ClassStudentsView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Students',
@@ -219,7 +219,7 @@ class _ClassStudentsViewState extends State<_ClassStudentsView> {
           : Column(children: [
               // Stats + search
               Container(
-                color: Colors.pink,
+                color: AppTheme.primary,
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                 child: Column(children: [
                   // Counts row
@@ -286,7 +286,7 @@ class _ClassStudentsViewState extends State<_ClassStudentsView> {
                                     color: Colors.grey.shade400)))
                         : RefreshIndicator(
                             onRefresh: _refresh,
-                            color: Colors.pink,
+                            color: AppTheme.primary,
                             child: ListView.separated(
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.fromLTRB(0, 8, 0, 20),
@@ -363,7 +363,7 @@ class _CoordStudentTile extends StatelessWidget {
         child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
           CircleAvatar(
             radius: 26,
-            backgroundColor: Colors.pink.shade50,
+            backgroundColor: AppTheme.primaryLight.withOpacity(0.25),
             backgroundImage: student.photoPath != null
                 ? FileImage(File(student.photoPath!))
                 : null,
@@ -375,7 +375,7 @@ class _CoordStudentTile extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Colors.pink.shade300))
+                        color: AppTheme.primary))
                 : null,
           ),
           const SizedBox(width: 14),
@@ -487,7 +487,7 @@ class _ContactSheet extends StatelessWidget {
         const SizedBox(height: 4),
         CircleAvatar(
           radius: 36,
-          backgroundColor: Colors.pink.shade50,
+          backgroundColor: AppTheme.primaryLight.withOpacity(0.25),
           backgroundImage: student.photoPath != null
               ? FileImage(File(student.photoPath!))
               : null,
@@ -498,7 +498,7 @@ class _ContactSheet extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: Colors.pink.shade300))
+                      color: AppTheme.primary))
               : null,
         ),
         const SizedBox(height: 10),

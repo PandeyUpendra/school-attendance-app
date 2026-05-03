@@ -5,11 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// guardian's student link) so the app stays logged in across restarts
 /// until the user explicitly logs out.
 class AuthService {
-  static const _keyEmail        = 'auth_email';
-  static const _keyRole         = 'auth_role';
-  static const _keyTeacherId    = 'auth_teacher_id';
-  static const _keyStudentClass = 'auth_student_class';
-  static const _keyStudentRoll  = 'auth_student_roll';
+  static const _keyEmail          = 'auth_email';
+  static const _keyRole           = 'auth_role';
+  static const _keyTeacherId      = 'auth_teacher_id';
+  static const _keyStudentClass   = 'auth_student_class';
+  static const _keyStudentRoll    = 'auth_student_roll';
+  static const _keyAssignedClasses = 'auth_assigned_classes'; // comma-delimited
 
   static final AuthService _instance = AuthService._();
   AuthService._();
@@ -18,9 +19,10 @@ class AuthService {
   Future<void> saveSession({
     required String email,
     required String role,
-    String? teacherId,
-    String? studentClass,
-    int?    studentRoll,
+    String?       teacherId,
+    String?       studentClass,
+    int?          studentRoll,
+    List<String>? assignedClasses,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyEmail, email);
@@ -38,6 +40,12 @@ class AuthService {
     } else {
       await prefs.remove(_keyStudentClass);
       await prefs.remove(_keyStudentRoll);
+    }
+
+    if (assignedClasses != null && assignedClasses.isNotEmpty) {
+      await prefs.setString(_keyAssignedClasses, assignedClasses.join(','));
+    } else {
+      await prefs.remove(_keyAssignedClasses);
     }
   }
 
@@ -59,6 +67,11 @@ class AuthService {
       result['studentClass'] = sClass;
       result['studentRoll']  = sRoll;
     }
+
+    final assignedRaw = prefs.getString(_keyAssignedClasses);
+    if (assignedRaw != null && assignedRaw.isNotEmpty) {
+      result['assignedClasses'] = assignedRaw.split(',');
+    }
     return result;
   }
 
@@ -69,5 +82,6 @@ class AuthService {
     await prefs.remove(_keyTeacherId);
     await prefs.remove(_keyStudentClass);
     await prefs.remove(_keyStudentRoll);
+    await prefs.remove(_keyAssignedClasses);
   }
 }

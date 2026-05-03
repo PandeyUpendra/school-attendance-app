@@ -252,7 +252,7 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
                               child: ChoiceChip(
                                 label: Text(cls),
                                 selected: selected,
-                                selectedColor: Colors.indigo,
+                                selectedColor: AppTheme.primary,
                                 labelStyle: TextStyle(
                                   color: selected ? Colors.white : null,
                                   fontWeight: selected
@@ -291,7 +291,7 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
                           : RefreshIndicator(
                               onRefresh: () =>
                                   _selectClass(_selectedClass!),
-                              color: Colors.indigo,
+                              color: AppTheme.primary,
                               child: ListView.separated(
                                 physics:
                                     const AlwaysScrollableScrollPhysics(),
@@ -343,11 +343,11 @@ class _SessionCard extends StatelessWidget {
           Container(
             width: 44, height: 44,
             decoration: BoxDecoration(
-              color: Colors.indigo.withOpacity(0.1),
+              color: AppTheme.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.menu_book_outlined,
-                color: Colors.indigo, size: 22),
+                color: AppTheme.primary, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -429,16 +429,17 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
     final students = results[0] as List<Student>;
     final saved    = results[1] as List<CopyStatus>;
 
-    // Build status list: pre-fill from saved, default to 'not_done'
+    // Build status list using live student name/phone; preserve saved status+remarks.
     final savedMap = {for (final s in saved) s.roll: s};
     final statuses = students.map((s) {
-      return savedMap[s.roll] ??
-          CopyStatus(
-            roll:          s.roll,
-            studentName:   s.name,
-            guardianPhone: s.phone,
-            status:        'not_done',
-          );
+      final existing = savedMap[s.roll];
+      return CopyStatus(
+        roll:          s.roll,
+        studentName:   s.name,        // always live from students/ collection
+        guardianPhone: s.phone,       // always live from students/ collection
+        status:        existing?.status  ?? 'not_done',
+        remarks:       existing?.remarks,
+      );
     }).toList();
 
     if (!mounted) return;

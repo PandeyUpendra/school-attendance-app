@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/student.dart';
+import '../services/auth_service.dart';
 import '../services/student_service.dart';
+import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_queue_service.dart';
 
@@ -15,7 +17,12 @@ import '../services/offline_queue_service.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final String className;
-  const AttendanceScreen({super.key, required this.className});
+  final String section;
+  const AttendanceScreen({
+    super.key,
+    required this.className,
+    this.section = '',
+  });
 
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();
@@ -26,6 +33,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   final _offlineQueue = OfflineQueueService();
   final _connectivity = Connectivity();
   StreamSubscription<List<ConnectivityResult>>? _connectSub;
+  StreamSubscription<List<Student>>? _studentSub;
 
   List<Student>    _students   = [];
   Map<int, String> _attendance = {}; // roll → 'Present' | 'Leave' | 'Absent'
@@ -35,6 +43,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool   _savedOffline   = false;  // pending offline records queued
   int    _pendingCount   = 0;      // items waiting to sync
   String _search         = '';
+  bool   _alreadySaved   = false; // today's attendance doc exists
+  bool   _isMarking      = false; // user is actively marking attendance
+  bool   _noAssignment   = false; // teacher has no assigned class/section
+
+  // Effective class, section, and teacher — fetched from Firestore on load,
+  // so the screen always uses the teacher's actual assignment.
+  String  _className = '';
+  String  _section   = '';
+  String? _teacherId;
+
+  // When section is set, use a section-scoped key for attendance storage
+  // so Section A and Section B never overwrite each other's attendance doc.
+  String get _attendanceKey =>
+      _section.trim().isEmpty
+          ? _className
+          : '$_className ${_section.trim()}';
 
   // ── Derived counts ──────────────────────────────────────────────────────────
   int get _total   => _students.length;
@@ -54,6 +78,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   void initState() {
     super.initState();
+    _className = widget.className;
+    _section   = widget.section;
     _checkConnectivity();
     _connectSub = _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
     _load();
@@ -62,6 +88,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   void dispose() {
     _connectSub?.cancel();
+    _studentSub?.cancel();
     super.dispose();
   }
 
@@ -112,27 +139,55 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
 
+    // Fetch teacher's assigned class AND section from Firestore teachers collection.
+    // Always prefer fresh Firestore data over widget params.
+    final session   = await AuthService().getSession();
+    final teacherId = session?['teacherId'] as String?;
+    if (teacherId != null) {
+      final teacher         = await TimetableService().getTeacherById(teacherId);
+      final assignedClass   = teacher?.classTeacherOf ?? '';
+      final assignedSection = teacher?.section ?? '';
+      if (assignedClass.isEmpty || assignedSection.isEmpty) {
+        if (!mounted) return;
+        setState(() { _noAssignment = true; _loading = false; });
+        return;
+      }
+      _className  = assignedClass;
+      _section    = assignedSection;
+      _teacherId  = teacherId;
+    }
+
+    // Hard guard: section must be set — without it we cannot distinguish
+    // between sections and would show ALL students in the class.
+    if (_section.trim().isEmpty) {
+      if (!mounted) return;
+      setState(() { _noAssignment = true; _loading = false; });
+      return;
+    }
+
     // Students list — try Firestore; if offline, use cached list from queue
     List<Student> students = [];
     Map<int, String> saved = {};
 
     if (_isOnline) {
-      students = await _service.getStudentsByClass(widget.className);
-      saved    = await _service.loadTodayAttendance(widget.className);
+      students = await _service.getStudentsByClass(_className,
+          section: _section, teacherId: _teacherId);
+      saved    = await _service.loadTodayAttendance(_attendanceKey);
       // If Firestore has nothing, check local queue too
       if (saved.isEmpty) {
-        final cached = await _offlineQueue.getCachedAttendance(widget.className);
+        final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
         if (cached != null) saved = cached;
       }
     } else {
       // Offline: load students from Firestore best-effort; load attendance from local queue
       try {
-        students = await _service.getStudentsByClass(widget.className)
+        students = await _service.getStudentsByClass(_className,
+                section: _section, teacherId: _teacherId)
             .timeout(const Duration(seconds: 3));
       } catch (_) {
         students = [];
       }
-      final cached = await _offlineQueue.getCachedAttendance(widget.className);
+      final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
       if (cached != null) saved = cached;
     }
 
@@ -141,11 +196,36 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() {
       _students     = students;
       _pendingCount = pending;
+      _alreadySaved = saved.isNotEmpty;
       for (final s in students) {
         _attendance[s.roll] = saved[s.roll] ?? 'Absent';
       }
       _loading = false;
       _dirty   = false;
+    });
+    _subscribeStudents();
+  }
+
+  /// Subscribes to live student updates after the initial load.
+  /// Skips the first emission (identical to what _load() just fetched) and
+  /// responds to subsequent changes: removes deleted students from the
+  /// attendance map and adds new ones with a default of 'Absent'.
+  void _subscribeStudents() {
+    _studentSub?.cancel();
+    bool isFirst = true;
+    _studentSub = _service
+        .watchStudentsByClass(_className, section: _section, teacherId: _teacherId)
+        .listen((list) {
+      if (isFirst) { isFirst = false; return; }
+      if (!mounted) return;
+      setState(() {
+        _attendance.removeWhere(
+            (roll, _) => !list.any((s) => s.roll == roll));
+        for (final s in list) {
+          _attendance.putIfAbsent(s.roll, () => 'Absent');
+        }
+        _students = list;
+      });
     });
   }
 
@@ -159,10 +239,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     Map<int, String> saved    = {};
 
     if (online) {
-      students = await _service.getStudentsByClass(widget.className);
-      saved    = await _service.loadTodayAttendance(widget.className);
+      students = await _service.getStudentsByClass(_className,
+          section: _section, teacherId: _teacherId);
+      saved    = await _service.loadTodayAttendance(_attendanceKey);
     } else {
-      final cached = await _offlineQueue.getCachedAttendance(widget.className);
+      final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
       if (cached != null) saved = cached;
     }
 
@@ -171,6 +252,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() {
       _students     = students;
       _pendingCount = pending;
+      _alreadySaved = saved.isNotEmpty || _alreadySaved;
       for (final s in students) {
         _attendance[s.roll] = saved[s.roll] ?? _attendance[s.roll] ?? 'Absent';
       }
@@ -197,7 +279,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (!online) {
       // ── OFFLINE PATH ────────────────────────────────────────────────────
       await _offlineQueue.enqueue(
-        className:  widget.className,
+        className:  _attendanceKey,
         attendance: _attendance,
       );
       final pending = await _offlineQueue.pendingCount();
@@ -206,6 +288,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _dirty        = false;
         _savedOffline = true;
         _pendingCount = pending;
+        _alreadySaved = true;
+        _isMarking    = false;
       });
       // Show offline-save dialog instead of normal one
       await showDialog(
@@ -237,7 +321,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
 
     // ── ONLINE PATH ──────────────────────────────────────────────────────
-    await _service.saveAttendance(widget.className, _attendance);
+    await _service.saveAttendance(_attendanceKey, _attendance);
 
     // Fire off guardian notifications for every absent / leave student.
     // These are "fire and forget" — we don't await to keep save fast.
@@ -245,7 +329,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final status = _attendance[s.roll];
       if (status == 'Absent' || status == 'Leave') {
         NotificationService().addAbsenceNotice(
-          className:   widget.className,
+          className:   _className,
           roll:        s.roll,
           studentName: s.name,
           status:      status!,
@@ -254,7 +338,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
 
     if (!mounted) return;
-    setState(() => _dirty = false);
+    setState(() {
+      _dirty        = false;
+      _alreadySaved = true;
+      _isMarking    = false;
+    });
 
     // ── Attendance summary dialog ────────────────────────────────────────────
     await showDialog(
@@ -331,7 +419,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       builder: (_) => _WhatsAppNotifySheet(
         students: followUp,
         attendance: Map.from(_attendance),
-        className: widget.className,
+        className: _className,
       ),
     );
   }
@@ -355,7 +443,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
     );
     if (ok != true) return;
-    await _service.removeStudent(s.roll, widget.className);
+    await _service.removeStudent(s.roll, _className, section: _section);
     setState(() { _students.remove(s); _attendance.remove(s.roll); });
   }
 
@@ -387,39 +475,47 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   // ── Build ────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: _buildAppBar(),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _students.isEmpty
-              ? _emptyState()
-              : _buildBody(),
+    return PopScope(
+      canPop: !(_isMarking && _alreadySaved),
+      onPopInvoked: (didPop) {
+        if (!didPop) setState(() => _isMarking = false);
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.background,
+        appBar: _buildAppBar(),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _noAssignment
+                ? _noAssignmentState()
+                : _students.isEmpty
+                    ? _emptyState()
+                    : _alreadySaved && !_isMarking
+                        ? _buildSummaryView()
+                        : !_alreadySaved && !_isMarking
+                            ? _buildEntryView()
+                            : _buildBody(),
+      ),
     );
   }
 
   PreferredSizeWidget _buildAppBar() {
+    final dateStr = _dateLabel();
+    final subtitle = (_alreadySaved && !_isMarking)
+        ? 'Attendance Taken  ·  $dateStr'
+        : '$dateStr${_students.isNotEmpty ? "  ·  $_total students" : ""}';
     return AppBar(
+      leading: (_isMarking && _alreadySaved)
+          ? IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: () => setState(() => _isMarking = false),
+            )
+          : null,
       title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(widget.className,
+        Text(_className,
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-        Text(
-          '${_dateLabel()}${_students.isNotEmpty ? "  ·  $_total students" : ""}',
-          style: const TextStyle(fontSize: 11, color: Colors.white60),
-        ),
+        Text(subtitle,
+            style: const TextStyle(fontSize: 11, color: Colors.white60)),
       ]),
-      actions: [
-        if (_students.isNotEmpty)
-          TextButton.icon(
-            onPressed: () => _markAll('Present'),
-            icon: const Icon(Icons.how_to_reg, color: Colors.white, size: 20),
-            label: const Text('All ✓',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold)),
-          ),
-      ],
     );
   }
 
@@ -465,7 +561,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               },
               child: Container(
                 width: double.infinity,
-                color: Colors.blue.shade700,
+                color: AppTheme.primaryMid,
                 padding: const EdgeInsets.symmetric(
                     vertical: 6, horizontal: 16),
                 child: Row(children: [
@@ -487,28 +583,47 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
           _buildSearchBar(),
           Expanded(
-            child: filtered.isEmpty
-                ? Center(
-                    child: Text('No results for "$_search"',
-                        style: TextStyle(color: Colors.grey.shade400)))
-                : RefreshIndicator(
-                    onRefresh: _refresh,
-                    color: AppTheme.primary,
-                    child: ListView.builder(
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              color: AppTheme.primary,
+              child: filtered.isEmpty && _search.isNotEmpty
+                  ? ListView(children: [
+                      const SizedBox(height: 60),
+                      Center(
+                        child: Text('No results for "$_search"',
+                            style: TextStyle(color: Colors.grey.shade400))),
+                    ])
+                  : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.only(bottom: 90),
-                      itemCount: filtered.length,
-                      itemBuilder: (_, i) => _StudentRow(
-                        student:     filtered[i],
-                        status:      _attendance[filtered[i].roll] ?? 'Absent',
-                        accentColor: _accentColor(_attendance[filtered[i].roll] ?? 'Absent'),
-                        rowBg:       _rowBg(_attendance[filtered[i].roll] ?? 'Absent'),
-                        onChanged:   (v) => _setStatus(filtered[i].roll, v),
-                        onRemove:    () => _removeStudent(filtered[i]),
-                        isLast:      i == filtered.length - 1,
-                      ),
+                      itemCount: filtered.length + 2,
+                      itemBuilder: (_, i) {
+                        if (i == 0) {
+                          return _AttendanceHeroCard(
+                            className: _className,
+                            total: _total,
+                            present: _present,
+                            leave: _leave,
+                            absent: _absent,
+                            dateLabel: _dateLabel(),
+                          );
+                        }
+                        if (i == 1) {
+                          return _MarkAllRow(onMarkAll: _markAll);
+                        }
+                        final idx = i - 2;
+                        return _StudentRow(
+                          student:     filtered[idx],
+                          status:      _attendance[filtered[idx].roll] ?? 'Absent',
+                          accentColor: _accentColor(_attendance[filtered[idx].roll] ?? 'Absent'),
+                          rowBg:       _rowBg(_attendance[filtered[idx].roll] ?? 'Absent'),
+                          onChanged:   (v) => _setStatus(filtered[idx].roll, v),
+                          onRemove:    () => _removeStudent(filtered[idx]),
+                          isLast:      idx == filtered.length - 1,
+                        );
+                      },
                     ),
-                  ),
+            ),
           ),
         ]),
         // Floating Save button
@@ -560,7 +675,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   valueColor: AlwaysStoppedAnimation<Color>(
                     progress == 1.0
                         ? Colors.green.shade600
-                        : const Color(0xFF1565C0),
+                        : AppTheme.primary,
                   ),
                 ),
               ),
@@ -615,6 +730,299 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
+  // ── Entry view: attendance not yet taken today ──────────────────────────────
+  Widget _buildEntryView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 96, height: 96,
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.edit_calendar_outlined,
+                  size: 48, color: AppTheme.primary),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              _className,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _dateLabel(),
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '$_total students',
+                style: const TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.primary,
+                    fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 36),
+            ElevatedButton.icon(
+              onPressed: () => setState(() => _isMarking = true),
+              icon: const Icon(Icons.how_to_reg_outlined, size: 22),
+              label: const Text('Take Attendance for Today',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 56),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                elevation: 2,
+              ),
+            ),
+            if (!_isOnline) ...[
+              const SizedBox(height: 16),
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.cloud_off_outlined,
+                    size: 14, color: Colors.orange.shade600),
+                const SizedBox(width: 6),
+                Text('Offline — attendance will be saved locally',
+                    style: TextStyle(
+                        fontSize: 12, color: Colors.orange.shade600)),
+              ]),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Summary view: attendance already saved today ────────────────────────────
+  Widget _buildSummaryView() {
+    final progress = _total == 0 ? 0.0 : _present / _total;
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Connectivity banners
+          if (!_isOnline)
+            Container(
+              color: Colors.orange.shade700,
+              padding:
+                  const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+              child: Row(children: [
+                const Icon(Icons.cloud_off_outlined,
+                    color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'No internet — attendance saved locally',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ]),
+            )
+          else if (_pendingCount > 0)
+            GestureDetector(
+              onTap: () async {
+                final synced = await _syncOfflineQueue();
+                if (mounted && synced > 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('✓ Synced $synced record${synced > 1 ? "s" : ""}'),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              child: Container(
+                color: AppTheme.primaryMid,
+                padding: const EdgeInsets.symmetric(
+                    vertical: 6, horizontal: 16),
+                child: Row(children: [
+                  const Icon(Icons.sync_outlined,
+                      color: Colors.white, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '$_pendingCount offline record${_pendingCount > 1 ? "s" : ""} waiting — Tap to sync',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+
+          // Hero stats card
+          _AttendanceHeroCard(
+            className: _className,
+            total: _total,
+            present: _present,
+            leave: _leave,
+            absent: _absent,
+            dateLabel: _dateLabel(),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Summary stats row
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2)),
+              ],
+            ),
+            child: Column(children: [
+              Row(children: [
+                _StatBubble(_total,   'Total',   const Color(0xFF546E7A)),
+                _StatBubble(_present, 'Present', const Color(0xFF2E7D32)),
+                _StatBubble(_leave,   'Leave',   const Color(0xFFF57F17)),
+                _StatBubble(_absent,  'Absent',  const Color(0xFFC62828)),
+              ]),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 6,
+                  backgroundColor: Colors.grey.shade200,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    progress == 1.0 ? Colors.green.shade600 : AppTheme.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                _total == 0
+                    ? 'No students'
+                    : '$_present of $_total present · ${(progress * 100).round()}%',
+                style: TextStyle(
+                    fontSize: 11, color: Colors.grey.shade500),
+              ),
+            ]),
+          ),
+
+          const SizedBox(height: 12),
+
+          // "Saved" badge
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(children: [
+                Icon(Icons.check_circle,
+                    color: Colors.green.shade600, size: 20),
+                const SizedBox(width: 10),
+                Text(
+                  'Attendance saved for today',
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.green.shade700,
+                      fontWeight: FontWeight.w600),
+                ),
+              ]),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Edit button
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: OutlinedButton.icon(
+              onPressed: () => setState(() => _isMarking = true),
+              icon: const Icon(Icons.edit_outlined, size: 20),
+              label: const Text('Edit Attendance',
+                  style: TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w600)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.primary,
+                minimumSize: const Size(double.infinity, 50),
+                side: const BorderSide(color: AppTheme.primary, width: 1.5),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ),
+
+          if (_absent + _leave > 0) ...[
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: OutlinedButton.icon(
+                onPressed: _showWhatsAppSheet,
+                icon: const Icon(Icons.message,
+                    size: 20, color: Color(0xFF25D366)),
+                label: const Text('Notify Guardians via WhatsApp',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF25D366))),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF25D366),
+                  minimumSize: const Size(double.infinity, 48),
+                  side: const BorderSide(
+                      color: Color(0xFF25D366), width: 1.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _noAssignmentState() => Center(
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Container(
+        width: 88, height: 88,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(Icons.class_outlined, size: 44, color: Colors.grey.shade400),
+      ),
+      const SizedBox(height: 20),
+      Text('No class assigned to you yet',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600,
+              color: Colors.grey.shade500)),
+      const SizedBox(height: 6),
+      Text('Ask the coordinator to assign your class and section',
+          style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+    ]),
+  );
+
   Widget _emptyState() => Center(
     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       Container(
@@ -626,7 +1034,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         child: Icon(Icons.group_add_outlined, size: 44, color: Colors.grey.shade400),
       ),
       const SizedBox(height: 20),
-      Text('No students in ${widget.className}',
+      Text('No students in $_className',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600,
               color: Colors.grey.shade500)),
       const SizedBox(height: 6),
@@ -634,6 +1042,226 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
     ]),
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Attendance Hero Card (wave header)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AttendanceHeroCard extends StatelessWidget {
+  final String className, dateLabel;
+  final int    total, present, leave, absent;
+
+  const _AttendanceHeroCard({
+    required this.className,
+    required this.dateLabel,
+    required this.total,
+    required this.present,
+    required this.leave,
+    required this.absent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = total == 0 ? 0.0 : present / total * 100;
+    return ClipPath(
+      clipper: _WaveClipper(),
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppTheme.primaryDark, Color(0xFF880E4F)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 56),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Label row
+            Text(
+              '${className.toUpperCase()}  ·  TODAY  ·  $dateLabel',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Big percentage
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${pct.round()}%',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 42,
+                    fontWeight: FontWeight.bold,
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    'Present',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Glassmorphism stats row
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(children: [
+                _HeroStat('$total',   'Total'),
+                Container(width: 1, height: 28, color: Colors.white24),
+                _HeroStat('$present', 'Present'),
+                Container(width: 1, height: 28, color: Colors.white24),
+                _HeroStat('$leave',   'Leave'),
+                Container(width: 1, height: 28, color: Colors.white24),
+                _HeroStat('$absent',  'Absent'),
+              ]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroStat extends StatelessWidget {
+  final String value, label;
+  const _HeroStat(this.value, this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(children: [
+        Text(value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            )),
+        const SizedBox(height: 2),
+        Text(label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            )),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Wave clipper (shared shape for hero cards)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _WaveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height - 30);
+    path.quadraticBezierTo(
+        size.width * 0.25, size.height,
+        size.width * 0.5,  size.height - 20);
+    path.quadraticBezierTo(
+        size.width * 0.75, size.height - 40,
+        size.width,        size.height - 20);
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(_WaveClipper _) => false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Mark All row — small secondary action above the student list
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _MarkAllRow extends StatelessWidget {
+  final void Function(String) onMarkAll;
+  const _MarkAllRow({required this.onMarkAll});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Text(
+            'Quick mark:',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+          ),
+          const SizedBox(width: 10),
+          _SmallMarkChip(
+            label: 'All Present',
+            color: const Color(0xFF2E7D32),
+            onTap: () => onMarkAll('Present'),
+          ),
+          const SizedBox(width: 6),
+          _SmallMarkChip(
+            label: 'All Absent',
+            color: const Color(0xFFC62828),
+            onTap: () => onMarkAll('Absent'),
+          ),
+          const SizedBox(width: 6),
+          _SmallMarkChip(
+            label: 'All Leave',
+            color: const Color(0xFFF57F17),
+            onTap: () => onMarkAll('Leave'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SmallMarkChip extends StatelessWidget {
+  final String label;
+  final Color  color;
+  final VoidCallback onTap;
+  const _SmallMarkChip(
+      {required this.label, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.35)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color),
+        ),
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -660,21 +1288,7 @@ class _StudentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Dismissible(
-      key: ValueKey('${student.className}_${student.roll}'),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24),
-        color: Colors.red.shade50,
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.person_remove_outlined, color: Colors.red.shade400, size: 22),
-          const SizedBox(height: 2),
-          Text('Remove', style: TextStyle(fontSize: 10, color: Colors.red.shade400)),
-        ]),
-      ),
-      confirmDismiss: (_) async { await onRemove(); return false; },
-      child: AnimatedContainer(
+    return AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         color: rowBg,
         child: Column(
@@ -742,7 +1356,6 @@ class _StudentRow extends StatelessWidget {
               Divider(height: 1, indent: 68, color: Colors.grey.shade200),
           ],
         ),
-      ),
     );
   }
 }
@@ -806,16 +1419,16 @@ class _StatusToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: AppTheme.primary.withOpacity(0.06),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.primary.withOpacity(0.18)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (var i = 0; i < _opts.length; i++) ...[
             if (i > 0)
-              Container(width: 1, height: 24, color: Colors.grey.shade200),
+              Container(width: 1, height: 24, color: AppTheme.primary.withOpacity(0.15)),
             _Pill(
               opt:     _opts[i],
               selected: value == _opts[i].state,
@@ -891,7 +1504,7 @@ class _SaveButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isOnline ? Colors.green.shade700 : Colors.orange.shade700;
+    final color = isOnline ? AppTheme.primary : Colors.orange.shade700;
     final label = isOnline ? 'Save Attendance' : 'Save Offline';
     final icon  = isOnline
         ? Icons.save_alt_rounded

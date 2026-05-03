@@ -11,11 +11,13 @@ class _Bell {
   int startMinutes; // absolute minutes from midnight (e.g. 8*60 = 480 = 08:00)
   int durationMinutes;
   bool isLunch;
+  String name; // custom label, e.g. "Diary Bell" or "Assembly"
 
   _Bell({
     required this.startMinutes,
     required this.durationMinutes,
     this.isLunch = false,
+    this.name = '',
   });
 }
 
@@ -49,6 +51,8 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   List<Teacher> _teachers = [];
   Map<String, Map<String, Map<int, TimetableEntry>>> _timetable = {};
   bool _loading = true;
+  bool _settingsEditing = false;
+  bool _timetableEditing = false;
 
   static const _days = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
@@ -112,6 +116,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           startMinutes: start,
           durationMinutes: dur,
           isLunch: m['isLunch'] as bool? ?? false,
+          name: m['name'] as String? ?? '',
         ));
         cursor = start + dur;
       }
@@ -172,7 +177,49 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     return count;
   }
 
+  /// Returns the display label for a bell: custom name if set, else default.
+  String _bellLabel(int idx) {
+    final bell = _bells[idx];
+    if (bell.isLunch) return 'Lunch Break';
+    if (bell.name.trim().isNotEmpty) return bell.name.trim();
+    return 'Bell ${_bellDisplayNumber(idx)}';
+  }
+
   // ── Settings actions ───────────────────────────────────────────────────────
+
+  /// Edit a custom name for a bell.
+  Future<void> _editBellName(int idx) async {
+    final ctrl = TextEditingController(text: _bells[idx].name);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Name for Bell ${_bellDisplayNumber(idx)}'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            hintText: 'e.g. Diary Bell, Assembly…',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (v) => Navigator.pop(_, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(_, ''),
+            child: const Text('Clear'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(_, ctrl.text.trim()),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() => _bells[idx].name = result);
+    }
+  }
 
   /// Pick start time for any bell — cascades all subsequent bells.
   Future<void> _pickBellStartTime(int idx) async {
@@ -180,9 +227,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     final picked = await showTimePicker(
       context: context,
       initialTime: current,
-      helpText: _bells[idx].isLunch
-          ? 'Lunch Break Start Time'
-          : 'Bell ${_bellDisplayNumber(idx)} Start Time',
+      helpText: '${_bellLabel(idx)} Start Time',
     );
     if (picked == null || !mounted) return;
 
@@ -226,12 +271,47 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     }
   }
 
-  void _addBell() {
+  Future<void> _addBell() async {
+    // Next bell number (counting only non-lunch bells including the new one)
+    final nextNum = _bells.where((b) => !b.isLunch).length + 1;
+    final ctrl = TextEditingController(text: 'Bell $nextNum');
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('New Bell'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'Bell Name',
+            hintText: 'e.g. Bell 5, Diary Bell, Assembly…',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (v) => Navigator.pop(_, v.trim().isEmpty ? 'Bell $nextNum' : v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(_, null),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(
+                _, ctrl.text.trim().isEmpty ? 'Bell $nextNum' : ctrl.text.trim()),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || !mounted) return;
     setState(() {
       final last = _bells.isEmpty
           ? 480 // 08:00 default
           : _bells.last.startMinutes + _bells.last.durationMinutes;
-      _bells.add(_Bell(startMinutes: last, durationMinutes: 45));
+      _bells.add(_Bell(startMinutes: last, durationMinutes: 45, name: name));
     });
   }
 
@@ -296,6 +376,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           'duration': _bells[i].durationMinutes,
           'isLunch': _bells[i].isLunch,
           'start': _fmt(_startOf(i)),
+          'name': _bells[i].name,
         });
     final firstBell = _bells.isNotEmpty ? _fmt(_startOf(0)) : '08:00';
 
@@ -306,6 +387,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       'bells': bellsData,
     });
     if (!mounted) return;
+    setState(() => _settingsEditing = false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
           content: Text('Settings saved ✓'),
@@ -339,9 +421,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       return;
     }
     final bellIdx = bell - 1;
-    final isLunch = bellIdx < _bells.length && _bells[bellIdx].isLunch;
-    final bellLabel =
-        isLunch ? 'Lunch Break' : 'Bell ${_bellDisplayNumber(bellIdx)}';
+    final bellLabel = _bellLabel(bellIdx);
     final timeRange = bellIdx < _bells.length
         ? '${_fmt12(_startOf(bellIdx))} – ${_fmt12(_endOf(bellIdx))}'
         : '';
@@ -395,12 +475,23 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     });
   }
 
+  void _saveTimetableMode() {
+    setState(() => _timetableEditing = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Timetable saved ✓'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('Timetable & Settings'),
         bottom: TabBar(
@@ -447,19 +538,35 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
         child: Container(
           color: Colors.white,
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-          child: ElevatedButton.icon(
-            onPressed: _saveSettings,
-            icon: const Icon(Icons.save_outlined),
-            label: const Text('Save Settings',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
+          child: _settingsEditing
+              ? ElevatedButton.icon(
+                  onPressed: _saveSettings,
+                  icon: const Icon(Icons.save_outlined),
+                  label: const Text('Save Settings',
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                )
+              : OutlinedButton.icon(
+                  onPressed: () => setState(() => _settingsEditing = true),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Edit Settings',
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primary,
+                    side: const BorderSide(color: AppTheme.primary),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
         ),
       ),
     ]);
@@ -468,28 +575,33 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   Widget _buildBellSection() {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        const Expanded(
+        Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Bell Schedule',
+            const Text('Bell Schedule',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            SizedBox(height: 2),
-            Text('Tap a time to edit it directly',
-                style: TextStyle(fontSize: 11, color: Colors.grey)),
+            const SizedBox(height: 2),
+            Text(
+              _settingsEditing
+                  ? 'Tap a time to edit it directly'
+                  : 'Press Edit to modify schedule',
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+            ),
           ]),
         ),
-        if (!_hasLunchBell)
+        if (_settingsEditing && !_hasLunchBell)
           TextButton.icon(
             onPressed: _addLunchBell,
             icon: const Icon(Icons.restaurant, size: 16),
             label: const Text('Lunch'),
             style: TextButton.styleFrom(foregroundColor: Colors.orange),
           ),
-        TextButton.icon(
-          onPressed: _addBell,
-          icon: const Icon(Icons.add, size: 16),
-          label: const Text('Add Bell'),
-          style: TextButton.styleFrom(foregroundColor: Colors.indigo),
-        ),
+        if (_settingsEditing)
+          TextButton.icon(
+            onPressed: _addBell,
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add Bell'),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.primary),
+          ),
       ]),
       const SizedBox(height: 10),
       ...List.generate(_bells.length, (i) => _bellRow(i)),
@@ -519,7 +631,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
             height: 34,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: isLunch ? Colors.orange : Colors.indigo,
+              color: isLunch ? Colors.orange : AppTheme.primary,
               borderRadius: BorderRadius.circular(8),
             ),
             child: isLunch
@@ -532,30 +644,43 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           ),
           const SizedBox(width: 8),
 
-          // Tappable time range → opens time picker for THIS bell
+          // Time range (tappable only in edit mode)
           Expanded(
-            child: GestureDetector(
-              onTap: () => _pickBellStartTime(i),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                        isLunch ? 'Lunch Break' : 'Bell ${_bellDisplayNumber(i)}',
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Bell label row — tappable to edit name in edit mode
+                  GestureDetector(
+                    onTap: _settingsEditing && !isLunch
+                        ? () => _editBellName(i)
+                        : null,
+                    child: Row(children: [
+                      Text(
+                        _bellLabel(i),
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: isLunch
                                 ? Colors.orange.shade800
-                                : Colors.black87)),
-                    // Time range row
-                    Row(children: [
+                                : Colors.black87),
+                      ),
+                      if (_settingsEditing && !isLunch) ...[
+                        const SizedBox(width: 4),
+                        Icon(Icons.edit, size: 10, color: Colors.grey.shade400),
+                      ],
+                    ]),
+                  ),
+                  // Time row — tappable to edit time
+                  GestureDetector(
+                    onTap: _settingsEditing ? () => _pickBellStartTime(i) : null,
+                    child: Row(children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: isLunch
                               ? Colors.orange.shade100
-                              : Colors.indigo.shade50,
+                              : AppTheme.primary.withOpacity(0.07),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(_fmt12(start),
@@ -564,21 +689,23 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                                 fontWeight: FontWeight.bold,
                                 color: isLunch
                                     ? Colors.orange.shade700
-                                    : Colors.indigo)),
+                                    : AppTheme.primary)),
                       ),
                       Text('  –  ${_fmt12(end)}',
                           style: TextStyle(
                               fontSize: 12, color: Colors.grey.shade500)),
-                      const SizedBox(width: 4),
-                      Icon(Icons.edit, size: 10, color: Colors.grey.shade400),
+                      if (_settingsEditing) ...[
+                        const SizedBox(width: 4),
+                        Icon(Icons.access_time, size: 10, color: Colors.grey.shade400),
+                      ],
                     ]),
-                  ]),
-            ),
+                  ),
+                ]),
           ),
 
-          // Duration chip
+          // Duration chip (tappable only in edit mode)
           GestureDetector(
-            onTap: () => _editBellDuration(i),
+            onTap: _settingsEditing ? () => _editBellDuration(i) : null,
             child: Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -599,15 +726,18 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           ),
           const SizedBox(width: 6),
 
-          // Remove
-          GestureDetector(
-            onTap: _bells.length > 1 ? () => _removeBell(i) : null,
-            child: Icon(Icons.remove_circle_outline,
-                size: 20,
-                color: _bells.length > 1
-                    ? Colors.red.shade300
-                    : Colors.grey.shade200),
-          ),
+          // Remove — only visible in edit mode
+          if (_settingsEditing)
+            GestureDetector(
+              onTap: _bells.length > 1 ? () => _removeBell(i) : null,
+              child: Icon(Icons.remove_circle_outline,
+                  size: 20,
+                  color: _bells.length > 1
+                      ? Colors.red.shade300
+                      : Colors.grey.shade200),
+            )
+          else
+            const SizedBox(width: 20),
         ]),
       ),
     );
@@ -619,40 +749,46 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           style: const TextStyle(
               fontSize: 15, fontWeight: FontWeight.bold)),
       const SizedBox(height: 4),
-      Text('Drag to reorder · tap × to remove',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+      Text(
+        _settingsEditing
+            ? 'Drag to reorder · tap × to remove'
+            : 'Press Edit to add or remove classes',
+        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+      ),
       const SizedBox(height: 12),
 
-      Row(children: [
-        Expanded(
-          child: TextField(
-            controller: _classCtrl,
-            decoration: InputDecoration(
-              hintText: 'e.g. Class 6A',
-              prefixIcon: const Icon(Icons.class_outlined),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      if (_settingsEditing) ...[
+        Row(children: [
+          Expanded(
+            child: TextField(
+              controller: _classCtrl,
+              decoration: InputDecoration(
+                hintText: 'e.g. Class 6A',
+                prefixIcon: const Icon(Icons.class_outlined),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+              textCapitalization: TextCapitalization.words,
+              onSubmitted: (_) => _addClass(),
             ),
-            textCapitalization: TextCapitalization.words,
-            onSubmitted: (_) => _addClass(),
           ),
-        ),
-        const SizedBox(width: 8),
-        ElevatedButton(
-          onPressed: _addClass,
-          style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10))),
-          child: const Text('Add'),
-        ),
-      ]),
-      const SizedBox(height: 12),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: _addClass,
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10))),
+            child: const Text('Add'),
+          ),
+        ]),
+        const SizedBox(height: 12),
+      ],
 
       if (_classes.isEmpty)
         Center(
@@ -662,7 +798,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                 style: TextStyle(color: Colors.grey.shade400)),
           ),
         )
-      else
+      else if (_settingsEditing)
         ReorderableListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -700,6 +836,31 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
               ),
             );
           },
+        )
+      else
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _classes.length,
+          itemBuilder: (_, i) {
+            final cls = _classes[i];
+            return Container(
+              key: ValueKey(cls),
+              margin: const EdgeInsets.only(bottom: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: ListTile(
+                dense: true,
+                leading: Icon(Icons.class_outlined,
+                    color: AppTheme.primary.withOpacity(0.6)),
+                title: Text(cls,
+                    style: const TextStyle(fontWeight: FontWeight.w500)),
+              ),
+            );
+          },
         ),
     ]);
   }
@@ -715,10 +876,51 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       return _hint('No teachers added',
           'Go to Manage Teachers to add teachers', Icons.people_outline);
     }
-    return Column(children: [
-      _buildLegend(),
-      const Divider(height: 1),
-      Expanded(child: _buildGrid()),
+    return Stack(children: [
+      Column(children: [
+        _buildLegend(),
+        const Divider(height: 1),
+        Expanded(child: _buildGrid()),
+        const SizedBox(height: 72),
+      ]),
+      Positioned(
+        bottom: 0,
+        left: 0,
+        right: 0,
+        child: Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+          child: _timetableEditing
+              ? ElevatedButton.icon(
+                  onPressed: _saveTimetableMode,
+                  icon: const Icon(Icons.save_outlined),
+                  label: const Text('Save Timetable',
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                )
+              : OutlinedButton.icon(
+                  onPressed: () => setState(() => _timetableEditing = true),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Edit Timetable',
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primary,
+                    side: const BorderSide(color: AppTheme.primary),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+        ),
+      ),
     ]);
   }
 
@@ -797,7 +999,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: i.isEven
-                          ? Colors.indigo.shade50
+                          ? AppTheme.primary.withOpacity(0.07)
                           : Colors.white,
                       border: Border.all(color: Colors.grey.shade200),
                     ),
@@ -822,8 +1024,8 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color:
-            isCorner ? Colors.indigo.shade800 : Colors.indigo.shade700,
-        border: Border.all(color: Colors.indigo.shade900),
+            isCorner ? AppTheme.primaryDark : AppTheme.primary,
+        border: Border.all(color: AppTheme.primaryDark),
       ),
       child: Text(label,
           style: const TextStyle(
@@ -844,11 +1046,11 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       decoration: BoxDecoration(
         color: isLunch
             ? Colors.orange.shade700
-            : Colors.indigo.shade700,
+            : AppTheme.primary,
         border: Border.all(
             color: isLunch
                 ? Colors.orange.shade900
-                : Colors.indigo.shade900),
+                : AppTheme.primaryDark),
       ),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Text(isLunch ? '🍽 Lunch' : 'Bell ${_bellDisplayNumber(idx)}',
@@ -871,11 +1073,12 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     Teacher? teacher;
     Color color = Colors.transparent;
     String subject = '';
-    // Collect 2-char abbreviations of days where THIS teacher is assigned
+    int assignedDayCount = 0;
     final dayDots = <String>[];
     for (final day in _days) {
       final entry = _timetable[cls]?[day]?[bell];
       if (entry != null && !entry.isEmpty) {
+        assignedDayCount++;
         final t = _teacherById(entry.teacherId);
         if (t != null) {
           if (teacher == null) {
@@ -889,6 +1092,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
         }
       }
     }
+    final isPartial = teacher != null && assignedDayCount < _days.length;
 
     if (isLunch) {
       return Container(
@@ -908,83 +1112,107 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     }
 
     return GestureDetector(
-      onTap: () => _editCell(cls, bell),
-      child: Container(
-        width: w,
-        height: h,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: teacher != null
-              ? color.withOpacity(0.14)
-              : (even ? Colors.grey.shade50 : Colors.white),
-          border: Border.all(
-              color: teacher != null
-                  ? color.withOpacity(0.35)
-                  : Colors.grey.shade200),
-        ),
-        child: teacher != null
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircleAvatar(
-                    radius: 12,
-                    backgroundColor: color,
-                    child: Text(teacher.name[0].toUpperCase(),
-                        style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(height: 2),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Text(
-                      teacher.name,
-                      style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: color),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      textAlign: TextAlign.center,
+      onTap: _timetableEditing ? () => _editCell(cls, bell) : null,
+      child: Stack(children: [
+        Container(
+          width: w,
+          height: h,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: teacher != null
+                ? color.withOpacity(0.14)
+                : (even ? Colors.grey.shade50 : Colors.white),
+            border: Border.all(
+                color: teacher != null
+                    ? color.withOpacity(0.35)
+                    : Colors.grey.shade200),
+          ),
+          child: teacher != null
+              ? Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 12,
+                      backgroundColor: color,
+                      child: Text(teacher.name[0].toUpperCase(),
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
                     ),
-                  ),
-                  if (subject.isNotEmpty)
+                    const SizedBox(height: 2),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Text(
-                        subject,
+                        teacher.name,
                         style: TextStyle(
-                            fontSize: 9, color: color.withOpacity(0.75)),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: color),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                         textAlign: TextAlign.center,
                       ),
                     ),
-                  const SizedBox(height: 3),
-                  // Day dots
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: dayDots.map((abbr) => Container(
-                          margin: const EdgeInsets.only(right: 2),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 3, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: color.withOpacity(0.18),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                          child: Text(abbr.substring(0, 2),
-                              style: TextStyle(
-                                  fontSize: 7,
-                                  fontWeight: FontWeight.bold,
-                                  color: color)),
-                        )).toList(),
-                  ),
-                ],
-              )
-            : Icon(Icons.add_circle_outline,
-                size: 20, color: Colors.grey.shade400),
-      ),
+                    if (subject.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Text(
+                          subject,
+                          style: TextStyle(
+                              fontSize: 9, color: color.withOpacity(0.75)),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    const SizedBox(height: 3),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: dayDots.map((abbr) => Container(
+                            margin: const EdgeInsets.only(right: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 3, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.18),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(abbr.substring(0, 2),
+                                style: TextStyle(
+                                    fontSize: 7,
+                                    fontWeight: FontWeight.bold,
+                                    color: color)),
+                          )).toList(),
+                    ),
+                  ],
+                )
+              : _timetableEditing
+                  ? Icon(Icons.add_circle_outline,
+                      size: 20, color: Colors.grey.shade400)
+                  : const SizedBox.shrink(),
+        ),
+        // Partial assignment indicator (orange dot top-right)
+        if (isPartial)
+          Positioned(
+            top: 4,
+            right: 4,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: Colors.orange,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        // Edit mode lock-open indicator (bottom-right when editing)
+        if (_timetableEditing && teacher != null)
+          Positioned(
+            bottom: 3,
+            right: 3,
+            child: Icon(Icons.edit, size: 9, color: color.withOpacity(0.5)),
+          ),
+      ]),
     );
   }
 }
@@ -1033,7 +1261,28 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
   @override
   void initState() {
     super.initState();
-    // Pre-select the teacher assigned on the most days and their days
+
+    // Determine which days are already assigned
+    final assignedDays = <String>{
+      for (final day in widget.days)
+        if (widget.cellEntries[day] != null &&
+            !widget.cellEntries[day]!.isEmpty)
+          day,
+    };
+    final unassignedDays =
+        widget.days.where((d) => !assignedDays.contains(d)).toSet();
+
+    if (assignedDays.isNotEmpty && unassignedDays.isNotEmpty) {
+      // Partial assignment: pre-select the unassigned days so the coordinator
+      // can immediately fill in the remaining slots.
+      _teacherId = null;
+      _selectedDays = unassignedDays;
+      _subjectCtrl = TextEditingController();
+      _selectedSubjectPreset = null;
+      return;
+    }
+
+    // All days assigned or none: use dominant-teacher pre-selection
     final dayCounts = <String, int>{};
     for (final day in widget.days) {
       final tid = widget.cellEntries[day]?.teacherId;
@@ -1120,11 +1369,66 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
           ]),
         ),
 
+        // Current assignments summary (shown only for partial cells)
+        Builder(builder: (ctx) {
+          final assignedDays = widget.days
+              .where((d) =>
+                  widget.cellEntries[d] != null &&
+                  !widget.cellEntries[d]!.isEmpty)
+              .toList();
+          final unassignedDays = widget.days
+              .where((d) =>
+                  widget.cellEntries[d] == null ||
+                  widget.cellEntries[d]!.isEmpty)
+              .toList();
+          if (assignedDays.isEmpty || unassignedDays.isEmpty) {
+            return const SizedBox.shrink();
+          }
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Icon(Icons.info_outline,
+                          size: 13, color: Colors.orange.shade700),
+                      const SizedBox(width: 5),
+                      Text('Partially assigned',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.orange.shade800)),
+                    ]),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Already filled: ${assignedDays.map((d) => widget.dayAbbr[d]).join(', ')}',
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.orange.shade700),
+                    ),
+                    Text(
+                      'Remaining: ${unassignedDays.map((d) => widget.dayAbbr[d]).join(', ')}',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.orange.shade800),
+                    ),
+                  ]),
+            ),
+          );
+        }),
+
         // Day multi-select chips
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Select days',
+            Text('Select days for new assignment',
                 style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -1149,12 +1453,12 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                         horizontal: 14, vertical: 7),
                     decoration: BoxDecoration(
                       color: _selectedDays.length == widget.days.length
-                          ? Colors.indigo.shade800
+                          ? AppTheme.primaryDark
                           : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                           color: _selectedDays.length == widget.days.length
-                              ? Colors.indigo.shade900
+                              ? AppTheme.primaryDark
                               : Colors.grey.shade300),
                     ),
                     child: Text('All',
@@ -1166,9 +1470,24 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                                 : Colors.grey.shade600)),
                   ),
                 ),
-                // Individual day chips
+                // Individual day chips with existing-assignment indicators
                 ...widget.days.map((d) {
                   final sel = _selectedDays.contains(d);
+                  final existingEntry = widget.cellEntries[d];
+                  final hasAssignment =
+                      existingEntry != null && !existingEntry.isEmpty;
+                  final existingTeacher = hasAssignment
+                      ? widget.teachers
+                          .where((t) => t.id == existingEntry.teacherId)
+                          .firstOrNull
+                      : null;
+                  final tIdx = existingTeacher != null
+                      ? widget.teachers.indexOf(existingTeacher)
+                      : -1;
+                  final existingColor = tIdx >= 0
+                      ? widget.palette[tIdx % widget.palette.length]
+                      : null;
+
                   return GestureDetector(
                     onTap: () => setState(() {
                       if (sel) {
@@ -1180,21 +1499,49 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 120),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 7),
+                          horizontal: 10, vertical: 7),
                       decoration: BoxDecoration(
-                        color: sel ? Colors.indigo : Colors.grey.shade100,
+                        color: sel
+                            ? AppTheme.primary
+                            : (hasAssignment
+                                ? existingColor!.withOpacity(0.10)
+                                : Colors.grey.shade100),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                            color:
-                                sel ? Colors.indigo : Colors.grey.shade300),
+                            color: sel
+                                ? AppTheme.primary
+                                : (hasAssignment
+                                    ? existingColor!.withOpacity(0.4)
+                                    : Colors.grey.shade300)),
                       ),
-                      child: Text(widget.dayAbbr[d]!,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: sel
-                                  ? Colors.white
-                                  : Colors.grey.shade700)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(widget.dayAbbr[d]!,
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: sel
+                                    ? Colors.white
+                                    : (hasAssignment
+                                        ? existingColor!
+                                        : Colors.grey.shade700))),
+                        if (hasAssignment && existingTeacher != null) ...[
+                          const SizedBox(width: 4),
+                          CircleAvatar(
+                            radius: 7,
+                            backgroundColor: sel
+                                ? Colors.white.withOpacity(0.3)
+                                : existingColor,
+                            child: Text(
+                              existingTeacher.name[0].toUpperCase(),
+                              style: TextStyle(
+                                  fontSize: 7,
+                                  color:
+                                      sel ? Colors.white : Colors.white,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ]),
                     ),
                   );
                 }),
@@ -1234,10 +1581,10 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                 const DropdownMenuItem(
                   value: 'Custom...',
                   child: Row(children: [
-                    Icon(Icons.add, size: 16, color: Colors.indigo),
+                    Icon(Icons.add, size: 16, color: AppTheme.primary),
                     SizedBox(width: 6),
                     Text('Add new subject…',
-                        style: TextStyle(color: Colors.indigo)),
+                        style: TextStyle(color: AppTheme.primary)),
                   ]),
                 ),
               ],
@@ -1435,7 +1782,7 @@ class _DurationDialogState extends State<_DurationDialog> {
               padding: const EdgeInsets.only(bottom: 10),
               child: Text(
                 'Duration will be applied to all regular bells',
-                style: TextStyle(fontSize: 12, color: Colors.indigo.shade600),
+                style: TextStyle(fontSize: 12, color: AppTheme.primaryMid),
               ),
             ),
           TextField(

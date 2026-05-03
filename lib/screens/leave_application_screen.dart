@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme.dart';
 import '../models/teacher.dart';
 import '../services/timetable_service.dart';
@@ -56,6 +57,11 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
     if (finalReason.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please specify a reason')));
+      return;
+    }
+    if (_reason == 'Other' && finalReason.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reason must be at least 10 characters')));
       return;
     }
 
@@ -171,9 +177,9 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
             label: 'Send Application To',
             child: Column(children: [
               _toOption('coordinator', 'Coordinator',
-                  Icons.admin_panel_settings_outlined, Colors.indigo),
+                  Icons.admin_panel_settings_outlined, AppTheme.primary),
               _toOption('principal', 'Principal',
-                  Icons.business_outlined, Colors.teal),
+                  Icons.business_outlined, AppTheme.primaryMid),
             ]),
           ),
           const SizedBox(height: 12),
@@ -238,7 +244,9 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
                 ),
                 _stepperBtn(
                   icon: Icons.add,
-                  onTap: () => setState(() => _numberOfDays++),
+                  onTap: _numberOfDays < 30
+                      ? () => setState(() => _numberOfDays++)
+                      : null,
                 ),
               ]),
 
@@ -279,14 +287,18 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
                 const SizedBox(height: 10),
                 TextField(
                   controller: _customReasonCtrl,
-                  maxLines: 2,
+                  maxLines: 4,
+                  keyboardType: TextInputType.multiline,
+                  maxLength: 300,
+                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
                   decoration: InputDecoration(
-                    hintText: 'Describe your reason…',
+                    hintText: 'Describe your reason (min 10 characters)…',
                     prefixIcon: const Icon(Icons.edit_outlined, size: 20),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 12),
+                    alignLabelWithHint: true,
                   ),
                 ),
               ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -373,6 +374,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
       (widget.structure.totalAnnualFee - _totalPaid).clamp(0.0, double.infinity);
 
   Future<void> _recordPayment() async {
+    final formKey    = GlobalKey<FormState>();
     final amountCtrl = TextEditingController(
         text: _due > 0 ? _due.toStringAsFixed(0) : '');
     final noteCtrl = TextEditingController();
@@ -390,7 +392,9 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
             left: 18, right: 18, top: 16,
             bottom: MediaQuery.of(ctx).viewInsets.bottom + 18,
           ),
-          child: Column(
+          child: Form(
+            key: formKey,
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -414,9 +418,13 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                     fontSize: 13, color: Colors.red.shade700),
               ),
               const SizedBox(height: 14),
-              TextField(
+              TextFormField(
                 controller: amountCtrl,
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
                 autofocus: true,
                 decoration: InputDecoration(
                   labelText: 'Amount (₹)',
@@ -424,6 +432,12 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10)),
                 ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Required';
+                  final n = double.tryParse(v.trim());
+                  if (n == null || n <= 0) return 'Must be greater than 0';
+                  return null;
+                },
               ),
               const SizedBox(height: 10),
               const Text('Payment Mode',
@@ -444,12 +458,15 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                 }).toList(),
               ),
               const SizedBox(height: 10),
-              TextField(
+              TextFormField(
                 controller: noteCtrl,
+                maxLength: 200,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 decoration: InputDecoration(
                   labelText: 'Note (optional)',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10)),
+                  counterText: '',
                 ),
               ),
               const SizedBox(height: 14),
@@ -463,16 +480,10 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                   onPressed: saving
                       ? null
                       : () async {
+                          if (!formKey.currentState!.validate()) return;
                           final amt = double.tryParse(
                                   amountCtrl.text.trim()) ??
                               0;
-                          if (amt <= 0) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Enter a valid amount')),
-                            );
-                            return;
-                          }
                           setS(() => saving = true);
                           final receiptNo = FeeService.generateReceiptNo(
                             widget.student.className,
@@ -504,6 +515,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                 ),
               ]),
             ],
+            ),
           ),
         ),
       ),

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
@@ -7,9 +8,13 @@ import '../theme.dart';
 
 class AddStudentScreen extends StatefulWidget {
   final String className;
+  final String section;
   final Student? existing;
+  /// Class teacher's ID — stamped onto every new student so records are
+  /// scoped to this teacher and not visible to other teachers.
+  final String? teacherId;
   const AddStudentScreen(
-      {super.key, required this.className, this.existing});
+      {super.key, required this.className, this.section = '', this.existing, this.teacherId});
 
   @override
   State<AddStudentScreen> createState() => _AddStudentScreenState();
@@ -85,6 +90,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       roll: int.parse(_rollCtrl.text.trim()),
       name: _nameCtrl.text.trim(),
       className: widget.className,
+      section: widget.section,
       fatherName: _fatherCtrl.text.trim(),
       motherName: _motherCtrl.text.trim().isEmpty
           ? null
@@ -92,6 +98,8 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       phone: _phoneCtrl.text.trim(),
       photoPath: _photoPath,
       feeStatus: _feeStatus,
+      // Preserve existing teacherId on edits; stamp it on new records.
+      teacherId: widget.teacherId ?? widget.existing?.teacherId,
     );
 
     final service = StudentService();
@@ -114,7 +122,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Text(_isEdit ? 'Edit Student' : 'Add Student'),
         actions: [
@@ -145,19 +153,22 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.teal.shade50,
+                color: AppTheme.primary.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.teal.shade200),
+                border: Border.all(color: AppTheme.primary.withOpacity(0.25)),
               ),
               child: Row(children: [
-                Icon(Icons.class_, color: Colors.teal.shade600, size: 18),
+                const Icon(Icons.class_, color: AppTheme.primary, size: 18),
                 const SizedBox(width: 8),
-                Text('Adding to: ',
-                    style: TextStyle(color: Colors.teal.shade700)),
-                Text(widget.className,
-                    style: TextStyle(
-                        color: Colors.teal.shade700,
-                        fontWeight: FontWeight.bold)),
+                const Text('Adding to: ',
+                    style: TextStyle(color: AppTheme.primary)),
+                Text(
+                  widget.section.isEmpty
+                      ? widget.className
+                      : '${widget.className} — Section ${widget.section}',
+                  style: const TextStyle(
+                      color: AppTheme.primaryDark,
+                      fontWeight: FontWeight.bold)),
               ]),
             ),
             const SizedBox(height: 20),
@@ -168,19 +179,19 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               child: Stack(alignment: Alignment.bottomRight, children: [
                 CircleAvatar(
                   radius: 52,
-                  backgroundColor: Colors.teal.shade50,
+                  backgroundColor: AppTheme.primary.withOpacity(0.08),
                   backgroundImage: _photoPath != null
                       ? FileImage(File(_photoPath!))
                       : null,
                   child: _photoPath == null
-                      ? Icon(Icons.person,
-                          size: 52, color: Colors.teal.shade300)
+                      ? const Icon(Icons.person,
+                          size: 52, color: AppTheme.primaryLight)
                       : null,
                 ),
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: const BoxDecoration(
-                      color: Colors.teal, shape: BoxShape.circle),
+                      color: AppTheme.primary, shape: BoxShape.circle),
                   child: const Icon(Icons.camera_alt,
                       size: 16, color: Colors.white),
                 ),
@@ -198,9 +209,12 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               icon: Icons.tag,
               keyboard: TextInputType.number,
               enabled: !_isEdit,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'Required';
-                if (int.tryParse(v.trim()) == null) return 'Must be a number';
+                final n = int.tryParse(v.trim());
+                if (n == null) return 'Must be a number';
+                if (n < 1 || n > 999) return 'Must be 1–999';
                 return null;
               },
             ),
@@ -210,6 +224,10 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               label: 'Full Name',
               icon: Icons.person_outline,
               caps: TextCapitalization.words,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z ]')),
+              ],
+              maxLength: 50,
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? 'Required' : null,
             ),
@@ -219,6 +237,10 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               label: "Father's Name",
               icon: Icons.man_outlined,
               caps: TextCapitalization.words,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z ]')),
+              ],
+              maxLength: 50,
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? 'Required' : null,
             ),
@@ -228,6 +250,10 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               label: "Mother's Name (optional)",
               icon: Icons.woman_outlined,
               caps: TextCapitalization.words,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z ]')),
+              ],
+              maxLength: 50,
             ),
             const SizedBox(height: 14),
             _Field(
@@ -235,8 +261,13 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               label: 'Phone Number',
               icon: Icons.phone_outlined,
               keyboard: TextInputType.phone,
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Required' : null,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              maxLength: 10,
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Required';
+                if (v.trim().length != 10) return 'Must be exactly 10 digits';
+                return null;
+              },
             ),
             const SizedBox(height: 14),
             DropdownButtonFormField<String>(
@@ -310,6 +341,8 @@ class _Field extends StatelessWidget {
   final TextCapitalization caps;
   final String? Function(String?)? validator;
   final bool enabled;
+  final List<TextInputFormatter>? inputFormatters;
+  final int? maxLength;
 
   const _Field({
     required this.controller,
@@ -319,6 +352,8 @@ class _Field extends StatelessWidget {
     this.caps = TextCapitalization.none,
     this.validator,
     this.enabled = true,
+    this.inputFormatters,
+    this.maxLength,
   });
 
   @override
@@ -329,6 +364,9 @@ class _Field extends StatelessWidget {
       keyboardType: keyboard,
       textCapitalization: caps,
       validator: validator,
+      inputFormatters: inputFormatters,
+      maxLength: maxLength,
+      maxLengthEnforcement: MaxLengthEnforcement.enforced,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),

@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
 import 'screens/role_selection_screen.dart';
@@ -12,6 +13,14 @@ import 'services/timetable_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Status bar: solid deep-violet so it matches the hero gradient top edge
+  // on every screen. AppBarTheme sets it precisely to AppTheme.primary on
+  // screens that have an AppBar.
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: AppTheme.primaryDark,        // #4A148C – gradient start
+    statusBarIconBrightness: Brightness.light,   // white icons on dark bg
+    statusBarBrightness: Brightness.dark,        // iOS: white icons
+  ));
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

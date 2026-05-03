@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme.dart';
 import '../services/timetable_service.dart';
 import '../services/auth_service.dart';
@@ -50,6 +51,8 @@ class RoleSelectionScreen extends StatelessWidget {
                 controller: emailCtrl,
                 autofocus: true,
                 keyboardType: TextInputType.emailAddress,
+                maxLength: 100,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 decoration: InputDecoration(
                   labelText: 'Email Address',
                   prefixIcon: const Icon(Icons.email_outlined),
@@ -57,12 +60,15 @@ class RoleSelectionScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10)),
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 12),
+                  counterText: '',
                 ),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: passCtrl,
                 obscureText: !showPass,
+                maxLength: 50,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 decoration: InputDecoration(
                   labelText: 'Password',
                   prefixIcon: const Icon(Icons.lock_outline),
@@ -77,6 +83,7 @@ class RoleSelectionScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10)),
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 12),
+                  counterText: '',
                 ),
                 onSubmitted: (_) async {
                   if (checking) return;
@@ -163,8 +170,18 @@ class RoleSelectionScreen extends StatelessWidget {
         return;
       }
 
+      // Coordinator / Principal — fetch their assigned classes from Firestore.
+      List<String>? assignedClasses;
+      if (role == 'coordinator' || role == 'principal') {
+        assignedClasses = await TimetableService().getAssignedClasses(email);
+      }
+
       // Teacher / Coordinator / Principal — save session and go to destination.
-      await AuthService().saveSession(email: email, role: role);
+      await AuthService().saveSession(
+        email: email,
+        role:  role,
+        assignedClasses: assignedClasses,
+      );
       if (context.mounted) {
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (_) => destination));
@@ -176,7 +193,8 @@ class RoleSelectionScreen extends StatelessWidget {
       BuildContext context, String email, String password,
       String expectedRole) async {
     final trimmed = email.trim().toLowerCase();
-    if (trimmed.isEmpty || !trimmed.contains('@')) {
+    if (trimmed.isEmpty ||
+        !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(trimmed)) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Enter a valid email address')));
       return false;
@@ -225,7 +243,7 @@ class RoleSelectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -257,6 +275,17 @@ class RoleSelectionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
 
+              // ── Principal ─────────────────────────────────────────────
+              _RoleCard(
+                icon: Icons.business_outlined,
+                title: 'Principal',
+                subtitle: 'School overview, attendance & leave approvals',
+                color: AppTheme.primary,
+                onTap: () => _loginAsRole(
+                    context, 'principal', const PrincipalDashboard()),
+              ),
+              const SizedBox(height: 12),
+
               // ── Coordinator ───────────────────────────────────────────
               _RoleCard(
                 icon: Icons.admin_panel_settings_outlined,
@@ -276,17 +305,6 @@ class RoleSelectionScreen extends StatelessWidget {
                 color: AppTheme.primary,
                 onTap: () => _loginAsRole(
                     context, 'teacher', const TeacherProfileScreen()),
-              ),
-              const SizedBox(height: 12),
-
-              // ── Principal ─────────────────────────────────────────────
-              _RoleCard(
-                icon: Icons.business_outlined,
-                title: 'Principal',
-                subtitle: 'School overview, attendance & leave approvals',
-                color: AppTheme.primary,
-                onTap: () => _loginAsRole(
-                    context, 'principal', const PrincipalDashboard()),
               ),
               const SizedBox(height: 12),
 

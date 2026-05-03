@@ -20,8 +20,8 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
 
   static const _colors = [
     AppTheme.primary, AppTheme.primaryDark, AppTheme.primaryMid, AppTheme.primaryLight,
-    Color(0xFF0D47A1), Color(0xFF1976D2), Color(0xFF42A5F5), Color(0xFF1565C0),
-    Color(0xFF0277BD), Color(0xFF0288D1),
+    Color(0xFF6A1B9A), Color(0xFF7B1FA2), Color(0xFF8E24AA), Color(0xFF9C27B0),
+    Color(0xFFAB47BC), Color(0xFF4A148C),
   ];
 
   @override
@@ -59,7 +59,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,16 +161,16 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 7, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFE3F2FD),
+                                    color: AppTheme.primary.withOpacity(0.08),
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
-                                        color: AppTheme.primaryLight),
+                                        color: AppTheme.primary.withOpacity(0.30)),
                                   ),
-                                  child: Text('Class Teacher',
+                                  child: const Text('Class Teacher',
                                       style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
-                                          color: AppTheme.primaryMid)),
+                                          color: AppTheme.primaryDark)),
                                 ),
                               const SizedBox(width: 4),
                               Icon(Icons.chevron_right,

@@ -75,7 +75,7 @@ class _AttendanceClassDetailScreenState
       ),
       body: RefreshIndicator(
         onRefresh: _load,
-        color: Colors.indigo,
+        color: AppTheme.primary,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(0, 12, 0, 32),

@@ -1,529 +1,366 @@
-# Graph Report - .  (2026-04-29)
+# Graph Report - .  (2026-04-26)
 
 ## Corpus Check
-- 165 files · ~219,673 words
+- 134 files · ~155,813 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1699 nodes · 1990 edges · 78 communities detected
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 35 edges (avg confidence: 0.86)
-- Token cost: 0 input · 0 output
+- 1291 nodes · 1579 edges · 54 communities detected
+- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 50 edges (avg confidence: 0.86)
+- Token cost: 2,360 input · 5,170 output
 
 ## Community Hubs (Navigation)
-- [[_COMMUNITY_Screen Layer Index|Screen Layer Index]]
-- [[_COMMUNITY_Attendance Certificate UI|Attendance Certificate UI]]
-- [[_COMMUNITY_Student & Attendance Services|Student & Attendance Services]]
-- [[_COMMUNITY_Core App Navigation & Themes|Core App Navigation & Themes]]
-- [[_COMMUNITY_Home & Admin Screens|Home & Admin Screens]]
-- [[_COMMUNITY_Guardian Portal|Guardian Portal]]
-- [[_COMMUNITY_Timetable Settings & Bells|Timetable Settings & Bells]]
-- [[_COMMUNITY_Fee Collection|Fee Collection]]
+- [[_COMMUNITY_Screen Hub & Shared Imports|Screen Hub & Shared Imports]]
+- [[_COMMUNITY_Core Dashboards & Firebase|Core Dashboards & Firebase]]
+- [[_COMMUNITY_Student & Certificate Screens|Student & Certificate Screens]]
+- [[_COMMUNITY_Attendance Certificate Screen|Attendance Certificate Screen]]
+- [[_COMMUNITY_Guardian Dashboard|Guardian Dashboard]]
+- [[_COMMUNITY_Data Models|Data Models]]
+- [[_COMMUNITY_Timetable Settings Screen|Timetable Settings Screen]]
+- [[_COMMUNITY_Attendance Screen|Attendance Screen]]
+- [[_COMMUNITY_Fee Collection Screen|Fee Collection Screen]]
+- [[_COMMUNITY_Free Bells Screen|Free Bells Screen]]
+- [[_COMMUNITY_Copy Checking Screen|Copy Checking Screen]]
 - [[_COMMUNITY_Copy Check Overview|Copy Check Overview]]
-- [[_COMMUNITY_Attendance Class Detail|Attendance Class Detail]]
-- [[_COMMUNITY_Guardian Home Dashboard|Guardian Home Dashboard]]
-- [[_COMMUNITY_Attendance Screen UI|Attendance Screen UI]]
-- [[_COMMUNITY_Coordinator Dashboard|Coordinator Dashboard]]
-- [[_COMMUNITY_Free Periods Management|Free Periods Management]]
-- [[_COMMUNITY_Duty Assignment|Duty Assignment]]
-- [[_COMMUNITY_Principal Dashboard|Principal Dashboard]]
-- [[_COMMUNITY_Class Management|Class Management]]
-- [[_COMMUNITY_Core Data Models|Core Data Models]]
-- [[_COMMUNITY_Homework Overview|Homework Overview]]
-- [[_COMMUNITY_Student Profile|Student Profile]]
-- [[_COMMUNITY_Exam Management|Exam Management]]
-- [[_COMMUNITY_Test Creation|Test Creation]]
-- [[_COMMUNITY_Analytics & Reports|Analytics & Reports]]
-- [[_COMMUNITY_Windows Platform Layer|Windows Platform Layer]]
-- [[_COMMUNITY_Design System & Architecture Docs|Design System & Architecture Docs]]
-- [[_COMMUNITY_Copy Checking|Copy Checking]]
-- [[_COMMUNITY_Teacher Management|Teacher Management]]
-- [[_COMMUNITY_Attendance History|Attendance History]]
-- [[_COMMUNITY_Bells & Leave Requests|Bells & Leave Requests]]
-- [[_COMMUNITY_Firebase & App Entry|Firebase & App Entry]]
-- [[_COMMUNITY_Role-Based Auth & Routing|Role-Based Auth & Routing]]
-- [[_COMMUNITY_Announcements|Announcements]]
-- [[_COMMUNITY_Android & iOS App Icons|Android & iOS App Icons]]
-- [[_COMMUNITY_Linux GTK Platform Layer|Linux GTK Platform Layer]]
-- [[_COMMUNITY_Screen Design Specifications|Screen Design Specifications]]
-- [[_COMMUNITY_App Icon Assets|App Icon Assets]]
-- [[_COMMUNITY_Build System & Config|Build System & Config]]
+- [[_COMMUNITY_macOS App Icons|macOS App Icons]]
+- [[_COMMUNITY_Knowledge Graph Report|Knowledge Graph Report]]
+- [[_COMMUNITY_Analytics Screen|Analytics Screen]]
+- [[_COMMUNITY_Windows Native Runner|Windows Native Runner]]
+- [[_COMMUNITY_Teacher Management Screen|Teacher Management Screen]]
+- [[_COMMUNITY_Leave Application Screen|Leave Application Screen]]
+- [[_COMMUNITY_Attendance History Screen|Attendance History Screen]]
+- [[_COMMUNITY_Leave Requests Screen|Leave Requests Screen]]
+- [[_COMMUNITY_My Timetable Screen|My Timetable Screen]]
+- [[_COMMUNITY_Timetable Editor Screen|Timetable Editor Screen]]
+- [[_COMMUNITY_Exam Management Screen|Exam Management Screen]]
+- [[_COMMUNITY_Admin Screen|Admin Screen]]
+- [[_COMMUNITY_Announcements Screen|Announcements Screen]]
+- [[_COMMUNITY_Class Attendance Detail|Class Attendance Detail]]
+- [[_COMMUNITY_iOS App Icons|iOS App Icons]]
+- [[_COMMUNITY_Android Launcher Icons|Android Launcher Icons]]
+- [[_COMMUNITY_Web & Splash Assets|Web & Splash Assets]]
+- [[_COMMUNITY_macOS Plugin Registration|macOS Plugin Registration]]
 - [[_COMMUNITY_iOS App Delegate|iOS App Delegate]]
-- [[_COMMUNITY_macOS Platform Layer|macOS Platform Layer]]
-- [[_COMMUNITY_iOS Test Suite|iOS Test Suite]]
+- [[_COMMUNITY_Platform Test Suites|Platform Test Suites]]
 - [[_COMMUNITY_Android Plugin Registrant|Android Plugin Registrant]]
-- [[_COMMUNITY_Flutter Widget Tests|Flutter Widget Tests]]
-- [[_COMMUNITY_User Role Model|User Role Model]]
+- [[_COMMUNITY_Widget Tests|Widget Tests]]
 - [[_COMMUNITY_Teacher Model|Teacher Model]]
 - [[_COMMUNITY_Student Model|Student Model]]
-- [[_COMMUNITY_iOS Launch Screens|iOS Launch Screens]]
-- [[_COMMUNITY_Cross-Platform App Icons|Cross-Platform App Icons]]
 - [[_COMMUNITY_Android Main Activity|Android Main Activity]]
 - [[_COMMUNITY_Timetable Entry Model|Timetable Entry Model]]
-- [[_COMMUNITY_Design Philosophy|Design Philosophy]]
-- [[_COMMUNITY_Role Selection Feature|Role Selection Feature]]
-- [[_COMMUNITY_UI Layout Rules|UI Layout Rules]]
-- [[_COMMUNITY_iOS Bridge Header|iOS Bridge Header]]
-- [[_COMMUNITY_iOS Plugin Registrant Header|iOS Plugin Registrant Header]]
+- [[_COMMUNITY_iOS Bridging Header|iOS Bridging Header]]
+- [[_COMMUNITY_iOS Plugin Header|iOS Plugin Header]]
 - [[_COMMUNITY_Linux App Header|Linux App Header]]
-- [[_COMMUNITY_Linux Plugin Registrant Header|Linux Plugin Registrant Header]]
-- [[_COMMUNITY_Linux Utils Header|Linux Utils Header]]
-- [[_COMMUNITY_Windows Win32 Window Header|Windows Win32 Window Header]]
+- [[_COMMUNITY_Linux Plugin Header|Linux Plugin Header]]
+- [[_COMMUNITY_Windows Utils Header|Windows Utils Header]]
+- [[_COMMUNITY_Windows Window Header|Windows Window Header]]
 - [[_COMMUNITY_Windows Resource Header|Windows Resource Header]]
-- [[_COMMUNITY_macOS Plugin Header|macOS Plugin Header]]
-- [[_COMMUNITY_Analytics Design Spec|Analytics Design Spec]]
-- [[_COMMUNITY_Homework Design Spec|Homework Design Spec]]
-- [[_COMMUNITY_Student List Design Spec|Student List Design Spec]]
-- [[_COMMUNITY_Fee Collection Design Spec|Fee Collection Design Spec]]
-- [[_COMMUNITY_Leave Application Design Spec|Leave Application Design Spec]]
-- [[_COMMUNITY_Leave Requests Design Spec|Leave Requests Design Spec]]
-- [[_COMMUNITY_Daily Calls Design Spec|Daily Calls Design Spec]]
-- [[_COMMUNITY_Timetable Design Spec|Timetable Design Spec]]
-- [[_COMMUNITY_Coordinator Dashboard Feature|Coordinator Dashboard Feature]]
-- [[_COMMUNITY_Timetable Teacher View Feature|Timetable Teacher View Feature]]
-- [[_COMMUNITY_Student List Feature|Student List Feature]]
-- [[_COMMUNITY_Student Profile Feature|Student Profile Feature]]
-- [[_COMMUNITY_Home Screens Feature|Home Screens Feature]]
-- [[_COMMUNITY_Coordinator Dashboard Spec|Coordinator Dashboard Spec]]
-- [[_COMMUNITY_Bell & Class Settings Spec|Bell & Class Settings Spec]]
-- [[_COMMUNITY_Home Screens Spec|Home Screens Spec]]
-- [[_COMMUNITY_Notifications Spec|Notifications Spec]]
-- [[_COMMUNITY_Icon Usage Rules|Icon Usage Rules]]
+- [[_COMMUNITY_Windows Plugin Header|Windows Plugin Header]]
+- [[_COMMUNITY_Linux CMake Build|Linux CMake Build]]
+- [[_COMMUNITY_Windows Runner|Windows Runner]]
+- [[_COMMUNITY_App Icons Report Node|App Icons Report Node]]
+- [[_COMMUNITY_macOS Runner Report Node|macOS Runner Report Node]]
+- [[_COMMUNITY_macOS Delegate Report Node|macOS Delegate Report Node]]
+- [[_COMMUNITY_Platform Tests Report Node|Platform Tests Report Node]]
+- [[_COMMUNITY_Android Plugin Report Node|Android Plugin Report Node]]
+- [[_COMMUNITY_Widget Tests Report Node|Widget Tests Report Node]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `package:flutter/material.dart` - 59 edges
+1. `package:flutter/material.dart` - 41 edges
 2. `../theme.dart` - 40 edges
-3. `../models/student.dart` - 27 edges
-4. `../services/timetable_service.dart` - 26 edges
-5. `package:cloud_firestore/cloud_firestore.dart` - 22 edges
-6. `Flutter Default Logo Design (light-blue diagonal chevron + dark navy accent, white background)` - 19 edges
+3. `../services/timetable_service.dart` - 27 edges
+4. `package:flutter/material.dart` - 24 edges
+5. `../theme.dart` - 24 edges
+6. `package:cloud_firestore/cloud_firestore.dart` - 16 edges
 7. `../services/student_service.dart` - 16 edges
-8. `../models/teacher.dart` - 15 edges
-9. `dart:io` - 13 edges
-10. `../services/firestore_service.dart` - 13 edges
+8. `../models/teacher.dart` - 16 edges
+9. `../models/student.dart` - 14 edges
+10. `Flutter Logo App Icon` - 14 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Brand and Design System` --semantically_similar_to--> `Color Palette (by section)`  [INFERRED] [semantically similar]
-  DESIGN_BRIEF.md → docs/DESIGN.md
-- `Brand and Design System` --semantically_similar_to--> `Typography Rules`  [INFERRED] [semantically similar]
-  DESIGN_BRIEF.md → docs/DESIGN.md
-- `iOS App Icon 29x29 @2x - Flutter default logo: sky blue and dark navy chevron F mark` --semantically_similar_to--> `macOS App Icon 32x32 - Flutter default logo: white rounded-rect background with small Flutter chevron mark in light blue and dark blue`  [INFERRED] [semantically similar]
-  ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png → macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_32.png
-- `Android Launcher Icon mipmap-mdpi - Flutter default logo: sky blue and dark navy chevron F mark on white background` --semantically_similar_to--> `macOS App Icon 32x32 - Flutter default logo: white rounded-rect background with small Flutter chevron mark in light blue and dark blue`  [INFERRED] [semantically similar]
-  android/app/src/main/res/mipmap-mdpi/ic_launcher.png → macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_32.png
-- `Android Launcher Icon mipmap-mdpi - Flutter default logo: sky blue and dark navy chevron F mark on white background` --semantically_similar_to--> `iOS App Icon 29x29 @2x - Flutter default logo: sky blue and dark navy chevron F mark`  [INFERRED] [semantically similar]
-  android/app/src/main/res/mipmap-mdpi/ic_launcher.png → ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png
-
-## Hyperedges (group relationships)
-- **School App Roles (Coordinator, Teacher, Principal, Guardian, Admin)** — role_coordinator, role_teacher, role_principal, role_guardian, role_admin [EXTRACTED 1.00]
-- **Core Data Models (Teacher, Settings, Timetable, Student, Attendance)** — datamodel_teacher, datamodel_settings, datamodel_timetable, datamodel_student, datamodel_attendance [EXTRACTED 1.00]
-- **Completed Feature Set** — done_role_selection, done_coordinator_dashboard, done_teacher_management, done_bell_class_settings, done_timetable_editor, done_my_timetable, done_attendance_screen, done_student_management, done_student_list, done_student_profile, done_home_screens, done_data_storage [EXTRACTED 1.00]
-- **Design System Documentation (DESIGN.md + DESIGN_BRIEF.md)** — design_color_palette, design_typography, design_layout_rules, brief_brand_design_system, brief_design_goals, material_design2 [INFERRED 0.85]
-- **Flutter Platform Build Configs (Linux, Windows)** — linux_cmake_root, linux_flutter_cmake, windows_cmake_root, windows_runner_cmake, windows_flutter_cmake [EXTRACTED 1.00]
-- **macOS App Icon Platform Variants** — macos_icon_1024, macos_icon_128 [EXTRACTED 1.00]
-- **All Platform App Icon Variants (Default Flutter Logo - Light/Dark Blue Chevron on White)** — macos_icon_1024, macos_icon_128, android_icon_xhdpi, ios_icon_40x40_3x, ios_icon_20x20_2x, ios_icon_29x29_1x, ios_icon_20x20_3x, ios_icon_76x76_2x, ios_icon_40x40_1x, ios_icon_76x76_1x [EXTRACTED 1.00]
-- **macOS App Icon Variants (rounded rect style)** — macos_icon_16, macos_icon_64, macos_icon_256, macos_icon_512 [EXTRACTED 1.00]
-- **Web PWA Icon Set** — web_favicon, web_icon_192, web_icon_512, web_icon_maskable_192, web_icon_maskable_512 [EXTRACTED 1.00]
-- **All Platform App Icon Variants (default Flutter logo — not yet customised for school app)** — web_favicon, web_icon_192, web_icon_512, web_icon_maskable_192, web_icon_maskable_512, ios_icon_20x20_1x, ios_icon_29x29_3x, ios_icon_40x40_2x, ios_icon_60x60_2x, ios_icon_60x60_3x, ios_icon_83_5x83_5_2x, ios_icon_1024x1024_1x, macos_icon_16, macos_icon_64, macos_icon_256, macos_icon_512, android_icon_hdpi, android_icon_xxhdpi, android_icon_xxxhdpi [INFERRED 0.95]
-- **iOS App Icon Variants** — ios_icon_20x20_1x, ios_icon_29x29_3x, ios_icon_40x40_2x, ios_icon_60x60_2x, ios_icon_60x60_3x, ios_icon_83_5x83_5_2x, ios_icon_1024x1024_1x [EXTRACTED 1.00]
-- **iOS App Icon Platform Variants** — ios_icon_40x40_3x, ios_icon_20x20_2x, ios_icon_29x29_1x, ios_icon_20x20_3x, ios_icon_76x76_2x, ios_icon_40x40_1x, ios_icon_76x76_1x [EXTRACTED 1.00]
-- **App Icons Across Platforms** — android_launcher_mdpi, ios_app_icon_29x29_2x, macos_app_icon_32 [EXTRACTED 1.00]
-- **Android Launcher Icon Density Variants** — android_icon_hdpi, android_icon_xxhdpi, android_icon_xxxhdpi [EXTRACTED 1.00]
-- **Android App Icon Platform Variants** — android_icon_xhdpi [EXTRACTED 1.00]
+- `Flutter Logo Icon Design` --is_placeholder_icon_for--> `school_app`  [INFERRED]
+  macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png → README.md
+- `Flutter Logo App Icon` --represents--> `Flutter Framework`  [EXTRACTED]
+  ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png → README.md
+- `school_app` --conceptually_related_to--> `iOS Launch Screen Assets`  [INFERRED]
+  README.md → ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md
+- `flutter_wrapper_plugin (Windows Static Library)` --conceptually_related_to--> `Flutter Framework`  [INFERRED]
+  windows/flutter/CMakeLists.txt → README.md
+- `my_application_dispose()` --calls--> `dispose`  [INFERRED]
+  linux/my_application.cc → lib/screens/copy_checking_screen.dart
 
 ## Communities
 
-### Community 0 - "Screen Layer Index"
+### Community 0 - "Screen Hub & Shared Imports"
 Cohesion: 0.02
-Nodes (115): analytics_screen.dart, announcements_screen.dart, assign_duties_screen.dart, attendance_class_detail_screen.dart, attendance_history_screen.dart, class_picker_screen.dart, copy_check_overview_screen.dart, copy_checking_screen.dart (+107 more)
+Nodes (106): analytics_screen.dart, announcements_screen.dart, assign_duties_screen.dart, attendance_class_detail_screen.dart, attendance_history_screen.dart, attendance_screen.dart, class_picker_screen.dart, copy_check_overview_screen.dart (+98 more)
 
-### Community 1 - "Attendance Certificate UI"
+### Community 1 - "Core Dashboards & Firebase"
 Cohesion: 0.02
-Nodes (89): AttendanceCertificateScreen, _AttendanceCertificateScreenState, build, _DateButton, Divider, _fmtDate, initState, _previewRow (+81 more)
+Nodes (86): admin_screen.dart, coordinator_dashboard.dart, firebase_options.dart, guardian_dashboard.dart, home_screen.dart, DefaultFirebaseOptions, UnsupportedError, build (+78 more)
 
-### Community 2 - "Student & Attendance Services"
+### Community 2 - "Student & Certificate Screens"
 Cohesion: 0.02
-Nodes (84): add_student_screen.dart, attendance_certificate_screen.dart, attendance_service.dart, dart:io, firestore_service.dart, AddStudentScreen, _AddStudentScreenState, build (+76 more)
+Nodes (83): add_student_screen.dart, attendance_certificate_screen.dart, dart:io, AddStudentScreen, _AddStudentScreenState, build, dispose, _Field (+75 more)
 
-### Community 3 - "Core App Navigation & Themes"
+### Community 3 - "Attendance Certificate Screen"
 Cohesion: 0.03
-Nodes (73): attendance_screen.dart, class_management_screen.dart, class_selection_screen.dart, coordinator_home.dart, dart:async, dart:convert, guardian_home.dart, ThemeProvider (+65 more)
+Nodes (64): AttendanceCertificateScreen, _AttendanceCertificateScreenState, build, _DateButton, Divider, _fmtDate, initState, _previewRow (+56 more)
 
-### Community 4 - "Home & Admin Screens"
+### Community 4 - "Guardian Dashboard"
 Cohesion: 0.03
-Nodes (70): home_screen.dart, Color, fromValue, AdminScreen, _AdminScreenState, build, Color, Container (+62 more)
+Nodes (62): AnnouncementsScreen, AuthService, _bellTime, build, _CalendarCard, Center, ClipPath, Column (+54 more)
 
-### Community 5 - "Guardian Portal"
+### Community 5 - "Data Models"
 Cohesion: 0.03
-Nodes (60): ../data/student_data.dart, build, _confirmSignOut, Container, Expanded, _formatDate, GuardianPortalScreen, _GuardianPortalScreenState (+52 more)
+Nodes (51): dart:convert, Announcement, CopyCheck, CopyStatus, copyWith, Exam, ExamResult, FeeComponent (+43 more)
 
-### Community 6 - "Timetable Settings & Bells"
+### Community 6 - "Timetable Settings Screen"
 Cohesion: 0.03
 Nodes (60): _addBell, _addClass, AlertDialog, _Bell, _bellDisplayNumber, _bellHdrCell, _bellRow, build (+52 more)
 
-### Community 7 - "Fee Collection"
+### Community 7 - "Attendance Screen"
+Cohesion: 0.04
+Nodes (53): dart:async, _accentColor, AnimatedContainer, AppBar, _AttendanceHeroCard, AttendanceScreen, _AttendanceScreenState, _Avatar (+45 more)
+
+### Community 8 - "Fee Collection Screen"
 Cohesion: 0.04
 Nodes (50): AlwaysScrollableScrollPhysics, build, ChoiceChip, _ClassFeeSummary, Container, Divider, FeeCollectionScreen, _FeeCollectionScreenState (+42 more)
 
-### Community 8 - "Copy Check Overview"
-Cohesion: 0.04
-Nodes (49): AlwaysScrollableScrollPhysics, build, Center, _colorFor, Container, _CoordCheckDetailScreen, _CoordCheckDetailScreenState, CopyCheckOverviewScreen (+41 more)
-
-### Community 9 - "Attendance Class Detail"
-Cohesion: 0.04
-Nodes (48): AttendanceClassDetailScreen, _AttendanceClassDetailScreenState, build, Container, Divider, Expanded, initState, launchUrl (+40 more)
-
-### Community 10 - "Guardian Home Dashboard"
-Cohesion: 0.04
-Nodes (47): build, _buildAcademicsTab, _buildComplaintsTab, _buildMyChildTab, _buildSchoolInfoTab, _calendarDay, _calendarLegend, _card (+39 more)
-
-### Community 11 - "Attendance Screen UI"
-Cohesion: 0.04
-Nodes (46): _accentColor, AnimatedContainer, AppBar, AttendanceScreen, _AttendanceScreenState, _Avatar, build, _buildAppBar (+38 more)
-
-### Community 12 - "Coordinator Dashboard"
-Cohesion: 0.04
-Nodes (46): AnimatedContainer, _avatar, build, _buildComplaintsTab, _buildStudentsTab, _buildTeachersTab, _buildTimetableTab, Center (+38 more)
-
-### Community 13 - "Free Periods Management"
+### Community 9 - "Free Bells Screen"
 Cohesion: 0.04
 Nodes (43): build, _buildBellCard, _buildClassRow, Container, Divider, _emptyState, Flexible, FreeBellsScreen (+35 more)
 
-### Community 14 - "Duty Assignment"
+### Community 10 - "Copy Checking Screen"
 Cohesion: 0.04
-Nodes (43): AssignDutiesScreen, _AssignDutiesScreenState, _assignDuty, BorderSide, build, Container, _dateLabel, Divider (+35 more)
+Nodes (37): fl_register_plugins(), _AllStudentsTab, AlwaysScrollableScrollPhysics, BoxConstraints, build, Center, _CheckSessionScreen, _CheckSessionScreenState (+29 more)
 
-### Community 15 - "Principal Dashboard"
-Cohesion: 0.05
-Nodes (43): AlertDialog, AnimatedBuilder, build, _buildComplaintsSection, _buildEventsSection, _buildLeaderboardSection, _buildOverviewSection, _buildTeacherActivitySection (+35 more)
+### Community 11 - "Copy Check Overview"
+Cohesion: 0.04
+Nodes (43): AlwaysScrollableScrollPhysics, build, Center, _colorFor, Container, _CoordCheckDetailScreen, _CoordCheckDetailScreenState, CopyCheckOverviewScreen (+35 more)
 
-### Community 16 - "Class Management"
-Cohesion: 0.05
-Nodes (43): _addBehaviorNoteFor, _addChapter, _AttBadge, _attendanceTab, build, _capFirst, Center, _changePtmStatus (+35 more)
+### Community 12 - "macOS App Icons"
+Cohesion: 0.07
+Nodes (43): AOT Library (libapp.so / app.so), App Icon 128x128, App Icon 16x16, App Icon 256x256, App Icon 32x32, App Icon 512x512, App Icon 64x64, AppIcon Appiconset (macOS) (+35 more)
 
-### Community 17 - "Core Data Models"
-Cohesion: 0.05
-Nodes (33): Announcement, CopyCheck, CopyStatus, copyWith, Exam, ExamResult, FeeComponent, FeeStructure (+25 more)
+### Community 13 - "Knowledge Graph Report"
+Cohesion: 0.08
+Nodes (41): School App Graph Visualization (HTML), AuthService, package:cloud_firestore/cloud_firestore.dart, Community: Admin Panel, Community: Analytics Module, Community: Announcements, Community: Attendance Certificate, Community: Attendance Class Detail (+33 more)
 
-### Community 18 - "Homework Overview"
-Cohesion: 0.05
-Nodes (39): AlwaysScrollableScrollPhysics, build, Container, _CoordHomeworkCard, Divider, _filterClass, HomeworkOverviewScreen, _HomeworkOverviewScreenState (+31 more)
-
-### Community 19 - "Student Profile"
-Cohesion: 0.05
-Nodes (40): _attendanceTab, _behaviorTab, build, _buildAvatar, Center, CircleAvatar, Column, Container (+32 more)
-
-### Community 20 - "Exam Management"
-Cohesion: 0.05
-Nodes (37): AlwaysScrollableScrollPhysics, BorderSide, BoxConstraints, build, Container, Divider, _ExamCard, ExamManagementScreen (+29 more)
-
-### Community 21 - "Test Creation"
-Cohesion: 0.06
-Nodes (34): build, dispose, _fmtDate, _fmtTime, _label, Material, _PickerTile, Scaffold (+26 more)
-
-### Community 22 - "Analytics & Reports"
+### Community 14 - "Analytics Screen"
 Cohesion: 0.06
 Nodes (34): _AbsenceEntry, _AbsenceLeaderboardTab, _AbsenceLeaderboardTabState, AnalyticsScreen, _AnalyticsScreenState, _AttendanceTrendTab, _AttendanceTrendTabState, BarChartGroupData (+26 more)
 
-### Community 23 - "Windows Platform Layer"
+### Community 15 - "Windows Native Runner"
 Cohesion: 0.09
 Nodes (25): FlutterWindow(), OnCreate(), RegisterPlugins(), wWinMain(), CreateAndAttachConsole(), GetCommandLineArguments(), Utf8FromUtf16(), Create() (+17 more)
 
-### Community 24 - "Design System & Architecture Docs"
-Cohesion: 0.07
-Nodes (34): Attendance Three-State Toggle (Present/Leave/Absent), Attendance Screen Design, Brand and Design System, Timetable Clash Detection, Attendance Data Model, Firestore Cloud Sync Path Structure, Settings Data Model, SharedPreferences Storage Keys (+26 more)
-
-### Community 25 - "Copy Checking"
-Cohesion: 0.06
-Nodes (32): _AllStudentsTab, AlwaysScrollableScrollPhysics, BoxConstraints, build, Center, _CheckSessionScreen, _CheckSessionScreenState, Column (+24 more)
-
-### Community 26 - "Teacher Management"
+### Community 16 - "Teacher Management Screen"
 Cohesion: 0.06
 Nodes (30): AlertDialog, build, Center, _confirmRemove, Container, _currentDay, dispose, Divider (+22 more)
 
-### Community 27 - "Attendance History"
+### Community 17 - "Leave Application Screen"
+Cohesion: 0.07
+Nodes (28): build, _card, Container, _dateLabel, dispose, _endDateLabel, Expanded, GestureDetector (+20 more)
+
+### Community 18 - "Attendance History Screen"
 Cohesion: 0.07
 Nodes (28): AlwaysScrollableScrollPhysics, AttendanceHistoryScreen, _AttendanceHistoryScreenState, build, _CalStat, Card, Container, _emptyState (+20 more)
 
-### Community 28 - "Bells & Leave Requests"
+### Community 19 - "Leave Requests Screen"
 Cohesion: 0.07
 Nodes (27): free_bells_screen.dart, build, _buildList, capitalize, Center, _chip, Container, _detailRow (+19 more)
 
-### Community 29 - "Firebase & App Entry"
-Cohesion: 0.09
-Nodes (20): firebase_options.dart, DefaultFirebaseOptions, UnsupportedError, build, _go, initState, main, MaterialApp (+12 more)
+### Community 20 - "My Timetable Screen"
+Cohesion: 0.08
+Nodes (25): _Badge, build, _buildFullGrid, _buildPersonalView, Column, Container, _daySelector, Divider (+17 more)
 
-### Community 30 - "Role-Based Auth & Routing"
+### Community 21 - "Timetable Editor Screen"
+Cohesion: 0.08
+Nodes (23): build, _buildCell, _buildGrid, _buildLegend, Center, Chip, _colorFor, Container (+15 more)
+
+### Community 22 - "Exam Management Screen"
+Cohesion: 0.08
+Nodes (22): AlwaysScrollableScrollPhysics, BorderSide, BoxConstraints, build, Container, Divider, _ExamCard, ExamManagementScreen (+14 more)
+
+### Community 23 - "Admin Screen"
 Cohesion: 0.1
-Nodes (20): admin_screen.dart, coordinator_dashboard.dart, guardian_dashboard.dart, AuthService, build, Icon, InkWell, _PlaceholderDestination (+12 more)
+Nodes (20): AdminScreen, _AdminScreenState, AlwaysScrollableScrollPhysics, build, Container, dispose, Divider, GestureDetector (+12 more)
 
-### Community 31 - "Announcements"
+### Community 24 - "Announcements Screen"
 Cohesion: 0.1
 Nodes (19): AnnouncementsScreen, _AnnouncementsScreenState, _audienceColor, BoxConstraints, build, _Card, Container, _fmtDate (+11 more)
 
-### Community 32 - "Android & iOS App Icons"
-Cohesion: 0.1
-Nodes (21): Android Launcher Icon hdpi (~72px), Android Launcher Icon xxhdpi (~144px), Android Launcher Icon xxxhdpi (~192px), Flutter Default Logo Design (light-blue diagonal chevron + dark navy accent, white background), iOS App Icon 1024x1024@1x, iOS App Icon 20x20@1x (20px), iOS App Icon 29x29@3x (87px), iOS App Icon 40x40@2x (80px) (+13 more)
+### Community 25 - "Class Attendance Detail"
+Cohesion: 0.11
+Nodes (17): AttendanceClassDetailScreen, _AttendanceClassDetailScreenState, build, Container, Divider, Expanded, initState, launchUrl (+9 more)
 
-### Community 33 - "Linux GTK Platform Layer"
-Cohesion: 0.14
-Nodes (6): fl_register_plugins(), dispose, main(), my_application_activate(), my_application_dispose(), my_application_new()
+### Community 26 - "iOS App Icons"
+Cohesion: 0.23
+Nodes (16): App Icon 20x20 @1x, App Icon 20x20 @2x, App Icon 20x20 @3x, App Icon 29x29 @1x, App Icon 29x29 @2x, App Icon 29x29 @3x, App Icon 40x40 @1x, App Icon 40x40 @2x (+8 more)
 
-### Community 34 - "Screen Design Specifications"
-Cohesion: 0.21
-Nodes (12): Admin Screen Design, Coordinator Dashboard Screen Design, Guardian Dashboard Screen Design, Principal Dashboard Screen Design, Role Selection Screen Design, School App Overview, Teacher Home Screen Design, Admin Role (+4 more)
+### Community 27 - "Android Launcher Icons"
+Cohesion: 0.23
+Nodes (16): Android Launcher Icon hdpi (72px), Android Launcher Icon mdpi (48px), Android Launcher Icon xhdpi (96px), Android Launcher Icon xxhdpi (144px), Android Launcher Icon xxxhdpi (192px), Android Mipmap Launcher Icon Assets, Flutter Logo App Icon, iOS AppIcon Asset Catalog (+8 more)
 
-### Community 35 - "App Icon Assets"
-Cohesion: 0.18
-Nodes (12): Android App Icon xhdpi (ic_launcher), App Icon Visual Design (Default Flutter Logo), Flutter Default App Icon (Light Blue/Dark Blue Chevron on White), iOS App Icon 20x20@2x, iOS App Icon 20x20@3x, iOS App Icon 29x29@1x, iOS App Icon 40x40@1x, iOS App Icon 40x40@3x (+4 more)
+### Community 28 - "Web & Splash Assets"
+Cohesion: 0.4
+Nodes (10): macOS App Icon 1024x1024 - Flutter logo on white rounded-rectangle background with subtle shadow, light blue and dark navy blue chevrons, macOS style, Web Favicon - Flutter logo icon (tiny, ~16x16 equivalent), light blue chevron on transparent background, Flutter Framework Logo - iconic angled chevron/arrow shapes forming the letter F, using light sky-blue and dark navy-blue colors, Web PWA Icon 192x192 - Flutter logo, light blue and dark navy blue angled chevrons on white background, Web PWA Icon 512x512 - Flutter logo, light blue and dark navy blue chevrons on white background, large format standard icon, Web PWA Maskable Icon 192x192 - Flutter logo, light blue and dark navy blue chevrons on white background, safe-zone padded for maskable use, Web PWA Maskable Icon 512x512 - Flutter logo, light blue and dark navy blue chevrons on white background, large format maskable icon with safe-zone padding, macOS App Icon Asset - platform-specific icon in Xcode xcassets bundle for macOS Runner target (+2 more)
 
-### Community 36 - "Build System & Config"
-Cohesion: 0.29
-Nodes (8): Flutter Framework, Linux CMake Root Build Config, Linux Flutter CMake Build Config, School App README, Web App Entry Point (index.html), Windows CMake Root Build Config, Windows Flutter CMake Build Config, Windows Runner CMake Build Config
-
-### Community 37 - "iOS App Delegate"
-Cohesion: 0.33
-Nodes (2): AppDelegate, FlutterAppDelegate
-
-### Community 38 - "macOS Platform Layer"
+### Community 29 - "macOS Plugin Registration"
 Cohesion: 0.33
 Nodes (3): RegisterGeneratedPlugins(), MainFlutterWindow, NSWindow
 
-### Community 39 - "iOS Test Suite"
+### Community 30 - "iOS App Delegate"
+Cohesion: 0.33
+Nodes (2): AppDelegate, FlutterAppDelegate
+
+### Community 31 - "Platform Test Suites"
 Cohesion: 0.4
 Nodes (2): RunnerTests, XCTestCase
 
-### Community 40 - "Android Plugin Registrant"
+### Community 32 - "Android Plugin Registrant"
 Cohesion: 0.4
 Nodes (2): GeneratedPluginRegistrant, -registerWithRegistry
 
-### Community 41 - "Flutter Widget Tests"
+### Community 33 - "Widget Tests"
 Cohesion: 0.5
 Nodes (3): package:flutter_test/flutter_test.dart, package:school_app/main.dart, main
 
-### Community 42 - "User Role Model"
-Cohesion: 0.67
-Nodes (2): AppUser, _roleFromString
-
-### Community 43 - "Teacher Model"
+### Community 34 - "Teacher Model"
 Cohesion: 0.67
 Nodes (2): copyWith, Teacher
 
-### Community 44 - "Student Model"
+### Community 35 - "Student Model"
 Cohesion: 0.67
 Nodes (2): copyWith, Student
 
-### Community 45 - "iOS Launch Screens"
-Cohesion: 1.0
-Nodes (3): iOS Launch Image @2x (blank white splash screen), iOS Launch Image @3x (blank white splash screen), iOS Launch Image README
-
-### Community 46 - "Cross-Platform App Icons"
-Cohesion: 1.0
-Nodes (3): Android Launcher Icon mipmap-mdpi - Flutter default logo: sky blue and dark navy chevron F mark on white background, iOS App Icon 29x29 @2x - Flutter default logo: sky blue and dark navy chevron F mark, macOS App Icon 32x32 - Flutter default logo: white rounded-rect background with small Flutter chevron mark in light blue and dark blue
-
-### Community 47 - "Android Main Activity"
+### Community 36 - "Android Main Activity"
 Cohesion: 1.0
 Nodes (1): MainActivity
 
-### Community 48 - "Timetable Entry Model"
+### Community 37 - "Timetable Entry Model"
 Cohesion: 1.0
 Nodes (1): TimetableEntry
 
-### Community 49 - "Design Philosophy"
-Cohesion: 1.0
-Nodes (2): Design Goals and Quality Bar, Rationale: WhatsApp-level simplicity for usability
-
-### Community 50 - "Role Selection Feature"
-Cohesion: 1.0
-Nodes (2): Role Selection Feature (Done), Roles Feature Specification
-
-### Community 51 - "UI Layout Rules"
-Cohesion: 1.0
-Nodes (2): Layout Rules, Rationale: Flat list style (no Card widget, InkWell+Padding)
-
-### Community 52 - "iOS Bridge Header"
+### Community 38 - "iOS Bridging Header"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 53 - "iOS Plugin Registrant Header"
+### Community 39 - "iOS Plugin Header"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 54 - "Linux App Header"
+### Community 40 - "Linux App Header"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 55 - "Linux Plugin Registrant Header"
+### Community 41 - "Linux Plugin Header"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 56 - "Linux Utils Header"
+### Community 42 - "Windows Utils Header"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 57 - "Windows Win32 Window Header"
+### Community 43 - "Windows Window Header"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 58 - "Windows Resource Header"
+### Community 44 - "Windows Resource Header"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 59 - "macOS Plugin Header"
+### Community 45 - "Windows Plugin Header"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 60 - "Analytics Design Spec"
+### Community 46 - "Linux CMake Build"
 Cohesion: 1.0
-Nodes (1): Analytics Dashboard Screen Design
+Nodes (1): Linux CMakeLists.txt (Top-Level)
 
-### Community 61 - "Homework Design Spec"
+### Community 47 - "Windows Runner"
 Cohesion: 1.0
-Nodes (1): Homework Screen Design (Teacher)
+Nodes (1): Community: Windows Native Runner
 
-### Community 62 - "Student List Design Spec"
+### Community 48 - "App Icons Report Node"
 Cohesion: 1.0
-Nodes (1): Student List Screen Design
+Nodes (1): Community: App Icons & Web Assets
 
-### Community 63 - "Fee Collection Design Spec"
+### Community 49 - "macOS Runner Report Node"
 Cohesion: 1.0
-Nodes (1): Fee Collection Screen Design
+Nodes (1): Community: macOS Native Runner
 
-### Community 64 - "Leave Application Design Spec"
+### Community 50 - "macOS Delegate Report Node"
 Cohesion: 1.0
-Nodes (1): Leave Application Screen Design (Teacher)
+Nodes (1): Community: macOS App Delegate
 
-### Community 65 - "Leave Requests Design Spec"
+### Community 51 - "Platform Tests Report Node"
 Cohesion: 1.0
-Nodes (1): Leave Requests Screen Design (Coordinator/Principal)
+Nodes (1): Community: Platform Test Suites
 
-### Community 66 - "Daily Calls Design Spec"
+### Community 52 - "Android Plugin Report Node"
 Cohesion: 1.0
-Nodes (1): Daily Calls Screen Design
+Nodes (1): Community: Android Plugin Registrant
 
-### Community 67 - "Timetable Design Spec"
+### Community 53 - "Widget Tests Report Node"
 Cohesion: 1.0
-Nodes (1): Timetable Settings Screen Design
-
-### Community 68 - "Coordinator Dashboard Feature"
-Cohesion: 1.0
-Nodes (1): Coordinator Dashboard Feature (Done)
-
-### Community 69 - "Timetable Teacher View Feature"
-Cohesion: 1.0
-Nodes (1): My Timetable Teacher View (Done)
-
-### Community 70 - "Student List Feature"
-Cohesion: 1.0
-Nodes (1): Student List Screen Feature (Done)
-
-### Community 71 - "Student Profile Feature"
-Cohesion: 1.0
-Nodes (1): Student Profile Page Feature (Done)
-
-### Community 72 - "Home Screens Feature"
-Cohesion: 1.0
-Nodes (1): Home Screens Feature (Done)
-
-### Community 73 - "Coordinator Dashboard Spec"
-Cohesion: 1.0
-Nodes (1): Coordinator Dashboard Specification
-
-### Community 74 - "Bell & Class Settings Spec"
-Cohesion: 1.0
-Nodes (1): Bell and Class Settings Specification
-
-### Community 75 - "Home Screens Spec"
-Cohesion: 1.0
-Nodes (1): Home Screens Specification
-
-### Community 76 - "Notifications Spec"
-Cohesion: 1.0
-Nodes (1): Notifications and Communication Specification
-
-### Community 77 - "Icon Usage Rules"
-Cohesion: 1.0
-Nodes (1): Icon Usage Rules
+Nodes (1): Community: Widget Tests
 
 ## Knowledge Gaps
-- **1422 isolated node(s):** `main`, `package:flutter_test/flutter_test.dart`, `package:school_app/main.dart`, `-registerWithRegistry`, `MainActivity` (+1417 more)
+- **1003 isolated node(s):** `main`, `package:flutter_test/flutter_test.dart`, `package:school_app/main.dart`, `-registerWithRegistry`, `MainActivity` (+998 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **Thin community `Android Main Activity`** (2 nodes): `MainActivity.kt`, `MainActivity`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Timetable Entry Model`** (2 nodes): `timetable_entry.dart`, `TimetableEntry`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Design Philosophy`** (2 nodes): `Design Goals and Quality Bar`, `Rationale: WhatsApp-level simplicity for usability`
+- **Thin community `iOS Bridging Header`** (1 nodes): `Runner-Bridging-Header.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Role Selection Feature`** (2 nodes): `Role Selection Feature (Done)`, `Roles Feature Specification`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `UI Layout Rules`** (2 nodes): `Layout Rules`, `Rationale: Flat list style (no Card widget, InkWell+Padding)`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `iOS Bridge Header`** (1 nodes): `Runner-Bridging-Header.h`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `iOS Plugin Registrant Header`** (1 nodes): `GeneratedPluginRegistrant.h`
+- **Thin community `iOS Plugin Header`** (1 nodes): `GeneratedPluginRegistrant.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Linux App Header`** (1 nodes): `my_application.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Linux Plugin Registrant Header`** (1 nodes): `generated_plugin_registrant.h`
+- **Thin community `Linux Plugin Header`** (1 nodes): `generated_plugin_registrant.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Linux Utils Header`** (1 nodes): `utils.h`
+- **Thin community `Windows Utils Header`** (1 nodes): `utils.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Windows Win32 Window Header`** (1 nodes): `win32_window.h`
+- **Thin community `Windows Window Header`** (1 nodes): `win32_window.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Windows Resource Header`** (1 nodes): `resource.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `macOS Plugin Header`** (1 nodes): `generated_plugin_registrant.h`
+- **Thin community `Windows Plugin Header`** (1 nodes): `generated_plugin_registrant.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Analytics Design Spec`** (1 nodes): `Analytics Dashboard Screen Design`
+- **Thin community `Linux CMake Build`** (1 nodes): `Linux CMakeLists.txt (Top-Level)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Homework Design Spec`** (1 nodes): `Homework Screen Design (Teacher)`
+- **Thin community `Windows Runner`** (1 nodes): `Community: Windows Native Runner`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Student List Design Spec`** (1 nodes): `Student List Screen Design`
+- **Thin community `App Icons Report Node`** (1 nodes): `Community: App Icons & Web Assets`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Fee Collection Design Spec`** (1 nodes): `Fee Collection Screen Design`
+- **Thin community `macOS Runner Report Node`** (1 nodes): `Community: macOS Native Runner`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Leave Application Design Spec`** (1 nodes): `Leave Application Screen Design (Teacher)`
+- **Thin community `macOS Delegate Report Node`** (1 nodes): `Community: macOS App Delegate`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Leave Requests Design Spec`** (1 nodes): `Leave Requests Screen Design (Coordinator/Principal)`
+- **Thin community `Platform Tests Report Node`** (1 nodes): `Community: Platform Test Suites`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Daily Calls Design Spec`** (1 nodes): `Daily Calls Screen Design`
+- **Thin community `Android Plugin Report Node`** (1 nodes): `Community: Android Plugin Registrant`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Timetable Design Spec`** (1 nodes): `Timetable Settings Screen Design`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Coordinator Dashboard Feature`** (1 nodes): `Coordinator Dashboard Feature (Done)`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Timetable Teacher View Feature`** (1 nodes): `My Timetable Teacher View (Done)`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Student List Feature`** (1 nodes): `Student List Screen Feature (Done)`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Student Profile Feature`** (1 nodes): `Student Profile Page Feature (Done)`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Home Screens Feature`** (1 nodes): `Home Screens Feature (Done)`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Coordinator Dashboard Spec`** (1 nodes): `Coordinator Dashboard Specification`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Bell & Class Settings Spec`** (1 nodes): `Bell and Class Settings Specification`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Home Screens Spec`** (1 nodes): `Home Screens Specification`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Notifications Spec`** (1 nodes): `Notifications and Communication Specification`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Icon Usage Rules`** (1 nodes): `Icon Usage Rules`
+- **Thin community `Widget Tests Report Node`** (1 nodes): `Community: Widget Tests`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `package:flutter/material.dart` connect `Home & Admin Screens` to `Screen Layer Index`, `Attendance Certificate UI`, `Student & Attendance Services`, `Core App Navigation & Themes`, `Guardian Portal`, `Timetable Settings & Bells`, `Fee Collection`, `Copy Check Overview`, `Attendance Class Detail`, `Guardian Home Dashboard`, `Attendance Screen UI`, `Coordinator Dashboard`, `Free Periods Management`, `Duty Assignment`, `Principal Dashboard`, `Class Management`, `Homework Overview`, `Student Profile`, `Exam Management`, `Test Creation`, `Analytics & Reports`, `Copy Checking`, `Teacher Management`, `Attendance History`, `Bells & Leave Requests`, `Firebase & App Entry`, `Role-Based Auth & Routing`, `Announcements`?**
-  _High betweenness centrality (0.414) - this node is a cross-community bridge._
-- **Why does `../theme.dart` connect `Home & Admin Screens` to `Screen Layer Index`, `Attendance Certificate UI`, `Student & Attendance Services`, `Timetable Settings & Bells`, `Fee Collection`, `Copy Check Overview`, `Attendance Class Detail`, `Attendance Screen UI`, `Free Periods Management`, `Duty Assignment`, `Homework Overview`, `Exam Management`, `Analytics & Reports`, `Copy Checking`, `Teacher Management`, `Attendance History`, `Bells & Leave Requests`, `Firebase & App Entry`, `Role-Based Auth & Routing`, `Announcements`?**
-  _High betweenness centrality (0.109) - this node is a cross-community bridge._
-- **Why does `../models/student.dart` connect `Student & Attendance Services` to `Screen Layer Index`, `Attendance Certificate UI`, `Guardian Portal`, `Fee Collection`, `Attendance Class Detail`, `Guardian Home Dashboard`, `Attendance Screen UI`, `Coordinator Dashboard`, `Class Management`, `Core Data Models`, `Student Profile`, `Exam Management`, `Test Creation`, `Analytics & Reports`, `Copy Checking`, `Attendance History`?**
-  _High betweenness centrality (0.063) - this node is a cross-community bridge._
+- **Why does `package:flutter/material.dart` connect `Core Dashboards & Firebase` to `Screen Hub & Shared Imports`, `Student & Certificate Screens`, `Attendance Certificate Screen`, `Guardian Dashboard`, `Data Models`, `Timetable Settings Screen`, `Attendance Screen`, `Fee Collection Screen`, `Free Bells Screen`, `Copy Checking Screen`, `Copy Check Overview`, `Analytics Screen`, `Teacher Management Screen`, `Leave Application Screen`, `Attendance History Screen`, `Leave Requests Screen`, `My Timetable Screen`, `Timetable Editor Screen`, `Exam Management Screen`, `Admin Screen`, `Announcements Screen`, `Class Attendance Detail`?**
+  _High betweenness centrality (0.256) - this node is a cross-community bridge._
+- **Why does `../theme.dart` connect `Core Dashboards & Firebase` to `Screen Hub & Shared Imports`, `Student & Certificate Screens`, `Attendance Certificate Screen`, `Guardian Dashboard`, `Data Models`, `Timetable Settings Screen`, `Attendance Screen`, `Fee Collection Screen`, `Free Bells Screen`, `Copy Checking Screen`, `Copy Check Overview`, `Analytics Screen`, `Teacher Management Screen`, `Leave Application Screen`, `Attendance History Screen`, `Leave Requests Screen`, `My Timetable Screen`, `Timetable Editor Screen`, `Exam Management Screen`, `Admin Screen`, `Announcements Screen`, `Class Attendance Detail`?**
+  _High betweenness centrality (0.254) - this node is a cross-community bridge._
 - **What connects `main`, `package:flutter_test/flutter_test.dart`, `package:school_app/main.dart` to the rest of the system?**
-  _1422 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Screen Layer Index` be split into smaller, more focused modules?**
+  _1003 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Screen Hub & Shared Imports` be split into smaller, more focused modules?**
   _Cohesion score 0.02 - nodes in this community are weakly interconnected._
-- **Should `Attendance Certificate UI` be split into smaller, more focused modules?**
+- **Should `Core Dashboards & Firebase` be split into smaller, more focused modules?**
   _Cohesion score 0.02 - nodes in this community are weakly interconnected._
-- **Should `Student & Attendance Services` be split into smaller, more focused modules?**
+- **Should `Student & Certificate Screens` be split into smaller, more focused modules?**
   _Cohesion score 0.02 - nodes in this community are weakly interconnected._
+- **Should `Attendance Certificate Screen` be split into smaller, more focused modules?**
+  _Cohesion score 0.03 - nodes in this community are weakly interconnected._
