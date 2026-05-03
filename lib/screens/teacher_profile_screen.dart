@@ -161,16 +161,16 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 7, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.primary.shade50,
+                                    color: const Color(0xFFE3F2FD),
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
-                                        color: AppTheme.primary.shade300),
+                                        color: AppTheme.primaryLight),
                                   ),
                                   child: Text('Class Teacher',
                                       style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
-                                          color: AppTheme.primary.shade700)),
+                                          color: AppTheme.primaryMid)),
                                 ),
                               const SizedBox(width: 4),
                               Icon(Icons.chevron_right,

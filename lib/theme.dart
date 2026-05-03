@@ -3,24 +3,26 @@ import 'package:flutter/material.dart';
 /// Single source of truth for the app's colour palette.
 ///
 /// Strategy:
-///   • One brand colour everywhere — Deep Blue #1565C0
-///   • Role-specific hues (red/indigo/teal/purple) are gone
+///   • Brand colour — Deep Violet #6A1B9A
+///   • Accent — Magenta #D81B60 (badges, pending indicators)
 ///   • Status/data colours (green=Present, amber=Leave, red=Absent) are preserved
 ///
 /// Usage:
-///   AppTheme.primary          — the brand blue
-///   AppTheme.background       — off-white page background
+///   AppTheme.primary          — Deep Violet
+///   AppTheme.accent           — Magenta
+///   AppTheme.background       — light lavender page background
 ///   AppTheme.success/warning/danger — semantic data colours
 abstract class AppTheme {
   // ── Brand palette ─────────────────────────────────────────────────────────
 
-  static const Color primary      = Color(0xFF1565C0); // Deep Blue
-  static const Color primaryDark  = Color(0xFF0D47A1); // Darker shade for gradient
-  static const Color primaryMid   = Color(0xFF1976D2); // Mid shade
-  static const Color primaryLight = Color(0xFF42A5F5); // Light shade / gradient end
+  static const Color primary      = Color(0xFF6A1B9A); // Deep Violet
+  static const Color primaryDark  = Color(0xFF4A148C); // Darker shade for gradient
+  static const Color primaryMid   = Color(0xFF7B1FA2); // Mid shade
+  static const Color primaryLight = Color(0xFFAB47BC); // Light shade / gradient end
+  static const Color accent       = Color(0xFFD81B60); // Magenta — badges, pending
 
-  /// Off-white page background (instead of grey #F5F5F5 or pure white)
-  static const Color background   = Color(0xFFF7F8FC);
+  /// Light lavender page background
+  static const Color background   = Color(0xFFF3E5F5);
 
   /// Pure-white card / tile surface
   static const Color surface      = Colors.white;
@@ -36,17 +38,17 @@ abstract class AppTheme {
   static ThemeData get light => ThemeData(
     useMaterial3: false,
     primaryColor: primary,
-    primarySwatch: Colors.blue,
+    primarySwatch: Colors.purple,
     scaffoldBackgroundColor: background,
 
-    // AppBar: deep blue everywhere, no elevation
+    // AppBar: deep violet everywhere, no elevation
     appBarTheme: const AppBarTheme(
       backgroundColor: primary,
       foregroundColor: Colors.white,
       elevation: 0,
     ),
 
-    // Elevated buttons: deep blue
+    // Elevated buttons: deep violet
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: primary,
@@ -56,7 +58,7 @@ abstract class AppTheme {
       ),
     ),
 
-    // Outlined buttons: blue border + text
+    // Outlined buttons: violet border + text
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: primary,

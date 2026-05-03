@@ -210,7 +210,7 @@ class _HistoryList extends StatelessWidget {
                     if (showTeacher)
                       Text('Sub: ${r.substituteTeacherName}',
                           style: TextStyle(
-                              fontSize: 12, color: AppTheme.primary.shade700)),
+                              fontSize: 12, color: AppTheme.primaryMid)),
                     if (r.originalTeacherName.isNotEmpty)
                       Text('For: ${r.originalTeacherName}',
                           style: TextStyle(
