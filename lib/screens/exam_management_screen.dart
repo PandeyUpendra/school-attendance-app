@@ -10,9 +10,10 @@ import 'report_card_screen.dart';
 /// Coordinator screen: create & manage exams per class,
 /// and navigate to marks entry / report cards.
 class ExamManagementScreen extends StatefulWidget {
-  final String role; // 'coordinator' | 'teacher' | 'principal'
+  final String role;    // 'coordinator' | 'teacher' | 'principal'
+  final String section; // teacher's section — passed down to MarksEntryScreen
 
-  const ExamManagementScreen({super.key, required this.role});
+  const ExamManagementScreen({super.key, required this.role, this.section = ''});
 
   @override
   State<ExamManagementScreen> createState() => _ExamManagementScreenState();
@@ -453,7 +454,8 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                                       context,
                                       MaterialPageRoute(
                                         builder: (_) => MarksEntryScreen(
-                                            exam: _exams[i]),
+                                            exam:    _exams[i],
+                                            section: widget.section),
                                       ),
                                     );
                                   },
@@ -464,6 +466,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                                         builder: (_) => ReportCardScreen(
                                           exam:      _exams[i],
                                           className: _selectedClass!,
+                                          section:   widget.section,
                                         ),
                                       ),
                                     );

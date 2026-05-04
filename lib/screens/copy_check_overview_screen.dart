@@ -242,23 +242,28 @@ class _CoordCheckDetailScreenState extends State<_CoordCheckDetailScreen>
   Future<void> _load() async {
     setState(() => _loading = true);
     final results = await Future.wait([
-      _service.getStatuses(widget.check.id),
       _studentService.getStudentsByClass(widget.check.className),
+      _service.getStatuses(widget.check.id),
     ]);
-    final raw      = results[0] as List<CopyStatus>;
-    final students = results[1] as List<Student>;
+    final students = results[0] as List<Student>;
+    final saved    = results[1] as List<CopyStatus>;
 
-    // Build O(1) lookup map and overlay live name/phone over denormalized copies.
-    final studentMap = {for (final s in students) s.roll: s};
-    final all = raw.map((s) {
-      final live = studentMap[s.roll];
-      if (live == null) return s;
+    assert(students.length == {for (final s in students) s.roll: s}.length,
+        'Duplicate rolls detected in class ${widget.check.className}');
+    debugPrint('[StudentList][${widget.check.className}] count=${students.length}');
+
+    // Build lookup from saved statuses; ignore any entry whose roll is not in students.
+    final savedMap = {for (final s in saved) s.roll: s};
+
+    // Iterate over authoritative student list — never over the sub-collection.
+    final all = students.map((s) {
+      final existing = savedMap[s.roll];
       return CopyStatus(
         roll:          s.roll,
-        studentName:   live.name,   // live from students/ collection
-        guardianPhone: live.phone,  // live from students/ collection
-        status:        s.status,
-        remarks:       s.remarks,
+        studentName:   s.name,    // always live from students/ collection
+        guardianPhone: s.phone,   // always live from students/ collection
+        status:        existing?.status ?? 'not_done',
+        remarks:       existing?.remarks,
       );
     }).toList();
 

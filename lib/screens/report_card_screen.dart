@@ -14,11 +14,13 @@ import '../theme.dart';
 class ReportCardScreen extends StatefulWidget {
   final Exam   exam;
   final String className;
+  final String section;
 
   const ReportCardScreen({
     super.key,
     required this.exam,
     required this.className,
+    this.section = '',
   });
 
   @override
@@ -42,7 +44,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
     _load();
     // Keep the student roster in sync so deletions are reflected immediately.
     _studentSub = _studentService
-        .watchStudentsByClass(widget.className)
+        .watchStudentsByClass(widget.className, section: widget.section)
         .listen((list) {
       if (!mounted) return;
       setState(() => _students = list);
@@ -58,11 +60,16 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final data = await Future.wait([
-      _studentService.getStudentsByClass(widget.className),
+      _studentService.getStudentsByClass(widget.className, section: widget.section),
       _examService.getResults(widget.exam.id),
     ]);
     final students = data[0] as List<Student>;
     final results  = data[1] as List<ExamResult>;
+
+    assert(students.length == {for (final s in students) s.roll: s}.length,
+        'Duplicate rolls detected in class ${widget.className}');
+    debugPrint('[StudentList][${widget.className}] count=${students.length}');
+
     final ranks    = _examService.computeRanks(results);
 
     if (!mounted) return;

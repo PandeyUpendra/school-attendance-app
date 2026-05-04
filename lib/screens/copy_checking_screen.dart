@@ -150,6 +150,7 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
         builder: (_) => _CheckSessionScreen(
           check:       check,
           teacherName: widget.teacher.name,
+          section:     widget.teacher.section,
         ),
       ),
     );
@@ -385,10 +386,12 @@ class _SessionCard extends StatelessWidget {
 class _CheckSessionScreen extends StatefulWidget {
   final CopyCheck check;
   final String    teacherName;
+  final String    section;
 
   const _CheckSessionScreen({
     required this.check,
     required this.teacherName,
+    this.section = '',
   });
 
   @override
@@ -423,11 +426,16 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
   Future<void> _load() async {
     setState(() => _loading = true);
     final results = await Future.wait([
-      _studentService.getStudentsByClass(widget.check.className),
+      _studentService.getStudentsByClass(widget.check.className,
+          section: widget.section),
       _service.getStatuses(widget.check.id),
     ]);
     final students = results[0] as List<Student>;
     final saved    = results[1] as List<CopyStatus>;
+
+    assert(students.length == {for (final s in students) s.roll: s}.length,
+        'Duplicate rolls detected in class ${widget.check.className}');
+    debugPrint('[StudentList][${widget.check.className}] count=${students.length}');
 
     // Build status list using live student name/phone; preserve saved status+remarks.
     final savedMap = {for (final s in saved) s.roll: s};

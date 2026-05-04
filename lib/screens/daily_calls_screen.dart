@@ -27,6 +27,7 @@ class _DailyCallsScreenState extends State<DailyCallsScreen>
   late final TabController _tabCtrl;
 
   String get _className => widget.teacher.classTeacherOf ?? '';
+  String get _section   => widget.teacher.section;
 
   @override
   void initState() {
@@ -68,8 +69,8 @@ class _DailyCallsScreenState extends State<DailyCallsScreen>
       body: TabBarView(
         controller: _tabCtrl,
         children: [
-          _TodayCallsTab(className: _className, service: _service),
-          _HistoryTab(className: _className, service: _service),
+          _TodayCallsTab(className: _className, section: _section, service: _service),
+          _HistoryTab(className: _className, section: _section, service: _service),
         ],
       ),
     );
@@ -82,8 +83,9 @@ class _DailyCallsScreenState extends State<DailyCallsScreen>
 
 class _TodayCallsTab extends StatefulWidget {
   final String         className;
+  final String         section;
   final StudentService service;
-  const _TodayCallsTab({required this.className, required this.service});
+  const _TodayCallsTab({required this.className, required this.section, required this.service});
 
   @override
   State<_TodayCallsTab> createState() => _TodayCallsTabState();
@@ -95,6 +97,10 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
   Map<int, String> _reasons     = {};
   Map<int, bool>   _called      = {};
   bool _loading = true;
+
+  String get _attendanceKey => widget.section.trim().isEmpty
+      ? widget.className
+      : '${widget.className} ${widget.section.trim()}';
 
   List<Student> get _absentLeave => _students
       .where((s) =>
@@ -114,14 +120,19 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final results = await Future.wait([
-      widget.service.getStudentsByClass(widget.className),
-      widget.service.loadTodayAttendance(widget.className),
-      widget.service.loadTodayReasons(widget.className),
-      widget.service.loadTodayCalled(widget.className),
+      widget.service.getStudentsByClass(widget.className, section: widget.section),
+      widget.service.loadTodayAttendance(_attendanceKey),
+      widget.service.loadTodayReasons(_attendanceKey),
+      widget.service.loadTodayCalled(_attendanceKey),
     ]);
+    final students = results[0] as List<Student>;
+    assert(students.length == {for (final s in students) s.roll: s}.length,
+        'Duplicate rolls detected in class ${widget.className}');
+    debugPrint('[StudentList][${widget.className}] count=${students.length}');
+
     if (!mounted) return;
     setState(() {
-      _students   = results[0] as List<Student>;
+      _students   = students;
       _attendance = results[1] as Map<int, String>;
       _reasons    = results[2] as Map<int, String>;
       _called     = results[3] as Map<int, bool>;
@@ -257,8 +268,8 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
       if (reason.isNotEmpty) _reasons[s.roll] = reason;
     });
     await Future.wait([
-      widget.service.saveReasons(widget.className, _reasons),
-      widget.service.saveCalled(widget.className, _called),
+      widget.service.saveReasons(_attendanceKey, _reasons),
+      widget.service.saveCalled(_attendanceKey, _called),
     ]);
   }
 
@@ -740,8 +751,9 @@ class _ActionButton extends StatelessWidget {
 
 class _HistoryTab extends StatefulWidget {
   final String         className;
+  final String         section;
   final StudentService service;
-  const _HistoryTab({required this.className, required this.service});
+  const _HistoryTab({required this.className, required this.section, required this.service});
 
   @override
   State<_HistoryTab> createState() => _HistoryTabState();
@@ -752,6 +764,10 @@ class _HistoryTabState extends State<_HistoryTab> {
 
   List<_DayRecord> _records = [];
   bool _loading = true;
+
+  String get _attendanceKey => widget.section.trim().isEmpty
+      ? widget.className
+      : '${widget.className} ${widget.section.trim()}';
 
   @override
   void initState() {
@@ -765,7 +781,7 @@ class _HistoryTabState extends State<_HistoryTab> {
     // Skip today (index 0), show past 14 days
     final futures = List.generate(_historyDays, (i) {
       final date = now.subtract(Duration(days: i + 1));
-      return widget.service.loadAttendanceForDate(widget.className, date)
+      return widget.service.loadAttendanceForDate(_attendanceKey, date)
           .then((data) => _DayRecord(date: date, data: data));
     });
     final records = await Future.wait(futures);

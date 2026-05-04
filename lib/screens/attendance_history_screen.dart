@@ -44,7 +44,12 @@ Map<int, _Stats> _computeStats(
 
 class AttendanceHistoryScreen extends StatefulWidget {
   final String className;
-  const AttendanceHistoryScreen({super.key, required this.className});
+  final String section;
+  const AttendanceHistoryScreen({
+    super.key,
+    required this.className,
+    this.section = '',
+  });
 
   @override
   State<AttendanceHistoryScreen> createState() =>
@@ -56,6 +61,12 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
 
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   bool _loading = true;
+
+  // Must match the key used by AttendanceScreen — includes section when present.
+  String get _attendanceKey =>
+      widget.section.trim().isEmpty
+          ? widget.className
+          : '${widget.className} ${widget.section.trim()}';
 
   List<Student> _students = [];
   Map<int, Map<int, String>> _monthData = {};
@@ -72,9 +83,9 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
   Future<void> _loadAll() async {
     setState(() => _loading = true);
     final results = await Future.wait([
-      _service.getStudentsByClass(widget.className),
+      _service.getStudentsByClass(widget.className, section: widget.section),
       _service.loadMonthAttendance(
-          widget.className, _month.year, _month.month),
+          _attendanceKey, _month.year, _month.month),
     ]);
     if (!mounted) return;
     final students  = results[0] as List<Student>;
@@ -92,7 +103,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
   Future<void> _loadMonth() async {
     setState(() => _loading = true);
     final monthData = await _service.loadMonthAttendance(
-        widget.className, _month.year, _month.month);
+        _attendanceKey, _month.year, _month.month);
     if (!mounted) return;
     setState(() {
       _monthData   = monthData;
