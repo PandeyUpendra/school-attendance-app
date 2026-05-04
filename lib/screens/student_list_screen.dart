@@ -88,6 +88,21 @@ class _StudentListScreenState extends State<StudentListScreen> {
     });
   }
 
+  bool get _allSelected =>
+      _filtered.isNotEmpty &&
+      _filtered.every((s) => _selectedRolls.contains(s.roll));
+
+  void _toggleSelectAll() {
+    setState(() {
+      if (_allSelected) {
+        _selectedRolls.removeAll(_filtered.map((s) => s.roll));
+        if (_selectedRolls.isEmpty) _selectMode = false;
+      } else {
+        _selectedRolls.addAll(_filtered.map((s) => s.roll));
+      }
+    });
+  }
+
   Future<void> _deleteSelected() async {
     final count = _selectedRolls.length;
     final ok = await showDialog<bool>(
@@ -322,6 +337,14 @@ class _StudentListScreenState extends State<StudentListScreen> {
               ),
         actions: _selectMode
             ? [
+                TextButton(
+                  onPressed: _filtered.isNotEmpty ? _toggleSelectAll : null,
+                  child: Text(
+                    _allSelected ? 'None' : 'All',
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
                   tooltip: 'Delete selected',

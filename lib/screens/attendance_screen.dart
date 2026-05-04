@@ -64,7 +64,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   int get _total   => _students.length;
   int get _present => _attendance.values.where((v) => v == 'Present').length;
   int get _leave   => _attendance.values.where((v) => v == 'Leave').length;
-  int get _absent  => _total - _present - _leave;
+  int get _absent  => _attendance.values.where((v) => v == 'Absent').length;
 
   List<Student> get _filtered {
     if (_search.trim().isEmpty) return _students;
@@ -191,6 +191,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       if (cached != null) saved = cached;
     }
 
+    assert(students.length == {for (final s in students) s.roll: s}.length,
+        'Duplicate rolls detected in class $_className');
+    debugPrint('[StudentList][$_className] count=${students.length}');
+
     final pending = await _offlineQueue.pendingCount();
     if (!mounted) return;
     setState(() {
@@ -198,7 +202,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       _pendingCount = pending;
       _alreadySaved = saved.isNotEmpty;
       for (final s in students) {
-        _attendance[s.roll] = saved[s.roll] ?? 'Absent';
+        _attendance[s.roll] = saved[s.roll] ?? '';
       }
       _loading = false;
       _dirty   = false;
@@ -222,7 +226,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _attendance.removeWhere(
             (roll, _) => !list.any((s) => s.roll == roll));
         for (final s in list) {
-          _attendance.putIfAbsent(s.roll, () => 'Absent');
+          _attendance.putIfAbsent(s.roll, () => '');
         }
         _students = list;
       });
@@ -254,7 +258,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       _pendingCount = pending;
       _alreadySaved = saved.isNotEmpty || _alreadySaved;
       for (final s in students) {
-        _attendance[s.roll] = saved[s.roll] ?? _attendance[s.roll] ?? 'Absent';
+        _attendance[s.roll] = saved[s.roll] ?? _attendance[s.roll] ?? '';
       }
       _dirty = false;
     });
@@ -278,9 +282,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     if (!online) {
       // ── OFFLINE PATH ────────────────────────────────────────────────────
+      final toQueue = Map<int, String>.fromEntries(
+          _attendance.entries.where((e) => e.value.isNotEmpty));
       await _offlineQueue.enqueue(
         className:  _attendanceKey,
-        attendance: _attendance,
+        attendance: toQueue,
       );
       final pending = await _offlineQueue.pendingCount();
       if (!mounted) return;
@@ -321,7 +327,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
 
     // ── ONLINE PATH ──────────────────────────────────────────────────────
-    await _service.saveAttendance(_attendanceKey, _attendance);
+    final toSave = Map<int, String>.fromEntries(
+        _attendance.entries.where((e) => e.value.isNotEmpty));
+    await _service.saveAttendance(_attendanceKey, toSave);
 
     // Fire off guardian notifications for every absent / leave student.
     // These are "fire and forget" — we don't await to keep save fast.
@@ -452,7 +460,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     switch (status) {
       case 'Present': return const Color(0xFF2E7D32);
       case 'Leave':   return const Color(0xFFF57F17);
-      default:        return const Color(0xFFC62828);
+      case 'Absent':  return const Color(0xFFC62828);
+      default:        return Colors.grey.shade300; // unmarked
     }
   }
 
@@ -614,9 +623,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         final idx = i - 2;
                         return _StudentRow(
                           student:     filtered[idx],
-                          status:      _attendance[filtered[idx].roll] ?? 'Absent',
-                          accentColor: _accentColor(_attendance[filtered[idx].roll] ?? 'Absent'),
-                          rowBg:       _rowBg(_attendance[filtered[idx].roll] ?? 'Absent'),
+                          status:      _attendance[filtered[idx].roll] ?? '',
+                          accentColor: _accentColor(_attendance[filtered[idx].roll] ?? ''),
+                          rowBg:       _rowBg(_attendance[filtered[idx].roll] ?? ''),
                           onChanged:   (v) => _setStatus(filtered[idx].roll, v),
                           onRemove:    () => _removeStudent(filtered[idx]),
                           isLast:      idx == filtered.length - 1,
@@ -1632,7 +1641,7 @@ class _WhatsAppNotifySheet extends StatelessWidget {
   });
 
   String _message(Student s) {
-    final status = attendance[s.roll] ?? 'Absent';
+    final status = attendance[s.roll] ?? '';
     final statusWord = status == 'Leave' ? 'on leave' : 'absent';
     final d = DateTime.now();
     const mo = ['Jan','Feb','Mar','Apr','May','Jun',

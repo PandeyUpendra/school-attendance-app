@@ -53,6 +53,11 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
     ]);
     final students  = results[0] as List<Student>;
     final structure = results[1] as FeeStructure;
+
+    assert(students.length == {for (final s in students) s.roll: s}.length,
+        'Duplicate rolls detected in class $cls');
+    debugPrint('[StudentList][$cls] count=${students.length}');
+
     final rolls     = students.map((s) => s.roll).toList();
     final paid      = await _feeService.getClassFeeOverview(cls, rolls);
     if (!mounted) return;

@@ -8,9 +8,10 @@ import '../theme.dart';
 
 /// Teacher/Coordinator enters marks per student per subject for an exam.
 class MarksEntryScreen extends StatefulWidget {
-  final Exam exam;
+  final Exam   exam;
+  final String section;
 
-  const MarksEntryScreen({super.key, required this.exam});
+  const MarksEntryScreen({super.key, required this.exam, this.section = ''});
 
   @override
   State<MarksEntryScreen> createState() => _MarksEntryScreenState();
@@ -39,11 +40,15 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     setState(() => _loading = true);
     final exam = widget.exam;
     final results = await Future.wait([
-      _studentService.getStudentsByClass(exam.className),
+      _studentService.getStudentsByClass(exam.className, section: widget.section),
       _examService.getResults(exam.id),
     ]);
     final students    = results[0] as List<Student>;
     final examResults = results[1] as List<ExamResult>;
+
+    assert(students.length == {for (final s in students) s.roll: s}.length,
+        'Duplicate rolls detected in class ${exam.className}');
+    debugPrint('[StudentList][${exam.className}] count=${students.length}');
 
     // Map results by roll
     final savedMap = <int, ExamResult>{};

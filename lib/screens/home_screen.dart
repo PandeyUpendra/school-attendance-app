@@ -314,7 +314,8 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               MaterialPageRoute(
                 builder: (_) => AttendanceHistoryScreen(
-                    className: teacher!.classTeacherOf!),
+                    className: teacher!.classTeacherOf!,
+                    section:   teacher!.section),
               ),
             ),
           ),
@@ -392,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               MaterialPageRoute(
                   builder: (_) =>
-                      const ExamManagementScreen(role: 'teacher')),
+                      ExamManagementScreen(role: 'teacher', section: teacher!.section)),
             ),
           ),
 
@@ -555,7 +556,7 @@ class _HomeScreenState extends State<HomeScreen> {
             context,
             MaterialPageRoute(
                 builder: (_) =>
-                    const ExamManagementScreen(role: 'teacher')),
+                    ExamManagementScreen(role: 'teacher', section: teacher?.section ?? '')),
           ),
         ),
 
