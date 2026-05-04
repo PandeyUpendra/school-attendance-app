@@ -5,7 +5,13 @@ import 'free_bells_screen.dart';
 import '../theme.dart';
 
 class LeaveRequestsScreen extends StatefulWidget {
-  const LeaveRequestsScreen({super.key});
+  /// 'principal' | 'coordinator'
+  final String viewerRole;
+
+  const LeaveRequestsScreen({
+    super.key,
+    this.viewerRole = 'coordinator',
+  });
 
   @override
   State<LeaveRequestsScreen> createState() => _LeaveRequestsScreenState();
@@ -89,7 +95,8 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => _LeaveDetailSheet(
-        app: app,
+        app:        app,
+        viewerRole: widget.viewerRole,
         onAction: (id, status) async {
           await _act(app, status);
           if (mounted) Navigator.pop(context);
@@ -181,6 +188,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
         itemCount: apps.length,
         itemBuilder: (_, i) => _LeaveCard(
           app: apps[i],
+          statusLabel: _fmtStatus(apps[i]['status'] as String? ?? 'pending', widget.viewerRole),
           onTap: () => _showDetail(apps[i]),
           onAccept: showActions ? () => _act(apps[i], 'approved')  : null,
           onReject: showActions ? () => _act(apps[i], 'rejected')  : null,
@@ -197,6 +205,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
 
 class _LeaveCard extends StatelessWidget {
   final Map<String, dynamic> app;
+  final String statusLabel;
   final VoidCallback onTap;
   final VoidCallback? onAccept;
   final VoidCallback? onReject;
@@ -204,6 +213,7 @@ class _LeaveCard extends StatelessWidget {
 
   const _LeaveCard({
     required this.app,
+    required this.statusLabel,
     required this.onTap,
     this.onAccept,
     this.onReject,
@@ -218,7 +228,6 @@ class _LeaveCard extends StatelessWidget {
       'rejected' => Colors.red,
       _           => Colors.orange,
     };
-    final statusLabel = status[0].toUpperCase() + status.substring(1);
 
     return InkWell(
       onTap: onTap,
@@ -398,9 +407,14 @@ class _ActionButton extends StatelessWidget {
 
 class _LeaveDetailSheet extends StatefulWidget {
   final Map<String, dynamic> app;
+  final String viewerRole;
   final void Function(String id, String status) onAction;
 
-  const _LeaveDetailSheet({required this.app, required this.onAction});
+  const _LeaveDetailSheet({
+    required this.app,
+    required this.viewerRole,
+    required this.onAction,
+  });
 
   @override
   State<_LeaveDetailSheet> createState() => _LeaveDetailSheetState();
@@ -508,7 +522,7 @@ class _LeaveDetailSheetState extends State<_LeaveDetailSheet> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Status: ${status[0].toUpperCase()}${status.substring(1)}',
+                    'Status: ${_fmtStatus(status, widget.viewerRole)}',
                     style: TextStyle(
                         fontWeight: FontWeight.w600,
                         color: status == 'approved'
@@ -585,6 +599,18 @@ class _LeaveDetailSheetState extends State<_LeaveDetailSheet> {
         )),
       ]),
     );
+  }
+}
+
+String _fmtStatus(String status, String viewerRole) {
+  switch (status) {
+    case 'approved': return 'Approved';
+    case 'rejected': return 'Rejected';
+    case 'pending':  return 'Pending';
+    case 'forwarded_to_principal':
+      return viewerRole == 'principal' ? 'Forwarded to You' : 'Forwarded to Principal';
+    default:
+      return status[0].toUpperCase() + status.substring(1);
   }
 }
 

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/student.dart';
+import '../models/student_remark.dart';
 
 class StudentService {
   static final _db          = FirebaseFirestore.instance;
@@ -422,6 +423,65 @@ class StudentService {
       });
     }
     return streaks;
+  }
+
+  // ── Remarks ───────────────────────────────────────────────────────────────
+
+  CollectionReference<Map<String, dynamic>> _remarksRef(
+      int roll, String className, [String section = '']) =>
+      _students.doc(_sid(roll, className, section)).collection('remarks');
+
+  /// Returns all remarks for a student, newest first.
+  Future<List<StudentRemark>> getStudentRemarks(
+      String className, int roll, {String section = ''}) async {
+    final snap = await _remarksRef(roll, className, section)
+        .orderBy('timestamp', descending: true)
+        .get();
+    return snap.docs
+        .map((d) => StudentRemark.fromJson(
+            d.id, Map<String, dynamic>.from(d.data())))
+        .toList();
+  }
+
+  /// Adds a remark. Throws [ArgumentError] if remark is empty or > 200 chars.
+  Future<void> addStudentRemark(
+    String className,
+    int roll,
+    String createdByEmail,
+    String role,
+    String remark, {
+    String  section   = '',
+    String? teacherId,
+  }) async {
+    final trimmed = remark.trim();
+    if (trimmed.isEmpty || trimmed.length > 200) {
+      throw ArgumentError('Remark must be 1–200 characters.');
+    }
+    await _remarksRef(roll, className, section).add({
+      'createdBy': createdByEmail,
+      'role':      role,
+      'remark':    trimmed,
+      'timestamp': FieldValue.serverTimestamp(),
+      if (teacherId != null) 'teacherId': teacherId,
+    });
+  }
+
+  /// Deletes a remark. Throws [StateError] if caller is not the author.
+  Future<void> deleteStudentRemark(
+    String className,
+    int roll,
+    String remarkId,
+    String currentUserEmail, {
+    String section = '',
+  }) async {
+    final ref = _remarksRef(roll, className, section).doc(remarkId);
+    final doc = await ref.get();
+    if (!doc.exists) return;
+    final data = Map<String, dynamic>.from(doc.data()!);
+    if (data['createdBy'] != currentUserEmail) {
+      throw StateError('You can only delete your own remarks.');
+    }
+    await ref.delete();
   }
 
   /// Load attendance doc for a specific date (for history).

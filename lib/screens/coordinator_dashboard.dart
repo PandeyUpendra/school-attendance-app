@@ -24,6 +24,7 @@ import 'copy_check_overview_screen.dart';
 import 'homework_overview_screen.dart';
 import 'analytics_screen.dart';
 import 'gallery/gallery_home_screen.dart';
+import 'student_remarks_screen.dart';
 
 const _cPurple    = AppTheme.primary;
 const _cPurpleMid = AppTheme.primaryMid;
@@ -279,6 +280,15 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               subtitle: 'View and manage student records by class',
               onTap: () => _navigate(const StudentDetailsScreen()),
             ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.comment_outlined,
+              color: _cPurple,
+              title: 'Student Remarks',
+              subtitle: 'Add and view observations for any student',
+              onTap: () => _navigate(
+                  const StudentRemarksScreen(role: 'coordinator')),
+            ),
 
             // ── Free Bells & Substitution ──────────────────────────────────
             _SectionHeader('FREE BELLS'),
@@ -295,7 +305,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _LeaveRequestTile(
               pendingCount: _pendingLeaveCount,
               onTap: () async {
-                await _navigate(const LeaveRequestsScreen());
+                await _navigate(const LeaveRequestsScreen(viewerRole: 'coordinator'));
                 _loadAll();
               },
             ),
@@ -318,18 +328,21 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               title: 'Attendance Reports',
               subtitle: 'Monthly history, % per student & low-attendance flags',
               onTap: () async {
-                final cls = await Navigator.push<String>(
+                final pick = await Navigator.push<ClassSectionPick>(
                   context,
                   MaterialPageRoute(
                     builder: (_) =>
                         const ClassPickerScreen(mode: ClassPickerMode.reports),
                   ),
                 );
-                if (cls != null && context.mounted) {
+                if (pick != null && context.mounted) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => AttendanceHistoryScreen(className: cls),
+                      builder: (_) => AttendanceHistoryScreen(
+                        className: pick.className,
+                        section:   pick.section,
+                      ),
                     ),
                   );
                 }

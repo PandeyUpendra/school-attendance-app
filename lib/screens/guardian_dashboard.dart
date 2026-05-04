@@ -19,6 +19,7 @@ import 'announcements_screen.dart';
 import 'notifications_screen.dart';
 import 'attendance_certificate_screen.dart';
 import 'gallery/gallery_home_screen.dart';
+import 'student_remarks_screen.dart';
 
 /// The Guardian Portal — shows a single student's attendance to their parent.
 /// Guardian is linked to {studentClass, studentRoll} in allowed_users.
@@ -375,6 +376,27 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         padding: const EdgeInsets.symmetric(vertical: 14),
       ),
     ),
+    const SizedBox(height: 12),
+    // ── Student Remarks ───────────────────────────────────────────
+    if (_student != null)
+      OutlinedButton.icon(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => StudentRemarksScreen(
+              role:            'guardian',
+              guardianStudent: _student,
+            ),
+          ),
+        ),
+        icon: const Icon(Icons.comment_outlined),
+        label: const Text('Student Remarks'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppTheme.primary,
+          side: const BorderSide(color: AppTheme.primary),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+      ),
     const SizedBox(height: 16),
   ];
 

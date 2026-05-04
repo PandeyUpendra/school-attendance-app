@@ -18,6 +18,7 @@ import 'copy_checking_screen.dart';
 import 'homework_screen.dart';
 import 'substitution_history_screen.dart';
 import 'gallery/gallery_home_screen.dart';
+import 'student_remarks_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -46,7 +47,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final teacher = widget.teacher;
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: _buildBody(context),
@@ -321,6 +321,25 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.comment_outlined,
+            color: AppTheme.primary,
+            title: 'Student Remarks',
+            subtitle: 'Record observations and feedback for your students',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StudentRemarksScreen(
+                  role:             'teacher',
+                  teacherClassName: teacher!.classTeacherOf,
+                  teacherSection:   teacher!.section,
+                  teacherId:        teacher!.id,
+                ),
+              ),
+            ),
+          ),
+
           _SectionHeader('CALLS'),
           _FeatureTile(
             icon: Icons.phone_callback_outlined,
@@ -403,12 +422,13 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icons.campaign_outlined,
             color: AppTheme.primary,
             title: 'Notice Board',
-            subtitle: 'View school announcements and notices',
+            subtitle: 'Post and view school announcements',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (_) => const AnnouncementsScreen(
-                      viewerRole: 'teacher')),
+                  builder: (_) => AnnouncementsScreen(
+                      viewerRole: 'class_teacher',
+                      posterName: teacher?.email)),
             ),
           ),
 
@@ -474,23 +494,42 @@ class _HomeScreenState extends State<HomeScreen> {
           title: 'Student List',
           subtitle: 'View student records by class',
           onTap: () async {
-            final cls = await Navigator.push<String>(
+            final pick = await Navigator.push<ClassSectionPick>(
               context,
               MaterialPageRoute(
                   builder: (_) => const ClassPickerScreen(
                       mode: ClassPickerMode.studentList)),
             );
-            if (cls != null && context.mounted) {
+            if (pick != null && context.mounted) {
               Navigator.push(
                 context,
                 MaterialPageRoute(
                     builder: (_) => StudentListScreen(
-                          className: cls,
+                          className: pick.className,
+                          section:    pick.section,
                           isClassTeacher: false,
                         )),
               );
             }
           },
+        ),
+        const _Divider(),
+        _FeatureTile(
+          icon: Icons.comment_outlined,
+          color: AppTheme.primary,
+          title: 'Student Remarks',
+          subtitle: 'Record observations and feedback for students',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => StudentRemarksScreen(
+                role:             'teacher',
+                teacherClassName: teacher?.classTeacherOf,
+                teacherSection:   teacher?.section,
+                teacherId:        teacher?.id,
+              ),
+            ),
+          ),
         ),
 
         _SectionHeader('LEAVE'),
@@ -566,12 +605,13 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.campaign_outlined,
           color: AppTheme.primary,
           title: 'Notice Board',
-          subtitle: 'View school announcements and notices',
+          subtitle: 'Post and view school announcements',
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (_) => const AnnouncementsScreen(
-                    viewerRole: 'teacher')),
+                builder: (_) => AnnouncementsScreen(
+                    viewerRole: 'teacher',
+                    posterName: teacher?.email)),
           ),
         ),
 
