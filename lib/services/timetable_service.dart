@@ -428,28 +428,39 @@ class TimetableService {
 
   // ── Substitutions ─────────────────────────────────────────────────────────
 
-  String _subKey() {
-    final d = DateTime.now();
-    return '${d.year}-${d.month}-${d.day}';
-  }
+  String _dateKeyFor(DateTime d) => '${d.year}-${d.month}-${d.day}';
 
   /// Returns map of '${className}_$bell' → teacherId for today's substitutions.
-  Future<Map<String, String>> getTodaySubstitutions() async {
-    final doc = await _substitutions.doc(_subKey()).get();
+  Future<Map<String, String>> getTodaySubstitutions() =>
+      getSubstitutionsForDate(DateTime.now());
+
+  /// Returns substitutions for the given calendar date.
+  Future<Map<String, String>> getSubstitutionsForDate(DateTime date) async {
+    final doc = await _substitutions.doc(_dateKeyFor(date)).get();
     if (!doc.exists || doc.data() == null) return {};
     final raw = Map<String, dynamic>.from(doc.data()!);
-    return raw.map((k, v) => MapEntry(k, v as String));
+    // Defensive: only keep String values (skip 'updatedAt' Timestamp etc).
+    final out = <String, String>{};
+    raw.forEach((k, v) {
+      if (v is String && v.isNotEmpty) out[k] = v;
+    });
+    return out;
   }
 
   Future<void> setSubstitution(
-      String className, int bell, String? teacherId) async {
-    final key = '${className}_$bell';
+          String className, int bell, String? teacherId) =>
+      setSubstitutionForDate(DateTime.now(), className, bell, teacherId);
+
+  Future<void> setSubstitutionForDate(
+      DateTime date, String className, int bell, String? teacherId) async {
+    final key    = '${className}_$bell';
+    final docKey = _dateKeyFor(date);
     if (teacherId == null || teacherId.isEmpty) {
       await _substitutions
-          .doc(_subKey())
+          .doc(docKey)
           .set({key: FieldValue.delete()}, SetOptions(merge: true));
     } else {
-      await _substitutions.doc(_subKey()).set(
+      await _substitutions.doc(docKey).set(
           {key: teacherId, 'updatedAt': FieldValue.serverTimestamp()},
           SetOptions(merge: true));
     }

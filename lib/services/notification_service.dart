@@ -80,6 +80,30 @@ class NotificationService {
     });
   }
 
+  /// Called when a teacher is assigned as substitute for a class+bell+date.
+  Future<void> addSubstitutionAssigned({
+    required String   teacherId,
+    required String   className,
+    required int      bell,
+    required String   subject,
+    required DateTime date,
+  }) async {
+    const months = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final dateStr = '${date.day} ${months[date.month]}';
+    final subjBit = subject.isEmpty ? '' : ' ($subject)';
+    await _coll.add({
+      'type':      'substitution_assigned',
+      'title':     'Substitution: $className · Bell $bell',
+      'body':      'You\'ve been assigned to cover$subjBit in $className, '
+                   'Bell $bell on $dateStr.',
+      'audience':  'teacher:$teacherId',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   /// Called when a new announcement is posted.
   Future<void> addAnnouncementNotice({
     required String title,
