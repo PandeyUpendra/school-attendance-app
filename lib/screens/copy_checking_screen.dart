@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/copy_check.dart';
 import '../models/student.dart';
@@ -23,124 +24,62 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
   final _service = CopyCheckService();
 
   bool _loading = true;
-  /// className → subject
-  Map<String, String> _teacherClasses = {};
-  String? _selectedClass;
+  List<TeacherAssignment> _assignments = [];
   List<CopyCheck> _checks = [];
-
-  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadClasses();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     super.dispose();
   }
 
   Future<void> _loadClasses() async {
     setState(() => _loading = true);
-    final classes = await _service.getClassesForTeacher(widget.teacher.id);
+    final assignments = await _service.getTeacherAssignments(widget.teacher.id);
     if (!mounted) return;
-    setState(() { _teacherClasses = classes; });
-
-    if (classes.isNotEmpty) {
-      await _selectClass(classes.keys.first);
-    } else {
-      setState(() => _loading = false);
-    }
+    setState(() { _assignments = assignments; });
+    await _loadSessions();
   }
 
-  Future<void> _selectClass(String cls) async {
-    setState(() { _selectedClass = cls; _loading = true; });
-    final checks = await _service.getChecks(
-        teacherId: widget.teacher.id, className: cls);
+  Future<void> _loadSessions() async {
+    setState(() { _loading = true; });
+    // Load ALL sessions for this teacher
+    final checks = await _service.getChecks(teacherId: widget.teacher.id);
     if (!mounted) return;
     setState(() { _checks = checks; _loading = false; });
   }
 
   Future<void> _createSession() async {
-    if (_selectedClass == null) return;
-    final subject = _teacherClasses[_selectedClass!] ?? widget.teacher.subject;
+    if (_assignments.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No classes assigned to you in the timetable.')),
+      );
+      return;
+    }
 
-    DateTime date = DateTime.now();
-    bool saving   = false;
+    // Get unique classes
+    final classes = _assignments.map((a) => a.className).toSet().toList()..sort();
 
-    final created = await showDialog<bool>(
+    showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14)),
-          title: const Text('New Copy Checking Session'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.calendar_today_outlined),
-                title: Text(
-                    '${date.day}/${date.month}/${date.year}'),
-                subtitle: const Text('Tap to change date'),
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: ctx,
-                    initialDate: date,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now().add(
-                        const Duration(days: 7)),
-                  );
-                  if (picked != null) setS(() => date = picked);
-                },
-              ),
-              Text(
-                'Class: $_selectedClass  •  Subject: $subject',
-                style: TextStyle(
-                    fontSize: 12, color: Colors.grey.shade600),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: saving
-                  ? null
-                  : () async {
-                      setS(() => saving = true);
-                      final check = CopyCheck(
-                        id:          '',
-                        teacherId:   widget.teacher.id,
-                        teacherName: widget.teacher.name,
-                        className:   _selectedClass!,
-                        subject:     subject,
-                        checkDate:   date,
-                        createdAt:   DateTime.now(),
-                      );
-                      await _service.createCheck(check);
-                      if (ctx.mounted) Navigator.pop(ctx, true);
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Create'),
-            ),
-          ],
-        ),
+      barrierDismissible: false,
+      builder: (ctx) => _CascadingSessionDialog(
+        assignments: _assignments,
+        teacher: widget.teacher,
+        onCreated: (check) async {
+          await _service.createCheck(check);
+          if (mounted) {
+            Navigator.pop(ctx, true);
+            _loadSessions();
+          }
+        },
       ),
     );
-
-    if (created == true && _selectedClass != null) {
-      _selectClass(_selectedClass!);
-    }
   }
 
   Future<void> _openSession(CopyCheck check) async {
@@ -150,12 +89,11 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
         builder: (_) => _CheckSessionScreen(
           check:       check,
           teacherName: widget.teacher.name,
-          section:     widget.teacher.section,
         ),
       ),
     );
     // Refresh list after returning
-    if (_selectedClass != null) _selectClass(_selectedClass!);
+    _loadSessions();
   }
 
   Future<void> _deleteSession(CopyCheck check) async {
@@ -185,7 +123,7 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
     );
     if (ok != true) return;
     await _service.deleteCheck(check.id);
-    if (_selectedClass != null) _selectClass(_selectedClass!);
+    _loadSessions();
   }
 
   @override
@@ -204,7 +142,7 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
           ],
         ),
       ),
-      floatingActionButton: _selectedClass != null && !_loading
+      floatingActionButton: !_loading
           ? FloatingActionButton.extended(
               onPressed: _createSession,
               backgroundColor: AppTheme.primary,
@@ -215,60 +153,8 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
           : null,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _teacherClasses.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.class_outlined,
-                          size: 56, color: Colors.grey.shade300),
-                      const SizedBox(height: 12),
-                      Padding(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          'You are not assigned to any class in the timetable yet.\n'
-                          'Please ask the coordinator to assign you.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey.shade500),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : Column(
+          : Column(
                   children: [
-                    // Class chips
-                    Container(
-                      color: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: _teacherClasses.keys.map((cls) {
-                            final selected = cls == _selectedClass;
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: ChoiceChip(
-                                label: Text(cls),
-                                selected: selected,
-                                selectedColor: AppTheme.primary,
-                                labelStyle: TextStyle(
-                                  color: selected ? Colors.white : null,
-                                  fontWeight: selected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                                onSelected: (_) => _selectClass(cls),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                    const Divider(height: 1),
-
                     // Session list
                     Expanded(
                       child: _checks.isEmpty
@@ -290,8 +176,7 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
                               ),
                             )
                           : RefreshIndicator(
-                              onRefresh: () =>
-                                  _selectClass(_selectedClass!),
+                              onRefresh: () => _loadSessions(),
                               color: AppTheme.primary,
                               child: ListView.separated(
                                 physics:
@@ -313,6 +198,315 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
     );
   }
 }
+
+// ── Cascading Dialog Widget ──────────────────────────────────────────────────
+
+class _CascadingSessionDialog extends StatefulWidget {
+  final List<TeacherAssignment> assignments;
+  final Teacher teacher;
+  final Function(CopyCheck) onCreated;
+
+  const _CascadingSessionDialog({
+    required this.assignments,
+    required this.teacher,
+    required this.onCreated,
+  });
+
+  @override
+  State<_CascadingSessionDialog> createState() => _CascadingSessionDialogState();
+}
+
+class _CascadingSessionDialogState extends State<_CascadingSessionDialog> {
+  final _customSubjectCtrl = TextEditingController();
+  
+  String? _selectedClass;
+  String? _selectedSection;
+  String? _selectedSubject;
+  DateTime _date = DateTime.now();
+  bool _isCustomSubject = false;
+  bool _saving = false;
+
+  List<String> get _classes => widget.assignments
+      .map((a) => a.className)
+      .toSet()
+      .toList()
+    ..sort();
+
+  List<String> get _sections => _selectedClass == null
+      ? []
+      : widget.assignments
+          .where((a) => a.className == _selectedClass)
+          .map((a) => a.section)
+          .toSet()
+          .toList()
+    ..sort();
+
+  List<String> get _subjects => (_selectedClass == null || _selectedSection == null)
+      ? []
+      : widget.assignments
+          .where((a) =>
+              a.className == _selectedClass && a.section == _selectedSection)
+          .map((a) => a.subject)
+          .toSet()
+          .toList()
+    ..sort();
+
+  @override
+  void initState() {
+    super.initState();
+    _customSubjectCtrl.addListener(() => setState(() {}));
+
+    // Auto-select first class if available
+    if (_classes.isNotEmpty) {
+      // Prioritize class where they are class teacher
+      final teacherOf = widget.teacher.classTeacherOf;
+      if (teacherOf != null && _classes.contains(teacherOf)) {
+        _selectedClass = teacherOf;
+      } else {
+        _selectedClass = _classes.first;
+      }
+
+      // Auto-select section
+      final sects = _sections;
+      if (sects.contains(widget.teacher.section)) {
+        _selectedSection = widget.teacher.section;
+      } else if (sects.isNotEmpty) {
+        _selectedSection = sects.first;
+      }
+
+      // Auto-select subject
+      final subjs = _subjects;
+      if (subjs.isNotEmpty) {
+        _selectedSubject = subjs.first;
+      }
+    }
+  }
+
+  bool get _canProceed =>
+      _selectedClass != null &&
+      _selectedSection != null &&
+      (_isCustomSubject
+          ? _customSubjectCtrl.text.trim().isNotEmpty
+          : _selectedSubject != null);
+
+  void _showValidationError() {
+    String message = 'Please fill out all details.';
+    if (_selectedClass == null) {
+      message = 'Please select a class.';
+    } else if (_selectedSection == null) {
+      message = 'Please select a section.';
+    } else if (_isCustomSubject && _customSubjectCtrl.text.trim().isEmpty) {
+      message = 'Please enter a custom subject name.';
+    } else if (_selectedSubject == null && !_isCustomSubject) {
+      message = 'Please select a subject.';
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          const Icon(Icons.menu_book_outlined, color: AppTheme.primary),
+          const SizedBox(width: 10),
+          const Text('New Session', style: TextStyle(fontWeight: FontWeight.bold)),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date Picker
+            InkWell(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _date,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now().add(const Duration(days: 7)),
+                );
+                if (picked != null) setState(() => _date = picked);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_today_outlined, size: 18, color: Colors.grey),
+                    const SizedBox(width: 10),
+                    Text(
+                      '${_date.day}/${_date.month}/${_date.year}',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                    const Spacer(),
+                    const Text('Change', style: TextStyle(color: AppTheme.primary, fontSize: 12)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Class Dropdown
+            _label('Select Class'),
+            DropdownButtonFormField<String>(
+              value: _selectedClass,
+              isExpanded: true,
+              decoration: _inputDeco(),
+              items: _classes.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              onChanged: (val) {
+                setState(() {
+                  _selectedClass = val;
+                  _selectedSection = null;
+                  _selectedSubject = null;
+                  _isCustomSubject = false;
+                  final sects = _sections;
+                  if (sects.isNotEmpty) {
+                    _selectedSection = sects.contains(widget.teacher.section)
+                        ? widget.teacher.section
+                        : sects.first;
+                    final subjs = _subjects;
+                    if (subjs.isNotEmpty) _selectedSubject = subjs.first;
+                  }
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Section Dropdown
+            _label('Select Section'),
+            DropdownButtonFormField<String>(
+              value: _selectedSection,
+              isExpanded: true,
+              decoration: _inputDeco(enabled: _selectedClass != null),
+              items: _sections.map((s) => DropdownMenuItem(
+                value: s, 
+                child: Text(s.isEmpty ? 'General' : 'Section $s')
+              )).toList(),
+              onChanged: _selectedClass == null
+                  ? null
+                  : (val) {
+                      setState(() {
+                        _selectedSection = val;
+                        _selectedSubject = null;
+                        _isCustomSubject = false;
+                        final subjs = _subjects;
+                        if (subjs.isNotEmpty) _selectedSubject = subjs.first;
+                      });
+                    },
+            ),
+            const SizedBox(height: 16),
+
+            // Subject Dropdown
+            _label('Select Subject'),
+            DropdownButtonFormField<String>(
+              value: _isCustomSubject ? 'OTHER' : _selectedSubject,
+              isExpanded: true,
+              decoration: _inputDeco(enabled: _selectedSection != null),
+              items: [
+                ..._subjects.map((s) => DropdownMenuItem(value: s, child: Text(s))),
+                const DropdownMenuItem(value: 'OTHER', child: Text('Type custom subject...')),
+              ],
+              onChanged: _selectedSection == null ? null : (val) {
+                setState(() {
+                  if (val == 'OTHER') {
+                    _isCustomSubject = true;
+                  } else {
+                    _isCustomSubject = false;
+                    _selectedSubject = val;
+                  }
+                });
+              },
+            ),
+
+            if (_isCustomSubject) ...[
+              const SizedBox(height: 16),
+              _label('Custom Subject'),
+              TextField(
+                controller: _customSubjectCtrl,
+                autofocus: true,
+                decoration: _inputDeco().copyWith(hintText: 'Enter subject name'),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text('CANCEL', style: TextStyle(color: Colors.grey.shade600)),
+        ),
+        ElevatedButton(
+          onPressed: _saving
+              ? null
+              : () {
+                  if (!_canProceed) {
+                    _showValidationError();
+                    return;
+                  }
+                  final finalSubject = _isCustomSubject
+                      ? _customSubjectCtrl.text.trim()
+                      : _selectedSubject;
+
+                  setState(() => _saving = true);
+                  final check = CopyCheck(
+                    id: '',
+                    teacherId: widget.teacher.id,
+                    teacherName: widget.teacher.name,
+                    className: _selectedClass!,
+                    section: _selectedSection!,
+                    subject: finalSubject!,
+                    checkDate: _date,
+                    createdAt: DateTime.now(),
+                  );
+                  widget.onCreated(check);
+                },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _canProceed ? AppTheme.primary : Colors.grey.shade400,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: _saving
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
+              : const Text('PROCEED'),
+        ),
+      ],
+    );
+  }
+
+  Widget _label(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 6, left: 2),
+        child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
+      );
+
+  InputDecoration _inputDeco({bool enabled = true}) => InputDecoration(
+        filled: true,
+        fillColor: enabled ? Colors.white : Colors.grey.shade100,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppTheme.primary, width: 1.5)),
+      );
+}
+
 
 // ─── Session card ─────────────────────────────────────────────────────────────
 
@@ -359,7 +553,7 @@ class _SessionCard extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
-                Text(c.className,
+                Text('${c.className}${c.section.isNotEmpty ? " ${c.section}" : ""}',
                     style: TextStyle(
                         fontSize: 12, color: Colors.grey.shade500)),
               ],
@@ -386,12 +580,10 @@ class _SessionCard extends StatelessWidget {
 class _CheckSessionScreen extends StatefulWidget {
   final CopyCheck check;
   final String    teacherName;
-  final String    section;
 
   const _CheckSessionScreen({
     required this.check,
     required this.teacherName,
-    this.section = '',
   });
 
   @override
@@ -407,7 +599,6 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
   bool _loading = true;
   bool _saving  = false;
 
-  List<Student> _students    = [];
   List<CopyStatus> _statuses = [];
 
   @override
@@ -427,7 +618,7 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
     setState(() => _loading = true);
     final results = await Future.wait([
       _studentService.getStudentsByClass(widget.check.className,
-          section: widget.section),
+          section: widget.check.section),
       _service.getStatuses(widget.check.id),
     ]);
     final students = results[0] as List<Student>;
@@ -435,7 +626,6 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
 
     assert(students.length == {for (final s in students) s.roll: s}.length,
         'Duplicate rolls detected in class ${widget.check.className}');
-    debugPrint('[StudentList][${widget.check.className}] count=${students.length}');
 
     // Build status list using live student name/phone; preserve saved status+remarks.
     final savedMap = {for (final s in saved) s.roll: s};
@@ -452,7 +642,6 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
 
     if (!mounted) return;
     setState(() {
-      _students  = students;
       _statuses  = statuses;
       _loading   = false;
     });
@@ -731,71 +920,77 @@ class _StudentStatusTile extends StatelessWidget {
     }
   }
 
-  IconData get _icon {
-    switch (status.status) {
-      case 'checked':    return Icons.check_circle_outline;
-      case 'incomplete': return Icons.warning_amber_rounded;
-      default:           return Icons.cancel_outlined;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      child: Row(children: [
-        // Avatar
-        CircleAvatar(
-          radius: 18,
-          backgroundColor: _color.withOpacity(0.12),
-          child: Text(
-            status.studentName.isNotEmpty
-                ? status.studentName[0].toUpperCase()
-                : '?',
-            style: TextStyle(
-                color: _color, fontWeight: FontWeight.bold),
-          ),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: IntrinsicHeight(
+          child: Row(children: [
+            Container(width: 5, color: _color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(status.studentName,
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 2),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text('ROLL ${status.roll}',
+                          style: const TextStyle(
+                              fontSize: 10, color: AppTheme.primaryDark, fontWeight: FontWeight.w800)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Status buttons
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Row(children: [
+                _StatusBtn(
+                  icon: Icons.cancel_outlined,
+                  color: Colors.red,
+                  active: status.status == 'not_done',
+                  onTap: () => onStatus('not_done'),
+                  tooltip: 'Not Done',
+                ),
+                _StatusBtn(
+                  icon: Icons.warning_amber_rounded,
+                  color: Colors.orange,
+                  active: status.status == 'incomplete',
+                  onTap: () => onStatus('incomplete'),
+                  tooltip: 'Incomplete',
+                ),
+                _StatusBtn(
+                  icon: Icons.check_circle_outline,
+                  color: Colors.green,
+                  active: status.status == 'checked',
+                  onTap: () => onStatus('checked'),
+                  tooltip: 'Checked',
+                ),
+              ]),
+            ),
+          ]),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(status.studentName,
-                  style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w600)),
-              Text('Roll ${status.roll}',
-                  style: TextStyle(
-                      fontSize: 11, color: Colors.grey.shade500)),
-            ],
-          ),
-        ),
-        // Status buttons — Not Done · Incomplete · Checked (left → right)
-        Row(children: [
-          _StatusBtn(
-            icon: Icons.cancel_outlined,
-            color: Colors.red,
-            active: status.status == 'not_done',
-            onTap: () => onStatus('not_done'),
-            tooltip: 'Not Done',
-          ),
-          _StatusBtn(
-            icon: Icons.warning_amber_rounded,
-            color: Colors.orange,
-            active: status.status == 'incomplete',
-            onTap: () => onStatus('incomplete'),
-            tooltip: 'Incomplete',
-          ),
-          _StatusBtn(
-            icon: Icons.check_circle_outline,
-            color: Colors.green,
-            active: status.status == 'checked',
-            onTap: () => onStatus('checked'),
-            tooltip: 'Checked',
-          ),
-        ]),
-      ]),
+      ),
     );
   }
 }
@@ -932,8 +1127,8 @@ class _PendingTab extends StatelessWidget {
                     const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
               IconButton(
-                icon: Icon(Icons.chat_outlined,
-                    color: Colors.green.shade700, size: 22),
+                icon: const Icon(FontAwesomeIcons.whatsapp,
+                    color: Colors.green, size: 20),
                 onPressed: () => onWhatsApp(s),
                 tooltip: 'WhatsApp',
                 padding: EdgeInsets.zero,

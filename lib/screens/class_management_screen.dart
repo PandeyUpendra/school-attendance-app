@@ -142,13 +142,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
           schoolId: widget.schoolId, classId: widget.className);
       if (cloud != null) {
         students = cloud
-            .map((e) => Student(
-                  roll: (e['roll'] as num).toInt(),
-                  name: e['name'] as String,
-                  parentPhone: e['parentPhone'] as String?,
-                  photoPath: e['photoPath'] as String?,
-                  photoUrl: e['photoUrl'] as String?,
-                ))
+            .map((e) => Student.fromJson(Map<String, dynamic>.from(e)))
             .toList();
       }
     }

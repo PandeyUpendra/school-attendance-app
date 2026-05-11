@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../theme.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -641,7 +642,7 @@ class _CallCard extends StatelessWidget {
             // WhatsApp button
             Expanded(
               child: _ActionButton(
-                icon: Icons.message,
+                icon: FontAwesomeIcons.whatsapp,
                 label: 'WhatsApp',
                 color: const Color(0xFF25D366),
                 onTap: onWhatsApp,

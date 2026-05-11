@@ -6,6 +6,7 @@ class CopyCheck {
   final String   teacherId;
   final String   teacherName;
   final String   className;
+  final String   section;
   final String   subject;
   final DateTime checkDate;
   final DateTime createdAt;
@@ -15,6 +16,7 @@ class CopyCheck {
     required this.teacherId,
     required this.teacherName,
     required this.className,
+    this.section = '',
     required this.subject,
     required this.checkDate,
     required this.createdAt,
@@ -24,6 +26,7 @@ class CopyCheck {
         'teacherId':   teacherId,
         'teacherName': teacherName,
         'className':   className,
+        'section':     section,
         'subject':     subject,
         'checkDate':   Timestamp.fromDate(checkDate),
         'createdAt':   FieldValue.serverTimestamp(),
@@ -37,6 +40,7 @@ class CopyCheck {
       teacherId:   (data['teacherId']   as String?) ?? '',
       teacherName: (data['teacherName'] as String?) ?? '',
       className:   (data['className']   as String?) ?? '',
+      section:     (data['section']     as String?) ?? '',
       subject:     (data['subject']     as String?) ?? '',
       checkDate:   ts  is Timestamp ? ts.toDate()  : DateTime.now(),
       createdAt:   cts is Timestamp ? cts.toDate() : DateTime.now(),
@@ -84,4 +88,58 @@ class CopyStatus {
         status:        status ?? this.status,
         remarks:       remarks ?? this.remarks,
       );
+}
+
+/// Helper for CopyCheckingScreen UI
+class TeacherAssignment {
+  final String className;
+  final String section;
+  final String subject;
+
+  TeacherAssignment({
+    required this.className,
+    required this.section,
+    required this.subject,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TeacherAssignment &&
+          runtimeType == other.runtimeType &&
+          className == other.className &&
+          section == other.section &&
+          subject == other.subject;
+
+  @override
+  int get hashCode => className.hashCode ^ section.hashCode ^ subject.hashCode;
+}
+
+/// Helper for Coordinator overview summary
+class CopyCheckSummary {
+  final CopyCheck    check;
+  final int          checkedCount;
+  final int          totalCount;
+  final List<String> uncheckedNames;
+
+  CopyCheckSummary({
+    required this.check,
+    required this.checkedCount,
+    required this.totalCount,
+    required this.uncheckedNames,
+  });
+
+  double get progress => totalCount == 0 ? 0 : checkedCount / totalCount;
+}
+
+class CopyCheckGroup {
+  final String className;
+  final List<CopyCheckSectionGroup> sections;
+  CopyCheckGroup({required this.className, required this.sections});
+}
+
+class CopyCheckSectionGroup {
+  final String section;
+  final List<CopyCheckSummary> summaries; 
+  CopyCheckSectionGroup({required this.section, required this.summaries});
 }

@@ -14,12 +14,18 @@ import '../services/fee_service.dart';
 import '../services/homework_service.dart';
 import '../services/notification_service.dart';
 import '../services/timetable_service.dart';
+import '../services/school_service.dart';
+import '../services/contact_service.dart';
+import '../models/school_contact.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'school_contacts_screen.dart';
 import 'role_selection_screen.dart';
 import 'announcements_screen.dart';
 import 'notifications_screen.dart';
+import 'calendar_screen.dart';
 import 'attendance_certificate_screen.dart';
-import 'gallery/gallery_home_screen.dart';
 import 'student_remarks_screen.dart';
+import 'guardian_student_details_screen.dart';
 
 /// The Guardian Portal — shows a single student's attendance to their parent.
 /// Guardian is linked to {studentClass, studentRoll} in allowed_users.
@@ -71,10 +77,29 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   String _firstBellTime = '08:00';
   Map<String, Teacher> _teacherById = {};
 
+  // School Policy
+  String _dressPhotoUrl = '';
+  List<String> _rules = [];
+
+  // Other students for this guardian
+  List<String> _allStudentLinks = [];
+
   @override
   void initState() {
     super.initState();
     _loadAll();
+    _loadOtherStudents();
+  }
+
+  Future<void> _loadOtherStudents() async {
+    final session = await AuthService().getSession();
+    if (session != null && session['studentLinks'] != null) {
+      if (mounted) {
+        setState(() {
+          _allStudentLinks = List<String>.from(session['studentLinks']);
+        });
+      }
+    }
   }
 
   /// Loads every exam for the class + this student's result for each.
@@ -107,6 +132,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         _ttService.getTimetable(),                                             // 8
         _ttService.getSettings(),                                              // 9
         _ttService.getTeachers(),                                              // 10
+        SchoolService().getSchoolPolicy(),                                     // 11
       ]);
       if (!mounted) return;
 
@@ -122,6 +148,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
           as Map<String, Map<String, Map<int, TimetableEntry>>>;
       final ttSettings   = results[9]  as Map<String, dynamic>;
       final teachers     = results[10] as List<Teacher>;
+      final policy       = results[11] as Map<String, dynamic>;
 
       final bells = List<Map<String, dynamic>>.from(
         ((ttSettings['bells'] as List?) ?? [])
@@ -141,6 +168,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         _bellSettings     = bells;
         _firstBellTime    = ttSettings['firstBellTime'] as String? ?? '08:00';
         _teacherById      = {for (final t in teachers) t.id: t};
+        _dressPhotoUrl    = policy['idealDressPhoto'] ?? '';
+        _rules            = List<String>.from(policy['disciplineRules'] ?? []);
         _loading          = false;
       });
     } catch (e) {
@@ -244,9 +273,6 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
 
   List<Widget> _buildContentChildren() => [
     const SizedBox(height: 16),
-    // ── Child identity card ──────────────────────────────────────
-    _StudentCard(student: _student!, todayStatus: _todayStatus),
-    const SizedBox(height: 16),
     // ── Today's status banner ────────────────────────────────────
     _TodayBanner(status: _todayStatus),
     const SizedBox(height: 16),
@@ -271,142 +297,225 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       _LowAttendanceBanner(pct: _pct),
       const SizedBox(height: 16),
     ],
-    // ── Calendar view ────────────────────────────────────────────
-    _CalendarCard(
-      month: _month,
-      monthData: _monthData,
-      roll: widget.studentRoll,
-      statusColor: _statusColor,
+
+    // ── ACADEMICS ────────────────────────────────────────────────
+    const _SectionHeader('ACADEMICS'),
+    _FeatureTile(
+      icon: Icons.schedule_outlined,
+      color: AppTheme.primary,
+      title: "Today's Schedule",
+      subtitle: 'View bell-wise classes and teachers',
+      onTap: () => _showDetail("Today's Schedule", _TodayScheduleCard(
+        classTimetable: _classTimetable,
+        bellSettings:   _bellSettings,
+        firstBellTime:  _firstBellTime,
+        teacherById:    _teacherById,
+      )),
     ),
-    const SizedBox(height: 16),
-    // ── Legend ───────────────────────────────────────────────────
-    _LegendRow(),
-    const SizedBox(height: 20),
-    // ── Today's schedule ─────────────────────────────────────────
-    _TodayScheduleCard(
-      classTimetable: _classTimetable,
-      bellSettings:   _bellSettings,
-      firstBellTime:  _firstBellTime,
-      teacherById:    _teacherById,
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.assignment_outlined,
+      color: AppTheme.primary,
+      title: 'Homework',
+      subtitle: 'Latest assignments and tasks for your child',
+      onTap: () => _showDetail('Homework', _HomeworkSection(homeworkList: _homeworkList)),
     ),
-    const SizedBox(height: 16),
-    // ── Fee Status ───────────────────────────────────────────────
-    if (_feeStructure != null && _feeStructure!.totalAnnualFee > 0) ...[
-      _FeeStatusCard(structure: _feeStructure!, totalPaid: _totalPaid),
-      const SizedBox(height: 16),
-    ],
-    // ── Exam Results ─────────────────────────────────────────────
-    if (_examData.isNotEmpty) ...[
-      _ExamResultsSection(examData: _examData),
-      const SizedBox(height: 16),
-    ],
-    // ── Homework ─────────────────────────────────────────────────
-    if (_homeworkList.isNotEmpty) ...[
-      _HomeworkSection(homeworkList: _homeworkList),
-      const SizedBox(height: 16),
-    ],
-    // ── Subject Teachers ─────────────────────────────────────────
-    _SubjectTeachersCard(
-      classTimetable: _classTimetable,
-      teacherById:    _teacherById,
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.school_outlined,
+      color: AppTheme.primary,
+      title: 'Exam Results',
+      subtitle: 'Marks and grades for recent tests',
+      onTap: () => _showDetail('Exam Results', _ExamResultsSection(examData: _examData)),
     ),
-    const SizedBox(height: 16),
-    // ── Attendance Certificate ────────────────────────────────────
-    OutlinedButton.icon(
-      onPressed: () => Navigator.push(
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.people_outline,
+      color: AppTheme.primary,
+      title: 'Subject Teachers',
+      subtitle: 'List of teachers for each subject',
+      onTap: () => _showDetail('Subject Teachers', _SubjectTeachersCard(
+        classTimetable: _classTimetable,
+        teacherById:    _teacherById,
+      )),
+    ),
+
+    // ── PROGRESS & RECORDS ────────────────────────────────────────
+    const _SectionHeader('PROGRESS & RECORDS'),
+    _FeatureTile(
+      icon: Icons.badge_outlined,
+      color: AppTheme.primary,
+      title: 'Student Details',
+      subtitle: 'Manage student information and parent contacts',
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => GuardianStudentDetailsScreen(student: _student!),
+          ),
+        );
+        _loadAll(); // Refresh student data
+      },
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.comment_outlined,
+      color: AppTheme.primary,
+      title: 'Student Remarks',
+      subtitle: 'View teacher observations and feedback',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => StudentRemarksScreen(
+            role:            'guardian',
+            guardianStudent: _student,
+          ),
+        ),
+      ),
+    ),
+
+    // ── ATTENDANCE ────────────────────────────────────────────────
+    const _SectionHeader('ATTENDANCE'),
+    _FeatureTile(
+      icon: Icons.calendar_month_outlined,
+      color: AppTheme.primary,
+      title: 'Attendance Calendar',
+      subtitle: 'View daily attendance history for this month',
+      onTap: () => _showDetail('Attendance Calendar', Column(children: [
+        _CalendarCard(
+          month: _month,
+          monthData: _monthData,
+          roll: widget.studentRoll,
+          statusColor: _statusColor,
+        ),
+        const SizedBox(height: 16),
+        _LegendRow(),
+      ])),
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.workspace_premium_outlined,
+      color: AppTheme.primary,
+      title: 'Attendance Certificate',
+      subtitle: 'Download official attendance record',
+      onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
             builder: (_) =>
                 AttendanceCertificateScreen(student: _student!)),
       ),
-      icon: const Icon(Icons.workspace_premium_outlined),
-      label: const Text('Attendance Certificate'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppTheme.primary,
-        side: const BorderSide(color: AppTheme.primary),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
     ),
-    const SizedBox(height: 12),
-    // ── Event Gallery ─────────────────────────────────────────────
-    OutlinedButton.icon(
-      onPressed: () => Navigator.push(
+
+    // ── COMMUNICATION ─────────────────────────────────────────────
+    const _SectionHeader('COMMUNICATION'),
+    _KeyContactsSection(
+      student: _student,
+      contactService: ContactService(),
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.campaign_outlined,
+      color: AppTheme.primary,
+      title: 'Notice Board',
+      subtitle: 'Latest announcements and school news',
+      onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => const GalleryHomeScreen(
-            role:      'guardian',
-            userEmail: '',
-          ),
-        ),
-      ),
-      icon: const Icon(Icons.photo_library_outlined),
-      label: const Text('Event Gallery'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppTheme.primary,
-        side: const BorderSide(color: AppTheme.primary),
-        padding: const EdgeInsets.symmetric(vertical: 14),
+            builder: (_) => AnnouncementsScreen(
+                  viewerRole: 'guardian',
+                  viewerClass: widget.studentClass,
+                )),
       ),
     ),
-    const SizedBox(height: 12),
-    // ── Announcements ─────────────────────────────────────────────
-    OutlinedButton.icon(
-      onPressed: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (_) =>
-                const AnnouncementsScreen(viewerRole: 'guardian')),
-      ),
-      icon: const Icon(Icons.campaign_outlined),
-      label: const Text('School Announcements'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppTheme.primary,
-        side: const BorderSide(color: AppTheme.primary),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
-    ),
-    const SizedBox(height: 12),
-    // ── Contact school ────────────────────────────────────────────
-    OutlinedButton.icon(
-      onPressed: _callSchool,
-      icon: const Icon(Icons.call_outlined),
-      label: const Text('Contact School'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppTheme.primary,
-        side: const BorderSide(color: AppTheme.primary),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
-    ),
-    const SizedBox(height: 12),
-    // ── Student Remarks ───────────────────────────────────────────
-    if (_student != null)
-      OutlinedButton.icon(
-        onPressed: () => Navigator.push(
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.notifications_active_outlined,
+      color: AppTheme.primary,
+      title: 'Updates',
+      subtitle: 'New notifications and activities',
+      onTap: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => StudentRemarksScreen(
-              role:            'guardian',
-              guardianStudent: _student,
+            builder: (_) => NotificationsScreen(
+              role:         'guardian',
+              studentClass: widget.studentClass,
+              studentRoll:  widget.studentRoll,
             ),
           ),
-        ),
-        icon: const Icon(Icons.comment_outlined),
-        label: const Text('Student Remarks'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppTheme.primary,
-          side: const BorderSide(color: AppTheme.primary),
-          padding: const EdgeInsets.symmetric(vertical: 14),
+        );
+        _loadAll();
+      },
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.contact_phone_outlined,
+      color: AppTheme.primary,
+      title: 'School Contact List',
+      subtitle: 'Call or WhatsApp school staff & drivers',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const SchoolContactsScreen(canEdit: false),
         ),
       ),
-    const SizedBox(height: 16),
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.calendar_month_outlined,
+      color: AppTheme.primary,
+      title: 'School Calendar',
+      subtitle: 'View holidays and upcoming school events',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const CalendarScreen(userRole: 'guardian'),
+        ),
+      ),
+    ),
+
+    // ── SCHOOL POLICY ─────────────────────────────────────────────
+    const _SectionHeader('SCHOOL POLICY'),
+    _FeatureTile(
+      icon: Icons.assignment_turned_in_outlined,
+      color: AppTheme.primary,
+      title: 'Ideal Dress & Discipline',
+      subtitle: 'Uniform standards and school rules',
+      onTap: () => _showDetail('School Policy', _SchoolPolicyCard(dressPhotoUrl: _dressPhotoUrl, rules: _rules)),
+    ),
+
+    if (_feeStructure != null && _feeStructure!.totalAnnualFee > 0) ...[
+      const _Divider(),
+      _FeatureTile(
+        icon: Icons.account_balance_wallet_outlined,
+        color: AppTheme.success,
+        title: 'Fee Status',
+        subtitle: 'View payment history and pending dues',
+        onTap: () => _showDetail('Fee Status', _FeeStatusCard(structure: _feeStructure!, totalPaid: _totalPaid)),
+      ),
+    ],
+
+    const SizedBox(height: 32),
   ];
 
-  Future<void> _callSchool() async {
-    if (_student == null || _student!.phone.isEmpty) return;
-    // Calls school number saved on student — usually the class teacher contact.
-    final uri = Uri.parse('tel:${_student!.phone}');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
+  void _showDetail(String title, Widget content) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: Text(title),
+            backgroundColor: AppTheme.primary,
+            foregroundColor: Colors.white,
+          ),
+          backgroundColor: AppTheme.background,
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: content,
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _logout() async {
@@ -435,6 +544,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                 todayStatus:      _todayStatus,
                 loading:          _loading,
                 unreadNotifCount: _unreadNotifCount,
+                allStudentLinks:  _allStudentLinks,
                 onNotifTap: () async {
                   await Navigator.push(
                     context,
@@ -485,6 +595,7 @@ class _GuardianHeroCard extends StatelessWidget {
   final String? todayStatus;
   final bool    loading;
   final int     unreadNotifCount;
+  final List<String> allStudentLinks;
   final VoidCallback onNotifTap;
   final VoidCallback onLogout;
 
@@ -495,6 +606,7 @@ class _GuardianHeroCard extends StatelessWidget {
     required this.todayStatus,
     required this.loading,
     required this.unreadNotifCount,
+    required this.allStudentLinks,
     required this.onNotifTap,
     required this.onLogout,
   });
@@ -506,6 +618,61 @@ class _GuardianHeroCard extends StatelessWidget {
       case 'Leave':   return const Color(0xFFFFCC80);
       default:        return Colors.white54;
     }
+  }
+
+  void _showStudentSwitcher(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(20),
+            child: Text('Switch Child',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
+          ...allStudentLinks.map((link) {
+            final parts = link.split('|');
+            final sClass = parts[0];
+            final sRoll = int.parse(parts[1]);
+            final sName = parts.length > 2 ? parts[2] : 'Student';
+            final isCurrent = sClass == studentClass && sRoll == studentRoll;
+
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundColor: isCurrent ? AppTheme.primary : Colors.grey.shade200,
+                child: Icon(Icons.person,
+                    color: isCurrent ? Colors.white : Colors.grey),
+              ),
+              title: Text(sName,
+                  style: TextStyle(
+                      fontWeight:
+                          isCurrent ? FontWeight.bold : FontWeight.normal)),
+              subtitle: Text('$sClass · Roll $sRoll'),
+              selected: isCurrent,
+              onTap: isCurrent
+                  ? null
+                  : () {
+                      Navigator.pop(ctx);
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => GuardianDashboard(
+                            studentClass: sClass,
+                            studentRoll: sRoll,
+                          ),
+                        ),
+                      );
+                    },
+            );
+          }),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
   }
 
   @override
@@ -547,6 +714,24 @@ class _GuardianHeroCard extends StatelessWidget {
                           letterSpacing: 0.9),
                     ),
                   ),
+                  if (allStudentLinks.length > 1)
+                    IconButton(
+                      icon: const Icon(Icons.swap_horiz,
+                          color: Colors.white, size: 22),
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(),
+                      tooltip: 'Switch Child',
+                      onPressed: () => _showStudentSwitcher(context),
+                    ),
+                  if (allStudentLinks.length > 1)
+                    IconButton(
+                      icon: const Icon(Icons.swap_horiz,
+                          color: Colors.white, size: 22),
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(),
+                      tooltip: 'Switch Child',
+                      onPressed: () => _showStudentSwitcher(context),
+                    ),
                   Stack(children: [
                     IconButton(
                       icon: const Icon(Icons.notifications_outlined,
@@ -1309,62 +1494,6 @@ class _WaveClipper extends CustomClipper<Path> {
   bool shouldReclip(_WaveClipper old) => false;
 }
 
-// ─── Student identity card ───────────────────────────────────────────────────
-
-class _StudentCard extends StatelessWidget {
-  final Student student;
-  final String? todayStatus;
-  const _StudentCard({required this.student, required this.todayStatus});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(children: [
-        CircleAvatar(
-          radius: 28,
-          backgroundColor: AppTheme.primary.withOpacity(0.12),
-          child: Text(
-            student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
-            style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primary),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(student.name,
-                  style: const TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 3),
-              Text(
-                'Roll ${student.roll}  •  ${student.className}',
-                style:
-                    TextStyle(fontSize: 13, color: Colors.grey.shade600),
-              ),
-              if (student.fatherName.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text('Father: ${student.fatherName}',
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade500)),
-              ],
-            ],
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
 // ─── Today's status banner ───────────────────────────────────────────────────
 
 class _TodayBanner extends StatelessWidget {
@@ -1626,7 +1755,7 @@ class _CalendarCard extends StatelessWidget {
     final firstWeekday = DateTime(month.year, month.month, 1).weekday;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -1735,7 +1864,6 @@ class _FeeStatusCard extends StatelessWidget {
     final isFullyPaid = due < 1;
 
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -1815,8 +1943,6 @@ class _FeeStatusCard extends StatelessWidget {
     );
   }
 }
-
-// ─── Homework section for guardian ───────────────────────────────────────────
 
 class _HomeworkSection extends StatelessWidget {
   final List<Homework> homeworkList;
@@ -1952,7 +2078,337 @@ class _HomeworkSection extends StatelessWidget {
   }
 }
 
-// ─── Legend ──────────────────────────────────────────────────────────────────
+// ─── School Policy Card ──────────────────────────────────────────────────────
+
+class _SchoolPolicyCard extends StatelessWidget {
+  final String dressPhotoUrl;
+  final List<String> rules;
+
+  const _SchoolPolicyCard({required this.dressPhotoUrl, required this.rules});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            child: Row(children: [
+              Container(
+                width: 34, height: 34,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: const Icon(Icons.assignment_turned_in_outlined,
+                    color: AppTheme.primary, size: 19),
+              ),
+              const SizedBox(width: 10),
+              const Text('Ideal Dress & Discipline',
+                  style: TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.bold)),
+            ]),
+          ),
+          const Divider(height: 1),
+          if (dressPhotoUrl.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Ideal Dress Standard',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      dressPhotoUrl,
+                      width: double.infinity,
+                      height: 200,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Container(
+                        height: 100,
+                        color: Colors.grey.shade100,
+                        child: const Center(
+                          child: Icon(Icons.broken_image_outlined,
+                              color: Colors.grey),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (rules.isNotEmpty) ...[
+            if (dressPhotoUrl.isNotEmpty) const Divider(height: 1, indent: 16),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Discipline Rules',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  ...rules.map((rule) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('• ',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primary)),
+                            Expanded(
+                              child: Text(rule,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade800)),
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Shared widgets ────────────────────────────────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  const _SectionHeader(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+      child: Text(title,
+          style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade500,
+              letterSpacing: 0.8)),
+    );
+  }
+}
+
+class _Divider extends StatelessWidget {
+  const _Divider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Divider(height: 1, indent: 72);
+  }
+}
+
+class _FeatureTile extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _FeatureTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: TextStyle(
+                        fontSize: 12, color: Colors.grey.shade500)),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right,
+              color: Colors.grey.shade400, size: 20),
+        ]),
+      ),
+    );
+  }
+}
+
+class _KeyContactsSection extends StatelessWidget {
+  final Student? student;
+  final ContactService contactService;
+
+  const _KeyContactsSection({required this.student, required this.contactService});
+
+  Future<void> _makeCall(String phoneNumber) async {
+    final Uri url = Uri.parse('tel:$phoneNumber');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    }
+  }
+
+  Future<void> _openWhatsApp(String phoneNumber) async {
+    final cleanPhone = phoneNumber.replaceAll(RegExp(r'\D'), '');
+    final Uri url = Uri.parse('https://wa.me/$cleanPhone');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<SchoolContact>>(
+      stream: contactService.getContacts(),
+      builder: (context, snapshot) {
+        List<SchoolContact> keyContacts = [];
+        if (snapshot.hasData) {
+          keyContacts = snapshot.data!.where((c) => c.isKey).toList();
+        }
+
+        // Add class teacher if not already in list
+        if (student != null && student!.phone.isNotEmpty) {
+          final hasClassTeacher = keyContacts.any((c) =>
+            c.role.toLowerCase().contains('class teacher') ||
+            c.phoneNumber.replaceAll(RegExp(r'\D'), '') == student!.phone.replaceAll(RegExp(r'\D'), '')
+          );
+          if (!hasClassTeacher) {
+            keyContacts.insert(0, SchoolContact(
+              id: 'class_teacher',
+              name: 'Class Teacher',
+              phoneNumber: student!.phone,
+              role: 'Class Teacher',
+              isKey: true,
+            ));
+          }
+        }
+
+        if (keyContacts.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          children: keyContacts.map((contact) {
+            final title = contact.name.isEmpty ? contact.role : contact.name;
+            final subtitle = contact.name.isEmpty ? contact.phoneNumber : contact.role;
+
+            return Column(
+              children: [
+                _FeatureTileWithActions(
+                  icon: Icons.person_outline,
+                  color: AppTheme.primary,
+                  title: title,
+                  subtitle: subtitle,
+                  onCall: () => _makeCall(contact.phoneNumber),
+                  onWhatsApp: () => _openWhatsApp(contact.phoneNumber),
+                ),
+                if (keyContacts.indexOf(contact) < keyContacts.length - 1)
+                  const _Divider(),
+              ],
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+}
+
+class _FeatureTileWithActions extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback onCall;
+  final VoidCallback onWhatsApp;
+
+  const _FeatureTileWithActions({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.onCall,
+    required this.onWhatsApp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.phone, color: AppTheme.success),
+            onPressed: onCall,
+          ),
+          IconButton(
+            icon: const FaIcon(FontAwesomeIcons.whatsapp, color: Colors.green),
+            onPressed: onWhatsApp,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Legend ──────────────────────────────────────────────────────────────────
+
 
 class _LegendRow extends StatelessWidget {
   @override

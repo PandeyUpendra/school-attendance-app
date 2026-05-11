@@ -272,37 +272,6 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
   Widget _buildPersonalView() {
     final slots = _mySlots;
     return Column(children: [
-      // Teacher info strip
-      Container(
-        color: AppTheme.primary,
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-        child: Row(children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: Colors.white.withOpacity(0.2),
-            child: Text(
-              widget.teacher!.name[0].toUpperCase(),
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(widget.teacher!.name,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15)),
-            Text(widget.teacher!.subject,
-                style: const TextStyle(
-                    color: Colors.white70, fontSize: 12)),
-          ]),
-        ]),
-      ),
-
       // Day selector
       _daySelector(),
       const Divider(height: 1),
@@ -558,10 +527,6 @@ class _PersonalSlotCard extends StatelessWidget {
             Text(slot.className,
                 style: const TextStyle(
                     fontSize: 15, fontWeight: FontWeight.w600)),
-            if (slot.subject.isNotEmpty)
-              Text(slot.subject,
-                  style: TextStyle(
-                      fontSize: 12, color: Colors.grey.shade600)),
           ]),
         ),
         Text('Bell ${slot.bellDisplayNum}',

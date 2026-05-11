@@ -11,15 +11,19 @@ class AnnouncementService {
 
   /// Fetches announcements visible to the given audience.
   /// Returns pinned first, then newest first.
-  Future<List<Announcement>> getAnnouncements({String? audience}) async {
+  Future<List<Announcement>> getAnnouncements(
+      {String? audience, String? viewerClass}) async {
     final snap = await _coll.get();
     final list = snap.docs
         .map((d) => Announcement.fromDoc(d.id, d.data()))
-        .where((a) =>
-            audience == null ||
-            a.audience == 'all' ||
-            a.audience == audience)
-        .toList();
+        .where((a) {
+      if (a.audience == 'all') return true;
+      if (audience != null && a.audience == audience) return true;
+      if (viewerClass != null && a.audience == 'class:$viewerClass') {
+        return true;
+      }
+      return false;
+    }).toList();
     // Pinned first, then newest posted
     list.sort((a, b) {
       if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
@@ -34,15 +38,19 @@ class AnnouncementService {
   }
 
   /// Real-time stream of announcements (for notification badges).
-  Stream<List<Announcement>> watchAnnouncements({String? audience}) {
+  Stream<List<Announcement>> watchAnnouncements(
+      {String? audience, String? viewerClass}) {
     return _coll.snapshots().map((snap) {
       final list = snap.docs
           .map((d) => Announcement.fromDoc(d.id, d.data()))
-          .where((a) =>
-              audience == null ||
-              a.audience == 'all' ||
-              a.audience == audience)
-          .toList();
+          .where((a) {
+        if (a.audience == 'all') return true;
+        if (audience != null && a.audience == audience) return true;
+        if (viewerClass != null && a.audience == 'class:$viewerClass') {
+          return true;
+        }
+        return false;
+      }).toList();
       list.sort((a, b) {
         if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
         final ta = a.postedAt;

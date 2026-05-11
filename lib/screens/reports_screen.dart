@@ -41,10 +41,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           schoolId: widget.schoolId, classId: widget.className);
       if (cloud != null) {
         students = cloud
-            .map((e) => Student(
-                  roll: (e['roll'] as num).toInt(),
-                  name: e['name'] as String,
-                ))
+            .map((e) => Student.fromJson(Map<String, dynamic>.from(e)))
             .toList();
       }
     }

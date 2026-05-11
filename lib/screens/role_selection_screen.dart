@@ -8,6 +8,7 @@ import 'teacher_profile_screen.dart';
 import 'admin_screen.dart';
 import 'principal_dashboard.dart';
 import 'guardian_dashboard.dart';
+import 'student_selection_screen.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
@@ -17,9 +18,7 @@ class RoleSelectionScreen extends StatelessWidget {
   Future<void> _loginAsRole(
       BuildContext context, String role, Widget destination) async {
     final emailCtrl = TextEditingController();
-    final passCtrl  = TextEditingController();
     bool checking   = false;
-    bool showPass   = false;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -43,7 +42,7 @@ class RoleSelectionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Enter your registered email and password.',
+                'Enter your registered email address.',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 12),
@@ -62,34 +61,11 @@ class RoleSelectionScreen extends StatelessWidget {
                       horizontal: 12, vertical: 12),
                   counterText: '',
                 ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: passCtrl,
-                obscureText: !showPass,
-                maxLength: 50,
-                maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(showPass
-                        ? Icons.visibility_off
-                        : Icons.visibility,
-                        size: 18),
-                    onPressed: () => setS(() => showPass = !showPass),
-                  ),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 12),
-                  counterText: '',
-                ),
                 onSubmitted: (_) async {
                   if (checking) return;
                   setS(() => checking = true);
                   final allowed = await _validate(
-                      ctx, emailCtrl.text, passCtrl.text, role);
+                      ctx, emailCtrl.text, role);
                   if (!ctx.mounted) return;
                   if (allowed) Navigator.pop(ctx, true);
                   else setS(() => checking = false);
@@ -108,7 +84,7 @@ class RoleSelectionScreen extends StatelessWidget {
                   : () async {
                       setS(() => checking = true);
                       final allowed = await _validate(
-                          ctx, emailCtrl.text, passCtrl.text, role);
+                          ctx, emailCtrl.text, role);
                       if (!ctx.mounted) return;
                       if (allowed) {
                         Navigator.pop(ctx, true);
@@ -135,38 +111,53 @@ class RoleSelectionScreen extends StatelessWidget {
     if (ok == true && context.mounted) {
       final email = emailCtrl.text.trim().toLowerCase();
 
-      // Guardian: fetch the linked student (class + roll) from Firestore,
-      // store it in the session and route to a GuardianDashboard built for
-      // that specific child. If not linked, the admin needs to set it.
+      // Guardian: fetch the linked student(s) from Firestore,
+      // store them in the session and route to a GuardianDashboard or selection screen.
       if (role == 'guardian') {
-        final link = await TimetableService().getGuardianLink(email);
+        final links = await TimetableService().getGuardianLinks(email);
         if (!context.mounted) return;
-        if (link == null) {
+        if (links == null || links.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: const Text(
-                'Your guardian account is not linked to a student yet. '
-                'Please ask the admin to set your child class & roll.'),
+                'Your guardian account is not linked to any student yet. '
+                'Please ask the admin to link your account.'),
             backgroundColor: Colors.orange.shade700,
             duration: const Duration(seconds: 4),
           ));
           return;
         }
-        final sClass = link['studentClass'] as String;
-        final sRoll  = link['studentRoll']  as int;
+
+        final sessionLinks = links.map((l) {
+          final cls = l['studentClass'] as String;
+          final roll = l['studentRoll'] as int;
+          final name = l['studentName'] as String? ?? '';
+          return '$cls|$roll|$name';
+        }).toList();
+
         await AuthService().saveSession(
           email: email,
           role: role,
-          studentClass: sClass,
-          studentRoll:  sRoll,
+          studentLinks: sessionLinks,
         );
         if (!context.mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => GuardianDashboard(
-                studentClass: sClass, studentRoll: sRoll),
-          ),
-        );
+
+        if (sessionLinks.length == 1) {
+          final parts = sessionLinks.first.split('|');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => GuardianDashboard(
+                  studentClass: parts[0], studentRoll: int.parse(parts[1])),
+            ),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => StudentSelectionScreen(links: sessionLinks),
+            ),
+          );
+        }
         return;
       }
 
@@ -190,7 +181,7 @@ class RoleSelectionScreen extends StatelessWidget {
   }
 
   Future<bool> _validate(
-      BuildContext context, String email, String password,
+      BuildContext context, String email,
       String expectedRole) async {
     final trimmed = email.trim().toLowerCase();
     if (trimmed.isEmpty ||
@@ -199,18 +190,13 @@ class RoleSelectionScreen extends StatelessWidget {
           const SnackBar(content: Text('Enter a valid email address')));
       return false;
     }
-    if (password.trim().isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Enter your password')));
-      return false;
-    }
     final role =
-        await TimetableService().validateLogin(trimmed, password.trim());
+        await TimetableService().validateLogin(trimmed);
     if (role == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: const Text(
-              'Invalid email or password. Contact admin if not registered.'),
+              'Invalid email. Contact admin if not registered.'),
           backgroundColor: Colors.red.shade700,
         ));
       }

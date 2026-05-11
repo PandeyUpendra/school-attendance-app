@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/staff_task.dart';
 
 /// Firestore-backed notification / real-time alert system.
 ///
@@ -28,6 +29,11 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._();
   NotificationService._();
   factory NotificationService() => _instance;
+
+  /// Compatibility stub for AuthProvider
+  static Future<void> init(String? uid) async {
+    // No-op for now.
+  }
 
   // ── Writers ────────────────────────────────────────────────────────────────
 
@@ -95,6 +101,58 @@ class NotificationService {
     });
   }
 
+  /// Called when a new task is created by a coordinator or principal.
+  Future<void> addTaskNotice({
+    required String title,
+    required String createdBy,
+    required List<String> classes,
+  }) async {
+    // We send a general notification to all teachers of the assigned classes.
+    // In this app's logic, teachers filter notifications by 'teachers' role.
+    await _coll.add({
+      'type':      'task',
+      'title':     'New Task: $title',
+      'body':      'A new task has been assigned by $createdBy to classes: ${classes.join(", ")}.',
+      'audience':  'teachers',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Called when a new staff task is created.
+  Future<void> addStaffTaskNotice({
+    required StaffTask task,
+  }) async {
+    for (var userId in task.assignedToIds) {
+      await _coll.add({
+        'type':      'staff_task',
+        'title':     'New Task: ${task.title}',
+        'body':      'Priority: ${task.priority.name.toUpperCase()}. Due: ${task.dueDate.day}/${task.dueDate.month}.',
+        'audience':  'user:$userId',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  /// Called for automated reminders.
+  Future<void> addStaffTaskReminder({
+    required StaffTask task,
+    required String userId,
+    required String reminderType, // '10AM' | '7PM' | 'Overdue'
+  }) async {
+    String title = reminderType == 'Overdue' ? 'OVERDUE: ${task.title}' : 'Reminder: ${task.title}';
+    String body = reminderType == 'Overdue'
+        ? 'This task was due on ${task.dueDate.day}/${task.dueDate.month}. Please complete it immediately.'
+        : 'Pending task reminder. Priority: ${task.priority.name.toUpperCase()}. Status: ${task.status.name}.';
+
+    await _coll.add({
+      'type':      'staff_task_reminder',
+      'title':     title,
+      'body':      body,
+      'audience':  'user:$userId',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   // ── Deleters ───────────────────────────────────────────────────────────────
 
   /// Deletes a single notification by its Firestore document ID.
@@ -120,6 +178,7 @@ class NotificationService {
     String? teacherId,
     String? studentClass,
     int?    studentRoll,
+    String? userEmail,
   }) async {
     final snap = await _coll.get();
     final now  = DateTime.now();
@@ -134,11 +193,14 @@ class NotificationService {
       if (aud == role)                                             return true;
       if (aud == 'teachers'  && role == 'teacher')                 return true;
       if (aud == 'guardians' && role == 'guardian')                return true;
+      if (userEmail != null && aud == 'user:$userEmail')           return true;
       if (aud.startsWith('teacher:')  && role == 'teacher'  &&
           teacherId != null && aud == 'teacher:$teacherId')         return true;
       if (aud.startsWith('guardian:') && role == 'guardian' &&
           studentClass != null && studentRoll != null &&
           aud == 'guardian:$studentClass:$studentRoll')             return true;
+      if (aud.startsWith('class:') && role == 'guardian' &&
+          studentClass != null && aud == 'class:$studentClass')       return true;
       return false;
     }).toList();
 
@@ -165,12 +227,14 @@ class NotificationService {
     String? teacherId,
     String? studentClass,
     int?    studentRoll,
+    String? userEmail,
   }) async {
     final items = await getFor(
       role: role,
       teacherId: teacherId,
       studentClass: studentClass,
       studentRoll: studentRoll,
+      userEmail: userEmail,
     );
     final prefs = await SharedPreferences.getInstance();
     final lastSeenMs = prefs.getInt(_lastSeenKey) ?? 0;

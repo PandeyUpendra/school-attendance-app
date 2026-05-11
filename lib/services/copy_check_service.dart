@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/copy_check.dart';
-import '../models/timetable_entry.dart';
 import 'timetable_service.dart';
 
 /// Manages copy-checking sessions.
@@ -21,20 +20,115 @@ class CopyCheckService {
 
   // ── Teacher's classes from timetable ──────────────────────────────────────
 
-  /// Returns { className → subject } for all classes the teacher appears in.
-  Future<Map<String, String>> getClassesForTeacher(String teacherId) async {
-    final tt      = await TimetableService().getTimetable();
-    final result  = <String, String>{};
+  /// Returns a list of all unique (className, section, subject) assignments for the teacher.
+  Future<List<TeacherAssignment>> getTeacherAssignments(String teacherId) async {
+    final tt = await TimetableService().getTimetable();
+    final assignments = <TeacherAssignment>{};
+
     for (final clsEntry in tt.entries) {
+      String className = clsEntry.key;
+      String section   = '';
+
+      // Heuristic split "Class 6 A" -> "Class 6", "A"
+      if (className.contains(' ')) {
+        final parts = className.split(' ');
+        final last  = parts.last;
+        if (last.length <= 5) {
+          section   = last;
+          className = parts.sublist(0, parts.length - 1).join(' ');
+        }
+      }
+
       for (final dayEntry in clsEntry.value.entries) {
         for (final bellEntry in dayEntry.value.entries) {
           final entry = bellEntry.value;
           if (entry.teacherId == teacherId) {
-            result.putIfAbsent(clsEntry.key, () => entry.subject ?? '');
+            assignments.add(TeacherAssignment(
+              className: className,
+              section:   section,
+              subject:   entry.subject ?? '',
+            ));
           }
         }
       }
     }
+    return assignments.toList();
+  }
+
+  // ── Coordinator Overview ──────────────────────────────────────────────────
+
+  /// For each unique (class + section + subject) combo, finds the LATEST
+  /// checking session and returns its summary.
+  Future<List<CopyCheckSummary>> getLatestSummaries() async {
+    // 1. Get all checks
+    final allChecks = await getAllChecks();
+    
+    // 2. Group by class+section+subject and find newest in each group
+    final newestMap = <String, CopyCheck>{};
+    for (final c in allChecks) {
+      final key = '${c.className}|${c.section}|${c.subject}';
+      if (!newestMap.containsKey(key)) {
+        newestMap[key] = c;
+      } else {
+        if (c.checkDate.isAfter(newestMap[key]!.checkDate)) {
+          newestMap[key] = c;
+        }
+      }
+    }
+
+    // 3. For each newest check, fetch its statuses and build a summary
+    final summaries = <CopyCheckSummary>[];
+    for (final check in newestMap.values) {
+      final statuses = await getStatuses(check.id);
+      final checked    = statuses.where((s) => s.status == 'checked').length;
+      final uncheckedNames = statuses
+          .where((s) => s.status != 'checked')
+          .map((s) => s.studentName)
+          .toList();
+
+      summaries.add(CopyCheckSummary(
+        check:          check,
+        checkedCount:   checked,
+        totalCount:     statuses.length,
+        uncheckedNames: uncheckedNames,
+      ));
+    }
+
+    // Sort by class then section
+    summaries.sort((a, b) {
+      int res = a.check.className.compareTo(b.check.className);
+      if (res != 0) return res;
+      return a.check.section.compareTo(b.check.section);
+    });
+
+    return summaries;
+  }
+
+  Future<List<CopyCheckGroup>> getStructuredSummaries() async {
+    final summaries = await getLatestSummaries();
+
+    // Group by className
+    final classMap = <String, Map<String, List<CopyCheckSummary>>>{};
+    for (final s in summaries) {
+      classMap.putIfAbsent(s.check.className, () => {});
+      classMap[s.check.className]!.putIfAbsent(s.check.section, () => []);
+      classMap[s.check.className]![s.check.section]!.add(s);
+    }
+
+    final result = <CopyCheckGroup>[];
+    classMap.forEach((className, sectionsMap) {
+      final sections = <CopyCheckSectionGroup>[];
+      sectionsMap.forEach((section, summaries) {
+        sections.add(CopyCheckSectionGroup(section: section, summaries: summaries));
+      });
+      // Sort sections
+      sections.sort((a, b) => a.section.compareTo(b.section));
+      result.add(CopyCheckGroup(className: className, sections: sections));
+    });
+
+    // Sort classes
+    result.sort((a, b) => a.className.compareTo(b.className));
+
     return result;
   }
 

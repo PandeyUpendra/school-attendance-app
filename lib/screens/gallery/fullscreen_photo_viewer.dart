@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:share_plus/share_plus.dart';
@@ -221,7 +222,7 @@ class _FullscreenPhotoViewerState extends State<FullscreenPhotoViewer> {
                         onTap:   _download,
                       ),
                       _ActionButton(
-                        icon:    Icons.chat_outlined,
+                        icon:    FontAwesomeIcons.whatsapp,
                         label:   'WhatsApp',
                         busy:    _actionBusy,
                         onTap:   _shareWhatsApp,

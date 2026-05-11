@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/student.dart';
@@ -34,7 +35,6 @@ class _StudentListScreenState extends State<StudentListScreen> {
   final _service = StudentService();
   StreamSubscription<List<Student>>? _studentSub;
   List<Student> _students = [];
-  String _search = '';
   bool _loading = true;
 
   Set<int> _selectedRolls = {};
@@ -89,16 +89,16 @@ class _StudentListScreenState extends State<StudentListScreen> {
   }
 
   bool get _allSelected =>
-      _filtered.isNotEmpty &&
-      _filtered.every((s) => _selectedRolls.contains(s.roll));
+      _students.isNotEmpty &&
+      _students.every((s) => _selectedRolls.contains(s.roll));
 
   void _toggleSelectAll() {
     setState(() {
       if (_allSelected) {
-        _selectedRolls.removeAll(_filtered.map((s) => s.roll));
+        _selectedRolls.removeAll(_students.map((s) => s.roll));
         if (_selectedRolls.isEmpty) _selectMode = false;
       } else {
-        _selectedRolls.addAll(_filtered.map((s) => s.roll));
+        _selectedRolls.addAll(_students.map((s) => s.roll));
       }
     });
   }
@@ -139,17 +139,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
     );
   }
 
-  List<Student> get _filtered {
-    if (_search.trim().isEmpty) return _students;
-    final q = _search.toLowerCase();
-    return _students
-        .where((s) =>
-            s.name.toLowerCase().contains(q) ||
-            s.roll.toString().contains(q) ||
-            s.fatherName.toLowerCase().contains(q) ||
-            s.phone.contains(q))
-        .toList();
-  }
+
 
   Future<void> _openAdd() async {
     await Navigator.push<Student>(
@@ -220,6 +210,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
       if (name.isEmpty) continue;
 
       students.add(Student(
+        id: '', // Unique ID will be generated in addStudent
         roll: roll,
         name: name,
         className: widget.className,
@@ -302,7 +293,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => _StudentDetailPage(
+        builder: (_) => StudentDetailPage(
           student: student,
           canEdit: widget.isClassTeacher,
         ),
@@ -338,7 +329,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
         actions: _selectMode
             ? [
                 TextButton(
-                  onPressed: _filtered.isNotEmpty ? _toggleSelectAll : null,
+                  onPressed: _students.isNotEmpty ? _toggleSelectAll : null,
                   child: Text(
                     _allSelected ? 'None' : 'All',
                     style: const TextStyle(
@@ -373,83 +364,51 @@ class _StudentListScreenState extends State<StudentListScreen> {
           : null,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(children: [
-              if (_students.isNotEmpty)
-                Container(
+          : _students.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.group_add,
+                          size: 72, color: Colors.grey.shade300),
+                      const SizedBox(height: 16),
+                      Text('No students in $_effectiveTitle',
+                          style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade400)),
+                      const SizedBox(height: 6),
+                      Text('Tap + Add Student to get started',
+                          style: TextStyle(
+                              color: Colors.grey.shade400)),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _refresh,
                   color: AppTheme.primary,
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  child: TextField(
-                    onChanged: (v) => setState(() => _search = v),
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'Search by name, roll, phone…',
-                      hintStyle: const TextStyle(color: Colors.white60),
-                      prefixIcon: const Icon(Icons.search,
-                          color: Colors.white70),
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.15),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none),
-                      contentPadding:
-                          const EdgeInsets.symmetric(vertical: 10),
-                    ),
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
+                    itemCount: _students.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, indent: 80),
+                    itemBuilder: (_, i) {
+                      final s = _students[i];
+                      return _StudentCard(
+                        student: s,
+                        selected: _selectedRolls.contains(s.roll),
+                        selectMode: _selectMode,
+                        onTap: _selectMode
+                            ? () => _toggleSelect(s)
+                            : () => _openDetail(s),
+                        onLongPress: widget.isClassTeacher && !_selectMode
+                            ? () => _enterSelectMode(s)
+                            : null,
+                      );
+                    },
                   ),
                 ),
-              Expanded(
-                child: _students.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.group_add,
-                                size: 72, color: Colors.grey.shade300),
-                            const SizedBox(height: 16),
-                            Text('No students in $_effectiveTitle',
-                                style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey.shade400)),
-                            const SizedBox(height: 6),
-                            Text('Tap + Add Student to get started',
-                                style: TextStyle(
-                                    color: Colors.grey.shade400)),
-                          ],
-                        ),
-                      )
-                    : _filtered.isEmpty
-                        ? Center(
-                            child: Text('No results for "$_search"',
-                                style: TextStyle(
-                                    color: Colors.grey.shade400)))
-                        : RefreshIndicator(
-                            onRefresh: _refresh,
-                            color: AppTheme.primary,
-                            child: ListView.separated(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
-                              itemCount: _filtered.length,
-                              separatorBuilder: (_, __) =>
-                                  const Divider(height: 1, indent: 80),
-                              itemBuilder: (_, i) {
-                                final s = _filtered[i];
-                                return _StudentCard(
-                                  student:    s,
-                                  selected:   _selectedRolls.contains(s.roll),
-                                  selectMode: _selectMode,
-                                  onTap: _selectMode
-                                      ? () => _toggleSelect(s)
-                                      : () => _openDetail(s),
-                                  onLongPress:
-                                      widget.isClassTeacher && !_selectMode
-                                          ? () => _enterSelectMode(s)
-                                          : null,
-                                );
-                              },
-                            ),
-                          ),
-              ),
-            ]),
     );
   }
 }
@@ -484,91 +443,100 @@ class _StudentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: selected ? AppTheme.primary.withOpacity(0.08) : null,
-      child: InkWell(
-        onTap:       onTap,
-        onLongPress: onLongPress,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            selectMode
-                ? SizedBox(
-                    width: 52,
-                    height: 52,
-                    child: Center(
-                      child: Checkbox(
-                        value:       selected,
-                        onChanged:   (_) => onTap?.call(),
-                        activeColor: AppTheme.primary,
-                        shape:       const CircleBorder(),
-                      ),
+      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                if (selectMode)
+                  SizedBox(
+                    width: 48,
+                    child: Checkbox(
+                      value: selected,
+                      onChanged: (_) => onTap?.call(),
+                      activeColor: AppTheme.primary,
+                      shape: const CircleBorder(),
                     ),
                   )
-                : CircleAvatar(
-                    radius: 26,
-                    backgroundColor: AppTheme.primary.withOpacity(0.10),
-                    backgroundImage: student.photoPath != null
-                        ? FileImage(File(student.photoPath!))
-                        : null,
-                    child: student.photoPath == null
-                        ? Text(
-                            student.name.isNotEmpty
-                                ? student.name[0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primary))
-                        : null,
-                  ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      Expanded(
-                          child: Text(student.name,
-                              style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600))),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: _feeColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                              color: _feeColor.withOpacity(0.4)),
-                        ),
-                        child: Text(student.feeStatus,
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: _feeColor)),
+                else
+                  Hero(
+                    tag: 'student_photo_${student.id}',
+                    child: Container(
+                      width: 54, height: 54,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppTheme.primary.withOpacity(0.1), width: 2),
                       ),
-                    ]),
-                    const SizedBox(height: 3),
-                    Text(
-                        'Roll: ${student.roll}  •  Father: ${student.fatherName}',
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade500)),
-                    if (student.phone.isNotEmpty)
-                      Row(children: [
-                        Icon(Icons.phone_outlined,
-                            size: 12, color: Colors.grey.shade400),
-                        const SizedBox(width: 3),
-                        Text(student.phone,
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade500)),
-                      ]),
-                  ]),
+                      child: ClipOval(
+                        child: student.photoUrl != null
+                            ? CachedNetworkImage(
+                                imageUrl: student.photoUrl!,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(color: Colors.grey.shade100),
+                                errorWidget: (context, url, error) => Icon(Icons.person, color: Colors.grey.shade300),
+                              )
+                            : student.photoPath != null
+                                ? Image.file(File(student.photoPath!), fit: BoxFit.cover)
+                                : Container(
+                                    color: Colors.grey.shade100,
+                                    child: Icon(Icons.person, color: Colors.grey.shade300),
+                                  ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(student.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text('ROLL ${student.roll}', 
+                                style: const TextStyle(fontSize: 10, color: AppTheme.primaryDark, fontWeight: FontWeight.w800)),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(student.fatherName, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _feeColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(student.feeStatus, 
+                      style: TextStyle(fontSize: 10, color: _feeColor, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 8),
+                if (!selectMode)
+                  Icon(Icons.chevron_right, color: Colors.grey.shade300, size: 20),
+              ],
             ),
-            if (!selectMode)
-              Icon(Icons.chevron_right,
-                  color: Colors.grey.shade300, size: 20),
-          ]),
+          ),
         ),
       ),
     );
@@ -577,17 +545,17 @@ class _StudentCard extends StatelessWidget {
 
 // ── Student detail page ────────────────────────────────────────────────────────
 
-class _StudentDetailPage extends StatefulWidget {
+class StudentDetailPage extends StatefulWidget {
   final Student student;
   final bool canEdit;
-  const _StudentDetailPage(
+  const StudentDetailPage(
       {required this.student, this.canEdit = false});
 
   @override
-  State<_StudentDetailPage> createState() => _StudentDetailPageState();
+  State<StudentDetailPage> createState() => _StudentDetailPageState();
 }
 
-class _StudentDetailPageState extends State<_StudentDetailPage> {
+class _StudentDetailPageState extends State<StudentDetailPage> {
   late Student _student;
 
   @override
@@ -603,7 +571,9 @@ class _StudentDetailPageState extends State<_StudentDetailPage> {
       context,
       MaterialPageRoute(
         builder: (_) => AddStudentScreen(
-            className: _student.className, existing: _student),
+            className: _student.className,
+            section: _student.section,
+            existing: _student),
       ),
     );
     if (updated != null) setState(() => _student = updated);
@@ -712,10 +682,12 @@ class _StudentDetailPageState extends State<_StudentDetailPage> {
                 CircleAvatar(
                   radius: 54,
                   backgroundColor: Colors.white.withOpacity(0.2),
-                  backgroundImage: _student.photoPath != null
-                      ? FileImage(File(_student.photoPath!))
-                      : null,
-                  child: _student.photoPath == null
+                  backgroundImage: _student.photoUrl != null
+                      ? NetworkImage(_student.photoUrl!)
+                      : (_student.photoPath != null
+                          ? FileImage(File(_student.photoPath!))
+                          : null) as ImageProvider?,
+                  child: (_student.photoUrl == null && _student.photoPath == null)
                       ? Text(
                           _student.name.isNotEmpty
                               ? _student.name[0].toUpperCase()
@@ -751,16 +723,27 @@ class _StudentDetailPageState extends State<_StudentDetailPage> {
 
             const SizedBox(height: 8),
 
-            // ── Contact ─────────────────────────────────────────────────────
-            _SectionHeader('CONTACT'),
-            _InfoRow(
-                Icons.phone_outlined,
-                'Phone',
-                _student.phone.isEmpty ? '—' : _student.phone),
-            if (_student.phone.isNotEmpty) ...[
+            // ── STUDENT PROFILE ─────────────────────────────────────────────
+            _InfoRow(Icons.person_outline, 'Name', _student.name),
+            _InfoRow(Icons.cake_outlined, 'Date of Birth',
+                _student.guardianDetails?.dob ?? '—'),
+            _InfoRow(Icons.people_outline, 'Gender',
+                _student.guardianDetails?.gender ?? '—'),
+            _InfoRow(Icons.school_outlined, 'Class / Section',
+                '${_student.className} ${_student.section}'),
+            _InfoRow(Icons.tag, 'Roll Number', _student.roll.toString()),
+            const Divider(height: 1),
+
+            // ── PARENT DETAILS ─────────────────────────────────────────────
+            _InfoRow(Icons.man_outlined, "Father's Name", _student.fatherName),
+            _InfoRow(Icons.woman_outlined, "Mother's Name", _student.motherName ?? '—'),
+            _InfoRow(Icons.phone_outlined, 'Primary Contact', _student.phone),
+            _InfoRow(Icons.phone_android_outlined, 'Secondary Contact', _student.parentPhone ?? '—'),
+            _InfoRow(Icons.home_outlined, 'Address', _student.guardianDetails?.address ?? '—'),
+            
+            if (_student.phone.isNotEmpty)
               Padding(
-                padding:
-                    const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
                 child: Row(children: [
                   Expanded(
                     child: _ActionBtn(
@@ -785,55 +768,28 @@ class _StudentDetailPageState extends State<_StudentDetailPage> {
                   ),
                 ]),
               ),
-            ] else
-              const SizedBox(height: 12),
             const Divider(height: 1),
 
-            // ── Family ──────────────────────────────────────────────────────
-            _SectionHeader('FAMILY'),
-            _InfoRow(
-                Icons.man_outlined,
-                "Father's Name",
-                _student.fatherName.isNotEmpty
-                    ? _student.fatherName
+            // ── ACADEMIC INFO ─────────────────────────────────────────────
+            _InfoRow(Icons.history_edu_outlined, 'Previous School',
+                _student.guardianDetails?.previousSchool ?? '—'),
+            const Divider(height: 1),
+
+            // ── MEDICAL INFO ─────────────────────────────────────────────
+            _InfoRow(Icons.contact_phone_outlined, 'Emergency Contact',
+                _student.guardianDetails != null && _student.guardianDetails!.emergencyContactName.isNotEmpty
+                    ? '${_student.guardianDetails!.emergencyContactName} (${_student.guardianDetails!.emergencyContactPhone})'
                     : '—'),
-            if (_student.motherName != null &&
-                _student.motherName!.isNotEmpty)
-              _InfoRow(Icons.woman_outlined, "Mother's Name",
-                  _student.motherName!),
+            _InfoRow(Icons.bloodtype_outlined, 'Blood Group', _student.guardianDetails?.bloodGroup ?? '—'),
+            _InfoRow(Icons.medical_services_outlined, 'Allergies / Conditions', _student.guardianDetails?.allergies ?? '—'),
             const Divider(height: 1),
 
-            // ── Fee ─────────────────────────────────────────────────────────
-            _SectionHeader('FEE STATUS'),
+            // ── DOCUMENTS / OTHERS ──────────────────────────────────────────
+            _InfoRow(Icons.directions_bus_outlined, 'Transport Mode', _student.guardianDetails?.transportMode ?? '—'),
+            _InfoRow(Icons.image_outlined, 'Photo Status', (_student.photoUrl != null || _student.photoPath != null) ? 'Uploaded' : 'Not Uploaded'),
+            
             Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(16, 4, 16, 16),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _feeColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                      color: _feeColor.withOpacity(0.4)),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(_feeIcon, color: _feeColor, size: 18),
-                  const SizedBox(width: 6),
-                  Text(_student.feeStatus,
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: _feeColor,
-                          fontSize: 14)),
-                ]),
-              ),
-            ),
-            const Divider(height: 1),
-
-            // ── Attendance Certificate ───────────────────────────────────
-            _SectionHeader('DOCUMENTS'),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -856,6 +812,16 @@ class _StudentDetailPageState extends State<_StudentDetailPage> {
                 ),
               ),
             ),
+            
+            if (_student.guardianDetails?.lastUpdated != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                child: Text(
+                  'Last updated by guardian: ${_student.guardianDetails!.lastUpdated!.split('T')[0]}',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                ),
+              ),
+            const SizedBox(height: 24),
           ],
         ),
       ),

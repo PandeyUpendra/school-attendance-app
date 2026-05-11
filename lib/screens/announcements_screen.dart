@@ -17,10 +17,14 @@ class AnnouncementsScreen extends StatefulWidget {
   /// Email / display name used as postedBy and for My Log filtering.
   final String? posterName;
 
+  /// The class name (e.g. "10th-A") if the viewer is a teacher or guardian.
+  final String? viewerClass;
+
   const AnnouncementsScreen({
     super.key,
     required this.viewerRole,
     this.posterName,
+    this.viewerClass,
   });
 
   @override
@@ -78,7 +82,10 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final items = await _service.getAnnouncements(audience: _filterAudience);
+    final items = await _service.getAnnouncements(
+      audience: _filterAudience,
+      viewerClass: widget.viewerClass,
+    );
     if (!mounted) return;
     setState(() {
       _items = items;
@@ -100,12 +107,37 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
   }
 
   Future<void> _openComposer({Announcement? editing}) async {
-    final formKey   = GlobalKey<FormState>();
+    final commonTitles = [
+      'Homework Reminder',
+      'Exam Announcement',
+      'Holiday Notice',
+      'Parent-Teacher Meeting',
+      'Fee Reminder',
+      'Event Update',
+      'Urgent Notice',
+      'Other (Custom)',
+    ];
+
+    final formKey = GlobalKey<FormState>();
     final titleCtrl = TextEditingController(text: editing?.title ?? '');
-    final bodyCtrl  = TextEditingController(text: editing?.body ?? '');
-    String audience = editing?.audience ?? 'all';
-    bool   pinned   = editing?.isPinned ?? false;
-    bool   saving   = false;
+    String? selectedTitle = editing != null
+        ? (commonTitles.contains(editing.title)
+            ? editing.title
+            : 'Other (Custom)')
+        : null;
+
+    final bodyCtrl = TextEditingController(text: editing?.body ?? '');
+
+    // Default audience based on role
+    String audience = editing?.audience ??
+        ((widget.viewerRole == 'teacher' ||
+                    widget.viewerRole == 'class_teacher') &&
+                widget.viewerClass != null
+            ? 'class:${widget.viewerClass}'
+            : 'all');
+
+    bool pinned = editing?.isPinned ?? false;
+    bool saving = false;
 
     final posted = await showModalBottomSheet<bool>(
       context: context,
@@ -115,135 +147,189 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => Padding(
           padding: EdgeInsets.only(
-            left: 18, right: 18, top: 16,
+            left: 18,
+            right: 18,
+            top: 16,
             bottom: MediaQuery.of(ctx).viewInsets.bottom + 18,
           ),
           child: Form(
             key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(editing == null ? 'New Announcement' : 'Edit Announcement',
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: titleCtrl,
-                  maxLength: 80,
-                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                  decoration: InputDecoration(
-                    labelText: 'Title',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    counterText: '',
-                  ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Title is required' : null,
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: bodyCtrl,
-                  maxLines: 5,
-                  maxLength: 1000,
-                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                  decoration: InputDecoration(
-                    labelText: 'Body',
-                    alignLabelWithHint: true,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Body is required';
-                    if (v.trim().length < 10) return 'At least 10 characters';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 14),
-                const Text('Audience',
-                    style: TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final opt in const [
-                      {'val': 'all',       'label': 'Everyone'},
-                      {'val': 'teachers',  'label': 'Teachers'},
-                      {'val': 'guardians', 'label': 'Guardians'},
-                    ])
-                      ChoiceChip(
-                        label: Text(opt['label']!),
-                        selected: audience == opt['val'],
-                        onSelected: (_) =>
-                            setS(() => audience = opt['val']!),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Pin this announcement',
-                      style: TextStyle(fontSize: 13)),
-                  value: pinned,
-                  onChanged: (v) => setS(() => pinned = v),
-                ),
-                const SizedBox(height: 12),
-                Row(children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('Cancel'),
-                  ),
-                  const Spacer(),
-                  ElevatedButton.icon(
-                    onPressed: saving
-                        ? null
-                        : () async {
-                            if (!formKey.currentState!.validate()) return;
-                            final title = titleCtrl.text.trim();
-                            final body  = bodyCtrl.text.trim();
-                            setS(() => saving = true);
-                            final ann = Announcement(
-                              id:           editing?.id ?? '',
-                              title:        title,
-                              body:         body,
-                              postedBy:     widget.posterName ?? 'School',
-                              postedByRole: widget.viewerRole,
-                              audience:     audience,
-                              isPinned:     pinned,
-                            );
-                            if (editing == null) {
-                              await _service.postAnnouncement(ann);
-                              await NotificationService().addAnnouncementNotice(
-                                title:    title,
-                                body:     body,
-                                audience: audience,
-                              );
-                            } else {
-                              await _service.deleteAnnouncement(editing.id);
-                              await _service.postAnnouncement(ann);
-                            }
-                            if (ctx.mounted) Navigator.pop(ctx, true);
-                          },
-                    icon: const Icon(Icons.send_outlined, size: 18),
-                    label: Text(editing == null ? 'Post' : 'Save'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: Colors.white,
                     ),
                   ),
-                ]),
-              ],
+                  const SizedBox(height: 12),
+                  Text(
+                      editing == null
+                          ? 'New Announcement'
+                          : 'Edit Announcement',
+                      style: const TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<String>(
+                    value: selectedTitle,
+                    decoration: InputDecoration(
+                      labelText: 'Select Title',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    items: commonTitles
+                        .map((t) =>
+                            DropdownMenuItem(value: t, child: Text(t)))
+                        .toList(),
+                    onChanged: (v) => setS(() {
+                      selectedTitle = v;
+                      if (v != 'Other (Custom)') {
+                        titleCtrl.text = v ?? '';
+                      } else if (editing != null &&
+                          !commonTitles.contains(editing.title)) {
+                        titleCtrl.text = editing.title;
+                      } else {
+                        titleCtrl.text = '';
+                      }
+                    }),
+                    validator: (v) =>
+                        v == null ? 'Please select a title' : null,
+                  ),
+                  if (selectedTitle == 'Other (Custom)') ...[
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: titleCtrl,
+                      maxLength: 80,
+                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                      decoration: InputDecoration(
+                        labelText: 'Custom Title',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        counterText: '',
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Title is required'
+                          : null,
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: bodyCtrl,
+                    maxLines: 5,
+                    maxLength: 1000,
+                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                    decoration: InputDecoration(
+                      labelText: 'Body',
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Body is required';
+                      }
+                      if (v.trim().length < 10) return 'At least 10 characters';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('Audience',
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      if (widget.viewerRole == 'principal' ||
+                          widget.viewerRole == 'coordinator') ...[
+                        for (final opt in const [
+                          {'val': 'all', 'label': 'Everyone'},
+                          {'val': 'teachers', 'label': 'Teachers'},
+                          {'val': 'guardians', 'label': 'Guardians'},
+                        ])
+                          ChoiceChip(
+                            label: Text(opt['label']!),
+                            selected: audience == opt['val'],
+                            onSelected: (_) =>
+                                setS(() => audience = opt['val']!),
+                          ),
+                      ],
+                      if ((widget.viewerRole == 'teacher' ||
+                              widget.viewerRole == 'class_teacher') &&
+                          widget.viewerClass != null)
+                        ChoiceChip(
+                          label: Text('My Class (${widget.viewerClass})'),
+                          selected: audience == 'class:${widget.viewerClass}',
+                          onSelected: (_) => setS(
+                              () => audience = 'class:${widget.viewerClass}'),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (widget.viewerRole == 'principal' ||
+                      widget.viewerRole == 'coordinator')
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Pin this announcement',
+                          style: TextStyle(fontSize: 13)),
+                      value: pinned,
+                      onChanged: (v) => setS(() => pinned = v),
+                    ),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
+                    const Spacer(),
+                    ElevatedButton.icon(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              if (!formKey.currentState!.validate()) return;
+                              final title = titleCtrl.text.trim();
+                              final body = bodyCtrl.text.trim();
+                              setS(() => saving = true);
+                              final ann = Announcement(
+                                id: editing?.id ?? '',
+                                title: title,
+                                body: body,
+                                postedBy: widget.posterName ?? 'School',
+                                postedByRole: widget.viewerRole,
+                                audience: audience,
+                                isPinned: pinned,
+                              );
+                              if (editing == null) {
+                                await _service.postAnnouncement(ann);
+                                await NotificationService()
+                                    .addAnnouncementNotice(
+                                  title: title,
+                                  body: body,
+                                  audience: audience,
+                                );
+                              } else {
+                                await _service.deleteAnnouncement(editing.id);
+                                await _service.postAnnouncement(ann);
+                              }
+                              if (ctx.mounted) Navigator.pop(ctx, true);
+                            },
+                      icon: const Icon(Icons.send_outlined, size: 18),
+                      label: Text(editing == null ? 'Post' : 'Save'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ]),
+                ],
+              ),
             ),
           ),
         ),
@@ -569,6 +655,7 @@ Color _audienceColor(String a) {
 
 String _audienceLabel(String a) {
   if (a == 'all') return 'Everyone';
+  if (a.startsWith('class:')) return 'Class ${a.substring(6)}';
   return '${a[0].toUpperCase()}${a.substring(1)}';
 }
 

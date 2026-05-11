@@ -27,14 +27,6 @@ class _TimetableEditorScreenState extends State<TimetableEditorScreen> {
   bool _loading = true;
   String _selectedDay = 'Monday';
 
-  static const _days = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
-  ];
-  static const _dayAbbr = {
-    'Monday': 'Mon', 'Tuesday': 'Tue', 'Wednesday': 'Wed',
-    'Thursday': 'Thu', 'Friday': 'Fri', 'Saturday': 'Sat',
-  };
-
   static const _palette = [
     Color(0xFF009688), // teal
     Color(0xFF3F51B5), // indigo

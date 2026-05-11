@@ -13,7 +13,6 @@ class AdminScreen extends StatefulWidget {
 class _AdminScreenState extends State<AdminScreen> {
   final _service   = TimetableService();
   final _emailCtrl = TextEditingController();
-  final _passCtrl  = TextEditingController();
   final _rollCtrl  = TextEditingController();
 
   String  _selectedRole           = 'teacher';
@@ -23,7 +22,6 @@ class _AdminScreenState extends State<AdminScreen> {
   List<Map<String, dynamic>> _users           = [];
   bool _loading  = true;
   bool _saving   = false;
-  bool _showPass = false;
 
   static const _roles = [
     {'value': 'teacher',     'label': 'Teacher',     'icon': Icons.person_outline},
@@ -49,7 +47,6 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   void dispose() {
     _emailCtrl.dispose();
-    _passCtrl.dispose();
     _rollCtrl.dispose();
     super.dispose();
   }
@@ -76,19 +73,10 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _add() async {
     final email = _emailCtrl.text.trim().toLowerCase();
-    final pass  = _passCtrl.text.trim();
 
     if (email.isEmpty ||
         !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
       _snack('Enter a valid email address');
-      return;
-    }
-    if (pass.isEmpty) {
-      _snack('Enter a password for this user');
-      return;
-    }
-    if (pass.length < 6) {
-      _snack('Password must be at least 6 characters');
       return;
     }
     if (_users.any((u) => u['email'] == email)) {
@@ -114,7 +102,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
     setState(() => _saving = true);
     await _service.addAllowedUser(
-      email, pass, _selectedRole,
+      email, null, _selectedRole,
       studentClass:    studentClass,
       studentRoll:     studentRoll,
       assignedClasses: (_selectedRole == 'coordinator' ||
@@ -123,7 +111,6 @@ class _AdminScreenState extends State<AdminScreen> {
           : null,
     );
     _emailCtrl.clear();
-    _passCtrl.clear();
     _rollCtrl.clear();
     setState(() {
       _selectedStudentClass    = null;
@@ -150,10 +137,8 @@ class _AdminScreenState extends State<AdminScreen> {
     List<String> editAssigned =
         List<String>.from((user['assignedClasses'] as List?) ?? []);
 
-    final passCtrl  = TextEditingController();
     final rollCtrl  = TextEditingController(text: editRoll > 0 ? '$editRoll' : '');
     String? selClass = editClass.isNotEmpty ? editClass : null;
-    bool showPass    = false;
 
     await showModalBottomSheet(
       context: context,
@@ -400,50 +385,6 @@ class _AdminScreenState extends State<AdminScreen> {
                       ]),
                     ],
 
-                    // New password (optional)
-                    const SizedBox(height: 16),
-                    Text('NEW PASSWORD (OPTIONAL)',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.grey.shade500,
-                            letterSpacing: 0.8)),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: passCtrl,
-                      obscureText: !showPass,
-                      maxLength: 50,
-                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                      decoration: InputDecoration(
-                        hintText: 'Leave blank to keep current password',
-                        hintStyle: TextStyle(
-                            color: Colors.grey.shade400, fontSize: 13),
-                        prefixIcon: const Icon(Icons.lock_outline,
-                            color: AppTheme.primary),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                              showPass
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                              color: Colors.grey.shade400,
-                              size: 18),
-                          onPressed: () =>
-                              setLocal(() => showPass = !showPass),
-                        ),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 12),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(
-                              color: AppTheme.primary, width: 1.5),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
                     // Save button
                     SizedBox(
                       width: double.infinity,
@@ -470,17 +411,11 @@ class _AdminScreenState extends State<AdminScreen> {
                               return;
                             }
                           }
-                          final newPass = passCtrl.text.trim();
-                          if (newPass.isNotEmpty && newPass.length < 6) {
-                            _snack('Password must be at least 6 characters');
-                            return;
-                          }
                           Navigator.pop(ctx);
                           final roll = int.tryParse(rollCtrl.text.trim());
                           await _service.updateAllowedUser(
                             email,
                             role:            editRole,
-                            newPassword:     newPass.isNotEmpty ? newPass : null,
                             studentClass:    editRole == 'guardian' ? selClass : null,
                             studentRoll:     editRole == 'guardian' ? roll     : null,
                             assignedClasses: (editRole == 'coordinator' ||
@@ -513,7 +448,6 @@ class _AdminScreenState extends State<AdminScreen> {
         );
       },
     );
-    passCtrl.dispose();
     rollCtrl.dispose();
   }
 
@@ -747,52 +681,19 @@ class _AdminScreenState extends State<AdminScreen> {
               const SizedBox(height: 8),
             ],
 
-            // Email field
-            TextField(
-              controller: _emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Email address…',
-                hintStyle:
-                    const TextStyle(color: Colors.white60),
-                prefixIcon: const Icon(Icons.email_outlined,
-                    color: Colors.white70),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.15),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none),
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Password + Add button
+            // Email field + Add button
             Row(children: [
               Expanded(
                 child: TextField(
-                  controller: _passCtrl,
-                  obscureText: !_showPass,
-                  maxLength: 50,
-                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                  controller: _emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    hintText: 'Password…',
+                    hintText: 'Email address…',
                     hintStyle:
                         const TextStyle(color: Colors.white60),
-                    prefixIcon: const Icon(Icons.lock_outline,
+                    prefixIcon: const Icon(Icons.email_outlined,
                         color: Colors.white70),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                          _showPass
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          color: Colors.white70, size: 18),
-                      onPressed: () =>
-                          setState(() => _showPass = !_showPass),
-                    ),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.15),
                     border: OutlineInputBorder(
@@ -800,7 +701,6 @@ class _AdminScreenState extends State<AdminScreen> {
                         borderSide: BorderSide.none),
                     contentPadding:
                         const EdgeInsets.symmetric(vertical: 12),
-                    counterStyle: const TextStyle(color: Colors.white60),
                   ),
                   onSubmitted: (_) => _add(),
                 ),
@@ -846,25 +746,12 @@ class _AdminScreenState extends State<AdminScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Only registered emails with a password can sign in. '
-                'Tap the pencil icon on any user to edit their role or password.',
+                'Only registered emails can sign in. '
+                'Tap the pencil icon on any user to edit their role or configuration.',
                 style: TextStyle(
                     fontSize: 12, color: Colors.orange.shade800),
               ),
             ),
-          ]),
-        ),
-
-        // ── Users section header ──────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-          child: Row(children: [
-            Text('REGISTERED USERS (${_users.length})',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.grey.shade500,
-                    letterSpacing: 0.6)),
           ]),
         ),
 

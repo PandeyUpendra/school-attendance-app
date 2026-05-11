@@ -145,8 +145,6 @@ class _AttendanceClassDetailScreenState
 
             // ── Absent students ─────────────────────────────────────────────
             if (absent.isNotEmpty) ...[
-              _sectionHeader(
-                  'ABSENT  (${absent.length})', const Color(0xFFC62828)),
               _StudentCard(
                 notes: absent,
                 absenceDays: _absenceDays,
@@ -156,8 +154,6 @@ class _AttendanceClassDetailScreenState
 
             // ── On Leave students ───────────────────────────────────────────
             if (onLeave.isNotEmpty) ...[
-              _sectionHeader(
-                  'ON LEAVE  (${onLeave.length})', const Color(0xFFF57F17)),
               _StudentCard(
                 notes: onLeave,
                 absenceDays: _absenceDays,

@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'firebase_options.dart';
@@ -8,6 +9,7 @@ import 'screens/coordinator_dashboard.dart';
 import 'screens/home_screen.dart';
 import 'screens/principal_dashboard.dart';
 import 'screens/guardian_dashboard.dart';
+import 'screens/student_selection_screen.dart';
 import 'services/auth_service.dart';
 import 'services/timetable_service.dart';
 
@@ -24,6 +26,16 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  // Ensure we have a Firebase Auth session for Storage/Firestore rules
+  try {
+    if (FirebaseAuth.instance.currentUser == null) {
+      await FirebaseAuth.instance.signInAnonymously();
+    }
+  } catch (e) {
+    debugPrint('Firebase Anonymous Sign-in failed: $e');
+    // We continue so the app doesn't crash, but some features may fail 
+    // if Firebase rules require authentication.
+  }
   runApp(const SchoolApp());
 }
 
@@ -79,12 +91,20 @@ class _SplashGateState extends State<_SplashGate> {
         return;
 
       case 'guardian':
-        final sClass = session['studentClass'] as String?;
-        final sRoll  = session['studentRoll']  as int?;
-        if (sClass != null && sRoll != null) {
-          _go(GuardianDashboard(
-              studentClass: sClass, studentRoll: sRoll));
-          return;
+        final links = session['studentLinks'] as List?;
+        if (links != null && links.isNotEmpty) {
+          if (links.length == 1) {
+            final parts = (links.first as String).split('|');
+            if (parts.length >= 2) {
+              _go(GuardianDashboard(
+                  studentClass: parts[0], studentRoll: int.parse(parts[1])));
+              return;
+            }
+          } else {
+            // Multiple children: go to selection screen
+            _go(StudentSelectionScreen(links: List<String>.from(links)));
+            return;
+          }
         }
         // Guardian session missing student link → re-login
         _go(const RoleSelectionScreen());

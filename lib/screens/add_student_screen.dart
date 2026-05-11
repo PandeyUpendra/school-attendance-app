@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import '../models/guardian_student_details.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
@@ -27,6 +28,19 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
   final _fatherCtrl = TextEditingController();
   final _motherCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
+  final _parentPhoneCtrl = TextEditingController();
+  
+  // Guardian details
+  final _dobCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
+  final _bloodGroupCtrl = TextEditingController();
+  final _emergencyNameCtrl = TextEditingController();
+  final _emergencyPhoneCtrl = TextEditingController();
+  final _allergiesCtrl = TextEditingController();
+  final _transportCtrl = TextEditingController();
+  final _previousSchoolCtrl = TextEditingController();
+  
+  String _gender = 'Other';
   String _feeStatus = 'Pending';
   String? _photoPath;
   bool _saving = false;
@@ -43,8 +57,22 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       _fatherCtrl.text = s.fatherName;
       _motherCtrl.text = s.motherName ?? '';
       _phoneCtrl.text = s.phone;
+      _parentPhoneCtrl.text = s.parentPhone ?? '';
       _feeStatus = s.feeStatus;
       _photoPath = s.photoPath;
+      
+      if (s.guardianDetails != null) {
+        final g = s.guardianDetails!;
+        _dobCtrl.text = g.dob;
+        _gender = g.gender.isEmpty ? 'Other' : g.gender;
+        _addressCtrl.text = g.address;
+        _bloodGroupCtrl.text = g.bloodGroup;
+        _emergencyNameCtrl.text = g.emergencyContactName;
+        _emergencyPhoneCtrl.text = g.emergencyContactPhone;
+        _allergiesCtrl.text = g.allergies;
+        _transportCtrl.text = g.transportMode;
+        _previousSchoolCtrl.text = g.previousSchool;
+      }
     }
   }
 
@@ -55,6 +83,15 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     _fatherCtrl.dispose();
     _motherCtrl.dispose();
     _phoneCtrl.dispose();
+    _parentPhoneCtrl.dispose();
+    _dobCtrl.dispose();
+    _addressCtrl.dispose();
+    _bloodGroupCtrl.dispose();
+    _emergencyNameCtrl.dispose();
+    _emergencyPhoneCtrl.dispose();
+    _allergiesCtrl.dispose();
+    _transportCtrl.dispose();
+    _previousSchoolCtrl.dispose();
     super.dispose();
   }
 
@@ -87,6 +124,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     setState(() => _saving = true);
 
     final student = Student(
+      id: widget.existing?.id ?? '',
       roll: int.parse(_rollCtrl.text.trim()),
       name: _nameCtrl.text.trim(),
       className: widget.className,
@@ -96,10 +134,26 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
           ? null
           : _motherCtrl.text.trim(),
       phone: _phoneCtrl.text.trim(),
+      parentPhone: _parentPhoneCtrl.text.trim().isEmpty
+          ? null
+          : _parentPhoneCtrl.text.trim(),
       photoPath: _photoPath,
+      photoUrl: widget.existing?.photoUrl,
       feeStatus: _feeStatus,
       // Preserve existing teacherId on edits; stamp it on new records.
       teacherId: widget.teacherId ?? widget.existing?.teacherId,
+      guardianDetails: GuardianStudentDetails(
+        dob: _dobCtrl.text.trim(),
+        gender: _gender,
+        address: _addressCtrl.text.trim(),
+        bloodGroup: _bloodGroupCtrl.text.trim(),
+        emergencyContactName: _emergencyNameCtrl.text.trim(),
+        emergencyContactPhone: _emergencyPhoneCtrl.text.trim(),
+        allergies: _allergiesCtrl.text.trim(),
+        transportMode: _transportCtrl.text.trim(),
+        previousSchool: _previousSchoolCtrl.text.trim(),
+        lastUpdated: DateTime.now().toIso8601String(),
+      ),
     );
 
     final service = StudentService();
@@ -258,7 +312,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
             const SizedBox(height: 14),
             _Field(
               controller: _phoneCtrl,
-              label: 'Phone Number',
+              label: 'Primary Phone Number',
               icon: Icons.phone_outlined,
               keyboard: TextInputType.phone,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -268,6 +322,15 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                 if (v.trim().length != 10) return 'Must be exactly 10 digits';
                 return null;
               },
+            ),
+            const SizedBox(height: 14),
+            _Field(
+              controller: _parentPhoneCtrl,
+              label: 'Secondary Phone (optional)',
+              icon: Icons.phone_android_outlined,
+              keyboard: TextInputType.phone,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              maxLength: 10,
             ),
             const SizedBox(height: 14),
             DropdownButtonFormField<String>(
@@ -308,6 +371,115 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               onChanged: (v) => setState(() => _feeStatus = v!),
             ),
             const SizedBox(height: 32),
+
+            // ── Extra Details Section ──────────────────────────────────────────
+            Row(children: [
+              const Icon(Icons.info_outline, color: Colors.grey, size: 18),
+              const SizedBox(width: 8),
+              Text('GUARDIAN & PROFILE DETAILS',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                      letterSpacing: 0.8)),
+            ]),
+            const Divider(height: 24),
+
+            Row(children: [
+              Expanded(
+                child: _Field(
+                  controller: _dobCtrl,
+                  label: 'Date of Birth',
+                  icon: Icons.cake_outlined,
+                  hint: 'DD/MM/YYYY',
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _gender,
+                  decoration: InputDecoration(
+                    labelText: 'Gender',
+                    prefixIcon: const Icon(Icons.people_outline),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 14),
+                  ),
+                  items: ['Male', 'Female', 'Other']
+                      .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _gender = v!),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 14),
+            _Field(
+              controller: _addressCtrl,
+              label: 'Address',
+              icon: Icons.home_outlined,
+              caps: TextCapitalization.sentences,
+              maxLines: 2,
+            ),
+            const SizedBox(height: 14),
+            Row(children: [
+              Expanded(
+                child: _Field(
+                  controller: _bloodGroupCtrl,
+                  label: 'Blood Group',
+                  icon: Icons.bloodtype_outlined,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: _Field(
+                  controller: _transportCtrl,
+                  label: 'Transport',
+                  icon: Icons.directions_bus_outlined,
+                  hint: 'Bus, Van, Self',
+                ),
+              ),
+            ]),
+            const SizedBox(height: 14),
+            _Field(
+              controller: _previousSchoolCtrl,
+              label: 'Previous School',
+              icon: Icons.school_outlined,
+              caps: TextCapitalization.words,
+            ),
+            const SizedBox(height: 14),
+            Row(children: [
+              Expanded(
+                child: _Field(
+                  controller: _emergencyNameCtrl,
+                  label: 'Emergency Contact Name',
+                  icon: Icons.contact_phone_outlined,
+                  caps: TextCapitalization.words,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: _Field(
+                  controller: _emergencyPhoneCtrl,
+                  label: 'Emergency Phone',
+                  icon: Icons.phone_enabled_outlined,
+                  keyboard: TextInputType.phone,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLength: 10,
+                ),
+              ),
+            ]),
+            const SizedBox(height: 14),
+            _Field(
+              controller: _allergiesCtrl,
+              label: 'Allergies / Medical Conditions',
+              icon: Icons.medical_services_outlined,
+              caps: TextCapitalization.sentences,
+              maxLines: 2,
+            ),
+
+            const SizedBox(height: 32),
+            const SizedBox(height: 40), // spacer for FAB
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -343,6 +515,8 @@ class _Field extends StatelessWidget {
   final bool enabled;
   final List<TextInputFormatter>? inputFormatters;
   final int? maxLength;
+  final int? maxLines;
+  final String? hint;
 
   const _Field({
     required this.controller,
@@ -354,6 +528,8 @@ class _Field extends StatelessWidget {
     this.enabled = true,
     this.inputFormatters,
     this.maxLength,
+    this.maxLines = 1,
+    this.hint,
   });
 
   @override
@@ -366,9 +542,11 @@ class _Field extends StatelessWidget {
       validator: validator,
       inputFormatters: inputFormatters,
       maxLength: maxLength,
+      maxLines: maxLines,
       maxLengthEnforcement: MaxLengthEnforcement.enforced,
       decoration: InputDecoration(
         labelText: label,
+        hintText: hint,
         prefixIcon: Icon(icon),
         border:
             OutlineInputBorder(borderRadius: BorderRadius.circular(10)),

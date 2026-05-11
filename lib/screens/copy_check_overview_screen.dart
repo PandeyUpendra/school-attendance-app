@@ -184,7 +184,7 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
                                                         FontWeight.bold),
                                               ),
                                               Text(
-                                                'By ${c.teacherName}',
+                                                'By ${c.teacherName}  •  ${c.className} ${c.section}',
                                                 style: TextStyle(
                                                     fontSize: 12,
                                                     color: Colors
@@ -242,7 +242,8 @@ class _CoordCheckDetailScreenState extends State<_CoordCheckDetailScreen>
   Future<void> _load() async {
     setState(() => _loading = true);
     final results = await Future.wait([
-      _studentService.getStudentsByClass(widget.check.className),
+      _studentService.getStudentsByClass(widget.check.className,
+          section: widget.check.section),
       _service.getStatuses(widget.check.id),
     ]);
     final students = results[0] as List<Student>;
@@ -292,7 +293,7 @@ class _CoordCheckDetailScreenState extends State<_CoordCheckDetailScreen>
             Text('${c.subject} — $date',
                 style: const TextStyle(
                     fontSize: 15, fontWeight: FontWeight.bold)),
-            Text('By ${c.teacherName}  •  ${c.className}',
+            Text('By ${c.teacherName}  •  ${c.className} ${c.section}',
                 style:
                     const TextStyle(fontSize: 11, color: Colors.white70)),
           ],

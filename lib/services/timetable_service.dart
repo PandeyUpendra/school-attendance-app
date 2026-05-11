@@ -227,6 +227,7 @@ class TimetableService {
     String?       newPassword,
     String?       studentClass,
     int?          studentRoll,
+    List<Map<String, dynamic>>? studentLinks,
     List<String>? assignedClasses,
   }) async {
     final docRef = _allowedUsers.doc(email.toLowerCase().trim());
@@ -234,13 +235,23 @@ class TimetableService {
     if (newPassword != null && newPassword.isNotEmpty) {
       data['password'] = newPassword;
     }
-    if (role == 'guardian' && studentClass != null && studentRoll != null) {
-      data['studentClass'] = studentClass;
-      data['studentRoll']  = studentRoll;
+    
+    if (role == 'guardian') {
+      if (studentLinks != null) {
+        data['studentLinks'] = studentLinks;
+      } else if (studentClass != null && studentRoll != null) {
+        data['studentLinks'] = [{
+          'studentClass': studentClass,
+          'studentRoll': studentRoll,
+          'studentName': '',
+        }];
+      } else {
+        data['studentLinks'] = null;
+      }
     } else {
-      data['studentClass'] = null;
-      data['studentRoll']  = null;
+      data['studentLinks'] = null;
     }
+
     if (role == 'coordinator' || role == 'principal') {
       data['assignedClasses'] = assignedClasses ?? [];
     } else {
@@ -251,37 +262,57 @@ class TimetableService {
 
   Future<void> addAllowedUser(
     String email,
-    String password,
+    String? password,
     String role, {
     String?       studentClass,
     int?          studentRoll,
+    List<Map<String, dynamic>>? studentLinks,
     List<String>? assignedClasses,
   }) async {
     final data = <String, dynamic>{
       'role':     role,
       'email':    email.toLowerCase().trim(),
-      'password': password,
     };
-    if (role == 'guardian' && studentClass != null && studentRoll != null) {
-      data['studentClass'] = studentClass;
-      data['studentRoll']  = studentRoll;
+    if (password != null && password.isNotEmpty) {
+      data['password'] = password;
     }
+
+    if (role == 'guardian') {
+      if (studentLinks != null) {
+        data['studentLinks'] = studentLinks;
+      } else if (studentClass != null && studentRoll != null) {
+        data['studentLinks'] = [{
+          'studentClass': studentClass,
+          'studentRoll': studentRoll,
+          'studentName': '',
+        }];
+      }
+    }
+
     if (role == 'coordinator' || role == 'principal') {
       data['assignedClasses'] = assignedClasses ?? [];
     }
     await _allowedUsers.doc(email.toLowerCase().trim()).set(data);
   }
 
-  /// Returns {studentClass, studentRoll} for a guardian, or null if not found.
-  Future<Map<String, dynamic>?> getGuardianLink(String email) async {
+  /// Returns list of {studentClass, studentRoll, studentName} for a guardian, or null if not found.
+  Future<List<Map<String, dynamic>>?> getGuardianLinks(String email) async {
     final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
     if (!doc.exists || doc.data() == null) return null;
     final data = doc.data()!;
     if (data['role'] != 'guardian') return null;
-    final cls  = data['studentClass'] as String?;
-    final roll = data['studentRoll']  as int?;
-    if (cls == null || roll == null) return null;
-    return {'studentClass': cls, 'studentRoll': roll};
+    
+    // Support legacy single link
+    if (data['studentLinks'] == null) {
+      final cls  = data['studentClass'] as String?;
+      final roll = data['studentRoll']  as int?;
+      if (cls == null || roll == null) return null;
+      return [{'studentClass': cls, 'studentRoll': roll, 'studentName': ''}];
+    }
+
+    final rawLinks = data['studentLinks'] as List?;
+    if (rawLinks == null) return null;
+    return rawLinks.map((l) => Map<String, dynamic>.from(l as Map)).toList();
   }
 
   Future<void> removeAllowedUser(String email) async {
@@ -295,14 +326,18 @@ class TimetableService {
     return doc.data()!['role'] as String?;
   }
 
-  /// Validates email + password. Returns role string on success, null on failure.
-  Future<String?> validateLogin(String email, String password) async {
+  /// Validates email. Returns role string on success, null on failure.
+  Future<String?> validateLogin(String email, [String? password]) async {
     final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
     if (!doc.exists || doc.data() == null) return null;
     final data = doc.data()!;
-    final storedPass = data['password'] as String? ?? '';
-    if (storedPass.isEmpty || storedPass != password) return null;
+    // Note: password check removed as requested.
     return data['role'] as String?;
+  }
+
+  Future<List<Map<String, dynamic>>> getCoordinators() async {
+    final snap = await _allowedUsers.where('role', isEqualTo: 'coordinator').get();
+    return snap.docs.map((d) => Map<String, dynamic>.from(d.data())).toList();
   }
 
   // ── Leave Applications ────────────────────────────────────────────────────────
@@ -480,5 +515,31 @@ class TimetableService {
     }
     await _saveTimetable(tt);
     return null;
+  }
+
+  /// Returns list of unique class names (which may include sections like "6 A")
+  /// that a teacher is assigned to in the timetable.
+  Future<List<String>> getClassesTaughtByTeacher(String teacherId) async {
+    final snap = await _tt.get();
+    final result = <String>{};
+    for (final doc in snap.docs) {
+      final rawData = (doc.data()['data'] as Map?) ?? {};
+      bool found = false;
+      rawData.forEach((day, bellsRaw) {
+        if (found) return;
+        final bells = Map<String, dynamic>.from(bellsRaw as Map);
+        bells.forEach((bell, entryRaw) {
+          if (found) return;
+          final e = Map<String, dynamic>.from(entryRaw as Map);
+          if (e['teacherId'] == teacherId) {
+            found = true;
+          }
+        });
+      });
+      if (found) {
+        result.add(doc.id);
+      }
+    }
+    return result.toList()..sort();
   }
 }

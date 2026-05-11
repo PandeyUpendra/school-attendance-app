@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'add_student_screen.dart';
 import '../models/attendance_status.dart';
 import '../models/student.dart';
 import '../models/student_profile_data.dart';
@@ -28,6 +30,7 @@ class StudentProfileScreen extends StatefulWidget {
 class _StudentProfileScreenState extends State<StudentProfileScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  late Student _currentStudent;
 
   bool _loading = true;
 
@@ -51,6 +54,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
   @override
   void initState() {
     super.initState();
+    _currentStudent = widget.student;
     _tabController = TabController(length: 4, vsync: this)
       ..addListener(() {
         if (!_tabController.indexIsChanging) {
@@ -70,7 +74,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   String get _initials {
-    final parts = widget.student.name.trim().split(' ');
+    final parts = _currentStudent.name.trim().split(' ');
     if (parts.length >= 2 &&
         parts[0].isNotEmpty &&
         parts[1].isNotEmpty) {
@@ -140,17 +144,17 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
     final profileFuture = FirestoreService.loadStudentProfile(
         schoolId: widget.schoolId,
         classId: widget.className,
-        roll: widget.student.roll);
+        roll: _currentStudent.roll);
 
     final last7Future = FirestoreService.getLastNDaysAttendance(
         schoolId: widget.schoolId,
         classId: widget.className,
-        studentRoll: widget.student.roll);
+        studentRoll: _currentStudent.roll);
 
     final historyFuture = FirestoreService.getStudentAttendanceHistory(
         schoolId: widget.schoolId,
         classId: widget.className,
-        studentRoll: widget.student.roll);
+        studentRoll: _currentStudent.roll);
 
     final results = await Future.wait([profileFuture, last7Future, historyFuture]);
 
@@ -208,8 +212,27 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
       await FirestoreService.updateStudentProfile(
           schoolId: widget.schoolId,
           classId: widget.className,
-          roll: widget.student.roll,
+          roll: _currentStudent.roll,
           data: {'feesStatus': status.name});
+    }
+  }
+
+  Future<void> _editStudent() async {
+    final updated = await Navigator.push<Student>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddStudentScreen(
+          className: widget.className,
+          section: _currentStudent.section,
+          existing: _currentStudent,
+        ),
+      ),
+    );
+
+    if (updated != null && mounted) {
+      setState(() {
+        _currentStudent = updated;
+      });
     }
   }
 
@@ -323,7 +346,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                       await FirestoreService.appendToStudentProfile(
                           schoolId: widget.schoolId,
                           classId: widget.className,
-                          roll: widget.student.roll,
+                          roll: _currentStudent.roll,
                           arrayField: 'behaviorNotes',
                           item: note.toMap());
                     }
@@ -464,7 +487,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                         await FirestoreService.appendToStudentProfile(
                             schoolId: widget.schoolId,
                             classId: widget.className,
-                            roll: widget.student.roll,
+                            roll: _currentStudent.roll,
                             arrayField: 'tests',
                             item: test.toMap());
                       }
@@ -484,7 +507,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
   // ── Avatar ────────────────────────────────────────────────────────────────
 
   Widget _buildAvatar(double radius) {
-    final s = widget.student;
+    final s = _currentStudent;
     final hasLocal =
         s.photoPath != null && File(s.photoPath!).existsSync();
     final hasCloud =
@@ -542,8 +565,8 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
         _SectionCard(
           title: 'Parent Information',
           icon: Icons.family_restroom_outlined,
-          child: (widget.student.parentPhone != null &&
-                  widget.student.parentPhone!.isNotEmpty)
+          child: (_currentStudent.parentPhone != null &&
+                  _currentStudent.parentPhone!.isNotEmpty)
               ? ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Container(
@@ -554,7 +577,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                     child: const Icon(Icons.phone_outlined,
                         color: Color(0xFF1565C0), size: 20),
                   ),
-                  title: Text(widget.student.parentPhone!,
+                  title: Text(_currentStudent.parentPhone!,
                       style: const TextStyle(
                           fontWeight: FontWeight.w600, fontSize: 15)),
                   subtitle: const Text('Parent Phone'),
@@ -566,14 +589,14 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                         color: Colors.green.shade600,
                         tooltip: 'Call',
                         onTap: () => launchUrl(Uri.parse(
-                            'tel:${widget.student.parentPhone}')),
+                            'tel:${_currentStudent.parentPhone}')),
                       ),
                       _IconBtn(
-                        icon: Icons.chat_rounded,
+                        icon: FontAwesomeIcons.whatsapp,
                         color: const Color(0xFF25D366),
                         tooltip: 'WhatsApp',
                         onTap: () {
-                          final num = widget.student.parentPhone!
+                          final num = _currentStudent.parentPhone!
                               .replaceAll(RegExp(r'\D'), '');
                           launchUrl(Uri.parse('https://wa.me/$num'),
                               mode: LaunchMode.externalApplication);
@@ -1079,6 +1102,13 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
               icon: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () => Navigator.pop(context),
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, color: Colors.white),
+                onPressed: _editStudent,
+                tooltip: 'Edit Student Details',
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: const BoxDecoration(
@@ -1096,7 +1126,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                       _buildAvatar(38),
                       const SizedBox(height: 10),
                       Text(
-                        widget.student.name,
+                        _currentStudent.name,
                         style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
@@ -1104,7 +1134,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        'Roll ${widget.student.roll}  ·  ${widget.className}',
+                        'Roll ${_currentStudent.roll}  ·  ${widget.className}',
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 13),
                       ),

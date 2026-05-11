@@ -31,9 +31,14 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
   }
 
   Future<void> _loadClasses() async {
-    final map =
-        await CopyCheckService().getClassesForTeacher(widget.teacher.id);
+    final assignments =
+        await CopyCheckService().getTeacherAssignments(widget.teacher.id);
     if (!mounted) return;
+    final map = <String, String>{};
+    for (final a in assignments) {
+      final key = a.section.isEmpty ? a.className : '${a.className} ${a.section}';
+      map[key] = a.subject;
+    }
     setState(() {
       _classSubjectMap = map;
       _selectedClass   = map.keys.isNotEmpty ? map.keys.first : null;

@@ -66,7 +66,7 @@ class _ScanStudentsScreenState extends State<ScanStudentsScreen> {
           final roll = int.tryParse(m.group(1)!);
           final name = m.group(2)!.trim();
           if (roll == null || name.isEmpty) return <Student>[];
-          return [Student(roll: roll, name: name)];
+          return [Student(id: 'scanned_${roll}_${DateTime.now().millisecondsSinceEpoch}', roll: roll, name: name)];
         })
         .toList();
   }

@@ -12,8 +12,8 @@ class AppUser {
   /// Coordinator / Principal : empty
   final List<String> classIds;
 
-  /// Guardian only: the roll number of their child as a string (e.g. "2")
-  final String? studentId;
+  /// Guardian only: the IDs of their children
+  final List<String> studentIds;
 
   const AppUser({
     required this.uid,
@@ -22,7 +22,7 @@ class AppUser {
     required this.role,
     required this.schoolId,
     required this.classIds,
-    this.studentId,
+    this.studentIds = const [],
   });
 
   factory AppUser.fromFirestore(Map<String, dynamic> data, String uid) {
@@ -33,7 +33,7 @@ class AppUser {
       role: _roleFromString(data['role'] as String? ?? ''),
       schoolId: data['schoolId'] as String? ?? '',
       classIds: List<String>.from(data['classIds'] as List? ?? []),
-      studentId: data['studentId'] as String?,
+      studentIds: List<String>.from(data['studentIds'] as List? ?? (data['studentId'] != null ? [data['studentId']] : [])),
     );
   }
 
@@ -43,7 +43,7 @@ class AppUser {
         'role': role.name,
         'schoolId': schoolId,
         'classIds': classIds,
-        if (studentId != null) 'studentId': studentId,
+        'studentIds': studentIds,
       };
 
   static UserRole _roleFromString(String value) {

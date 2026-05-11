@@ -8,8 +8,7 @@ class AuthService {
   static const _keyEmail          = 'auth_email';
   static const _keyRole           = 'auth_role';
   static const _keyTeacherId      = 'auth_teacher_id';
-  static const _keyStudentClass   = 'auth_student_class';
-  static const _keyStudentRoll    = 'auth_student_roll';
+  static const _keyStudentLinks    = 'auth_student_links'; // List of "className|roll|name"
   static const _keyAssignedClasses = 'auth_assigned_classes'; // comma-delimited
 
   static final AuthService _instance = AuthService._();
@@ -20,8 +19,7 @@ class AuthService {
     required String email,
     required String role,
     String?       teacherId,
-    String?       studentClass,
-    int?          studentRoll,
+    List<String>? studentLinks,
     List<String>? assignedClasses,
   }) async {
     final prefs = await SharedPreferences.getInstance();
@@ -34,12 +32,10 @@ class AuthService {
       await prefs.remove(_keyTeacherId);
     }
 
-    if (studentClass != null && studentRoll != null) {
-      await prefs.setString(_keyStudentClass, studentClass);
-      await prefs.setInt(_keyStudentRoll, studentRoll);
+    if (studentLinks != null && studentLinks.isNotEmpty) {
+      await prefs.setStringList(_keyStudentLinks, studentLinks);
     } else {
-      await prefs.remove(_keyStudentClass);
-      await prefs.remove(_keyStudentRoll);
+      await prefs.remove(_keyStudentLinks);
     }
 
     if (assignedClasses != null && assignedClasses.isNotEmpty) {
@@ -50,7 +46,7 @@ class AuthService {
   }
 
   /// Returns session map with keys: email, role, [teacherId],
-  /// [studentClass], [studentRoll].  Returns null if no session is saved.
+  /// [studentLinks].  Returns null if no session is saved.
   Future<Map<String, dynamic>?> getSession() async {
     final prefs = await SharedPreferences.getInstance();
     final email = prefs.getString(_keyEmail);
@@ -61,11 +57,9 @@ class AuthService {
     final tid = prefs.getString(_keyTeacherId);
     if (tid != null) result['teacherId'] = tid;
 
-    final sClass = prefs.getString(_keyStudentClass);
-    final sRoll  = prefs.getInt(_keyStudentRoll);
-    if (sClass != null && sRoll != null) {
-      result['studentClass'] = sClass;
-      result['studentRoll']  = sRoll;
+    final links = prefs.getStringList(_keyStudentLinks);
+    if (links != null) {
+      result['studentLinks'] = links;
     }
 
     final assignedRaw = prefs.getString(_keyAssignedClasses);
@@ -80,8 +74,19 @@ class AuthService {
     await prefs.remove(_keyEmail);
     await prefs.remove(_keyRole);
     await prefs.remove(_keyTeacherId);
-    await prefs.remove(_keyStudentClass);
-    await prefs.remove(_keyStudentRoll);
+    await prefs.remove(_keyStudentLinks);
     await prefs.remove(_keyAssignedClasses);
+  }
+
+  // ── Compatibility for AuthProvider ────────────────────────────────────────
+
+  Future<dynamic> signInWithEmail(String email, String password) async {
+    // This is a stub to satisfy AuthProvider. In this app, actual validation
+    // happens in TimetableService.validateLogin.
+    throw UnimplementedError('Use TimetableService.validateLogin instead.');
+  }
+
+  Future<void> signOut() async {
+    await clearSession();
   }
 }
