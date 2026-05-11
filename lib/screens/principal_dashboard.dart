@@ -9,6 +9,7 @@ import 'attendance_history_screen.dart';
 import 'class_picker_screen.dart';
 import 'leave_requests_screen.dart';
 import 'my_timetable_screen.dart';
+import 'student_details_screen.dart';
 import 'role_selection_screen.dart';
 import 'announcements_screen.dart';
 import 'notifications_screen.dart';
@@ -177,7 +178,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 subtitle: 'Review & approve pending applications from teachers',
                 badge: _pendingLeaveCount > 0 ? '$_pendingLeaveCount' : null,
                 onTap: () async {
-                  await _navigate(const LeaveRequestsScreen());
+                  await _navigate(const LeaveRequestsScreen(viewerRole: 'principal'));
                   _loadAll();
                 },
               ),
@@ -188,15 +189,18 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 title: 'Attendance Reports',
                 subtitle: 'Monthly history, % per student & low-attendance flags',
                 onTap: () async {
-                  final cls = await Navigator.push<String>(
+                  final pick = await Navigator.push<ClassSectionPick>(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const ClassPickerScreen(
                           mode: ClassPickerMode.reports),
                     ),
                   );
-                  if (cls != null && mounted) {
-                    _navigate(AttendanceHistoryScreen(className: cls));
+                  if (pick != null && mounted) {
+                    _navigate(AttendanceHistoryScreen(
+                      className: pick.className,
+                      section:   pick.section,
+                    ));
                   }
                 },
               ),
@@ -207,6 +211,14 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 title: 'School Timetable',
                 subtitle: 'View & share class timetables as PDF',
                 onTap: () => _navigate(const MyTimetableScreen()),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.people_outlined,
+                color: AppTheme.primary,
+                title: 'Student Records',
+                subtitle: 'View student details and contact info by class',
+                onTap: () => _navigate(const StudentDetailsScreen()),
               ),
 
               const SizedBox(height: 32),

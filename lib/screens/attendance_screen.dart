@@ -529,7 +529,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _buildBody() {
-    final filtered = _filtered;
     return Stack(
       children: [
         Column(children: [
@@ -590,48 +589,40 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               ),
             ),
 
-          _buildSearchBar(),
           Expanded(
             child: RefreshIndicator(
               onRefresh: _refresh,
               color: AppTheme.primary,
-              child: filtered.isEmpty && _search.isNotEmpty
-                  ? ListView(children: [
-                      const SizedBox(height: 60),
-                      Center(
-                        child: Text('No results for "$_search"',
-                            style: TextStyle(color: Colors.grey.shade400))),
-                    ])
-                  : ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.only(bottom: 90),
-                      itemCount: filtered.length + 2,
-                      itemBuilder: (_, i) {
-                        if (i == 0) {
-                          return _AttendanceHeroCard(
-                            className: _className,
-                            total: _total,
-                            present: _present,
-                            leave: _leave,
-                            absent: _absent,
-                            dateLabel: _dateLabel(),
-                          );
-                        }
-                        if (i == 1) {
-                          return _MarkAllRow(onMarkAll: _markAll);
-                        }
-                        final idx = i - 2;
-                        return _StudentRow(
-                          student:     filtered[idx],
-                          status:      _attendance[filtered[idx].roll] ?? '',
-                          accentColor: _accentColor(_attendance[filtered[idx].roll] ?? ''),
-                          rowBg:       _rowBg(_attendance[filtered[idx].roll] ?? ''),
-                          onChanged:   (v) => _setStatus(filtered[idx].roll, v),
-                          onRemove:    () => _removeStudent(filtered[idx]),
-                          isLast:      idx == filtered.length - 1,
-                        );
-                      },
-                    ),
+              child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 90),
+                  itemCount: _students.length + 2,
+                  itemBuilder: (_, i) {
+                    if (i == 0) {
+                      return _AttendanceHeroCard(
+                        className: _className,
+                        total: _total,
+                        present: _present,
+                        leave: _leave,
+                        absent: _absent,
+                        dateLabel: _dateLabel(),
+                      );
+                    }
+                    if (i == 1) {
+                      return _MarkAllRow(onMarkAll: _markAll);
+                    }
+                    final idx = i - 2;
+                    return _StudentRow(
+                      student:     _students[idx],
+                      status:      _attendance[_students[idx].roll] ?? '',
+                      accentColor: _accentColor(_attendance[_students[idx].roll] ?? ''),
+                      rowBg:       _rowBg(_attendance[_students[idx].roll] ?? ''),
+                      onChanged:   (v) => _setStatus(_students[idx].roll, v),
+                      onRemove:    () => _removeStudent(_students[idx]),
+                      isLast:      idx == _students.length - 1,
+                    );
+                  },
+                ),
             ),
           ),
         ]),
@@ -1219,23 +1210,11 @@ class _MarkAllRow extends StatelessWidget {
             'Quick mark:',
             style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
           ),
-          const SizedBox(width: 10),
+          const Spacer(),
           _SmallMarkChip(
             label: 'All Present',
             color: const Color(0xFF2E7D32),
             onTap: () => onMarkAll('Present'),
-          ),
-          const SizedBox(width: 6),
-          _SmallMarkChip(
-            label: 'All Absent',
-            color: const Color(0xFFC62828),
-            onTap: () => onMarkAll('Absent'),
-          ),
-          const SizedBox(width: 6),
-          _SmallMarkChip(
-            label: 'All Leave',
-            color: const Color(0xFFF57F17),
-            onTap: () => onMarkAll('Leave'),
           ),
         ],
       ),

@@ -69,8 +69,7 @@ class AnnouncementService {
     await _coll.doc(id).update({'isPinned': pinned});
   }
 
-  /// Fetches all announcements posted by a specific role (e.g. 'principal'),
-  /// sorted newest first. Used for the Principal's notification log.
+  /// Fetches all announcements posted by a specific role, sorted newest first.
   Future<List<Announcement>> getAnnouncementsByRole(String role) async {
     final snap = await _coll.get();
     final list = snap.docs
@@ -86,5 +85,33 @@ class AnnouncementService {
       return tb.compareTo(ta);
     });
     return list;
+  }
+
+  /// Fetches all announcements posted by a specific user (by posterName/email),
+  /// sorted newest first. Used for "My Log" tab.
+  Future<List<Announcement>> getAnnouncementsByPoster(String posterName) async {
+    final snap = await _coll.get();
+    final list = snap.docs
+        .map((d) => Announcement.fromDoc(d.id, d.data()))
+        .where((a) => a.postedBy == posterName)
+        .toList();
+    list.sort((a, b) {
+      final ta = a.postedAt;
+      final tb = b.postedAt;
+      if (ta == null && tb == null) return 0;
+      if (ta == null) return 1;
+      if (tb == null) return -1;
+      return tb.compareTo(ta);
+    });
+    return list;
+  }
+
+  /// Batch-deletes multiple announcements by ID.
+  Future<void> deleteAnnouncements(List<String> ids) async {
+    final batch = _db.batch();
+    for (final id in ids) {
+      batch.delete(_coll.doc(id));
+    }
+    await batch.commit();
   }
 }

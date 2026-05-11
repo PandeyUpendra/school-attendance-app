@@ -480,6 +480,14 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
     });
   }
 
+  void _checkAll() {
+    setState(() {
+      _statuses = _statuses
+          .map((s) => s.copyWith(status: 'checked'))
+          .toList();
+    });
+  }
+
   Future<void> _call(String phone) async {
     if (phone.isEmpty) return;
     final uri = Uri.parse('tel:$phone');
@@ -559,10 +567,11 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
               children: [
                 // ── All Students Tab ──
                 _AllStudentsTab(
-                  statuses:  _statuses,
-                  onStatus:  _setStatus,
-                  onSave:    _saveAll,
-                  saving:    _saving,
+                  statuses:   _statuses,
+                  onStatus:   _setStatus,
+                  onSave:     _saveAll,
+                  onCheckAll: _checkAll,
+                  saving:     _saving,
                 ),
                 // ── Pending Tab ──
                 _PendingTab(
@@ -582,12 +591,14 @@ class _AllStudentsTab extends StatelessWidget {
   final List<CopyStatus> statuses;
   final void Function(int roll, String status) onStatus;
   final VoidCallback onSave;
+  final VoidCallback onCheckAll;
   final bool saving;
 
   const _AllStudentsTab({
     required this.statuses,
     required this.onStatus,
     required this.onSave,
+    required this.onCheckAll,
     required this.saving,
   });
 
@@ -601,13 +612,13 @@ class _AllStudentsTab extends StatelessWidget {
           padding: const EdgeInsets.symmetric(
               horizontal: 16, vertical: 10),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _SumChip(
-                count: statuses.where((s) => s.status == 'checked').length,
-                label: 'Checked',
-                color: Colors.green,
+                count: statuses.where((s) => s.status == 'not_done').length,
+                label: 'Not Done',
+                color: Colors.red,
               ),
+              const SizedBox(width: 8),
               _SumChip(
                 count: statuses
                     .where((s) => s.status == 'incomplete')
@@ -615,11 +626,29 @@ class _AllStudentsTab extends StatelessWidget {
                 label: 'Incomplete',
                 color: Colors.orange,
               ),
+              const SizedBox(width: 8),
               _SumChip(
-                count:
-                    statuses.where((s) => s.status == 'not_done').length,
-                label: 'Not Done',
-                color: Colors.red,
+                count: statuses.where((s) => s.status == 'checked').length,
+                label: 'Checked',
+                color: Colors.green,
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: onCheckAll,
+                icon: const Icon(Icons.check_circle_outline,
+                    size: 16, color: Colors.green),
+                label: const Text('All Check',
+                    style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.green.shade50,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 6),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
               ),
             ],
           ),
@@ -742,14 +771,14 @@ class _StudentStatusTile extends StatelessWidget {
             ],
           ),
         ),
-        // Status buttons
+        // Status buttons — Not Done · Incomplete · Checked (left → right)
         Row(children: [
           _StatusBtn(
-            icon: Icons.check_circle_outline,
-            color: Colors.green,
-            active: status.status == 'checked',
-            onTap: () => onStatus('checked'),
-            tooltip: 'Checked',
+            icon: Icons.cancel_outlined,
+            color: Colors.red,
+            active: status.status == 'not_done',
+            onTap: () => onStatus('not_done'),
+            tooltip: 'Not Done',
           ),
           _StatusBtn(
             icon: Icons.warning_amber_rounded,
@@ -759,11 +788,11 @@ class _StudentStatusTile extends StatelessWidget {
             tooltip: 'Incomplete',
           ),
           _StatusBtn(
-            icon: Icons.cancel_outlined,
-            color: Colors.red,
-            active: status.status == 'not_done',
-            onTap: () => onStatus('not_done'),
-            tooltip: 'Not Done',
+            icon: Icons.check_circle_outline,
+            color: Colors.green,
+            active: status.status == 'checked',
+            onTap: () => onStatus('checked'),
+            tooltip: 'Checked',
           ),
         ]),
       ]),
