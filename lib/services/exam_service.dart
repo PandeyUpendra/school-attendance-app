@@ -1,26 +1,29 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/exam.dart';
+import 'base_firestore_service.dart';
 
 /// Firestore-backed exam & marks service.
 ///
 /// Schema:
 ///   exams/{examId}                         → Exam doc
 ///   exam_results/{examId}/students/{roll}  → ExamResult doc
-class ExamService {
-  static final _db    = FirebaseFirestore.instance;
-  static final _exams = _db.collection('exams');
-
+class ExamService extends BaseFirestoreService {
   static final ExamService _instance = ExamService._();
   ExamService._();
   factory ExamService() => _instance;
 
-  CollectionReference _resultsCol(String examId) =>
-      _db.collection('exam_results').doc(examId).collection('students');
+  CollectionReference _exams(String schoolId) =>
+      db.collection('schools').doc(schoolId).collection('exams');
+
+  CollectionReference _resultsCol(String schoolId, String examId) =>
+      db.collection('schools').doc(schoolId)
+          .collection('exam_results').doc(examId).collection('students');
 
   // ── Exams ──────────────────────────────────────────────────────────────────
 
-  Future<List<Exam>> getExams({String? className}) async {
-    Query q = _exams;
+  Future<List<Exam>> getExams({String? schoolId, String? className}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    Query q = _exams(sId);
     if (className != null) {
       q = q.where('className', isEqualTo: className);
     }
@@ -34,25 +37,29 @@ class ExamService {
     return list;
   }
 
-  Future<String> createExam(Exam exam) async {
-    final ref = await _exams.add(exam.toJson());
+  Future<String> createExam({String? schoolId, required Exam exam}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final ref = await _exams(sId).add(exam.toJson());
     return ref.id;
   }
 
-  Future<void> updateExam(Exam exam) async {
-    await _exams.doc(exam.id).set(exam.toJson());
+  Future<void> updateExam({String? schoolId, required Exam exam}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    await _exams(sId).doc(exam.id).set(exam.toJson());
   }
 
-  Future<void> deleteExam(String examId) async {
+  Future<void> deleteExam({String? schoolId, required String examId}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     // Delete exam doc — results sub-collection is left (cheap orphan)
-    await _exams.doc(examId).delete();
+    await _exams(sId).doc(examId).delete();
   }
 
   // ── Results ────────────────────────────────────────────────────────────────
 
   /// Get all results for an exam.
-  Future<List<ExamResult>> getResults(String examId) async {
-    final snap = await _resultsCol(examId).get();
+  Future<List<ExamResult>> getResults({String? schoolId, required String examId}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final snap = await _resultsCol(sId, examId).get();
     return snap.docs
         .map((d) =>
             ExamResult.fromDoc(Map<String, dynamic>.from(d.data() as Map)))
@@ -61,25 +68,31 @@ class ExamService {
   }
 
   /// Get result for a single student in an exam.
-  Future<ExamResult?> getResult(String examId, int roll) async {
-    final doc = await _resultsCol(examId).doc('$roll').get();
+  Future<ExamResult?> getResult({String? schoolId, required String examId, required int roll}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final doc = await _resultsCol(sId, examId).doc('$roll').get();
     if (!doc.exists || doc.data() == null) return null;
     return ExamResult.fromDoc(
         Map<String, dynamic>.from(doc.data() as Map));
   }
 
   /// Save / update marks for a student.
-  Future<void> saveResult(String examId, ExamResult result) async {
-    await _resultsCol(examId).doc('${result.roll}').set(result.toJson());
+  Future<void> saveResult({String? schoolId, required String examId, required ExamResult result}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    await _resultsCol(sId, examId).doc('${result.roll}').set(result.toJson());
   }
 
   /// Get all results for a student across all exams in a class.
-  Future<List<ExamResult>> getStudentResults(
-      String className, int roll) async {
-    final exams = await getExams(className: className);
+  Future<List<ExamResult>> getStudentResults({
+    String? schoolId,
+    required String className,
+    required int roll,
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final exams = await getExams(schoolId: sId, className: className);
     if (exams.isEmpty) return [];
 
-    final futures = exams.map((e) => getResult(e.id, roll));
+    final futures = exams.map((e) => getResult(schoolId: sId, examId: e.id, roll: roll));
     final results = await Future.wait(futures);
     return results.whereType<ExamResult>().toList();
   }

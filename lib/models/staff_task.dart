@@ -27,6 +27,7 @@ class Checkpoint {
 
 class StaffTask {
   final String id;
+  final String schoolId;
   final String title;
   final String description;
   final String? notes;
@@ -47,9 +48,12 @@ class StaffTask {
   final List<Checkpoint> checkpoints;
   final String? completionNotes;
   final List<String> progressUpdates;
+  final bool isDeleted;
+  final DateTime? deletedAt;
 
   StaffTask({
     required this.id,
+    required this.schoolId,
     required this.title,
     required this.description,
     this.notes,
@@ -70,11 +74,14 @@ class StaffTask {
     this.checkpoints = const [],
     this.completionNotes,
     this.progressUpdates = const [],
+    this.isDeleted = false,
+    this.deletedAt,
   });
 
   factory StaffTask.fromFirestore(Map<String, dynamic> json, String id) {
     return StaffTask(
       id: id,
+      schoolId: json['schoolId'] ?? '',
       title: json['title'] ?? '',
       description: json['description'] ?? '',
       notes: json['notes'],
@@ -103,11 +110,14 @@ class StaffTask {
           .toList(),
       completionNotes: json['completionNotes'],
       progressUpdates: List<String>.from(json['progressUpdates'] ?? []),
+      isDeleted: json['isDeleted'] ?? false,
+      deletedAt: (json['deletedAt'] as Timestamp?)?.toDate(),
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
+      'schoolId': schoolId,
       'title': title,
       'description': description,
       'notes': notes,
@@ -128,10 +138,13 @@ class StaffTask {
       'checkpoints': checkpoints.map((e) => e.toJson()).toList(),
       'completionNotes': completionNotes,
       'progressUpdates': progressUpdates,
+      'isDeleted': isDeleted,
+      'deletedAt': deletedAt != null ? Timestamp.fromDate(deletedAt!) : null,
     };
   }
 
   StaffTask copyWith({
+    String? schoolId,
     String? title,
     String? description,
     String? notes,
@@ -148,9 +161,12 @@ class StaffTask {
     List<Checkpoint>? checkpoints,
     String? completionNotes,
     List<String>? progressUpdates,
+    bool? isDeleted,
+    DateTime? deletedAt,
   }) {
     return StaffTask(
       id: id,
+      schoolId: schoolId ?? this.schoolId,
       title: title ?? this.title,
       description: description ?? this.description,
       notes: notes ?? this.notes,
@@ -171,6 +187,9 @@ class StaffTask {
       checkpoints: checkpoints ?? this.checkpoints,
       completionNotes: completionNotes ?? this.completionNotes,
       progressUpdates: progressUpdates ?? this.progressUpdates,
+      isDeleted: isDeleted ?? this.isDeleted,
+      deletedAt: deletedAt ?? this.deletedAt,
     );
   }
 }
+

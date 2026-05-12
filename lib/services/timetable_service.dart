@@ -1,55 +1,77 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
+import 'base_firestore_service.dart';
 
-class TimetableService {
-  static final _db            = FirebaseFirestore.instance;
-  static final _teachers      = _db.collection('teachers');
-  static final _settings      = _db.collection('settings');
-  static final _tt            = _db.collection('timetable');
-  static final _duties        = _db.collection('duties');
-  static final _allowedUsers  = _db.collection('allowed_users');
-  static final _substitutions = _db.collection('substitutions');
-  static final _leaveApps     = _db.collection('leave_applications');
-
+class TimetableService extends BaseFirestoreService {
   static final TimetableService _instance = TimetableService._();
   TimetableService._();
   factory TimetableService() => _instance;
 
-  // In-memory cache for settings (invalidated on every saveSettings call)
-  static Map<String, dynamic>? _settingsCache;
+  CollectionReference<Map<String, dynamic>> _teachers(String schoolId) =>
+      schoolCollection(schoolId, 'teachers');
+  CollectionReference<Map<String, dynamic>> _settings(String schoolId) =>
+      schoolCollection(schoolId, 'settings');
+  CollectionReference<Map<String, dynamic>> _tt(String schoolId) =>
+      schoolCollection(schoolId, 'timetable');
+  CollectionReference<Map<String, dynamic>> _duties(String schoolId) =>
+      schoolCollection(schoolId, 'duties');
+  CollectionReference<Map<String, dynamic>> _allowedUsers = FirebaseFirestore.instance.collection('allowed_users');
+  CollectionReference<Map<String, dynamic>> _substitutions(String schoolId) =>
+      schoolCollection(schoolId, 'substitutions');
+  CollectionReference<Map<String, dynamic>> _leaveApps(String schoolId) =>
+      schoolCollection(schoolId, 'leave_applications');
+
+  static Map<String, Map<String, dynamic>> _settingsCache = {};
+  static Map<String, List<Teacher>> _teachersCache = {};
+  static Map<String, Map<String, Map<String, Map<int, TimetableEntry>>>> _ttCache = {};
 
   // ── Teachers ──────────────────────────────────────────────────────────────
 
-  Future<Teacher?> getTeacherById(String id) async {
-    final doc = await _teachers.doc(id).get();
+  Future<Teacher?> getTeacherById({String? schoolId, required String id}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    if (_teachersCache.containsKey(sId)) {
+      try {
+        return _teachersCache[sId]!.firstWhere((t) => t.id == id);
+      } catch (_) {}
+    }
+    final doc = await _teachers(sId).doc(id).get();
     if (!doc.exists || doc.data() == null) return null;
     return Teacher.fromJson(Map<String, dynamic>.from(doc.data()!));
   }
 
-  Future<List<Teacher>> getTeachers() async {
-    final snap = await _teachers.get();
+  Future<List<Teacher>> getTeachers({String? schoolId, bool refresh = false}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    if (!refresh && _teachersCache.containsKey(sId)) return _teachersCache[sId]!;
+
+    final snap = await _teachers(sId).get();
     final list = snap.docs
         .map((d) => Teacher.fromJson(Map<String, dynamic>.from(d.data())))
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
+
+    _teachersCache[sId] = list;
     return list;
   }
 
-  Future<void> addTeacher(Teacher teacher) async {
-    await _teachers.doc(teacher.id).set(teacher.toJson());
+  Future<void> addTeacher(String schoolId, Teacher teacher) async {
+    _teachersCache.remove(schoolId);
+    await _teachers(schoolId).doc(teacher.id).set(teacher.toJson());
   }
 
-  Future<void> updateTeacher(Teacher teacher) async {
-    await _teachers.doc(teacher.id).set(teacher.toJson());
+  Future<void> updateTeacher(String schoolId, Teacher teacher) async {
+    _teachersCache.remove(schoolId);
+    await _teachers(schoolId).doc(teacher.id).set(teacher.toJson());
   }
 
-  Future<void> removeTeacher(String id) async {
-    await _teachers.doc(id).delete();
+  Future<void> removeTeacher(String schoolId, String id) async {
+    _teachersCache.remove(schoolId);
+    _ttCache.remove(schoolId);
+    await _teachers(schoolId).doc(id).delete();
 
     // Scrub teacher from every timetable slot
-    final snap = await _tt.get();
-    final batch = _db.batch();
+    final snap = await _tt(schoolId).get();
+    final batch = db.batch();
     for (final doc in snap.docs) {
       final raw = Map<String, dynamic>.from(
           (doc.data()['data'] as Map?) ?? {});
@@ -72,12 +94,11 @@ class TimetableService {
 
   // ── Settings ──────────────────────────────────────────────────────────────
 
-  Future<Map<String, dynamic>> getSettings() async {
-    // Return cached copy if available — avoids a Firestore round-trip every
-    // time the coordinator dashboard (or any other screen) calls this.
-    if (_settingsCache != null) return _settingsCache!;
+  Future<Map<String, dynamic>> getSettings({String? schoolId}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    if (_settingsCache.containsKey(sId)) return _settingsCache[sId]!;
 
-    final doc = await _settings.doc('main').get();
+    final doc = await _settings(sId).doc('main').get();
     Map<String, dynamic> result;
 
     if (!doc.exists || doc.data() == null) {
@@ -87,7 +108,6 @@ class TimetableService {
       };
     } else {
       result = Map<String, dynamic>.from(doc.data()!);
-      // classes is stored as List — ensure it's List<String>
       if (result['classes'] != null) {
         result['classes'] = List<String>.from(result['classes'] as List);
       }
@@ -105,20 +125,22 @@ class TimetableService {
     }
 
     result['numberOfBells'] = (result['bells'] as List).length;
-    _settingsCache = result; // cache for all subsequent calls this session
+    _settingsCache[sId] = result;
     return result;
   }
 
-  Future<void> saveSettings(Map<String, dynamic> settings) async {
-    _settingsCache = null; // invalidate so next getSettings re-fetches
-    await _settings.doc('main').set(settings);
+  Future<void> saveSettings(String schoolId, Map<String, dynamic> settings) async {
+    _settingsCache.remove(schoolId);
+    await _settings(schoolId).doc('main').set(settings);
   }
 
   // ── Timetable ─────────────────────────────────────────────────────────────
-  // Shape: className → day → bell(1-indexed) → TimetableEntry
 
-  Future<Map<String, Map<String, Map<int, TimetableEntry>>>> getTimetable() async {
-    final snap = await _tt.get();
+  Future<Map<String, Map<String, Map<int, TimetableEntry>>>> getTimetable({String? schoolId, bool refresh = false}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    if (!refresh && _ttCache.containsKey(sId)) return _ttCache[sId]!;
+
+    final snap = await _tt(sId).get();
     final result = <String, Map<String, Map<int, TimetableEntry>>>{};
 
     for (final doc in snap.docs) {
@@ -134,12 +156,14 @@ class TimetableService {
       });
       result[className] = dayMap;
     }
+    _ttCache[sId] = result;
     return result;
   }
 
-  Future<void> _saveTimetable(
+  Future<void> _saveTimetable(String schoolId,
       Map<String, Map<String, Map<int, TimetableEntry>>> tt) async {
-    final batch = _db.batch();
+    _ttCache[schoolId] = tt;
+    final batch = db.batch();
     for (final clsEntry in tt.entries) {
       final data = clsEntry.value.map(
         (day, bells) => MapEntry(
@@ -147,18 +171,19 @@ class TimetableService {
           bells.map((k, e) => MapEntry(k.toString(), e.toJson())),
         ),
       );
-      batch.set(_tt.doc(clsEntry.key), {'data': data});
+      batch.set(_tt(schoolId).doc(clsEntry.key), {'data': data});
     }
     await batch.commit();
   }
 
   Future<String?> findClash({
+    required String schoolId,
     required String forClass,
     required String day,
     required int bell,
     required String teacherId,
   }) async {
-    final tt = await getTimetable();
+    final tt = await getTimetable(schoolId: schoolId);
     for (final clsEntry in tt.entries) {
       if (clsEntry.key == forClass) continue;
       if (clsEntry.value[day]?[bell]?.teacherId == teacherId) {
@@ -175,23 +200,23 @@ class TimetableService {
     return '${d.year}-${d.month}-${d.day}';
   }
 
-  /// Returns map of teacherId → duty string for today.
-  Future<Map<String, String>> getTodayDuties() async {
-    final doc = await _duties.doc(_dutyKey()).get();
+  Future<Map<String, String>> getTodayDuties({String? schoolId}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final doc = await _duties(sId).doc(_dutyKey()).get();
     if (!doc.exists || doc.data() == null) return {};
     final raw = Map<String, dynamic>.from(
         (doc.data()!['assignments'] as Map?) ?? {});
     return raw.map((k, v) => MapEntry(k, v as String));
   }
 
-  Future<void> saveTodayDuties(Map<String, String> duties) async {
-    await _duties.doc(_dutyKey()).set({
+  Future<void> saveTodayDuties(String schoolId, Map<String, String> duties) async {
+    await _duties(schoolId).doc(_dutyKey()).set({
       'assignments': duties,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  // ── Allowed Users (Admin manages who can log in) ──────────────────────────
+  // ── Allowed Users ──────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getAllowedUsers() async {
     final snap = await _allowedUsers.get();
@@ -211,7 +236,6 @@ class TimetableService {
       ..sort((a, b) => (a['email'] as String).compareTo(b['email'] as String));
   }
 
-  /// Returns the assigned classes for a coordinator/principal, or null if not set.
   Future<List<String>?> getAssignedClasses(String email) async {
     final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
     if (!doc.exists || doc.data() == null) return null;
@@ -264,6 +288,8 @@ class TimetableService {
     String email,
     String? password,
     String role, {
+    String?       name,
+    String?       schoolId,
     String?       studentClass,
     int?          studentRoll,
     List<Map<String, dynamic>>? studentLinks,
@@ -272,7 +298,10 @@ class TimetableService {
     final data = <String, dynamic>{
       'role':     role,
       'email':    email.toLowerCase().trim(),
+      'name':     name,
+      'schoolId': schoolId,
     };
+
     if (password != null && password.isNotEmpty) {
       data['password'] = password;
     }
@@ -295,14 +324,12 @@ class TimetableService {
     await _allowedUsers.doc(email.toLowerCase().trim()).set(data);
   }
 
-  /// Returns list of {studentClass, studentRoll, studentName} for a guardian, or null if not found.
   Future<List<Map<String, dynamic>>?> getGuardianLinks(String email) async {
     final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
     if (!doc.exists || doc.data() == null) return null;
     final data = doc.data()!;
     if (data['role'] != 'guardian') return null;
     
-    // Support legacy single link
     if (data['studentLinks'] == null) {
       final cls  = data['studentClass'] as String?;
       final roll = data['studentRoll']  as int?;
@@ -319,30 +346,31 @@ class TimetableService {
     await _allowedUsers.doc(email.toLowerCase().trim()).delete();
   }
 
-  /// Returns the role if the email is registered, or null if not found.
   Future<String?> getAllowedRole(String email) async {
     final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
     if (!doc.exists || doc.data() == null) return null;
     return doc.data()!['role'] as String?;
   }
 
-  /// Validates email. Returns role string on success, null on failure.
   Future<String?> validateLogin(String email, [String? password]) async {
     final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
     if (!doc.exists || doc.data() == null) return null;
     final data = doc.data()!;
-    // Note: password check removed as requested.
     return data['role'] as String?;
   }
 
-  Future<List<Map<String, dynamic>>> getCoordinators() async {
-    final snap = await _allowedUsers.where('role', isEqualTo: 'coordinator').get();
+  Future<List<Map<String, dynamic>>> getCoordinators(String schoolId) async {
+    final snap = await _allowedUsers
+        .where('schoolId', isEqualTo: schoolId)
+        .where('role', isEqualTo: 'coordinator')
+        .get();
     return snap.docs.map((d) => Map<String, dynamic>.from(d.data())).toList();
   }
 
   // ── Leave Applications ────────────────────────────────────────────────────────
 
   Future<void> submitLeaveApplication({
+    required String schoolId,
     required String teacherId,
     required String teacherName,
     required String teacherEmail,
@@ -351,7 +379,7 @@ class TimetableService {
     required int numberOfDays,
     required String reason,
   }) async {
-    await _leaveApps.add({
+    await _leaveApps(schoolId).add({
       'teacherId'   : teacherId,
       'teacherName' : teacherName,
       'teacherEmail': teacherEmail,
@@ -364,30 +392,21 @@ class TimetableService {
     });
   }
 
-  /// Returns all leave applications, newest first.
-  /// Optionally filter by status: 'pending' | 'approved' | 'rejected'.
-  ///
-  /// NOTE: When filtering by status we deliberately skip orderBy to avoid
-  /// requiring a Firestore composite index (status + createdAt).  Results are
-  /// sorted in-memory instead — negligible cost for the small number of leave
-  /// apps a school typically has.
-  Future<List<Map<String, dynamic>>> getLeaveApplications({String? status}) async {
-    QuerySnapshot snap;
+  Future<List<Map<String, dynamic>>> getLeaveApplications({String? schoolId, String? status}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    QuerySnapshot<Map<String, dynamic>> snap;
     if (status != null) {
-      // No orderBy here — composite index not guaranteed to exist on all
-      // deployments; sort in-memory after fetch instead.
-      snap = await _leaveApps.where('status', isEqualTo: status).get();
+      snap = await _leaveApps(sId).where('status', isEqualTo: status).get();
     } else {
-      snap = await _leaveApps.orderBy('createdAt', descending: true).get();
+      snap = await _leaveApps(sId).orderBy('createdAt', descending: true).get();
     }
 
     final list = snap.docs.map((d) {
-      final data = Map<String, dynamic>.from(d.data() as Map);
+      final data = Map<String, dynamic>.from(d.data());
       data['id'] = d.id;
       return data;
     }).toList();
 
-    // Sort newest-first in-memory (works whether createdAt is a Timestamp or null)
     if (status != null) {
       list.sort((a, b) {
         final ta = a['createdAt'];
@@ -402,39 +421,43 @@ class TimetableService {
     return list;
   }
 
-  Future<void> updateLeaveApplication(String id, String status,
+  Future<void> updateLeaveApplication(String schoolId, String id, String status,
       {String? note}) async {
     final update = <String, dynamic>{'status': status};
     if (note != null && note.isNotEmpty) update['coordinatorNote'] = note;
-    await _leaveApps.doc(id).update(update);
+    await _leaveApps(schoolId).doc(id).update(update);
   }
 
   // ── Absent-teacher info for dashboard ────────────────────────────────────
 
-  /// Returns how many teachers are on approved leave today and how many of
-  /// their timetable bells haven't been covered by a substitution yet.
-  Future<Map<String, int>> getTodayAbsentTeachersInfo() async {
+  Future<Map<String, int>> getTodayAbsentTeachersInfo(String schoolId) async {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
 
-    final allLeavesFuture  = getLeaveApplications();
-    final timetableFuture  = getTimetable();
-    final subsFuture       = getTodaySubstitutions();
+    // Optimize: only fetch approved leaves that could possibly be for today.
+    // Fetching leaves from the last 30 days is a reasonable heuristic if we don't have better indexing.
+    final thirtyDaysAgo = today.subtract(const Duration(days: 30));
+    final leavesSnap = await _leaveApps(schoolId)
+        .where('status', isEqualTo: 'approved')
+        .where('startDate', isGreaterThanOrEqualTo: thirtyDaysAgo.toIso8601String().substring(0, 10))
+        .get();
 
-    final allLeaves = await allLeavesFuture;
+    final timetableFuture  = getTimetable(schoolId: schoolId);
+    final subsFuture       = getTodaySubstitutions(schoolId: schoolId);
+
+    final allLeaves = leavesSnap.docs.map((d) => d.data()).toList();
     final timetable = await timetableFuture;
     final subs      = await subsFuture;
 
-    // Collect teacher IDs whose approved leave covers today.
     final absentIds = <String>{};
     for (final app in allLeaves) {
-      if (app['status'] != 'approved') continue;
       final startStr = app['startDate'] as String?;
       if (startStr == null) continue;
       final start = DateTime.tryParse(startStr);
       if (start == null) continue;
       final days = (app['numberOfDays'] as num?)?.toInt() ?? 1;
       final end  = start.add(Duration(days: days - 1));
-      final today = DateTime(now.year, now.month, now.day);
+
       if (!today.isBefore(DateTime(start.year, start.month, start.day)) &&
           !today.isAfter(DateTime(end.year, end.month, end.day))) {
         final tid = app['teacherId'] as String?;
@@ -442,7 +465,6 @@ class TimetableService {
       }
     }
 
-    // Count timetable bells for today assigned to absent teachers with no sub.
     const dayNames = [
       'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
     ];
@@ -468,29 +490,30 @@ class TimetableService {
     return '${d.year}-${d.month}-${d.day}';
   }
 
-  /// Returns map of '${className}_$bell' → teacherId for today's substitutions.
-  Future<Map<String, String>> getTodaySubstitutions() async {
-    final doc = await _substitutions.doc(_subKey()).get();
+  Future<Map<String, String>> getTodaySubstitutions({String? schoolId}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final doc = await _substitutions(sId).doc(_subKey()).get();
     if (!doc.exists || doc.data() == null) return {};
     final raw = Map<String, dynamic>.from(doc.data()!);
     return raw.map((k, v) => MapEntry(k, v as String));
   }
 
   Future<void> setSubstitution(
-      String className, int bell, String? teacherId) async {
+      String schoolId, String className, int bell, String? teacherId) async {
     final key = '${className}_$bell';
     if (teacherId == null || teacherId.isEmpty) {
-      await _substitutions
+      await _substitutions(schoolId)
           .doc(_subKey())
           .set({key: FieldValue.delete()}, SetOptions(merge: true));
     } else {
-      await _substitutions.doc(_subKey()).set(
+      await _substitutions(schoolId).doc(_subKey()).set(
           {key: teacherId, 'updatedAt': FieldValue.serverTimestamp()},
           SetOptions(merge: true));
     }
   }
 
   Future<String?> assignTeacher({
+    required String schoolId,
     required String className,
     required List<String> days,
     required int bell,
@@ -500,27 +523,25 @@ class TimetableService {
     if (teacherId != null) {
       for (final day in days) {
         final clash = await findClash(
-            forClass: className, day: day, bell: bell, teacherId: teacherId);
+            schoolId: schoolId, forClass: className, day: day, bell: bell, teacherId: teacherId);
         if (clash != null) {
           return 'Clash on $day! Teacher already has Bell $bell in $clash';
         }
       }
     }
-    final tt = await getTimetable();
+    final tt = await getTimetable(schoolId: schoolId);
     tt.putIfAbsent(className, () => {});
     for (final day in days) {
       tt[className]!.putIfAbsent(day, () => {});
       tt[className]![day]![bell] =
           TimetableEntry(teacherId: teacherId, subject: subject);
     }
-    await _saveTimetable(tt);
+    await _saveTimetable(schoolId, tt);
     return null;
   }
 
-  /// Returns list of unique class names (which may include sections like "6 A")
-  /// that a teacher is assigned to in the timetable.
-  Future<List<String>> getClassesTaughtByTeacher(String teacherId) async {
-    final snap = await _tt.get();
+  Future<List<String>> getClassesTaughtByTeacher(String schoolId, String teacherId) async {
+    final snap = await _tt(schoolId).get();
     final result = <String>{};
     for (final doc in snap.docs) {
       final rawData = (doc.data()['data'] as Map?) ?? {};

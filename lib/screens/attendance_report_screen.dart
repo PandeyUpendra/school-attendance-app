@@ -5,11 +5,13 @@ import '../theme.dart';
 import 'attendance_screen.dart';
 
 class AttendanceReportScreen extends StatefulWidget {
+  final String schoolId;
   final String className;
   final String section;
 
   const AttendanceReportScreen({
     super.key,
+    required this.schoolId,
     required this.className,
     this.section = '',
   });
@@ -40,7 +42,7 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
   Future<void> _loadData() async {
     setState(() => _loading = true);
     
-    final students = await _service.getStudentsByClass(widget.className, section: widget.section);
+    final students = await _service.getStudentsByClass(schoolId: widget.schoolId, className: widget.className, section: widget.section);
     
     Map<int, Map<String, int>> stats = {};
     for (var s in students) {
@@ -55,9 +57,10 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
 
     while (current.isBefore(_endDate) || (current.year == _endDate.year && current.month == _endDate.month)) {
       final monthData = await _service.loadMonthAttendance(
-        attKey,
-        current.year,
-        current.month,
+        schoolId:  widget.schoolId,
+        className: attKey,
+        year:      current.year,
+        month:     current.month,
       );
       
       monthData.forEach((day, rolls) {
@@ -294,9 +297,10 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => AttendanceScreen(
+            schoolId:  widget.schoolId,
             className: widget.className,
-            section: widget.section,
-            date: picked,
+            section:   widget.section,
+            date:      picked,
           ),
         ),
       );

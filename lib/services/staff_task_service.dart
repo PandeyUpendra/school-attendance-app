@@ -1,98 +1,158 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/staff_task.dart';
+import 'audit_log_service.dart';
+import 'base_firestore_service.dart';
 
-class StaffTaskService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  late final CollectionReference _tasks;
-
+class StaffTaskService extends BaseFirestoreService {
   static final StaffTaskService _instance = StaffTaskService._();
-  StaffTaskService._() {
-    _tasks = _db.collection('staff_tasks');
-  }
+  StaffTaskService._();
   factory StaffTaskService() => _instance;
 
-  Future<void> createTask(StaffTask task) async {
-    final docRef = _tasks.doc();
-    final newTask = task.copyWith(); // If we wanted to ensure ID is set, but we use the one passed or generated
-    await _tasks.add(task.toFirestore());
-  }
+  CollectionReference _tasks(String schoolId) =>
+      db.collection('schools').doc(schoolId).collection('staff_tasks');
 
   Future<void> createTaskWithAutoId(StaffTask task) async {
-    final docRef = _tasks.doc();
-    final taskWithId = StaffTask(
-      id: docRef.id,
-      title: task.title,
-      description: task.description,
-      notes: task.notes,
-      createdBy: task.createdBy,
-      creatorRole: task.creatorRole,
-      creatorName: task.creatorName,
-      assignedToIds: task.assignedToIds,
-      assignedToNames: task.assignedToNames,
-      assignedToRoles: task.assignedToRoles,
-      targetClasses: task.targetClasses,
-      priority: task.priority,
-      status: task.status,
-      createdAt: task.createdAt,
-      dueDate: task.dueDate,
-      isRecurring: task.isRecurring,
-      recurrencePattern: task.recurrencePattern,
-      checkpoints: task.checkpoints,
-      completionNotes: task.completionNotes,
-      progressUpdates: task.progressUpdates,
+    final docRef = _tasks(task.schoolId).doc();
+    final taskWithId = task.copyWith(
+      schoolId: task.schoolId, // Ensure it's set
     );
-    await docRef.set(taskWithId.toFirestore());
+    // Note: copyWith doesn't take id, so we'll just set it in toFirestore or here
+    final data = taskWithId.toFirestore();
+    data['id'] = docRef.id; // Ensure ID is in document too if needed
+
+    await docRef.set(data);
+
+    await AuditLogService().log(
+      schoolId: task.schoolId,
+      userId: task.createdBy,
+      userName: task.creatorName,
+      userRole: task.creatorRole,
+      action: AuditAction.create,
+      resourceType: 'staff_task',
+      resourceId: docRef.id,
+      description: 'Created task: ${task.title}',
+    );
   }
 
-  Future<void> updateTask(StaffTask task) async {
-    await _tasks.doc(task.id).update(task.toFirestore());
+  Future<void> updateTask(StaffTask task, String updaterId, String updaterName, String updaterRole) async {
+    await _tasks(task.schoolId).doc(task.id).update(task.toFirestore());
+
+    await AuditLogService().log(
+      schoolId: task.schoolId,
+      userId: updaterId,
+      userName: updaterName,
+      userRole: updaterRole,
+      action: AuditAction.update,
+      resourceType: 'staff_task',
+      resourceId: task.id,
+      description: 'Updated task: ${task.title}',
+    );
   }
 
-  Future<void> deleteTask(String taskId) async {
-    await _tasks.doc(taskId).delete();
+  /// Soft delete
+  Future<void> deleteTask(StaffTask task, String updaterId, String updaterName, String updaterRole) async {
+    await _tasks(task.schoolId).doc(task.id).update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+    });
+
+    await AuditLogService().log(
+      schoolId: task.schoolId,
+      userId: updaterId,
+      userName: updaterName,
+      userRole: updaterRole,
+      action: AuditAction.delete,
+      resourceType: 'staff_task',
+      resourceId: task.id,
+      description: 'Soft-deleted task: ${task.title}',
+    );
   }
 
-  Stream<List<StaffTask>> getTasksAssignedTo(String userId, String userRole) {
-    return _tasks
-        .snapshots()
-        .map((snap) => snap.docs
-            .map((doc) => StaffTask.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
-            .where((task) => task.assignedToIds.contains(userId) || task.targetRoles.contains(userRole))
-            .toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+  Future<void> restoreTask(StaffTask task, String updaterId, String updaterName, String updaterRole) async {
+    await _tasks(task.schoolId).doc(task.id).update({
+      'isDeleted': false,
+      'deletedAt': null,
+    });
+
+    await AuditLogService().log(
+      schoolId: task.schoolId,
+      userId: updaterId,
+      userName: updaterName,
+      userRole: updaterRole,
+      action: AuditAction.restore,
+      resourceType: 'staff_task',
+      resourceId: task.id,
+      description: 'Restored task: ${task.title}',
+    );
   }
 
-  Stream<List<StaffTask>> getTasksCreatedBy(String userId) {
-    return _tasks
+  Stream<List<StaffTask>> getTasksAssignedTo(String schoolId, String userId, String userRole, {int limit = 20, DocumentSnapshot? startAfter}) {
+    Query query = _tasks(schoolId)
+        .where('isDeleted', isEqualTo: false)
+        .where(Filter.or(
+          Filter('assignedToIds', arrayContains: userId),
+          Filter('targetRoles', arrayContains: userRole),
+        ))
+        .orderBy('createdAt', descending: true)
+        .limit(limit);
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+
+    return query.snapshots().map((snap) => snap.docs
+        .map((doc) => StaffTask.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+        .toList());
+  }
+
+  Stream<List<StaffTask>> getTasksCreatedBy(String schoolId, String userId, {int limit = 20, DocumentSnapshot? startAfter}) {
+    Query query = _tasks(schoolId)
         .where('createdBy', isEqualTo: userId)
-        .snapshots()
-        .map((snap) => snap.docs
-            .map((doc) => StaffTask.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
-            .toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('createdAt', descending: true)
+        .limit(limit);
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+
+    return query.snapshots().map((snap) => snap.docs
+        .map((doc) => StaffTask.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+        .toList());
   }
 
-  Stream<List<StaffTask>> getAllStaffTasks() {
-    return _tasks
-        .snapshots()
-        .map((snap) => snap.docs
-            .map((doc) => StaffTask.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
-            .toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+  Stream<List<StaffTask>> getAllStaffTasks(String schoolId, {int limit = 20, DocumentSnapshot? startAfter}) {
+    Query query = _tasks(schoolId)
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('createdAt', descending: true)
+        .limit(limit);
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+
+    return query.snapshots().map((snap) => snap.docs
+        .map((doc) => StaffTask.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+        .toList());
   }
 
-  // Personal tasks are those created by the user and assigned only to themselves (or no one else)
-  // Or we can have a separate 'isPersonal' flag.
-  // Given the requirement "Maintain personal self-created to-do lists",
-  // I'll assume personal tasks have assignedToIds containing only the creatorId.
-  Stream<List<StaffTask>> getPersonalTasks(String userId) {
-    return _tasks
+  Stream<List<StaffTask>> getPersonalTasks(String schoolId, String userId, {int limit = 20, DocumentSnapshot? startAfter}) {
+    // A personal task is one created by the user where assignedToIds contains only them
+    // and no target roles. We can simplify this query.
+    Query query = _tasks(schoolId)
         .where('createdBy', isEqualTo: userId)
-        .snapshots()
-        .map((snap) => snap.docs
-            .map((doc) => StaffTask.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
-            .where((task) => task.assignedToIds.length == 1 && task.assignedToIds.contains(userId))
-            .toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+        .where('assignedToIds', isEqualTo: [userId])
+        .where('isDeleted', isEqualTo: false)
+        .orderBy('createdAt', descending: true)
+        .limit(limit);
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+
+    return query.snapshots().map((snap) => snap.docs
+        .map((doc) => StaffTask.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+        .toList());
   }
 }
+

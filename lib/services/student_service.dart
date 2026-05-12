@@ -3,33 +3,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/student.dart';
 import '../models/student_remark.dart';
+import 'base_firestore_service.dart';
 
-class StudentService {
-  static final _db          = FirebaseFirestore.instance;
-  static final _storage     = FirebaseStorage.instance;
-  static final _students    = _db.collection('students');
-  static final _attendance  = _db.collection('attendance');
-
+class StudentService extends BaseFirestoreService {
   static final StudentService _instance = StudentService._();
   StudentService._();
   factory StudentService() => _instance;
 
-  // Firestore document ID — Use provided student ID or fallback to class+section+roll
-  String _sid(Student s) {
-    if (s.id.isNotEmpty && !s.id.contains('_')) return s.id;
-    return _sidFromParts(s.roll, s.className, s.section);
-  }
-
-  String _sidFromParts(int roll, String className, [String section = '']) {
-    final base = className.replaceAll(' ', '_');
-    final sec = section.trim().replaceAll(' ', '_');
-    return sec.isEmpty ? '${base}_$roll' : '${base}_${sec}_$roll';
-  }
+  CollectionReference<Map<String, dynamic>> _students(String schoolId) =>
+      schoolCollection(schoolId, 'students');
+  CollectionReference<Map<String, dynamic>> _attendance(String schoolId) =>
+      schoolCollection(schoolId, 'attendance');
 
   // ── Students ──────────────────────────────────────────────────────────────
 
-  Future<List<Student>> getStudents() async {
-    final snap = await _students.get();
+  Future<List<Student>> getStudents({String? schoolId}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final snap = await _students(sId).get();
     final list = snap.docs
         .map((d) => Student.fromJson(Map<String, dynamic>.from(d.data())))
         .toList()
@@ -37,9 +27,9 @@ class StudentService {
     return list;
   }
 
-  /// Fetch student by its unique ID
-  Future<Student?> getStudentById(String id) async {
-    final doc = await _students.doc(id).get();
+  Future<Student?> getStudentById({String? schoolId, required String id}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final doc = await _students(sId).doc(id).get();
     if (doc.exists && doc.data() != null) {
       return Student.fromJson(Map<String, dynamic>.from(doc.data()!));
     }
@@ -47,18 +37,22 @@ class StudentService {
   }
 
   /// Fetch students for a class/section, optionally scoped to one teacher.
-  /// Pass [teacherId] to return only students added by that class teacher.
-  /// Omit it (or pass null) for coordinator/principal views that need all students.
-  Future<List<Student>> getStudentsByClass(String className,
-      {String section = '', String? teacherId}) async {
+  /// Supports pagination with limit and startAfter.
+  Future<List<Student>> getStudentsByClass({
+    String? schoolId,
+    required String className,
+    String section = '',
+    String? teacherId,
+    int limit = 50,
+    DocumentSnapshot? startAfter,
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     String effectiveClass = className;
     String effectiveSection = section;
 
-    // If section is omitted, check if className is a combo like "Class 6 A"
     if (effectiveSection.isEmpty && className.contains(' ')) {
       final parts = className.split(' ');
       final last = parts.last;
-      // Heuristic: sections are usually short (A, B, 1, 2, Blue, Red).
       if (last.length <= 5) {
         effectiveSection = last;
         effectiveClass   = parts.sublist(0, parts.length - 1).join(' ');
@@ -66,42 +60,48 @@ class StudentService {
     }
 
     Query<Map<String, dynamic>> q =
-        _students.where('className', isEqualTo: effectiveClass);
+        _students(sId).where('className', isEqualTo: effectiveClass);
     if (effectiveSection.trim().isNotEmpty) {
       q = q.where('section', isEqualTo: effectiveSection.trim());
     }
     if (teacherId != null && teacherId.isNotEmpty) {
       q = q.where('teacherId', isEqualTo: teacherId);
     }
+
+    // Apply pagination
+    q = q.orderBy('roll').limit(limit);
+    if (startAfter != null) {
+      q = q.startAfterDocument(startAfter);
+    }
+
     final snap = await q.get();
     final list = snap.docs
         .map((d) => Student.fromJson(Map<String, dynamic>.from(d.data())))
         .toList();
 
-    // If combo-split didn't find anything, try the literal className as fallback
-    if (list.isEmpty && effectiveClass != className) {
+    // Fallback logic if no students found with split className/section
+    if (list.isEmpty && effectiveClass != className && startAfter == null) {
       final fallbackSnap =
-          await _students.where('className', isEqualTo: className).get();
+          await _students(sId).where('className', isEqualTo: className).orderBy('roll').limit(limit).get();
       if (fallbackSnap.docs.isNotEmpty) {
-        final fallbackList = fallbackSnap.docs
+        return fallbackSnap.docs
             .map((d) => Student.fromJson(Map<String, dynamic>.from(d.data())))
-            .toList()
-          ..sort((a, b) => a.roll.compareTo(b.roll));
-        return fallbackList;
+            .toList();
       }
     }
 
-    list.sort((a, b) => a.roll.compareTo(b.roll));
     return list;
   }
 
-  /// Real-time stream of students for a class/section.
-  /// Emits a new sorted list on every Firestore change (add / update / delete).
-  /// Pass [teacherId] to scope the stream to one class teacher's students only.
-  Stream<List<Student>> watchStudentsByClass(String className,
-      {String section = '', String? teacherId}) {
+  Stream<List<Student>> watchStudentsByClass({
+    String? schoolId,
+    required String className,
+    String section = '',
+    String? teacherId,
+  }) {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     Query<Map<String, dynamic>> q =
-        _students.where('className', isEqualTo: className);
+        _students(sId).where('className', isEqualTo: className);
     if (section.trim().isNotEmpty) {
       q = q.where('section', isEqualTo: section.trim());
     }
@@ -117,10 +117,9 @@ class StudentService {
     });
   }
 
-  /// Real-time stream of ALL students across every class.
-  /// Used by coordinator/principal dashboards to detect roster changes.
-  Stream<List<Student>> watchStudents() {
-    return _students.snapshots().map((snap) {
+  Stream<List<Student>> watchStudents({String? schoolId}) {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    return _students(sId).snapshots().map((snap) {
       final list = snap.docs
           .map((d) => Student.fromJson(Map<String, dynamic>.from(d.data())))
           .toList()
@@ -129,75 +128,76 @@ class StudentService {
     });
   }
 
-  /// Returns a single student by class + section + roll (used by Guardian Portal).
-  Future<Student?> getStudentByRoll(String className, int roll,
-      {String section = ''}) async {
-    final doc = await _students.doc(_sidFromParts(roll, className, section)).get();
+  Future<Student?> getStudentByRoll({
+    String? schoolId,
+    required String className,
+    required int roll,
+    String section = '',
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final doc = await _students(sId).doc(sidFromParts(roll, className, section)).get();
     if (!doc.exists || doc.data() == null) return null;
     return Student.fromJson(Map<String, dynamic>.from(doc.data()!));
   }
 
-  /// Fetch multiple students by list of rolls within a class.
-  /// Fires all doc-gets in parallel via Future.wait() — O(N) reads, no sequential waits.
-  Future<List<Student>> getStudentsByRolls(String className, List<int> rolls,
-      {String section = ''}) async {
+  Future<List<Student>> getStudentsByRolls({
+    String? schoolId,
+    required String className,
+    required List<int> rolls,
+    String section = '',
+  }) async {
     if (rolls.isEmpty) return [];
     final results = await Future.wait(
-      rolls.map((r) => getStudentByRoll(className, r, section: section)),
+      rolls.map((r) => getStudentByRoll(schoolId: schoolId, className: className, roll: r, section: section)),
     );
     return results.whereType<Student>().toList();
   }
 
-  /// Returns null on success, error string on duplicate roll.
-  Future<String?> addStudent(Student student) async {
-    final id  = _sid(student);
-    final doc = await _students.doc(id).get();
+  Future<String?> addStudent({String? schoolId, required Student student}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final id  = sid(student);
+    final doc = await _students(sId).doc(id).get();
     if (doc.exists) {
       final sec = student.section.isNotEmpty ? ' Section ${student.section}' : '';
       return 'Roll number ${student.roll} already exists in ${student.className}$sec.';
     }
-    await _students.doc(id).set(student.toJson());
+    await _students(sId).doc(id).set(student.toJson());
     return null;
   }
 
-  Future<void> updateStudent(Student updated) async {
-    await _students
-        .doc(_sid(updated))
+  Future<void> updateStudent({String? schoolId, required Student updated}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    await _students(sId)
+        .doc(sid(updated))
         .set(updated.toJson());
   }
 
-  /// Uploads a student photo to Firebase Storage and returns the public URL.
-  Future<String> uploadStudentPhoto(File file, int roll, String className, {String section = ''}) async {
-    final fileName = '${_sidFromParts(roll, className, section)}.jpg';
-    final ref = _storage.ref('students/photos/$fileName');
-    final task = await ref.putFile(file);
-    return await task.ref.getDownloadURL();
+  Future<void> removeStudent({
+    String? schoolId,
+    required int roll,
+    required String className,
+    String section = '',
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    await _students(sId).doc(sidFromParts(roll, className, section)).delete();
+    await _cascadeDeleteAttendance(sId, roll, className, section: section);
   }
 
-  Future<void> removeStudent(int roll, String className,
-      {String section = ''}) async {
-    await _students.doc(_sidFromParts(roll, className, section)).delete();
-    await _cascadeDeleteAttendance(roll, className, section: section);
-  }
-
-  /// Removes a student's roll number from every attendance document in their
-  /// class+section. Uses a Firestore document-ID prefix query so only that
-  /// class/section's attendance docs are scanned.
-  Future<void> _cascadeDeleteAttendance(int roll, String className,
+  Future<void> _cascadeDeleteAttendance(String schoolId, int roll, String className,
       {String section = ''}) async {
     final attKey = section.trim().isEmpty
         ? className
         : '$className ${section.trim()}';
     final prefix = '${attKey.replaceAll(' ', '_')}_';
 
-    final snap = await _attendance
+    final snap = await _attendance(schoolId)
         .where(FieldPath.documentId, isGreaterThanOrEqualTo: prefix)
         .where(FieldPath.documentId, isLessThan: '$prefix')
         .get();
 
     if (snap.docs.isEmpty) return;
 
-    final batch = _db.batch();
+    final batch = db.batch();
     for (final doc in snap.docs) {
       final rolls = Map<String, dynamic>.from(
           (doc.data()['rolls'] as Map?) ?? {});
@@ -211,16 +211,9 @@ class StudentService {
 
   // ── Attendance ─────────────────────────────────────────────────────────────
 
-  String _todayKey(String className) {
-    final now = DateTime.now();
-    // e.g. "Class_6_2026-4-19"
-    return '${className.replaceAll(' ', '_')}_${now.year}-${now.month}-${now.day}';
-  }
-
-  /// Returns 'Present' | 'Absent' | 'Leave' per roll number for a specific date.
-  Future<Map<int, String>> loadAttendanceByDate(String className, DateTime date) async {
-    final key = '${className.replaceAll(' ', '_')}_${date.year}-${date.month}-${date.day}';
-    final doc = await _attendance.doc(key).get();
+  Future<Map<int, String>> loadTodayAttendance({String? schoolId, required String className}) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final doc = await _attendance(sId).doc(todayKey(className)).get();
     if (!doc.exists || doc.data() == null) return {};
     final rolls = Map<String, dynamic>.from(
         (doc.data()!['rolls'] as Map?) ?? {});
@@ -230,94 +223,124 @@ class StudentService {
     });
   }
 
-  /// Returns 'Present' | 'Absent' | 'Leave' per roll number.
-  /// Backward-compatible: old bool values are migrated automatically.
-  Future<Map<int, String>> loadTodayAttendance(String className) async {
-    return loadAttendanceByDate(className, DateTime.now());
+  Future<Map<int, String>> loadAttendanceByDate({
+    String? schoolId,
+    required String className,
+    required DateTime date,
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final key = '${className.replaceAll(' ', '_')}_${date.year}-${date.month}-${date.day}';
+    final doc = await _attendance(sId).doc(key).get();
+    if (!doc.exists || doc.data() == null) return {};
+    final rolls = Map<String, dynamic>.from(
+        (doc.data()!['rolls'] as Map?) ?? {});
+    return rolls.map((k, v) {
+      if (v is bool) return MapEntry(int.parse(k), v ? 'Present' : 'Absent');
+      return MapEntry(int.parse(k), v as String);
+    });
   }
 
-  Future<void> saveAttendance(
-      String className, Map<int, String> attendance) async {
+  Future<void> saveAttendance({
+    String? schoolId,
+    required String className,
+    required Map<int, String> attendance,
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     final rolls = attendance.map((k, v) => MapEntry(k.toString(), v));
-    await _attendance
-        .doc(_todayKey(className))
+    await _attendance(sId)
+        .doc(todayKey(className))
         .set({'rolls': rolls, 'updatedAt': FieldValue.serverTimestamp()},
             SetOptions(merge: true));
   }
 
-  /// Save attendance for a specific date (used by offline sync).
-  Future<void> saveAttendanceForDate(
-      String className, Map<int, String> attendance, DateTime date) async {
+  Future<void> saveAttendanceForDate({
+    String? schoolId,
+    required String className,
+    required Map<int, String> attendance,
+    required DateTime date,
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     final prefix = className.replaceAll(' ', '_');
     final key    = '${prefix}_${date.year}-${date.month}-${date.day}';
     final rolls  = attendance.map((k, v) => MapEntry(k.toString(), v));
-    await _attendance
+    await _attendance(sId)
         .doc(key)
         .set({'rolls': rolls, 'updatedAt': FieldValue.serverTimestamp()},
             SetOptions(merge: true));
   }
 
-  // ── Reasons (call notes after follow-up) ──────────────────────────────────
+  // ── Reasons ────────────────────────────────────────────────────────────────
 
-  Future<void> saveReasons(String className, Map<int, String> reasons) async {
+  Future<void> saveReasons({
+    String? schoolId,
+    required String className,
+    required Map<int, String> reasons,
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     if (reasons.isEmpty) return;
     final raw = reasons.map((k, v) => MapEntry(k.toString(), v));
-    await _attendance.doc(_todayKey(className)).set(
+    await _attendance(sId).doc(todayKey(className)).set(
       {'reasons': raw, 'updatedAt': FieldValue.serverTimestamp()},
       SetOptions(merge: true),
     );
   }
 
-  Future<Map<int, String>> loadTodayReasons(String className) async {
-    final doc = await _attendance.doc(_todayKey(className)).get();
+  Future<Map<int, String>> loadTodayReasons({
+    String? schoolId,
+    required String className,
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final doc = await _attendance(sId).doc(todayKey(className)).get();
     if (!doc.exists || doc.data() == null) return {};
     final raw = Map<String, dynamic>.from(
         (doc.data()!['reasons'] as Map?) ?? {});
     return raw.map((k, v) => MapEntry(int.parse(k), v as String));
   }
 
-  // ── Coordinator summary across all classes ────────────────────────────────
+  // ── Coordinator summary ───────────────────────────────────────────────────
 
-  /// Maximum-speed summary:
-  ///   • 1 Firestore query  — fetches ALL students at once (not N per-class queries)
-  ///   • Dynamically identifies all sections for the requested classes
-  ///   • N Firestore reads  — one attendance doc per (class+section) combo
-  ///   • All fired in parallel before any await
-  Future<List<ClassSummary>> loadTodayFullSummary(
-      List<String> classes) async {
+  Future<List<ClassSummary>> loadTodayFullSummary({
+    String? schoolId,
+    required List<String> classes,
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     if (classes.isEmpty) return [];
 
-    // 1. Fetch ALL students to identify which sections exist for these classes.
-    final allStudentsSnap = await _students.get();
+    // Optimize: Fetch only students belonging to the requested classes.
+    // Use whereIn to avoid fetching all students in the school.
+    final List<Student> allRelevantStudents = [];
+    for (var i = 0; i < classes.length; i += 30) {
+      final chunk = classes.sublist(
+        i, i + 30 > classes.length ? classes.length : i + 30);
+      final snap = await _students(sId).where('className', whereIn: chunk).get();
+      allRelevantStudents.addAll(
+        snap.docs.map((d) => Student.fromJson(Map<String, dynamic>.from(d.data())))
+      );
+    }
 
     final comboSet = <String>{};
     final byCombo  = <String, List<Student>>{};
     final comboParts = <String, Map<String, String>>{};
 
-    for (final doc in allStudentsSnap.docs) {
-      final s = Student.fromJson(Map<String, dynamic>.from(doc.data()));
-      if (classes.contains(s.className)) {
-        final combo = s.section.trim().isEmpty
-            ? s.className
-            : '${s.className} ${s.section.trim()}';
-        comboSet.add(combo);
-        byCombo.putIfAbsent(combo, () => []).add(s);
-        comboParts[combo] = {'class': s.className, 'section': s.section};
-      }
+    for (final s in allRelevantStudents) {
+      final combo = s.section.trim().isEmpty
+          ? s.className
+          : '${s.className} ${s.section.trim()}';
+      comboSet.add(combo);
+      byCombo.putIfAbsent(combo, () => []).add(s);
+      comboParts[combo] = {'class': s.className, 'section': s.section};
     }
 
     final combos = comboSet.toList()..sort();
 
-    // 2. Fetch attendance docs for all identified combos in parallel.
     final attendanceDocs = await Future.wait(
-      combos.map((c) => _attendance.doc(_todayKey(c)).get()),
+      combos.map((c) => _attendance(sId).doc(todayKey(c)).get()),
     );
 
     for (final list in byCombo.values) {
       list.sort((a, b) => a.roll.compareTo(b.roll));
     }
 
-    // 3. Build each ClassSummary from the fetched attendance docs.
     return List.generate(combos.length, (i) {
       final combo    = combos[i];
       final parts    = comboParts[combo]!;
@@ -369,19 +392,20 @@ class StudentService {
     });
   }
 
-  /// Returns roll → absent+leave count over the last [days] days (default 14).
-  /// Parallel Firestore reads — all days fetched simultaneously.
-  Future<Map<int, int>> loadRecentAbsenceDays(
-      String className, {int days = 14}) async {
+  Future<Map<int, int>> loadRecentAbsenceDays({
+    String? schoolId,
+    required String className,
+    int days = 14,
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     final now    = DateTime.now();
     final prefix = className.replaceAll(' ', '_');
 
-    // Fetch all docs in parallel
     final docs = await Future.wait(
       List.generate(days, (i) {
         final date = now.subtract(Duration(days: i));
         final key  = '${prefix}_${date.year}-${date.month}-${date.day}';
-        return _attendance.doc(key).get();
+        return _attendance(sId).doc(key).get();
       }),
     );
 
@@ -402,37 +426,46 @@ class StudentService {
 
   // ── Call tracking ──────────────────────────────────────────────────────────
 
-  /// Save which students have been called (roll → true/false).
-  Future<void> saveCalled(String className, Map<int, bool> called) async {
+  Future<void> saveCalled({
+    String? schoolId,
+    required String className,
+    required Map<int, bool> called,
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     if (called.isEmpty) return;
     final raw = called.map((k, v) => MapEntry(k.toString(), v));
-    await _attendance.doc(_todayKey(className)).set(
+    await _attendance(sId).doc(todayKey(className)).set(
       {'called': raw, 'updatedAt': FieldValue.serverTimestamp()},
       SetOptions(merge: true),
     );
   }
 
-  Future<Map<int, bool>> loadTodayCalled(String className) async {
-    final doc = await _attendance.doc(_todayKey(className)).get();
+  Future<Map<int, bool>> loadTodayCalled({
+    String? schoolId,
+    required String className,
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final doc = await _attendance(sId).doc(todayKey(className)).get();
     if (!doc.exists || doc.data() == null) return {};
     final raw = Map<String, dynamic>.from(
         (doc.data()!['called'] as Map?) ?? {});
     return raw.map((k, v) => MapEntry(int.parse(k), v as bool? ?? false));
   }
 
-  /// Loads every attendance document for a class in a given month.
-  /// Returns: { day → { roll → 'Present'|'Absent'|'Leave' } }
-  /// Only days that have any records are included (i.e. days school was open).
-  /// All day-reads are fired in parallel — max 31 Firestore reads.
-  Future<Map<int, Map<int, String>>> loadMonthAttendance(
-      String className, int year, int month) async {
+  Future<Map<int, Map<int, String>>> loadMonthAttendance({
+    String? schoolId,
+    required String className,
+    required int year,
+    required int month,
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     final prefix     = className.replaceAll(' ', '_');
     final daysInMonth = DateTime(year, month + 1, 0).day;
 
     final docs = await Future.wait(
       List.generate(daysInMonth, (i) {
         final day = i + 1;
-        return _attendance.doc('${prefix}_$year-$month-$day').get();
+        return _attendance(sId).doc('${prefix}_$year-$month-$day').get();
       }),
     );
 
@@ -451,11 +484,12 @@ class StudentService {
     return result;
   }
 
-  /// Returns roll → number of consecutive school days the student has been
-  /// absent or on leave, counting backwards from today.
-  /// Days with no attendance record (weekends, holidays) are skipped.
-  Future<Map<int, int>> loadConsecutiveAbsenceDays(
-      String className, {int maxDays = 20}) async {
+  Future<Map<int, int>> loadConsecutiveAbsenceDays({
+    String? schoolId,
+    required String className,
+    int maxDays = 20,
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     final now    = DateTime.now();
     final prefix = className.replaceAll(' ', '_');
 
@@ -463,7 +497,7 @@ class StudentService {
       List.generate(maxDays, (i) {
         final date = now.subtract(Duration(days: i));
         final key  = '${prefix}_${date.year}-${date.month}-${date.day}';
-        return _attendance.doc(key).get();
+        return _attendance(sId).doc(key).get();
       }),
     );
 
@@ -494,13 +528,17 @@ class StudentService {
   // ── Remarks ───────────────────────────────────────────────────────────────
 
   CollectionReference<Map<String, dynamic>> _remarksRef(
-      int roll, String className, [String section = '']) =>
-      _students.doc(_sidFromParts(roll, className, section)).collection('remarks');
+      String schoolId, int roll, String className, [String section = '']) =>
+      _students(schoolId).doc(sidFromParts(roll, className, section)).collection('remarks');
 
-  /// Returns all remarks for a student, newest first.
-  Future<List<StudentRemark>> getStudentRemarks(
-      String className, int roll, {String section = ''}) async {
-    final snap = await _remarksRef(roll, className, section)
+  Future<List<StudentRemark>> getStudentRemarks({
+    String? schoolId,
+    required String className,
+    required int roll,
+    String section = '',
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final snap = await _remarksRef(sId, roll, className, section)
         .orderBy('timestamp', descending: true)
         .get();
     return snap.docs
@@ -509,21 +547,22 @@ class StudentService {
         .toList();
   }
 
-  /// Adds a remark. Throws [ArgumentError] if remark is empty or > 200 chars.
-  Future<void> addStudentRemark(
-    String className,
-    int roll,
-    String createdByEmail,
-    String role,
-    String remark, {
+  Future<void> addStudentRemark({
+    String? schoolId,
+    required String className,
+    required int roll,
+    required String createdByEmail,
+    required String role,
+    required String remark,
     String  section   = '',
     String? teacherId,
   }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     final trimmed = remark.trim();
     if (trimmed.isEmpty || trimmed.length > 200) {
       throw ArgumentError('Remark must be 1–200 characters.');
     }
-    await _remarksRef(roll, className, section).add({
+    await _remarksRef(sId, roll, className, section).add({
       'createdBy': createdByEmail,
       'role':      role,
       'remark':    trimmed,
@@ -532,15 +571,16 @@ class StudentService {
     });
   }
 
-  /// Deletes a remark. Throws [StateError] if caller is not the author.
-  Future<void> deleteStudentRemark(
-    String className,
-    int roll,
-    String remarkId,
-    String currentUserEmail, {
+  Future<void> deleteStudentRemark({
+    String? schoolId,
+    required String className,
+    required int roll,
+    required String remarkId,
+    required String currentUserEmail,
     String section = '',
   }) async {
-    final ref = _remarksRef(roll, className, section).doc(remarkId);
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final ref = _remarksRef(sId, roll, className, section).doc(remarkId);
     final doc = await ref.get();
     if (!doc.exists) return;
     final data = Map<String, dynamic>.from(doc.data()!);
@@ -550,16 +590,20 @@ class StudentService {
     await ref.delete();
   }
 
-  /// Load attendance doc for a specific date (for history).
-  Future<Map<String, dynamic>?> loadAttendanceForDate(
-      String className, DateTime date) async {
+  Future<Map<String, dynamic>?> loadAttendanceForDate({
+    String? schoolId,
+    required String className,
+    required DateTime date,
+  }) async {
+    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     final key =
         '${className.replaceAll(' ', '_')}_${date.year}-${date.month}-${date.day}';
-    final doc = await _attendance.doc(key).get();
+    final doc = await _attendance(sId).doc(key).get();
     if (!doc.exists || doc.data() == null) return null;
     return Map<String, dynamic>.from(doc.data()!);
   }
 }
+
 
 // ── Data classes for summary (public — used by coordinator screens) ──────────
 

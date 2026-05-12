@@ -58,6 +58,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
   int  _teachersAbsent      = 0;
   int  _unassignedBells     = 0;
   String _coordEmail        = '';
+  String _schoolId           = '';
 
   StreamSubscription? _studentSub;
   Set<String> _knownStudentIds = {};
@@ -66,14 +67,6 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
   void initState() {
     super.initState();
     _loadAll();
-    // Re-run summaries whenever the student roster changes (add/delete).
-    _studentSub = StudentService().watchStudents().listen((students) {
-      final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
-      if (_knownStudentIds.isNotEmpty && ids != _knownStudentIds) {
-        _loadAll();
-      }
-      _knownStudentIds = ids;
-    });
   }
 
   @override
@@ -87,8 +80,31 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
 
     final session = await AuthService().getSession();
     final email   = (session?['email'] as String?) ?? '';
+    final schoolId = (session?['schoolId'] as String?) ?? '';
 
-    final settings = await TimetableService().getSettings();
+    if (schoolId.isEmpty) {
+      await AuthService().clearSession();
+      if (mounted) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const RoleSelectionScreen()));
+      }
+      return;
+    }
+
+    _schoolId = schoolId;
+    _coordEmail = email;
+
+    // Set up student subscription
+    if (_studentSub == null) {
+      _studentSub = StudentService().watchStudents(schoolId: schoolId).listen((students) {
+        final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
+        if (_knownStudentIds.isNotEmpty && ids != _knownStudentIds) {
+          _loadAll();
+        }
+        _knownStudentIds = ids;
+      });
+    }
+
+    final settings = await TimetableService().getSettings(schoolId: schoolId);
     final allClasses = List<String>.from(settings['classes'] as List);
 
     // Filter to assigned classes; fall back to all if none assigned.
@@ -97,41 +113,23 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
         ? List<String>.from(assignedRaw).where(allClasses.contains).toList()
         : allClasses;
 
-    // Fire everything in parallel.
-    final summariesFuture   = StudentService().loadTodayFullSummary(classes);
-    final leavesFuture      = TimetableService().getLeaveApplications(status: 'pending');
-    final notifFuture       = NotificationService().unreadCount(role: 'coordinator', userEmail: email);
-    final absentInfoFuture  = TimetableService().getTodayAbsentTeachersInfo();
-    final copySummaryFuture = CopyCheckService().getLatestSummaries();
+    final summariesFuture   = StudentService().loadTodayFullSummary(schoolId: schoolId, classes: classes);
+    final leavesFuture      = TimetableService().getLeaveApplications(schoolId: schoolId, status: 'pending');
+    final notifFuture       = NotificationService().unreadCount(schoolId: schoolId, role: 'coordinator', userEmail: email);
+    final absentInfoFuture  = TimetableService().getTodayAbsentTeachersInfo(schoolId);
 
     final summaries  = await summariesFuture;
     final leaves     = await leavesFuture;
     final notifCount = await notifFuture;
     final absentInfo = await absentInfoFuture;
-    final copySumm   = await copySummaryFuture;
 
-    // Identify all class names (with sections) that actually have students.
-    final summaryClasses = summaries.map((s) => s.displayName).toList();
-
-    // Load consecutive absence streaks for all identified classes/sections.
-    final streaksList = await Future.wait(
-      summaryClasses.map((cls) => StudentService().loadConsecutiveAbsenceDays(cls)),
-    );
-    final streaks = <String, Map<int, int>>{};
-    for (var i = 0; i < summaryClasses.length; i++) {
-      streaks[summaryClasses[i]] = streaksList[i];
-    }
-
-    if (!mounted) return;
     setState(() {
       _coordEmail         = email;
       _summaries          = summaries;
-      _streaks            = streaks;
       _pendingLeaveCount  = leaves.length;
       _unreadNotifCount   = notifCount;
-      _teachersAbsent     = absentInfo['absentCount']    ?? 0;
+      _teachersAbsent     = absentInfo['absentCount'] ?? 0;
       _unassignedBells    = absentInfo['unassignedBells'] ?? 0;
-      _copySummaries      = copySumm;
       _attendanceLoading  = false;
     });
   }
@@ -391,6 +389,14 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               subtitle: 'View & share class timetables as PDF',
               onTap: () => _navigate(const MyTimetableScreen()),
             ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.privacy_tip_outlined,
+              color: Colors.grey,
+              title: 'Privacy Policy',
+              subtitle: 'How we protect your data',
+              onTap: () => _showPrivacyPolicy(context),
+            ),
 
             // ── TODAY'S OVERVIEW ─────────────────────────────────────────
             const _SectionHeader('TODAY\'S OVERVIEW'),
@@ -408,7 +414,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
   // ── Inline tasks section ──────────────────────────────────────────────────
   Widget _buildTasksSection() {
     return StreamBuilder<List<Task>>(
-      stream: TaskService().getAllTasks(),
+      stream: TaskService().getAllTasks(schoolId: _schoolId),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return _emptyCard('No active tasks');
@@ -780,6 +786,30 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
         ]),
       );
+
+  void _showPrivacyPolicy(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Privacy Policy'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'This School App is committed to protecting your privacy. '
+            'We collect minimal data required for school operations, including '
+            'attendance, marks, and communication. Your data is never shared '
+            'with third parties without consent.\n\n'
+            'For full details, please visit: https://example.com/privacy', // TODO: Update with real link
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CLOSE'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ── Per-student row ───────────────────────────────────────────────────────────

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme.dart';
+
 import '../services/timetable_service.dart';
 import '../services/auth_service.dart';
 import 'coordinator_dashboard.dart';
@@ -9,6 +11,7 @@ import 'admin_screen.dart';
 import 'principal_dashboard.dart';
 import 'guardian_dashboard.dart';
 import 'student_selection_screen.dart';
+import 'school_registration_screen.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
@@ -18,7 +21,9 @@ class RoleSelectionScreen extends StatelessWidget {
   Future<void> _loginAsRole(
       BuildContext context, String role, Widget destination) async {
     final emailCtrl = TextEditingController();
+    final passwordCtrl = TextEditingController();
     bool checking   = false;
+    bool obscurePassword = true;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -42,30 +47,49 @@ class RoleSelectionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Enter your registered email address.',
+                'Enter your registered credentials.',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               TextField(
                 controller: emailCtrl,
                 autofocus: true,
                 keyboardType: TextInputType.emailAddress,
                 maxLength: 100,
-                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 decoration: InputDecoration(
                   labelText: 'Email Address',
-                  prefixIcon: const Icon(Icons.email_outlined),
+                  prefixIcon: const Icon(Icons.email_outlined, size: 20),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10)),
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 12),
                   counterText: '',
                 ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordCtrl,
+                obscureText: obscurePassword,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      size: 20,
+                    ),
+                    onPressed: () => setS(() => obscurePassword = !obscurePassword),
+                  ),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 12),
+                ),
                 onSubmitted: (_) async {
                   if (checking) return;
                   setS(() => checking = true);
-                  final allowed = await _validate(
-                      ctx, emailCtrl.text, role);
+                  final allowed = await _validateAndLogin(
+                      ctx, emailCtrl.text, passwordCtrl.text, role);
                   if (!ctx.mounted) return;
                   if (allowed) Navigator.pop(ctx, true);
                   else setS(() => checking = false);
@@ -83,8 +107,8 @@ class RoleSelectionScreen extends StatelessWidget {
                   ? null
                   : () async {
                       setS(() => checking = true);
-                      final allowed = await _validate(
-                          ctx, emailCtrl.text, role);
+                      final allowed = await _validateAndLogin(
+                          ctx, emailCtrl.text, passwordCtrl.text, role);
                       if (!ctx.mounted) return;
                       if (allowed) {
                         Navigator.pop(ctx, true);
@@ -95,13 +119,15 @@ class RoleSelectionScreen extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: _roleColor(role),
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               child: checking
                   ? const SizedBox(
                       width: 16, height: 16,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
-                  : const Text('Continue'),
+                  : const Text('Sign In'),
             ),
           ],
         ),
@@ -111,109 +137,106 @@ class RoleSelectionScreen extends StatelessWidget {
     if (ok == true && context.mounted) {
       final email = emailCtrl.text.trim().toLowerCase();
 
-      // Guardian: fetch the linked student(s) from Firestore,
-      // store them in the session and route to a GuardianDashboard or selection screen.
+      // Fetch user data from Firestore to get name and schoolId
+      final userDoc = await FirebaseFirestore.instance.collection('allowed_users').doc(email).get();
+      final userData = userDoc.data() ?? {};
+      final name = userData['name'] as String? ?? email.split('@')[0];
+      final schoolId = userData['schoolId'] as String? ?? 'default_school';
+
+      // Route based on role (existing logic)
       if (role == 'guardian') {
         final links = await TimetableService().getGuardianLinks(email);
         if (!context.mounted) return;
         if (links == null || links.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Text(
-                'Your guardian account is not linked to any student yet. '
-                'Please ask the admin to link your account.'),
+            content: const Text('No students linked to this account.'),
             backgroundColor: Colors.orange.shade700,
-            duration: const Duration(seconds: 4),
           ));
           return;
         }
 
-        final sessionLinks = links.map((l) {
-          final cls = l['studentClass'] as String;
-          final roll = l['studentRoll'] as int;
-          final name = l['studentName'] as String? ?? '';
-          return '$cls|$roll|$name';
-        }).toList();
-
+        final sessionLinks = links.map((l) => '${l['studentClass']}|${l['studentRoll']}|${l['studentName'] ?? ''}').toList();
         await AuthService().saveSession(
           email: email,
           role: role,
+          name: name,
+          schoolId: schoolId,
           studentLinks: sessionLinks,
         );
-        if (!context.mounted) return;
 
         if (sessionLinks.length == 1) {
           final parts = sessionLinks.first.split('|');
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => GuardianDashboard(
-                  studentClass: parts[0], studentRoll: int.parse(parts[1])),
-            ),
-          );
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => GuardianDashboard(schoolId: schoolId, studentClass: parts[0], studentRoll: int.parse(parts[1]))));
         } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => StudentSelectionScreen(links: sessionLinks),
-            ),
-          );
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => StudentSelectionScreen(schoolId: schoolId, links: sessionLinks)));
         }
         return;
       }
 
-      // Coordinator / Principal — fetch their assigned classes from Firestore.
       List<String>? assignedClasses;
       if (role == 'coordinator' || role == 'principal') {
         assignedClasses = await TimetableService().getAssignedClasses(email);
       }
 
-      // Teacher / Coordinator / Principal — save session and go to destination.
       await AuthService().saveSession(
         email: email,
-        role:  role,
+        role: role,
+        name: name,
+        schoolId: schoolId,
         assignedClasses: assignedClasses,
       );
       if (context.mounted) {
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => destination));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => destination));
       }
     }
+
   }
 
-  Future<bool> _validate(
-      BuildContext context, String email,
+  Future<bool> _validateAndLogin(
+      BuildContext context, String email, String password,
       String expectedRole) async {
-    final trimmed = email.trim().toLowerCase();
-    if (trimmed.isEmpty ||
-        !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(trimmed)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enter a valid email address')));
+    final trimmedEmail = email.trim().toLowerCase();
+    if (trimmedEmail.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(trimmedEmail)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a valid email address')));
       return false;
     }
-    final role =
-        await TimetableService().validateLogin(trimmed);
-    if (role == null) {
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter your password')));
+      return false;
+    }
+
+    try {
+      // 1. Authenticate with Firebase Auth
+      await AuthService().login(trimmedEmail, password);
+
+      // 2. Verify Role
+      final role = await TimetableService().getAllowedRole(trimmedEmail);
+      if (role != expectedRole) {
+        await AuthService().signOut();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Access denied. This account is registered as ${role ?? "unknown"}.'),
+            backgroundColor: Colors.red.shade700,
+          ));
+        }
+        return false;
+      }
+      return true;
+    } catch (e) {
       if (context.mounted) {
+        String errorMsg = 'Login failed. Please check your credentials.';
+        if (e.toString().contains('user-not-found')) errorMsg = 'No account found with this email.';
+        else if (e.toString().contains('wrong-password')) errorMsg = 'Incorrect password.';
+
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text(
-              'Invalid email. Contact admin if not registered.'),
+          content: Text(errorMsg),
           backgroundColor: Colors.red.shade700,
         ));
       }
       return false;
     }
-    if (role != expectedRole) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              'This email is registered as ${role[0].toUpperCase()}${role.substring(1)}, not ${expectedRole[0].toUpperCase()}${expectedRole.substring(1)}.'),
-          backgroundColor: Colors.orange.shade700,
-        ));
-      }
-      return false;
-    }
-    return true;
   }
+
 
   Color _roleColor(String role) => AppTheme.primary;
 
@@ -304,6 +327,22 @@ class RoleSelectionScreen extends StatelessWidget {
                     context, 'guardian', const _PlaceholderDestination()),
               ),
 
+              const SizedBox(height: 32),
+
+              // ── SaaS Onboarding Link ──────────────────────────────────
+              Center(
+                child: TextButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SchoolRegistrationScreen()),
+                  ),
+                  child: const Text('Not a member? Register your school here',
+                      style: TextStyle(
+                          color: AppTheme.primary,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline)),
+                ),
+              ),
               const SizedBox(height: 32),
             ],
           ),

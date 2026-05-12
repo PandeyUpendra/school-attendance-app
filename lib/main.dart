@@ -12,6 +12,7 @@ import 'screens/guardian_dashboard.dart';
 import 'screens/student_selection_screen.dart';
 import 'services/auth_service.dart';
 import 'services/timetable_service.dart';
+import 'services/base_firestore_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,6 +72,9 @@ class _SplashGateState extends State<_SplashGate> {
 
   Future<void> _checkSession() async {
     final session = await AuthService().getSession();
+    if (session != null && session['schoolId'] != null) {
+      BaseFirestoreService.currentSchoolId = session['schoolId'];
+    }
 
     if (!mounted) return;
 
@@ -92,17 +96,19 @@ class _SplashGateState extends State<_SplashGate> {
 
       case 'guardian':
         final links = session['studentLinks'] as List?;
+        final schoolId = session['schoolId'] as String? ?? 'default_school';
         if (links != null && links.isNotEmpty) {
           if (links.length == 1) {
             final parts = (links.first as String).split('|');
             if (parts.length >= 2) {
               _go(GuardianDashboard(
+                  schoolId: schoolId,
                   studentClass: parts[0], studentRoll: int.parse(parts[1])));
               return;
             }
           } else {
             // Multiple children: go to selection screen
-            _go(StudentSelectionScreen(links: List<String>.from(links)));
+            _go(StudentSelectionScreen(schoolId: schoolId, links: List<String>.from(links)));
             return;
           }
         }
@@ -112,12 +118,13 @@ class _SplashGateState extends State<_SplashGate> {
 
       case 'teacher':
         final teacherId = session['teacherId'] as String?;
+        final schoolId = session['schoolId'] as String? ?? 'default_school';
         if (teacherId != null) {
           final teacher =
-              await TimetableService().getTeacherById(teacherId);
+              await TimetableService().getTeacherById(schoolId: schoolId, id: teacherId);
           if (!mounted) return;
           if (teacher != null) {
-            _go(HomeScreen(teacher: teacher));
+            _go(HomeScreen(teacher: teacher.copyWith(schoolId: schoolId)));
             return;
           }
         }

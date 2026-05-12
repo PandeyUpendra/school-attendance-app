@@ -17,6 +17,7 @@ class _StaffTaskManagementScreenState extends State<StaffTaskManagementScreen> {
   String _userEmail = '';
   String _userRole = '';
   String _userName = '';
+  String _schoolId = '';
   bool _loading = true;
 
   @override
@@ -31,13 +32,13 @@ class _StaffTaskManagementScreenState extends State<StaffTaskManagementScreen> {
       setState(() {
         _userEmail = session['email'] ?? '';
         _userRole = session['role'] ?? '';
-        // In this app, name might not be in session directly, we might need to fetch it.
-        // For now using email as identifier if name is missing.
         _userName = session['name'] ?? _userEmail;
+        _schoolId = session['schoolId'] ?? '';
         _loading = false;
       });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -106,47 +107,50 @@ class _StaffTaskManagementScreenState extends State<StaffTaskManagementScreen> {
   List<Widget> _buildTabViews() {
     if (_userRole == 'principal') {
       return [
-        _TaskList(stream: StaffTaskService().getTasksCreatedBy(_userEmail), filter: (t) => t.status != TaskStatus.completed && t.status != TaskStatus.overdue && (t.assignedToIds.any((id) => id != _userEmail) || t.assignedToRoles.any((r) => r != _userRole))),
-        _TaskList(stream: StaffTaskService().getPersonalTasks(_userEmail)),
-        _TaskList(stream: StaffTaskService().getTasksCreatedBy(_userEmail), filter: (t) => t.status == TaskStatus.completed),
-        _TaskList(stream: StaffTaskService().getTasksCreatedBy(_userEmail), filter: (t) => t.status == TaskStatus.overdue),
+        _TaskList(stream: StaffTaskService().getTasksCreatedBy(_schoolId, _userEmail), schoolId: _schoolId, filter: (t) => t.status != TaskStatus.completed && t.status != TaskStatus.overdue && (t.assignedToIds.any((id) => id != _userEmail) || t.assignedToRoles.any((r) => r != _userRole))),
+        _TaskList(stream: StaffTaskService().getPersonalTasks(_schoolId, _userEmail), schoolId: _schoolId),
+        _TaskList(stream: StaffTaskService().getTasksCreatedBy(_schoolId, _userEmail), schoolId: _schoolId, filter: (t) => t.status == TaskStatus.completed),
+        _TaskList(stream: StaffTaskService().getTasksCreatedBy(_schoolId, _userEmail), schoolId: _schoolId, filter: (t) => t.status == TaskStatus.overdue),
       ];
     } else if (_userRole == 'coordinator') {
       return [
-        _TaskList(stream: StaffTaskService().getTasksAssignedTo(_userEmail, _userRole), filter: (t) => t.createdBy != _userEmail && t.status != TaskStatus.completed),
-        _TaskList(stream: StaffTaskService().getTasksCreatedBy(_userEmail), filter: (t) => (t.assignedToIds.any((id) => id != _userEmail) || t.assignedToRoles.any((r) => r != _userRole)) && t.status != TaskStatus.completed),
-        _TaskList(stream: StaffTaskService().getPersonalTasks(_userEmail)),
-        _TaskList(stream: StaffTaskService().getTasksAssignedTo(_userEmail, _userRole), filter: (t) => t.status == TaskStatus.completed || t.status == TaskStatus.overdue),
+        _TaskList(stream: StaffTaskService().getTasksAssignedTo(_schoolId, _userEmail, _userRole), schoolId: _schoolId, filter: (t) => t.createdBy != _userEmail && t.status != TaskStatus.completed),
+        _TaskList(stream: StaffTaskService().getTasksCreatedBy(_schoolId, _userEmail), schoolId: _schoolId, filter: (t) => (t.assignedToIds.any((id) => id != _userEmail) || t.assignedToRoles.any((r) => r != _userRole)) && t.status != TaskStatus.completed),
+        _TaskList(stream: StaffTaskService().getPersonalTasks(_schoolId, _userEmail), schoolId: _schoolId),
+        _TaskList(stream: StaffTaskService().getTasksAssignedTo(_schoolId, _userEmail, _userRole), schoolId: _schoolId, filter: (t) => t.status == TaskStatus.completed || t.status == TaskStatus.overdue),
       ];
     } else {
       return [
-        _TaskList(stream: StaffTaskService().getTasksAssignedTo(_userEmail, _userRole), filter: (t) => t.createdBy != _userEmail && t.status != TaskStatus.completed),
-        _TaskList(stream: StaffTaskService().getPersonalTasks(_userEmail)),
-        _TaskList(stream: StaffTaskService().getTasksAssignedTo(_userEmail, _userRole), filter: (t) => t.status == TaskStatus.completed || t.status == TaskStatus.overdue),
+        _TaskList(stream: StaffTaskService().getTasksAssignedTo(_schoolId, _userEmail, _userRole), schoolId: _schoolId, filter: (t) => t.createdBy != _userEmail && t.status != TaskStatus.completed),
+        _TaskList(stream: StaffTaskService().getPersonalTasks(_schoolId, _userEmail), schoolId: _schoolId),
+        _TaskList(stream: StaffTaskService().getTasksAssignedTo(_schoolId, _userEmail, _userRole), schoolId: _schoolId, filter: (t) => t.status == TaskStatus.completed || t.status == TaskStatus.overdue),
       ];
     }
   }
 
+
   void _navigateToCreateTask() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => CreateStaffTaskScreen(creatorEmail: _userEmail, creatorRole: _userRole, creatorName: _userName)),
+      MaterialPageRoute(builder: (_) => CreateStaffTaskScreen(schoolId: _schoolId, creatorEmail: _userEmail, creatorRole: _userRole, creatorName: _userName)),
     );
   }
 
   void _navigateToCreatePersonalTask() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => CreateStaffTaskScreen(creatorEmail: _userEmail, creatorRole: _userRole, creatorName: _userName, isPersonal: true)),
+      MaterialPageRoute(builder: (_) => CreateStaffTaskScreen(schoolId: _schoolId, creatorEmail: _userEmail, creatorRole: _userRole, creatorName: _userName, isPersonal: true)),
     );
   }
+
 }
 
 class _TaskList extends StatelessWidget {
   final Stream<List<StaffTask>> stream;
+  final String schoolId;
   final bool Function(StaffTask)? filter;
 
-  const _TaskList({required this.stream, this.filter});
+  const _TaskList({required this.stream, required this.schoolId, this.filter});
 
   @override
   Widget build(BuildContext context) {
@@ -183,7 +187,7 @@ class _TaskList extends StatelessWidget {
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final task = tasks[index];
-            return _StaffTaskTile(task: task);
+            return _StaffTaskTile(task: task, schoolId: schoolId);
           },
         );
       },
@@ -191,10 +195,12 @@ class _TaskList extends StatelessWidget {
   }
 }
 
+
 class _StaffTaskTile extends StatelessWidget {
   final StaffTask task;
+  final String schoolId;
 
-  const _StaffTaskTile({required this.task});
+  const _StaffTaskTile({required this.task, required this.schoolId});
 
   @override
   Widget build(BuildContext context) {
@@ -218,9 +224,15 @@ class _StaffTaskTile extends StatelessWidget {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => StaffTaskDetailScreen(taskId: task.id)),
+            MaterialPageRoute(
+              builder: (_) => StaffTaskDetailScreen(
+                schoolId: schoolId,
+                taskId: task.id,
+              ),
+            ),
           );
         },
+
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(

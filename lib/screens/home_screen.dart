@@ -46,7 +46,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadNotifCount() async {
     final session = await AuthService().getSession();
     final email = session?['email'];
+    final sId   = widget.teacher?.schoolId ?? session?['schoolId'] ?? 'default_school';
     final count = await NotificationService().unreadCount(
+      schoolId:  sId,
       role:      'teacher',
       teacherId: widget.teacher?.id,
       userEmail: email,
@@ -263,6 +265,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => AttendanceScreen(
+                    schoolId: teacher!.schoolId,
                     className: teacher!.classTeacherOf!,
                     section: teacher!.section,
                   ),
@@ -307,6 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               MaterialPageRoute(
                 builder: (_) => AttendanceReportScreen(
+                  schoolId:  teacher!.schoolId,
                   className: teacher!.classTeacherOf!,
                   section: teacher!.section,
                 ),
@@ -523,6 +527,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 builder: (_) => const CalendarScreen(userRole: 'teacher'),
               ),
             ),
+          ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.privacy_tip_outlined,
+            color: Colors.grey,
+            title: 'Privacy Policy',
+            subtitle: 'How we protect your data',
+            onTap: () => _showPrivacyPolicy(context),
           ),
           const SizedBox(height: 32),
         ],
@@ -741,8 +753,40 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+        const _Divider(),
+        _FeatureTile(
+          icon: Icons.privacy_tip_outlined,
+          color: Colors.grey,
+          title: 'Privacy Policy',
+          subtitle: 'How we protect your data',
+          onTap: () => _showPrivacyPolicy(context),
+        ),
         const SizedBox(height: 32),
       ],
+    );
+  }
+
+  void _showPrivacyPolicy(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Privacy Policy'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'This School App is committed to protecting your privacy. '
+            'We collect minimal data required for school operations, including '
+            'attendance, marks, and communication. Your data is never shared '
+            'with third parties without consent.\n\n'
+            'For full details, please visit: https://example.com/privacy', // TODO: Update with real link
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CLOSE'),
+          ),
+        ],
+      ),
     );
   }
 }

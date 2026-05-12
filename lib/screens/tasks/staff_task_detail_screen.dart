@@ -6,8 +6,9 @@ import '../../services/auth_service.dart';
 import '../../theme.dart';
 
 class StaffTaskDetailScreen extends StatefulWidget {
+  final String schoolId;
   final String taskId;
-  const StaffTaskDetailScreen({super.key, required this.taskId});
+  const StaffTaskDetailScreen({super.key, required this.schoolId, required this.taskId});
 
   @override
   State<StaffTaskDetailScreen> createState() => _StaffTaskDetailScreenState();
@@ -16,6 +17,7 @@ class StaffTaskDetailScreen extends StatefulWidget {
 class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
   String _userEmail = '';
   String _userRole = '';
+  String _userName = '';
   final _updateCtrl = TextEditingController();
 
   @override
@@ -30,6 +32,7 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
       setState(() {
         _userEmail = session['email'] ?? '';
         _userRole = session['role'] ?? '';
+        _userName = session['name'] ?? _userEmail;
       });
     }
   }
@@ -37,8 +40,14 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('staff_tasks').doc(widget.taskId).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('staff_tasks')
+          .doc(widget.taskId)
+          .snapshots(),
       builder: (context, snapshot) {
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
@@ -60,9 +69,10 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
               if (isCreator)
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
-                  onPressed: () => _confirmDelete(context),
+                  onPressed: () => _confirmDelete(context, task),
                 ),
             ],
+
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -254,13 +264,13 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
 
   void _updateStatus(StaffTask task, TaskStatus status) {
     if (task.status == status) return;
-    StaffTaskService().updateTask(task.copyWith(status: status));
+    StaffTaskService().updateTask(task.copyWith(status: status), _userEmail, _userName, _userRole);
   }
 
   void _toggleCheckpoint(StaffTask task, int index, bool isCompleted) {
     List<Checkpoint> newList = List.from(task.checkpoints);
     newList[index] = Checkpoint(title: newList[index].title, isCompleted: isCompleted);
-    StaffTaskService().updateTask(task.copyWith(checkpoints: newList));
+    StaffTaskService().updateTask(task.copyWith(checkpoints: newList), _userEmail, _userName, _userRole);
   }
 
   void _addUpdate(StaffTask task) {
@@ -272,21 +282,21 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
     List<String> updates = List.from(task.progressUpdates);
     updates.add(newUpdate);
 
-    StaffTaskService().updateTask(task.copyWith(progressUpdates: updates));
+    StaffTaskService().updateTask(task.copyWith(progressUpdates: updates), _userEmail, _userName, _userRole);
     _updateCtrl.clear();
   }
 
-  void _confirmDelete(BuildContext context) {
+  void _confirmDelete(BuildContext context, StaffTask task) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Task'),
-        content: const Text('Are you sure you want to delete this task?'),
+        content: const Text('Are you sure you want to delete this task? (It will be soft-deleted)'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
           TextButton(
             onPressed: () {
-              StaffTaskService().deleteTask(widget.taskId);
+              StaffTaskService().deleteTask(task, _userEmail, _userName, _userRole);
               Navigator.pop(ctx); // Dialog
               Navigator.pop(context); // Screen
             },
@@ -297,6 +307,7 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
       ),
     );
   }
+
 }
 
 class _PriorityBadge extends StatelessWidget {

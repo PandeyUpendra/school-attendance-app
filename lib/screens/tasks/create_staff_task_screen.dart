@@ -6,6 +6,7 @@ import '../../services/timetable_service.dart';
 import '../../theme.dart';
 
 class CreateStaffTaskScreen extends StatefulWidget {
+  final String schoolId;
   final String creatorEmail;
   final String creatorRole;
   final String creatorName;
@@ -13,6 +14,7 @@ class CreateStaffTaskScreen extends StatefulWidget {
 
   const CreateStaffTaskScreen({
     super.key,
+    required this.schoolId,
     required this.creatorEmail,
     required this.creatorRole,
     required this.creatorName,
@@ -22,6 +24,7 @@ class CreateStaffTaskScreen extends StatefulWidget {
   @override
   State<CreateStaffTaskScreen> createState() => _CreateStaffTaskScreenState();
 }
+
 
 class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
   final _formKey = GlobalKey<FormState>();
@@ -58,9 +61,9 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
   }
 
   Future<void> _loadData() async {
-    final teachers = await TimetableService().getTeachers();
-    final coordinators = await TimetableService().getCoordinators();
-    final settings = await TimetableService().getSettings();
+    final teachers = await TimetableService().getTeachers(schoolId: widget.schoolId);
+    final coordinators = await TimetableService().getCoordinators(widget.schoolId);
+    final settings = await TimetableService().getSettings(schoolId: widget.schoolId);
     final classes = List<String>.from(settings['classes'] as List);
 
     if (mounted) {
@@ -340,8 +343,10 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
 
     final task = StaffTask(
       id: '', // Will be set by service
+      schoolId: widget.schoolId,
       title: _titleCtrl.text.trim(),
       description: _descCtrl.text.trim(),
+
       notes: _notesCtrl.text.trim(),
       createdBy: widget.creatorEmail.toLowerCase().trim(),
       creatorRole: widget.creatorRole,

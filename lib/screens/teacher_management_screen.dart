@@ -13,7 +13,8 @@ import '../theme.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 class TeacherManagementScreen extends StatefulWidget {
-  const TeacherManagementScreen({super.key});
+  final String schoolId;
+  const TeacherManagementScreen({super.key, required this.schoolId});
 
   @override
   State<TeacherManagementScreen> createState() =>
@@ -41,7 +42,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   }
 
   Future<void> _load() async {
-    final list = await _service.getTeachers();
+    final list = await _service.getTeachers(schoolId: widget.schoolId);
     if (!mounted) return;
     setState(() {
       _teachers = list;

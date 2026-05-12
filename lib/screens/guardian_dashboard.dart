@@ -30,11 +30,13 @@ import 'guardian_student_details_screen.dart';
 /// The Guardian Portal — shows a single student's attendance to their parent.
 /// Guardian is linked to {studentClass, studentRoll} in allowed_users.
 class GuardianDashboard extends StatefulWidget {
+  final String schoolId;
   final String studentClass;
   final int    studentRoll;
 
   const GuardianDashboard({
     super.key,
+    required this.schoolId,
     required this.studentClass,
     required this.studentRoll,
   });
@@ -104,10 +106,10 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
 
   /// Loads every exam for the class + this student's result for each.
   Future<List<MapEntry<Exam, ExamResult?>>> _loadExamData() async {
-    final exams = await _examService.getExams(className: widget.studentClass);
+    final exams = await _examService.getExams(schoolId: widget.schoolId, className: widget.studentClass);
     if (exams.isEmpty) return [];
     final resultFuts =
-        exams.map((e) => _examService.getResult(e.id, widget.studentRoll));
+        exams.map((e) => _examService.getResult(schoolId: widget.schoolId, examId: e.id, roll: widget.studentRoll));
     final results = await Future.wait(resultFuts);
     return List.generate(exams.length, (i) => MapEntry(exams[i], results[i]));
   }
@@ -116,23 +118,24 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     setState(() { _loading = true; _error = null; });
     try {
       final results = await Future.wait([
-        _service.getStudentByRoll(widget.studentClass, widget.studentRoll),  // 0
-        _service.loadMonthAttendance(
-            widget.studentClass, _month.year, _month.month),                  // 1
-        _service.loadTodayAttendance(widget.studentClass),                     // 2
-        _feeService.getFeeStructure(widget.studentClass),                      // 3
-        _feeService.getTotalPaid(widget.studentClass, widget.studentRoll),     // 4
+        _service.getStudentByRoll(schoolId: widget.schoolId, className: widget.studentClass, roll: widget.studentRoll),  // 0
+        _service.loadMonthAttendance(schoolId: widget.schoolId,
+            className: widget.studentClass, year: _month.year, month: _month.month),                  // 1
+        _service.loadTodayAttendance(schoolId: widget.schoolId, className: widget.studentClass),                     // 2
+        _feeService.getFeeStructure(schoolId: widget.schoolId, className: widget.studentClass),                      // 3
+        _feeService.getTotalPaid(schoolId: widget.schoolId, className: widget.studentClass, roll: widget.studentRoll),     // 4
         NotificationService().unreadCount(
+          schoolId:     widget.schoolId,
           role:         'guardian',
           studentClass: widget.studentClass,
           studentRoll:  widget.studentRoll,
         ),                                                                     // 5
-        _hwService.getHomeworkForClass(widget.studentClass),                   // 6
+        _hwService.getHomeworkForClass(widget.schoolId, widget.studentClass),                   // 6
         _loadExamData(),                                                       // 7
-        _ttService.getTimetable(),                                             // 8
-        _ttService.getSettings(),                                              // 9
-        _ttService.getTeachers(),                                              // 10
-        SchoolService().getSchoolPolicy(),                                     // 11
+        _ttService.getTimetable(schoolId: widget.schoolId),                                             // 8
+        _ttService.getSettings(schoolId: widget.schoolId),                                              // 9
+        _ttService.getTeachers(schoolId: widget.schoolId),                                              // 10
+        SchoolService().getSchoolPolicy(widget.schoolId),                                     // 11
       ]);
       if (!mounted) return;
 
@@ -184,8 +187,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   Future<void> _changeMonth(DateTime newMonth) async {
     setState(() { _month = newMonth; _loading = true; _error = null; });
     try {
-      final data = await _service.loadMonthAttendance(
-          widget.studentClass, newMonth.year, newMonth.month);
+      final data = await _service.loadMonthAttendance(schoolId: widget.schoolId,
+          className: widget.studentClass, year: newMonth.year, month: newMonth.month);
       if (!mounted) return;
       setState(() { _monthData = data; _loading = false; });
     } catch (e) {
@@ -473,6 +476,14 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         ),
       ),
     ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.privacy_tip_outlined,
+      color: Colors.grey,
+      title: 'Privacy Policy',
+      subtitle: 'How we protect your data',
+      onTap: () => _showPrivacyPolicy(context),
+    ),
 
     // ── SCHOOL POLICY ─────────────────────────────────────────────
     const _SectionHeader('SCHOOL POLICY'),
@@ -514,6 +525,30 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
             child: content,
           ),
         ),
+      ),
+    );
+  }
+
+  void _showPrivacyPolicy(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Privacy Policy'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'This School App is committed to protecting your privacy. '
+            'We collect minimal data required for school operations, including '
+            'attendance, marks, and communication. Your data is never shared '
+            'with third parties without consent.\n\n'
+            'For full details, please visit: https://example.com/privacy', // TODO: Update with real link
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CLOSE'),
+          ),
+        ],
       ),
     );
   }
@@ -661,6 +696,7 @@ class _GuardianHeroCard extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => GuardianDashboard(
+                            schoolId: widget.schoolId,
                             studentClass: sClass,
                             studentRoll: sRoll,
                           ),

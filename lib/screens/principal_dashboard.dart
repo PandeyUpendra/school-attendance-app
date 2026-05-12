@@ -43,6 +43,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   int  _unassignedBells      = 0;
   int  _unreadNotifCount     = 0;
   String _principalEmail     = '';
+  String _schoolId           = '';
 
   StreamSubscription? _studentSub;
   Set<String> _knownStudentIds = {};
@@ -51,14 +52,6 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   void initState() {
     super.initState();
     _loadAll();
-    // Re-run summaries whenever the student roster changes (add/delete).
-    _studentSub = StudentService().watchStudents().listen((students) {
-      final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
-      if (_knownStudentIds.isNotEmpty && ids != _knownStudentIds) {
-        _loadAll();
-      }
-      _knownStudentIds = ids;
-    });
   }
 
   @override
@@ -72,8 +65,28 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
     final session = await AuthService().getSession();
     final email   = (session?['email'] as String?) ?? '';
+    final schoolId = (session?['schoolId'] as String?) ?? '';
 
-    final settings   = await TimetableService().getSettings();
+    if (schoolId.isEmpty) {
+      _logout();
+      return;
+    }
+
+    _schoolId = schoolId;
+    _principalEmail = email;
+
+    // Set up student subscription if not already done
+    if (_studentSub == null) {
+      _studentSub = StudentService().watchStudents(schoolId: schoolId).listen((students) {
+        final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
+        if (_knownStudentIds.isNotEmpty && ids != _knownStudentIds) {
+          _loadAll();
+        }
+        _knownStudentIds = ids;
+      });
+    }
+
+    final settings   = await TimetableService().getSettings(schoolId: schoolId);
     final allClasses = List<String>.from(settings['classes'] as List);
 
     // Filter to assigned classes; fall back to all.
@@ -83,10 +96,10 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
         : allClasses;
 
     // Fire all heavy reads in parallel.
-    final summariesFuture  = StudentService().loadTodayFullSummary(classes);
-    final leavesFuture     = TimetableService().getLeaveApplications(status: 'pending');
-    final notifFuture      = NotificationService().unreadCount(role: 'principal', userEmail: email);
-    final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo();
+    final summariesFuture  = StudentService().loadTodayFullSummary(schoolId: schoolId, classes: classes);
+    final leavesFuture     = TimetableService().getLeaveApplications(schoolId: schoolId, status: 'pending');
+    final notifFuture      = NotificationService().unreadCount(schoolId: schoolId, role: 'principal', userEmail: email);
+    final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo(schoolId);
 
     final summaries  = await summariesFuture;
     final pending    = await leavesFuture;
@@ -95,7 +108,6 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
     if (!mounted) return;
     setState(() {
-      _principalEmail      = email;
       _summaries           = summaries;
       _pendingLeaveCount   = pending.length;
       _teachersAbsent      = absentInfo['absentCount']    ?? 0;
@@ -104,6 +116,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       _loading             = false;
     });
   }
+
 
   Future<void> _logout() async {
     await AuthService().clearSession();
@@ -301,11 +314,43 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 subtitle: 'Manage bells and general schedule',
                 onTap: () => _navigate(const TimetableSettingsScreen()),
               ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.privacy_tip_outlined,
+                color: Colors.grey,
+                title: 'Privacy Policy',
+                subtitle: 'How we protect your data',
+                onTap: () => _showPrivacyPolicy(context),
+              ),
 
               const SizedBox(height: 32),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  void _showPrivacyPolicy(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Privacy Policy'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'This School App is committed to protecting your privacy. '
+            'We collect minimal data required for school operations, including '
+            'attendance, marks, and communication. Your data is never shared '
+            'with third parties without consent.\n\n'
+            'For full details, please visit: https://example.com/privacy', // TODO: Update with real link
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CLOSE'),
+          ),
+        ],
       ),
     );
   }
@@ -388,7 +433,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
   Widget _buildTasksSection() {
     return StreamBuilder<List<Task>>(
-      stream: TaskService().getAllTasks(),
+      stream: TaskService().getAllTasks(schoolId: _schoolId),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return _emptyInfo('No active tasks');
@@ -471,7 +516,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             ],
           ),
           const SizedBox(height: 8),
-          const SizedBox(height: 150, child: StaffTaskAnalyticsView()),
+          SizedBox(height: 150, child: StaffTaskAnalyticsView(schoolId: _schoolId)),
         ],
       ),
     );

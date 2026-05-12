@@ -3,8 +3,9 @@ import '../theme.dart';
 import 'guardian_dashboard.dart';
 
 class StudentSelectionScreen extends StatelessWidget {
+  final String schoolId;
   final List<String> links;
-  const StudentSelectionScreen({super.key, required this.links});
+  const StudentSelectionScreen({super.key, required this.schoolId, required this.links});
 
   @override
   Widget build(BuildContext context) {
@@ -65,6 +66,7 @@ class StudentSelectionScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => GuardianDashboard(
+                            schoolId: schoolId,
                             studentClass: sClass,
                             studentRoll: int.parse(sRoll),
                           ),

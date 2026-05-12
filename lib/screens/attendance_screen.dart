@@ -13,6 +13,7 @@ import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_queue_service.dart';
+import '../services/base_firestore_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/student_remark.dart';
 
@@ -21,11 +22,13 @@ import '../models/student_remark.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 class AttendanceScreen extends StatefulWidget {
+  final String? schoolId;
   final String className;
   final String section;
   final DateTime? date;
   const AttendanceScreen({
     super.key,
+    this.schoolId,
     required this.className,
     this.section = '',
     this.date,
@@ -42,6 +45,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   StreamSubscription<List<ConnectivityResult>>? _connectSub;
   StreamSubscription<List<Student>>? _studentSub;
 
+  late final String _schoolId;
   List<Student>    _students   = [];
   Map<int, String> _attendance = {}; // roll → 'Present' | 'Leave' | 'Absent'
   bool   _loading        = true;
@@ -86,6 +90,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   void initState() {
     super.initState();
+    _schoolId  = widget.schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     _className = widget.className;
     _section   = widget.section;
     _loadSettings();
@@ -183,7 +188,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final session   = await AuthService().getSession();
     final teacherId = session?['teacherId'] as String?;
     if (teacherId != null) {
-      final teacher         = await TimetableService().getTeacherById(teacherId);
+      final teacher         = await TimetableService().getTeacherById(schoolId: _schoolId, id: teacherId);
       final assignedClass   = teacher?.classTeacherOf ?? '';
       final assignedSection = teacher?.section ?? '';
       if (assignedClass.isEmpty || assignedSection.isEmpty) {
@@ -206,18 +211,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     Map<int, String> saved = {};
 
     if (_isOnline) {
-      students = await _service.getStudentsByClass(_className,
+      students = await _service.getStudentsByClass(schoolId: widget.schoolId, className: _className,
           section: _section, teacherId: _teacherId);
       saved    = widget.date == null 
-          ? await _service.loadTodayAttendance(_attendanceKey)
-          : await _service.loadAttendanceByDate(_attendanceKey, widget.date!);
+          ? await _service.loadTodayAttendance(widget.schoolId, _attendanceKey)
+          : await _service.loadAttendanceByDate(widget.schoolId, _attendanceKey, widget.date!);
       if (saved.isEmpty && widget.date == null) {
         final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
         if (cached != null) saved = cached;
       }
     } else {
       try {
-        students = await _service.getStudentsByClass(_className,
+        students = await _service.getStudentsByClass(widget.schoolId, _className,
                 section: _section, teacherId: _teacherId)
             .timeout(const Duration(seconds: 3));
       } catch (_) {
@@ -249,7 +254,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Future<void> _loadExtraData() async {
     try {
       final now = DateTime.now();
-      final monthData = await _service.loadMonthAttendance(_attendanceKey, now.year, now.month);
+      final monthData = await _service.loadMonthAttendance(schoolId: widget.schoolId, className: _attendanceKey, year: now.year, month: now.month);
       
       final Map<int, String> lw = {};
       final Map<int, String> lm = {};
@@ -284,7 +289,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
       // Remarks - fetch in parallel
       final remarksResults = await Future.wait(
-        _students.map((s) => _service.getStudentRemarks(_className, s.roll, section: _section))
+        _students.map((s) => _service.getStudentRemarks(schoolId: widget.schoolId, className: _className, roll: s.roll, section: _section))
       );
       final Map<int, List<StudentRemark>> rm = {};
       for (int i=0; i<_students.length; i++) {
@@ -307,7 +312,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     _studentSub?.cancel();
     bool isFirst = true;
     _studentSub = _service
-        .watchStudentsByClass(_className, section: _section, teacherId: _teacherId)
+        .watchStudentsByClass(schoolId: widget.schoolId, className: _className, section: _section, teacherId: _teacherId)
         .listen((list) {
       if (isFirst) { isFirst = false; return; }
       if (!mounted) return;
@@ -331,11 +336,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     Map<int, String> saved    = {};
 
     if (online) {
-      students = await _service.getStudentsByClass(_className,
+      students = await _service.getStudentsByClass(schoolId: widget.schoolId, className: _className,
           section: _section, teacherId: _teacherId);
       saved    = widget.date == null
-          ? await _service.loadTodayAttendance(_attendanceKey)
-          : await _service.loadAttendanceByDate(_attendanceKey, widget.date!);
+          ? await _service.loadTodayAttendance(schoolId: widget.schoolId, className: _attendanceKey)
+          : await _service.loadAttendanceByDate(schoolId: widget.schoolId, className: _attendanceKey, date: widget.date!);
     } else {
       if (widget.date == null) {
         final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
@@ -383,9 +388,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
 
     if (widget.date == null) {
-      await _service.saveAttendance(_attendanceKey, toSave);
+      await _service.saveAttendance(schoolId: widget.schoolId, className: _attendanceKey, attendance: toSave);
     } else {
-      await _service.saveAttendanceForDate(_attendanceKey, toSave, widget.date!);
+      await _service.saveAttendanceForDate(schoolId: widget.schoolId, className: _attendanceKey, attendance: toSave, date: widget.date!);
     }
     if (mounted) setState(() { _dirty = false; });
   }
@@ -440,9 +445,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _attendance.entries.where((e) => e.value.isNotEmpty));
     
     if (widget.date == null) {
-      await _service.saveAttendance(_attendanceKey, toSave);
+      await _service.saveAttendance(schoolId: widget.schoolId, className: _attendanceKey, attendance: toSave);
     } else {
-      await _service.saveAttendanceForDate(_attendanceKey, toSave, widget.date!);
+      await _service.saveAttendanceForDate(schoolId: widget.schoolId, className: _attendanceKey, attendance: toSave, date: widget.date!);
     }
 
     for (final s in _students) {
@@ -535,7 +540,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
     );
     if (ok != true) return;
-    await _service.removeStudent(s.roll, _className, section: _section);
+    await _service.removeStudent(schoolId: widget.schoolId, roll: s.roll, className: _className, section: _section);
     setState(() { _students.remove(s); _attendance.remove(s.roll); });
   }
 

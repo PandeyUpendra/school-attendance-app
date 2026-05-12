@@ -13,7 +13,11 @@ class AdminScreen extends StatefulWidget {
 class _AdminScreenState extends State<AdminScreen> {
   final _service   = TimetableService();
   final _emailCtrl = TextEditingController();
+  final _nameCtrl  = TextEditingController();
+  final _schoolIdCtrl = TextEditingController(text: 'primary_school');
+  final _passwordCtrl = TextEditingController();
   final _rollCtrl  = TextEditingController();
+
 
   String  _selectedRole           = 'teacher';
   String? _selectedStudentClass;
@@ -73,18 +77,33 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _add() async {
     final email = _emailCtrl.text.trim().toLowerCase();
+    final name  = _nameCtrl.text.trim();
+    final schoolId = _schoolIdCtrl.text.trim();
+    final password = _passwordCtrl.text.trim();
 
-    if (email.isEmpty ||
-        !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
+    if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
       _snack('Enter a valid email address');
       return;
     }
+    if (name.isEmpty) {
+      _snack('Enter the user\'s name');
+      return;
+    }
+    if (schoolId.isEmpty) {
+      _snack('Enter a School ID');
+      return;
+    }
+    if (password.length < 6) {
+      _snack('Password must be at least 6 characters');
+      return;
+    }
+
     if (_users.any((u) => u['email'] == email)) {
       _snack('Email already registered');
       return;
     }
 
-    int?    studentRoll;
+    int? studentRoll;
     String? studentClass;
     if (_selectedRole == 'guardian') {
       if (_selectedStudentClass == null) {
@@ -101,31 +120,47 @@ class _AdminScreenState extends State<AdminScreen> {
     }
 
     setState(() => _saving = true);
-    await _service.addAllowedUser(
-      email, null, _selectedRole,
-      studentClass:    studentClass,
-      studentRoll:     studentRoll,
-      assignedClasses: (_selectedRole == 'coordinator' ||
-                        _selectedRole == 'principal')
-          ? _selectedAssignedClasses
-          : null,
-    );
-    _emailCtrl.clear();
-    _rollCtrl.clear();
-    setState(() {
-      _selectedStudentClass    = null;
-      _selectedAssignedClasses = [];
-      _saving                  = false;
-    });
-    await _load();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('$email added as $_selectedRole'),
-        backgroundColor: Colors.green.shade700,
-        duration: const Duration(seconds: 2),
-      ));
+    try {
+      // NOTE: In a real production app, you'd use a Cloud Function to create the
+      // Firebase Auth user to avoid logging out the current admin.
+      // For this refactor, we store the password in Firestore as requested,
+      // but remind the user to migrate to Firebase Admin SDK/Cloud Functions.
+      await _service.addAllowedUser(
+        email,
+        password,
+        _selectedRole,
+        name: name,
+        schoolId: schoolId,
+        studentClass: studentClass,
+        studentRoll: studentRoll,
+        assignedClasses: (_selectedRole == 'coordinator' || _selectedRole == 'principal')
+            ? _selectedAssignedClasses
+            : null,
+      );
+      _emailCtrl.clear();
+      _nameCtrl.clear();
+      // Keep schoolIdCtrl for next addition
+      _passwordCtrl.clear();
+
+      _rollCtrl.clear();
+      setState(() {
+        _selectedStudentClass = null;
+        _selectedAssignedClasses = [];
+        _saving = false;
+      });
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('$email added as $_selectedRole'),
+          backgroundColor: Colors.green.shade700,
+        ));
+      }
+    } catch (e) {
+      setState(() => _saving = false);
+      _snack('Failed to add user: $e');
     }
   }
+
 
   // ── Edit ───────────────────────────────────────────────────────────────────
 
@@ -557,6 +592,43 @@ class _AdminScreenState extends State<AdminScreen> {
             ),
             const SizedBox(height: 10),
 
+            // Name field
+            TextField(
+              controller: _nameCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Full Name…',
+                hintStyle: const TextStyle(color: Colors.white60),
+                prefixIcon: const Icon(Icons.person_outline, color: Colors.white70),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.15),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // School ID field
+            TextField(
+              controller: _schoolIdCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'School ID (e.g. primary_school)…',
+                hintStyle: const TextStyle(color: Colors.white60),
+                prefixIcon: const Icon(Icons.school_outlined, color: Colors.white70),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.15),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+
             // Guardian extras
             if (_selectedRole == 'guardian') ...[
               Row(children: [
@@ -681,26 +753,42 @@ class _AdminScreenState extends State<AdminScreen> {
               const SizedBox(height: 8),
             ],
 
-            // Email field + Add button
+            // Email field
+            TextField(
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Email address…',
+                hintStyle: const TextStyle(color: Colors.white60),
+                prefixIcon: const Icon(Icons.email_outlined, color: Colors.white70),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.15),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Password field + Add button
             Row(children: [
               Expanded(
                 child: TextField(
-                  controller: _emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
+                  controller: _passwordCtrl,
+                  obscureText: true,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    hintText: 'Email address…',
-                    hintStyle:
-                        const TextStyle(color: Colors.white60),
-                    prefixIcon: const Icon(Icons.email_outlined,
-                        color: Colors.white70),
+                    hintText: 'Password (min 6 chars)…',
+                    hintStyle: const TextStyle(color: Colors.white60),
+                    prefixIcon: const Icon(Icons.lock_outline, color: Colors.white70),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.15),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide.none),
-                    contentPadding:
-                        const EdgeInsets.symmetric(vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   onSubmitted: (_) => _add(),
                 ),
@@ -727,6 +815,7 @@ class _AdminScreenState extends State<AdminScreen> {
                             fontWeight: FontWeight.bold)),
               ),
             ]),
+
           ]),
         ),
 

@@ -71,6 +71,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
         '${_startDate.year}-${_startDate.month.toString().padLeft(2, '0')}-${_startDate.day.toString().padLeft(2, '0')}';
 
     await _service.submitLeaveApplication(
+      schoolId    : widget.teacher.schoolId,
       teacherId   : widget.teacher.id,
       teacherName : widget.teacher.name,
       teacherEmail: widget.teacher.email,
@@ -82,6 +83,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
 
     // Notify the recipient role so their dashboard shows a badge.
     NotificationService().addLeaveSubmitted(
+      schoolId:    widget.teacher.schoolId,
       teacherName: widget.teacher.name,
       toRole:      _toRole,
       days:        _numberOfDays,
