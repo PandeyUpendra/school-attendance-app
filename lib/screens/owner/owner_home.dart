@@ -14,6 +14,7 @@ import '../../services/role_permission_service.dart';
 import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
+import '../../utils/role_guard.dart';
 import '../role_selection_screen.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -36,6 +37,9 @@ class _OwnerHomeState extends State<OwnerHome> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      RoleGuard.verify(context, ['owner']);
+    });
     _init();
   }
 

@@ -9,6 +9,7 @@ import 'admin_screen.dart';
 import 'principal_dashboard.dart';
 import 'guardian_dashboard.dart';
 import 'owner/owner_home.dart';
+import 'owner/owner_principal_home.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
@@ -231,6 +232,71 @@ class RoleSelectionScreen extends StatelessWidget {
     return true;
   }
 
+  Future<void> _openAdmin(BuildContext context) async {
+    final pinCtrl = TextEditingController();
+    bool obscure = true;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Admin Access'),
+          content: TextField(
+            controller: pinCtrl,
+            obscureText: obscure,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: 'PIN',
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                icon: Icon(
+                    obscure ? Icons.visibility : Icons.visibility_off,
+                    size: 18),
+                onPressed: () => setS(() => obscure = !obscure),
+              ),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (!context.mounted) return;
+    if (confirmed != true) return;
+
+    if (pinCtrl.text == 'admin@1234') {
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const AdminScreen()));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Incorrect PIN'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Color _roleColor(String role) => AppTheme.primary;
 
   IconData _roleIcon(String role) {
@@ -270,10 +336,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 title: 'Admin',
                 subtitle: 'Manage registered users & login access',
                 color: AppTheme.primary,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminScreen()),
-                ),
+                onTap: () => _openAdmin(context),
               ),
               const SizedBox(height: 12),
 
@@ -295,7 +358,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 subtitle: 'Manage principals and coordinators',
                 color: AppTheme.primary,
                 onTap: () => _loginAsRole(
-                    context, 'ownerPrincipal', const OwnerHome()),
+                    context, 'ownerPrincipal', const OwnerPrincipalHome()),
               ),
               const SizedBox(height: 12),
 

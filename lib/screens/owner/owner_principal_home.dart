@@ -14,6 +14,7 @@ import '../../services/role_permission_service.dart';
 import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
+import '../../utils/role_guard.dart';
 import '../principal_home.dart';
 import '../role_selection_screen.dart';
 
@@ -37,6 +38,9 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      RoleGuard.verify(context, ['ownerPrincipal']);
+    });
     _init();
   }
 

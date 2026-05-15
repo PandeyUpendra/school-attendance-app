@@ -27,6 +27,7 @@ import 'analytics_screen.dart';
 import 'student_remarks_screen.dart';
 import 'coordinator_staff_tasks_screen.dart';
 import '../services/staff_task_service.dart';
+import '../utils/role_guard.dart';
 
 const _cPurple    = AppTheme.primary;
 const _cPurpleMid = AppTheme.primaryMid;
@@ -58,6 +59,9 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      RoleGuard.verify(context, ['coordinator', 'ownerPrincipal']);
+    });
     _loadAll();
     // Re-run summaries whenever the student roster changes (add/delete).
     _studentSub = StudentService().watchStudents().listen((students) {

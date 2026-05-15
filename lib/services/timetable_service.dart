@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 
@@ -18,6 +20,12 @@ class TimetableService {
 
   // In-memory cache for settings (invalidated on every saveSettings call)
   static Map<String, dynamic>? _settingsCache;
+
+  String _hashPassword(String password) {
+    final bytes = utf8.encode(password);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
 
   // ── Teachers ──────────────────────────────────────────────────────────────
 
@@ -232,7 +240,7 @@ class TimetableService {
     final docRef = _allowedUsers.doc(email.toLowerCase().trim());
     final data   = <String, dynamic>{'role': role};
     if (newPassword != null && newPassword.isNotEmpty) {
-      data['password'] = newPassword;
+      data['password'] = _hashPassword(newPassword);
     }
     if (role == 'guardian' && studentClass != null && studentRoll != null) {
       data['studentClass'] = studentClass;
@@ -263,7 +271,7 @@ class TimetableService {
     final data = <String, dynamic>{
       'role':     role,
       'email':    email.toLowerCase().trim(),
-      'password': password,
+      'password': _hashPassword(password),
       'createdAt': FieldValue.serverTimestamp(),
       if (createdByEmail != null) 'createdByEmail': createdByEmail,
       if (createdByRole  != null) 'createdByRole':  createdByRole,
@@ -331,7 +339,7 @@ class TimetableService {
     if (!doc.exists || doc.data() == null) return null;
     final data = doc.data()!;
     final storedPass = data['password'] as String? ?? '';
-    if (storedPass.isEmpty || storedPass != password) return null;
+    if (storedPass.isEmpty || storedPass != _hashPassword(password)) return null;
     return data['role'] as String?;
   }
 

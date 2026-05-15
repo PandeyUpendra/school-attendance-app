@@ -21,6 +21,7 @@ import 'task_status_screen.dart';
 import 'coordinator_dashboard.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
+import '../utils/role_guard.dart';
 
 /// The Principal Portal — school-wide overview dashboard.
 class PrincipalDashboard extends StatefulWidget {
@@ -47,6 +48,9 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      RoleGuard.verify(context, ['principal', 'ownerPrincipal']);
+    });
     _loadAll();
     // Re-run summaries whenever the student roster changes (add/delete).
     _studentSub = StudentService().watchStudents().listen((students) {
