@@ -99,7 +99,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
     final leavesFuture      = TimetableService().getLeaveApplications(status: 'pending');
     final notifFuture       = NotificationService().unreadCount(role: 'coordinator');
     final absentInfoFuture  = TimetableService().getTodayAbsentTeachersInfo();
-    final taskCountFuture   = StaffTaskService().getIncompleteCountByAssigner(email);
+    final taskCountFuture   = StaffTaskService().getAllIncompleteCount();
 
     final summaries     = await summariesFuture;
     final leaves        = await leavesFuture;

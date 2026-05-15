@@ -619,8 +619,12 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (_) =>
-                      ExamManagementScreen(role: 'teacher', section: teacher!.section)),
+                  builder: (_) => ExamManagementScreen(
+                      role: 'teacher',
+                      section: teacher!.section,
+                      allowedClasses: teacher!.classTeacherOf != null
+                          ? [teacher!.classTeacherOf!]
+                          : [])),
             ),
           ),
 
@@ -714,8 +718,9 @@ class _HomeScreenState extends State<HomeScreen> {
             final pick = await Navigator.push<ClassSectionPick>(
               context,
               MaterialPageRoute(
-                  builder: (_) => const ClassPickerScreen(
-                      mode: ClassPickerMode.studentList)),
+                  builder: (_) => ClassPickerScreen(
+                      mode: ClassPickerMode.studentList,
+                      allowedClasses: teacher?.assignedClasses ?? [])),
             );
             if (pick != null && context.mounted) {
               Navigator.push(
@@ -812,8 +817,10 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (_) =>
-                    ExamManagementScreen(role: 'teacher', section: teacher?.section ?? '')),
+                builder: (_) => ExamManagementScreen(
+                    role: 'teacher',
+                    section: teacher?.section ?? '',
+                    allowedClasses: teacher?.assignedClasses ?? [])),
           ),
         ),
 

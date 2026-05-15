@@ -57,6 +57,14 @@ class StaffTaskService {
         .length;
   }
 
+  /// School-wide incomplete task count for coordinator dashboard badge.
+  Future<int> getAllIncompleteCount() async {
+    final snap = await _tasks.get();
+    return snap.docs
+        .where((d) => (d.data()['status'] as String? ?? '') != 'completed')
+        .length;
+  }
+
   // ── Principal streams ──────────────────────────────────────────────────────
 
   /// Real-time stream of ALL tasks in the school.
