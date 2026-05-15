@@ -143,7 +143,7 @@ class StudentService {
 
     final snap = await _attendance
         .where(FieldPath.documentId, isGreaterThanOrEqualTo: prefix)
-        .where(FieldPath.documentId, isLessThan: '$prefix')
+        .where(FieldPath.documentId, isLessThan: '$prefix■')
         .get();
 
     if (snap.docs.isEmpty) return;
@@ -223,27 +223,21 @@ class StudentService {
 
   // ── Coordinator summary across all classes ────────────────────────────────
 
-  /// Maximum-speed summary:
-  ///   • 1 Firestore query  — fetches ALL students at once (not N per-class queries)
-  ///   • N Firestore reads  — one attendance doc per class (contains BOTH rolls AND reasons)
-  ///   • All fired in parallel before any await
+  /// Builds today's attendance summary for every class in [classes].
   ///
-  /// For 5 classes: was 15+ reads → now 6 reads total.
+  /// AttendanceScreen saves docs keyed as:
+  ///   • no section  → "ClassName_YYYY-M-D"
+  ///   • with section → "ClassName_Section_YYYY-M-D"
+  /// Sections are derived from student records so coordinator/principal always
+  /// read from the same keys the teacher wrote.
   Future<List<ClassSummary>> loadTodayFullSummary(
       List<String> classes) async {
     if (classes.isEmpty) return [];
 
-    // Fire all futures immediately (eager — they run concurrently in parallel)
-    final allStudentsFuture = _students.get();          // 1 query for all students
-    final attendanceFuture  = Future.wait(              // N doc-gets in parallel
-      classes.map((cls) => _attendance.doc(_todayKey(cls)).get()),
-    );
+    // 1. Fetch all students — needed to derive which sections each class has.
+    final allStudentsSnap = await _students.get();
 
-    // Await both concurrently
-    final allStudentsSnap = await allStudentsFuture;
-    final attendanceDocs  = await attendanceFuture;
-
-    // Group students by class (in-memory, zero extra reads)
+    // Group students by className, sorted by roll.
     final byClass = <String, List<Student>>{};
     for (final doc in allStudentsSnap.docs) {
       final s = Student.fromJson(Map<String, dynamic>.from(doc.data()));
@@ -253,20 +247,54 @@ class StudentService {
       list.sort((a, b) => a.roll.compareTo(b.roll));
     }
 
-    // Build each ClassSummary from the already-fetched attendance doc
+    // 2. Build attendance doc key(s) per class, mirroring AttendanceScreen._attendanceKey:
+    //      no section  → className
+    //      section set → "$className $section"
+    //    then _todayKey(key) → "${key.replaceAll(' ','_')}_YYYY-M-D"
+    final now     = DateTime.now();
+    final dateSfx = '_${now.year}-${now.month}-${now.day}';
+
+    final classToKeys = <String, List<String>>{};
+    for (final cls in classes) {
+      final sections = (byClass[cls] ?? [])
+          .map((s) => s.section.trim())
+          .where((s) => s.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort();
+
+      classToKeys[cls] = sections.isEmpty
+          ? ['${cls.replaceAll(' ', '_')}$dateSfx']
+          : sections
+              .map((sec) => '${cls.replaceAll(' ', '_')}_$sec$dateSfx')
+              .toList();
+    }
+
+    // 3. Fetch every attendance doc in parallel (one per section per class).
+    final allKeys = classToKeys.values.expand((k) => k).toList();
+    final allDocs = await Future.wait(
+        allKeys.map((k) => _attendance.doc(k).get()));
+    final docsByKey = <String, DocumentSnapshot<Map<String, dynamic>>>{
+      for (var i = 0; i < allKeys.length; i++) allKeys[i]: allDocs[i],
+    };
+
+    // 4. Merge all section docs into one ClassSummary per class.
     return List.generate(classes.length, (i) {
       final cls      = classes[i];
-      final doc      = attendanceDocs[i];
       final students = byClass[cls] ?? [];
+      final keys     = classToKeys[cls] ?? [];
 
       final Map<int, String> attendance = {};
       final Map<int, String> reasons    = {};
+      var   anyMarked = false;
 
-      if (doc.exists && doc.data() != null) {
+      for (final key in keys) {
+        final doc = docsByKey[key];
+        if (doc == null || !doc.exists || doc.data() == null) continue;
+        anyMarked = true;
         final data       = Map<String, dynamic>.from(doc.data() as Map);
         final rollsRaw   = Map<String, dynamic>.from((data['rolls']   as Map?) ?? {});
         final reasonsRaw = Map<String, dynamic>.from((data['reasons'] as Map?) ?? {});
-
         rollsRaw.forEach((k, v) {
           attendance[int.parse(k)] =
               v is bool ? (v ? 'Present' : 'Absent') : (v as String);
@@ -297,7 +325,7 @@ class StudentService {
         present:     present,
         leave:       leave,
         absent:      absent,
-        marked:      attendance.isNotEmpty,
+        marked:      anyMarked,
         absentLeave: absentLeave,
       );
     });
