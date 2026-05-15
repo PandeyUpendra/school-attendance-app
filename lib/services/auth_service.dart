@@ -8,8 +8,9 @@ class AuthService {
   static const _keyEmail          = 'auth_email';
   static const _keyRole           = 'auth_role';
   static const _keyTeacherId      = 'auth_teacher_id';
-  static const _keyStudentClass   = 'auth_student_class';
+  static const _keyStudentClass    = 'auth_student_class';
   static const _keyStudentRoll    = 'auth_student_roll';
+  static const _keyStudentSection = 'auth_student_section';
   static const _keyAssignedClasses = 'auth_assigned_classes'; // comma-delimited
 
   static final AuthService _instance = AuthService._();
@@ -22,6 +23,7 @@ class AuthService {
     String?       teacherId,
     String?       studentClass,
     int?          studentRoll,
+    String?       studentSection,
     List<String>? assignedClasses,
   }) async {
     final prefs = await SharedPreferences.getInstance();
@@ -37,9 +39,15 @@ class AuthService {
     if (studentClass != null && studentRoll != null) {
       await prefs.setString(_keyStudentClass, studentClass);
       await prefs.setInt(_keyStudentRoll, studentRoll);
+      if (studentSection != null && studentSection.isNotEmpty) {
+        await prefs.setString(_keyStudentSection, studentSection);
+      } else {
+        await prefs.remove(_keyStudentSection);
+      }
     } else {
       await prefs.remove(_keyStudentClass);
       await prefs.remove(_keyStudentRoll);
+      await prefs.remove(_keyStudentSection);
     }
 
     if (assignedClasses != null && assignedClasses.isNotEmpty) {
@@ -61,11 +69,13 @@ class AuthService {
     final tid = prefs.getString(_keyTeacherId);
     if (tid != null) result['teacherId'] = tid;
 
-    final sClass = prefs.getString(_keyStudentClass);
-    final sRoll  = prefs.getInt(_keyStudentRoll);
+    final sClass   = prefs.getString(_keyStudentClass);
+    final sRoll    = prefs.getInt(_keyStudentRoll);
+    final sSection = prefs.getString(_keyStudentSection);
     if (sClass != null && sRoll != null) {
-      result['studentClass'] = sClass;
-      result['studentRoll']  = sRoll;
+      result['studentClass']   = sClass;
+      result['studentRoll']    = sRoll;
+      result['studentSection'] = sSection ?? '';
     }
 
     final assignedRaw = prefs.getString(_keyAssignedClasses);
@@ -82,6 +92,7 @@ class AuthService {
     await prefs.remove(_keyTeacherId);
     await prefs.remove(_keyStudentClass);
     await prefs.remove(_keyStudentRoll);
+    await prefs.remove(_keyStudentSection);
     await prefs.remove(_keyAssignedClasses);
   }
 }

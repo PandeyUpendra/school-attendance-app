@@ -89,11 +89,12 @@ class _SplashGateState extends State<_SplashGate> {
         return;
 
       case 'guardian':
-        final sClass = session['studentClass'] as String?;
-        final sRoll  = session['studentRoll']  as int?;
+        final sClass   = session['studentClass']   as String?;
+        final sRoll    = session['studentRoll']    as int?;
+        final sSection = session['studentSection'] as String? ?? '';
         if (sClass != null && sRoll != null) {
           _go(GuardianDashboard(
-              studentClass: sClass, studentRoll: sRoll));
+              studentClass: sClass, studentRoll: sRoll, studentSection: sSection));
           return;
         }
         // Guardian session missing student link → re-login

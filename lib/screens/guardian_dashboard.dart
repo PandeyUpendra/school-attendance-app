@@ -27,11 +27,13 @@ import 'student_remarks_screen.dart';
 class GuardianDashboard extends StatefulWidget {
   final String studentClass;
   final int    studentRoll;
+  final String studentSection;
 
   const GuardianDashboard({
     super.key,
     required this.studentClass,
     required this.studentRoll,
+    this.studentSection = '',
   });
 
   @override
@@ -92,7 +94,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     setState(() { _loading = true; _error = null; });
     try {
       final results = await Future.wait([
-        _service.getStudentByRoll(widget.studentClass, widget.studentRoll),  // 0
+        _service.getStudentByRoll(widget.studentClass, widget.studentRoll, section: widget.studentSection),  // 0
         _service.loadMonthAttendance(
             widget.studentClass, _month.year, _month.month),                  // 1
         _service.loadTodayAttendance(widget.studentClass),                     // 2

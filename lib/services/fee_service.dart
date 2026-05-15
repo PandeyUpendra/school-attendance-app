@@ -73,6 +73,85 @@ class FeeService {
     return Map.fromEntries(entries);
   }
 
+  // ── School-wide summary ────────────────────────────────────────────────────
+
+  /// Aggregates fee data across all students using fee_payments and fee_structures.
+  /// Returns {collected, pending, overdue, defaulters}.
+  /// collected  = students who have paid their full annual fee
+  /// overdue    = students who have not made any payment at all
+  /// pending    = students who have made partial payments
+  Future<Map<String, dynamic>> getFeesSummary() async {
+    final studentSnap = await _db.collection('students').get();
+
+    final byClass = <String, List<Map<String, dynamic>>>{};
+    for (final doc in studentSnap.docs) {
+      final data = Map<String, dynamic>.from(doc.data() as Map);
+      final cls = data['className'] as String? ?? '';
+      if (cls.isEmpty) continue;
+      byClass.putIfAbsent(cls, () => []).add(data);
+    }
+
+    double collected = 0, pending = 0, overdue = 0;
+    final defaulters = <Map<String, dynamic>>[];
+
+    for (final entry in byClass.entries) {
+      final cls = entry.key;
+      final studs = entry.value;
+      final rolls = studs
+          .map((s) => (s['roll'] as num?)?.toInt() ?? 0)
+          .where((r) => r > 0)
+          .toList();
+
+      final results = await Future.wait([
+        getFeeStructure(className: cls),
+        getClassFeeOverview(className: cls, rolls: rolls),
+      ]);
+
+      final structure = results[0] as FeeStructure;
+      final paidMap = results[1] as Map<int, double>;
+      final totalDue = structure.totalAnnualFee;
+      if (totalDue <= 0) continue;
+
+      for (final sData in studs) {
+        final roll = (sData['roll'] as num?)?.toInt() ?? 0;
+        if (roll <= 0) continue;
+        final paid = paidMap[roll] ?? 0;
+
+        if (paid >= totalDue) {
+          collected += totalDue;
+        } else if (paid == 0) {
+          overdue += totalDue;
+          defaulters.add({
+            'name': sData['name'] ?? '',
+            'className': cls,
+            'amount': totalDue,
+            'daysOverdue': 0,
+            'phone': sData['parentPhone'] ?? sData['phone'] ?? '',
+          });
+        } else {
+          pending += totalDue - paid;
+          defaulters.add({
+            'name': sData['name'] ?? '',
+            'className': cls,
+            'amount': totalDue - paid,
+            'daysOverdue': 0,
+            'phone': sData['parentPhone'] ?? sData['phone'] ?? '',
+          });
+        }
+      }
+    }
+
+    defaulters.sort(
+        (a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+
+    return {
+      'collected': collected,
+      'pending': pending,
+      'overdue': overdue,
+      'defaulters': defaulters,
+    };
+  }
+
   // ── Receipt numbering ──────────────────────────────────────────────────────
 
   /// Generates a receipt number in format RCP-{className 3 chars}-{roll}-{timestamp}.

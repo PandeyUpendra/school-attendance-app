@@ -316,10 +316,11 @@ class TimetableService {
     if (!doc.exists || doc.data() == null) return null;
     final data = doc.data()!;
     if (data['role'] != 'guardian') return null;
-    final cls  = data['studentClass'] as String?;
-    final roll = data['studentRoll']  as int?;
+    final cls     = data['studentClass']   as String?;
+    final roll    = data['studentRoll']    as int?;
+    final section = data['studentSection'] as String? ?? '';
     if (cls == null || roll == null) return null;
-    return {'studentClass': cls, 'studentRoll': roll};
+    return {'studentClass': cls, 'studentRoll': roll, 'studentSection': section};
   }
 
   Future<void> removeAllowedUser(String email) async {

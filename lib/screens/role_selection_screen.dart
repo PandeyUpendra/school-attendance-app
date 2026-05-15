@@ -153,20 +153,22 @@ class RoleSelectionScreen extends StatelessWidget {
           ));
           return;
         }
-        final sClass = link['studentClass'] as String;
-        final sRoll  = link['studentRoll']  as int;
+        final sClass   = link['studentClass']   as String;
+        final sRoll    = link['studentRoll']    as int;
+        final sSection = link['studentSection'] as String? ?? '';
         await AuthService().saveSession(
           email: email,
           role: role,
           studentClass: sClass,
           studentRoll:  sRoll,
+          studentSection: sSection,
         );
         if (!context.mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => GuardianDashboard(
-                studentClass: sClass, studentRoll: sRoll),
+                studentClass: sClass, studentRoll: sRoll, studentSection: sSection),
           ),
         );
         return;

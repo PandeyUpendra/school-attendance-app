@@ -10,6 +10,7 @@ import '../../models/student.dart';
 import '../../services/announcement_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/exam_service.dart';
+import '../../services/fee_service.dart';
 import '../../services/role_permission_service.dart';
 import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
@@ -50,8 +51,10 @@ class _OwnerHomeState extends State<OwnerHome> {
     final role = session?['role'] as String? ?? 'owner';
     String schoolName = '';
     try {
-      final settings = await TimetableService().getSettings();
-      schoolName = settings['schoolName'] as String? ?? '';
+      final schoolDoc = await FirebaseFirestore.instance
+          .doc('schools/school_1/settings/school')
+          .get();
+      schoolName = schoolDoc.data()?['schoolName'] as String? ?? '';
     } catch (_) {}
     if (!mounted) return;
     setState(() {
@@ -807,28 +810,17 @@ class _FinancePageState extends State<_FinancePage> {
   Future<void> _load() async {
     if (mounted) setState(() => _loading = true);
     try {
-      final snap = await FirebaseFirestore.instance.collection('students').get();
-      final students = snap.docs.map((d) => Student.fromJson(Map<String, dynamic>.from(d.data()))).toList();
-      double col = 0, pen = 0, ov = 0;
-      final defaulters = <Map<String, dynamic>>[];
-      final now = DateTime.now();
-      for (final s in students) {
-        final amount = s.feeAmount ?? 5000.0;
-        if (s.feeStatus == 'Paid') {
-          col += amount;
-        } else {
-          final due = s.feeDueDate != null ? DateTime.tryParse(s.feeDueDate!) ?? now : now;
-          if (due.isBefore(now)) {
-            ov += amount;
-            defaulters.add({'name': s.name, 'className': s.className, 'amount': amount, 'daysOverdue': now.difference(due).inDays, 'phone': s.parentPhone ?? s.phone ?? ''});
-          } else {
-            pen += amount;
-          }
-        }
-      }
-      defaulters.sort((a, b) => (b['daysOverdue'] as int).compareTo(a['daysOverdue'] as int));
+      final summary = await FeeService().getFeesSummary();
+      final defaulters =
+          (summary['defaulters'] as List<Map<String, dynamic>>).take(10).toList();
       if (!mounted) return;
-      setState(() { _collected = col; _pending = pen; _overdue = ov; _defaulters = defaulters.take(10).toList(); _loading = false; });
+      setState(() {
+        _collected = summary['collected'] as double;
+        _pending   = summary['pending']   as double;
+        _overdue   = summary['overdue']   as double;
+        _defaulters = defaulters;
+        _loading = false;
+      });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
