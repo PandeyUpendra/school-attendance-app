@@ -248,7 +248,7 @@ class RoleSelectionScreen extends StatelessWidget {
           content: TextField(
             controller: pinCtrl,
             obscureText: obscure,
-            keyboardType: TextInputType.number,
+            keyboardType: TextInputType.visiblePassword,
             autofocus: true,
             decoration: InputDecoration(
               labelText: 'PIN',
@@ -262,7 +262,8 @@ class RoleSelectionScreen extends StatelessWidget {
               border:
                   OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              constraints: const BoxConstraints(minHeight: 56),
             ),
           ),
           actions: [
