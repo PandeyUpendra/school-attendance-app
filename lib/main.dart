@@ -8,6 +8,8 @@ import 'screens/coordinator_dashboard.dart';
 import 'screens/home_screen.dart';
 import 'screens/principal_dashboard.dart';
 import 'screens/guardian_dashboard.dart';
+import 'screens/owner/owner_home.dart';
+import 'screens/owner/owner_principal_home.dart';
 import 'services/auth_service.dart';
 import 'services/timetable_service.dart';
 
@@ -76,6 +78,14 @@ class _SplashGateState extends State<_SplashGate> {
 
       case 'principal':
         _go(const PrincipalDashboard());
+        return;
+
+      case 'owner':
+        _go(const OwnerHome());
+        return;
+
+      case 'ownerPrincipal':
+        _go(const OwnerPrincipalHome());
         return;
 
       case 'guardian':

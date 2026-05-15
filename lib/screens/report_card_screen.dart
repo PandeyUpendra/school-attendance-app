@@ -61,7 +61,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
     setState(() => _loading = true);
     final data = await Future.wait([
       _studentService.getStudentsByClass(widget.className, section: widget.section),
-      _examService.getResults(widget.exam.id),
+      _examService.getResults(examId: widget.exam.id),
     ]);
     final students = data[0] as List<Student>;
     final results  = data[1] as List<ExamResult>;

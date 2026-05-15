@@ -1,4 +1,4 @@
-enum UserRole { teacher, guardian, coordinator, principal, subjectTeacher }
+enum UserRole { teacher, guardian, coordinator, principal, subjectTeacher, owner, ownerPrincipal }
 
 class AppUser {
   final String uid;

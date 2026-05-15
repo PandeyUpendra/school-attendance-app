@@ -23,7 +23,9 @@ class AuthGate extends StatelessWidget {
       if (user?.role == UserRole.teacher) return const TeacherDashboardScreen();
       if (user?.role == UserRole.subjectTeacher) return const SubjectTeacherHome();
       if (user?.role == UserRole.coordinator) return const CoordinatorHome();
-      if (user?.role == UserRole.principal) return const PrincipalHome();
+      if (user?.role == UserRole.principal ||
+          user?.role == UserRole.owner ||
+          user?.role == UserRole.ownerPrincipal) return const PrincipalHome();
       return const ClassSelectionScreen();
     }
 

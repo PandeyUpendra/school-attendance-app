@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme.dart';
 import '../models/teacher.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
+import '../services/staff_task_service.dart';
+import '../services/timetable_service.dart';
 import 'attendance_screen.dart';
 import 'student_list_screen.dart';
 import 'my_timetable_screen.dart';
@@ -17,8 +20,8 @@ import 'exam_management_screen.dart';
 import 'copy_checking_screen.dart';
 import 'homework_screen.dart';
 import 'substitution_history_screen.dart';
-import 'gallery/gallery_home_screen.dart';
 import 'student_remarks_screen.dart';
+import 'staff_tasks_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -29,21 +32,35 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _unreadNotifCount = 0;
+  int _unreadNotifCount  = 0;
+  int _pendingTaskCount  = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadNotifCount();
+    _loadCounts();
   }
 
-  Future<void> _loadNotifCount() async {
-    final count = await NotificationService().unreadCount(
+  Future<void> _loadCounts() async {
+    final tid = widget.teacher?.id ?? '';
+    final notifFuture = NotificationService().unreadCount(
       role:      'teacher',
-      teacherId: widget.teacher?.id,
+      teacherId: tid,
     );
-    if (mounted) setState(() => _unreadNotifCount = count);
+    final taskFuture = tid.isNotEmpty
+        ? StaffTaskService().getPendingCountForTeacher(tid)
+        : Future.value(0);
+
+    final results = await Future.wait([notifFuture, taskFuture]);
+    if (mounted) {
+      setState(() {
+        _unreadNotifCount = results[0];
+        _pendingTaskCount = results[1];
+      });
+    }
   }
+
+  Future<void> _loadNotifCount() => _loadCounts();
 
   @override
   Widget build(BuildContext context) {
@@ -234,6 +251,196 @@ class _HomeScreenState extends State<HomeScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 8),
       );
 
+  void _showAddGuardianSheet(BuildContext context) {
+    final emailCtrl = TextEditingController();
+    final rollCtrl  = TextEditingController();
+    final classCtrl = TextEditingController(
+        text: _isClassTeacher ? (teacher!.classTeacherOf ?? '') : '');
+    bool saving = false;
+    String? sheetError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setInner) => Padding(
+          padding: EdgeInsets.fromLTRB(
+              20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.family_restroom_outlined,
+                        color: AppTheme.primary, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('Add Guardian Account',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                  IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx)),
+                ]),
+                const SizedBox(height: 4),
+                const Text(
+                  'Creates a guardian login linked to a student. Default password: Parent@123',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  maxLength: 100,
+                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                  decoration: InputDecoration(
+                    labelText: 'Guardian Email',
+                    prefixIcon: const Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    isDense: true,
+                    counterText: '',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: classCtrl,
+                  readOnly: _isClassTeacher,
+                  maxLength: 20,
+                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                  decoration: InputDecoration(
+                    labelText: 'Student Class',
+                    prefixIcon: const Icon(Icons.class_outlined),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    isDense: true,
+                    counterText: '',
+                    filled: _isClassTeacher,
+                    fillColor:
+                        _isClassTeacher ? Colors.grey.shade100 : null,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: rollCtrl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                  decoration: InputDecoration(
+                    labelText: 'Student Roll Number',
+                    prefixIcon: const Icon(Icons.tag_outlined),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    isDense: true,
+                    counterText: '',
+                  ),
+                ),
+                if (sheetError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(sheetError!,
+                      style: const TextStyle(
+                          color: Colors.red, fontSize: 12)),
+                ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.person_add_outlined),
+                    label: Text(saving ? 'Adding…' : 'Add Guardian'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            final email =
+                                emailCtrl.text.trim().toLowerCase();
+                            final cls = classCtrl.text.trim();
+                            final roll =
+                                int.tryParse(rollCtrl.text.trim());
+
+                            if (email.isEmpty ||
+                                !RegExp(r'^[^@]+@[^@]+\.[^@]+$')
+                                    .hasMatch(email)) {
+                              setInner(
+                                  () => sheetError = 'Enter a valid email');
+                              return;
+                            }
+                            if (cls.isEmpty) {
+                              setInner(() =>
+                                  sheetError = 'Enter the student class');
+                              return;
+                            }
+                            if (roll == null || roll <= 0) {
+                              setInner(() =>
+                                  sheetError = 'Enter a valid roll number');
+                              return;
+                            }
+                            setInner(() {
+                              saving = true;
+                              sheetError = null;
+                            });
+                            try {
+                              await TimetableService().addAllowedUser(
+                                email,
+                                'Parent@123',
+                                'guardian',
+                                studentClass: cls,
+                                studentRoll: roll,
+                                createdByEmail: teacher?.email ?? '',
+                                createdByRole: 'teacher',
+                              );
+                              if (ctx.mounted) {
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context)
+                                    .showSnackBar(SnackBar(
+                                  content: Text(
+                                      'Guardian $email added (password: Parent@123)'),
+                                  backgroundColor: AppTheme.success,
+                                  duration: const Duration(seconds: 3),
+                                ));
+                              }
+                            } catch (e) {
+                              if (ctx.mounted) {
+                                setInner(() {
+                                  saving = false;
+                                  sheetError = 'Error: $e';
+                                });
+                              }
+                            }
+                          },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildBody(BuildContext context) {
     if (_isClassTeacher) {
       return ListView(
@@ -417,6 +624,24 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          _SectionHeader('MY TASKS'),
+          _FeatureTile(
+            icon: Icons.task_outlined,
+            color: AppTheme.primary,
+            title: 'My Tasks',
+            subtitle: 'View tasks assigned to you',
+            badge: _pendingTaskCount > 0 ? '$_pendingTaskCount' : null,
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        StaffTasksScreen(teacherId: teacher?.id)),
+              );
+              _loadCounts();
+            },
+          ),
+
           _SectionHeader('ANNOUNCEMENTS'),
           _FeatureTile(
             icon: Icons.campaign_outlined,
@@ -432,21 +657,13 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          _SectionHeader('GALLERY'),
+          _SectionHeader('GUARDIANS'),
           _FeatureTile(
-            icon: Icons.photo_library_outlined,
+            icon: Icons.family_restroom_outlined,
             color: AppTheme.primary,
-            title: 'Event Gallery',
-            subtitle: 'View school event photos',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => GalleryHomeScreen(
-                  role:      'teacher',
-                  userEmail: teacher?.id ?? '',
-                ),
-              ),
-            ),
+            title: 'Add Guardian',
+            subtitle: 'Create a guardian login linked to a student',
+            onTap: () => _showAddGuardianSheet(context),
           ),
 
           const SizedBox(height: 32),
@@ -600,6 +817,23 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
+        _SectionHeader('MY TASKS'),
+        _FeatureTile(
+          icon: Icons.task_outlined,
+          color: AppTheme.primary,
+          title: 'My Tasks',
+          subtitle: 'View tasks assigned to you',
+          badge: _pendingTaskCount > 0 ? '$_pendingTaskCount' : null,
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => StaffTasksScreen(teacherId: teacher?.id)),
+            );
+            _loadCounts();
+          },
+        ),
+
         _SectionHeader('ANNOUNCEMENTS'),
         _FeatureTile(
           icon: Icons.campaign_outlined,
@@ -615,21 +849,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        _SectionHeader('GALLERY'),
+        _SectionHeader('GUARDIANS'),
         _FeatureTile(
-          icon: Icons.photo_library_outlined,
+          icon: Icons.family_restroom_outlined,
           color: AppTheme.primary,
-          title: 'Event Gallery',
-          subtitle: 'View school event photos',
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => GalleryHomeScreen(
-                role:      'teacher',
-                userEmail: teacher?.id ?? '',
-              ),
-            ),
-          ),
+          title: 'Add Guardian',
+          subtitle: 'Create a guardian login linked to a student',
+          onTap: () => _showAddGuardianSheet(context),
         ),
 
         const SizedBox(height: 32),
@@ -725,6 +951,7 @@ class _FeatureTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  final String? badge;
 
   const _FeatureTile({
     required this.icon,
@@ -732,6 +959,7 @@ class _FeatureTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.badge,
   });
 
   @override
@@ -742,15 +970,35 @@ class _FeatureTile extends StatelessWidget {
         color: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
+          Stack(clipBehavior: Clip.none, children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 22),
             ),
-            child: Icon(icon, color: color, size: 22),
-          ),
+            if (badge != null)
+              Positioned(
+                top: -4,
+                right: -4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(badge!,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold)),
+                ),
+              ),
+          ]),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

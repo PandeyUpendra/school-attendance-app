@@ -19,7 +19,7 @@ class ExamService {
 
   // ── Exams ──────────────────────────────────────────────────────────────────
 
-  Future<List<Exam>> getExams({String? className}) async {
+  Future<List<Exam>> getExams({String? schoolId, String? className}) async {
     Query q = _exams;
     if (className != null) {
       q = q.where('className', isEqualTo: className);
@@ -34,7 +34,7 @@ class ExamService {
     return list;
   }
 
-  Future<String> createExam(Exam exam) async {
+  Future<String> createExam({String? schoolId, required Exam exam}) async {
     final ref = await _exams.add(exam.toJson());
     return ref.id;
   }
@@ -43,7 +43,7 @@ class ExamService {
     await _exams.doc(exam.id).set(exam.toJson());
   }
 
-  Future<void> deleteExam(String examId) async {
+  Future<void> deleteExam({String? schoolId, required String examId}) async {
     // Delete exam doc — results sub-collection is left (cheap orphan)
     await _exams.doc(examId).delete();
   }
@@ -51,7 +51,7 @@ class ExamService {
   // ── Results ────────────────────────────────────────────────────────────────
 
   /// Get all results for an exam.
-  Future<List<ExamResult>> getResults(String examId) async {
+  Future<List<ExamResult>> getResults({String? schoolId, required String examId}) async {
     final snap = await _resultsCol(examId).get();
     return snap.docs
         .map((d) =>
@@ -69,17 +69,17 @@ class ExamService {
   }
 
   /// Save / update marks for a student.
-  Future<void> saveResult(String examId, ExamResult result) async {
+  Future<void> saveResult({String? schoolId, required String examId, required ExamResult result}) async {
     await _resultsCol(examId).doc('${result.roll}').set(result.toJson());
   }
 
   /// Get all results for a student across all exams in a class.
   Future<List<ExamResult>> getStudentResults(
-      String className, int roll) async {
+      {String? schoolId, required String className, required int roll}) async {
     final exams = await getExams(className: className);
     if (exams.isEmpty) return [];
 
-    final futures = exams.map((e) => getResult(e.id, roll));
+    final futures = exams.map((e) => getResult(e.id, roll)).toList();
     final results = await Future.wait(futures);
     return results.whereType<ExamResult>().toList();
   }

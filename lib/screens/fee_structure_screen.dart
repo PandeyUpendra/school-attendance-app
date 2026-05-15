@@ -41,7 +41,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
 
   Future<void> _selectClass(String cls) async {
     setState(() { _selectedClass = cls; _loading = true; });
-    final structure = await _feeService.getFeeStructure(cls);
+    final structure = await _feeService.getFeeStructure(className: cls);
     if (!mounted) return;
     setState(() { _structure = structure; _loading = false; });
   }
@@ -250,7 +250,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                                 .toList();
                             setS(() => saving = true);
                             await FeeService().saveFeeStructure(
-                              FeeStructure(
+                              structure: FeeStructure(
                                 className: _selectedClass!,
                                 totalAnnualFee: annual,
                                 components: comps,

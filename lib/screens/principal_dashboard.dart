@@ -14,7 +14,13 @@ import 'role_selection_screen.dart';
 import 'announcements_screen.dart';
 import 'notifications_screen.dart';
 import 'analytics_screen.dart';
-import 'gallery/gallery_home_screen.dart';
+import 'principal_digest_screen.dart';
+import 'staff_task_management_screen.dart';
+import 'create_task_screen.dart';
+import 'task_status_screen.dart';
+import 'coordinator_dashboard.dart';
+import '../models/task.dart';
+import '../services/task_service.dart';
 
 /// The Principal Portal — school-wide overview dashboard.
 class PrincipalDashboard extends StatefulWidget {
@@ -33,6 +39,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   int  _unassignedBells      = 0;
   int  _unreadNotifCount     = 0;
   String _principalEmail     = '';
+  String _sessionRole        = 'principal';
 
   StreamSubscription? _studentSub;
   Set<String> _knownStudentIds = {};
@@ -62,6 +69,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
     final session = await AuthService().getSession();
     final email   = (session?['email'] as String?) ?? '';
+    final role    = (session?['role']  as String?) ?? 'principal';
 
     final settings   = await TimetableService().getSettings();
     final allClasses = List<String>.from(settings['classes'] as List);
@@ -86,6 +94,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     if (!mounted) return;
     setState(() {
       _principalEmail      = email;
+      _sessionRole         = role;
       _summaries           = summaries;
       _pendingLeaveCount   = pending.length;
       _teachersAbsent      = absentInfo['absentCount']    ?? 0;
@@ -93,6 +102,17 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       _unreadNotifCount    = notifCount;
       _loading             = false;
     });
+
+    _maybeAutoPromptDigest();
+  }
+
+  /// After 5pm, if today's digest hasn't been opened yet, push the principal
+  /// straight into it.  Runs once per day per device.
+  Future<void> _maybeAutoPromptDigest() async {
+    if (DateTime.now().hour < 17) return;
+    if (await PrincipalDigestScreen.hasViewedToday()) return;
+    if (!mounted) return;
+    await _navigate(const PrincipalDigestScreen());
   }
 
   Future<void> _logout() async {
@@ -133,6 +153,10 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               _SectionHeader("TODAY'S ATTENDANCE"),
               _buildAttendanceSection(),
 
+              // ── Active Tasks ───────────────────────────────────────────
+              _SectionHeader('ACTIVE TASKS'),
+              _buildTasksSection(),
+
               // ── Analytics ─────────────────────────────────────────────
               _SectionHeader('ANALYTICS'),
               _FeatureTile(
@@ -144,22 +168,46 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               ),
               const Divider(height: 1, indent: 72),
 
-              // ── Gallery ───────────────────────────────────────────────
-              _SectionHeader('GALLERY'),
+              // ── Tools ─────────────────────────────────────────────────
+              _SectionHeader('TOOLS'),
               _FeatureTile(
-                icon: Icons.photo_library_outlined,
+                icon: Icons.task_outlined,
                 color: AppTheme.primary,
-                title: 'Event Gallery',
-                subtitle: 'Upload and manage school event photos',
-                onTap: () => _navigate(GalleryHomeScreen(
-                  role:      'principal',
-                  userEmail: _principalEmail,
+                title: 'Staff Task Management',
+                subtitle: 'Assign tasks to staff, track status and overdue',
+                onTap: () => _navigate(const StaffTaskManagementScreen()),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.task_alt_outlined,
+                color: AppTheme.primary,
+                title: 'Task Status',
+                subtitle: 'Check completion status of created tasks',
+                onTap: () => _navigate(TaskStatusScreen(
+                  createdByEmail: _principalEmail,
+                  isAdmin: true,
                 )),
               ),
               const Divider(height: 1, indent: 72),
-
-              // ── Tools ─────────────────────────────────────────────────
-              _SectionHeader('TOOLS'),
+              _FeatureTile(
+                icon: Icons.add_task_outlined,
+                color: AppTheme.primary,
+                title: 'Create Task',
+                subtitle: 'Assign tasks to teachers/classes',
+                onTap: () => _navigate(CreateTaskScreen(
+                  createdBy: _principalEmail,
+                  creatorRole: 'principal',
+                )),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.summarize_outlined,
+                color: AppTheme.primary,
+                title: "Today's Digest",
+                subtitle: 'EOD summary · attendance, leaves, fees, copy-check',
+                onTap: () => _navigate(const PrincipalDigestScreen()),
+              ),
+              const Divider(height: 1, indent: 72),
               _FeatureTile(
                 icon: Icons.campaign_outlined,
                 color: AppTheme.primary,
@@ -220,6 +268,19 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 subtitle: 'View student details and contact info by class',
                 onTap: () => _navigate(const StudentDetailsScreen()),
               ),
+
+              // ── Owner-Principal: Coordinator Tools ────────────────────────
+              if (_sessionRole == 'ownerPrincipal') ...[
+                const Divider(height: 1, indent: 72),
+                _SectionHeader('COORDINATOR TOOLS'),
+                _FeatureTile(
+                  icon: Icons.admin_panel_settings_outlined,
+                  color: AppTheme.primaryMid,
+                  title: 'Coordinator Tools',
+                  subtitle: 'Access timetable, substitutions, leave management & more',
+                  onTap: () => _navigate(const CoordinatorDashboard()),
+                ),
+              ],
 
               const SizedBox(height: 32),
             ],
@@ -303,6 +364,69 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     if (s.absent > 0) return const Color(0xFFC62828);
     if (s.leave  > 0) return const Color(0xFFF57F17);
     return const Color(0xFF2E7D32);
+  }
+
+  Widget _buildTasksSection() {
+    return StreamBuilder<List<Task>>(
+      stream: TaskService().getAllTasks(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return _emptyInfo('No active tasks');
+        }
+        final tasks = snapshot.data!.take(3).toList();
+        return Column(
+          children: tasks.map((task) {
+            final done = task.studentStatuses.values.where((v) => v).length;
+            final totalMarked = task.studentStatuses.length;
+            final progress = totalMarked == 0 ? 0.0 : done / totalMarked;
+
+            return Container(
+              margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.task_alt, color: AppTheme.primary, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          task.title,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '${(progress * 100).round()}%',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: Colors.grey.shade100,
+                    color: AppTheme.success,
+                    minHeight: 6,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Classes: ${task.assignedClasses.join(", ")}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
   }
 
   Widget _emptyInfo(String msg) => Container(

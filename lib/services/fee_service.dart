@@ -23,7 +23,7 @@ class FeeService {
 
   // ── Fee Structure ──────────────────────────────────────────────────────────
 
-  Future<FeeStructure> getFeeStructure(String className) async {
+  Future<FeeStructure> getFeeStructure({String? schoolId, required String className}) async {
     final doc =
         await _feeStructures.doc(className.replaceAll(' ', '_')).get();
     if (!doc.exists || doc.data() == null) {
@@ -33,7 +33,7 @@ class FeeService {
         Map<String, dynamic>.from(doc.data() as Map));
   }
 
-  Future<void> saveFeeStructure(FeeStructure structure) async {
+  Future<void> saveFeeStructure({String? schoolId, required FeeStructure structure}) async {
     await _feeStructures
         .doc(structure.className.replaceAll(' ', '_'))
         .set(structure.toJson());
@@ -41,7 +41,7 @@ class FeeService {
 
   // ── Payments ───────────────────────────────────────────────────────────────
 
-  Future<List<Payment>> getPayments(String className, int roll) async {
+  Future<List<Payment>> getPayments({String? schoolId, required String className, required int roll}) async {
     final snap = await _paymentsCol(className, roll)
         .orderBy('paidOn', descending: true)
         .get();
@@ -50,13 +50,12 @@ class FeeService {
     }).toList();
   }
 
-  Future<void> addPayment(
-      String className, int roll, Payment payment) async {
+  Future<void> addPayment({String? schoolId, required String className, required int roll, required Payment payment}) async {
     await _paymentsCol(className, roll).add(payment.toJson());
   }
 
-  Future<double> getTotalPaid(String className, int roll) async {
-    final payments = await getPayments(className, roll);
+  Future<double> getTotalPaid({String? schoolId, required String className, required int roll}) async {
+    final payments = await getPayments(className: className, roll: roll);
     return payments.fold<double>(0.0, (sum, p) => sum + p.amount);
   }
 
@@ -64,11 +63,10 @@ class FeeService {
 
   /// Returns { roll → totalPaid } for every student in a class.
   /// Fires one query per student in parallel.
-  Future<Map<int, double>> getClassFeeOverview(
-      String className, List<int> rolls) async {
+  Future<Map<int, double>> getClassFeeOverview({String? schoolId, required String className, required List<int> rolls}) async {
     if (rolls.isEmpty) return {};
     final futures = rolls.map((roll) async {
-      final paid = await getTotalPaid(className, roll);
+      final paid = await getTotalPaid(className: className, roll: roll);
       return MapEntry(roll, paid);
     });
     final entries = await Future.wait(futures);

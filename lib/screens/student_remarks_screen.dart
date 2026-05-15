@@ -250,7 +250,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
           // ── Step 1: class picker (coordinator only) ──────────────────────
-          if (widget.role == 'coordinator') ...[
+          if (widget.role == 'coordinator' || widget.role == 'ownerPrincipal') ...[
             _sectionLabel('Select Class'),
             _ClassDropdown(
               classes:  _classes,
@@ -263,7 +263,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
           // ── Step 2: student picker (teacher / coordinator) ───────────────
           if (widget.role != 'guardian') ...[
             _sectionLabel('Select Student'),
-            if (_selectedClass == null && widget.role == 'coordinator')
+            if (_selectedClass == null && (widget.role == 'coordinator' || widget.role == 'ownerPrincipal'))
               _hintCard('Pick a class above first')
             else if (_loadingStudents)
               const Padding(

@@ -8,6 +8,7 @@ import 'teacher_profile_screen.dart';
 import 'admin_screen.dart';
 import 'principal_dashboard.dart';
 import 'guardian_dashboard.dart';
+import 'owner/owner_home.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
@@ -172,7 +173,8 @@ class RoleSelectionScreen extends StatelessWidget {
 
       // Coordinator / Principal — fetch their assigned classes from Firestore.
       List<String>? assignedClasses;
-      if (role == 'coordinator' || role == 'principal') {
+      if (role == 'coordinator' || role == 'principal' ||
+          role == 'owner' || role == 'ownerPrincipal') {
         assignedClasses = await TimetableService().getAssignedClasses(email);
       }
 
@@ -272,6 +274,28 @@ class RoleSelectionScreen extends StatelessWidget {
                   context,
                   MaterialPageRoute(builder: (_) => const AdminScreen()),
                 ),
+              ),
+              const SizedBox(height: 12),
+
+              // ── Owner ─────────────────────────────────────────────────
+              _RoleCard(
+                icon: Icons.stars_outlined,
+                title: 'Owner',
+                subtitle: 'Manage principals and school hierarchy',
+                color: AppTheme.primary,
+                onTap: () => _loginAsRole(
+                    context, 'owner', const OwnerHome()),
+              ),
+              const SizedBox(height: 12),
+
+              // ── Owner-Principal ───────────────────────────────────────
+              _RoleCard(
+                icon: Icons.manage_accounts_outlined,
+                title: 'Owner-Principal',
+                subtitle: 'Manage principals and coordinators',
+                color: AppTheme.primary,
+                onTap: () => _loginAsRole(
+                    context, 'ownerPrincipal', const OwnerHome()),
               ),
               const SizedBox(height: 12),
 

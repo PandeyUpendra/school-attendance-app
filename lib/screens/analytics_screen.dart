@@ -861,7 +861,7 @@ class _FeeTabState extends State<_FeeTab>
 
     for (final cls in widget.classes) {
       final results = await Future.wait([
-        _feeService.getFeeStructure(cls),
+        _feeService.getFeeStructure(className: cls),
         _studentService.getStudentsByClass(cls),
       ]);
       final structure = results[0] as dynamic; // FeeStructure
@@ -879,7 +879,7 @@ class _FeeTabState extends State<_FeeTab>
 
       // Load paid per student in parallel
       final paidList = await Future.wait(
-        students.map((s) => _feeService.getTotalPaid(cls, s.roll)),
+        students.map((s) => _feeService.getTotalPaid(className: cls, roll: s.roll)),
       );
       final totalPaid = paidList.fold<double>(0, (a, b) => a + b);
       final totalFee  =

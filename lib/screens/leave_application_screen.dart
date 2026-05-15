@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme.dart';
 import '../models/teacher.dart';
 import '../services/timetable_service.dart';
@@ -22,6 +23,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
   String _reason = 'Medical / Health Issue';
   final _customReasonCtrl = TextEditingController();
   bool _submitting = false;
+  int _historyLimit = 20;
 
   static const _reasonOptions = [
     'Medical / Health Issue',
@@ -327,6 +329,81 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
             ),
           ),
           const SizedBox(height: 32),
+
+          // ── Leave History ─────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              'MY LEAVE HISTORY',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey.shade500,
+                letterSpacing: 0.6,
+              ),
+            ),
+          ),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('leave_applications')
+                .where('teacherId', isEqualTo: widget.teacher.id)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+              final docs = snapshot.hasData
+                  ? snapshot.data!.docs.toList()
+                  : <QueryDocumentSnapshot>[];
+              docs.sort((a, b) {
+                final ta = (a.data() as Map)['createdAt'];
+                final tb = (b.data() as Map)['createdAt'];
+                if (ta == null && tb == null) return 0;
+                if (ta == null) return 1;
+                if (tb == null) return -1;
+                return (tb as dynamic).compareTo(ta as dynamic);
+              });
+              if (docs.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Text(
+                      'No leave applications yet.',
+                      style: TextStyle(
+                          color: Colors.grey.shade500, fontSize: 14),
+                    ),
+                  ),
+                );
+              }
+              final display = docs.take(_historyLimit).toList();
+              final hasMore = docs.length > _historyLimit;
+              return Column(
+                children: [
+                  ...display.map((doc) =>
+                      _leaveHistoryCard(doc.data() as Map<String, dynamic>)),
+                  if (hasMore)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: TextButton(
+                        onPressed: () =>
+                            setState(() => _historyLimit += 20),
+                        child: Text(
+                          'Load More (${docs.length - _historyLimit} remaining)',
+                          style:
+                              const TextStyle(color: AppTheme.primary),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -382,6 +459,124 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
         ]),
       ),
     );
+  }
+
+  Widget _leaveHistoryCard(Map<String, dynamic> data) {
+    final status = (data['status'] as String?) ?? 'pending';
+    final startDate = (data['startDate'] as String?) ?? '';
+    final days = (data['numberOfDays'] as int?) ?? 1;
+    final reason = (data['reason'] as String?) ?? '';
+
+    Color statusColor;
+    String statusLabel;
+    switch (status) {
+      case 'approved':
+        statusColor = Colors.green.shade700;
+        statusLabel = 'Approved';
+        break;
+      case 'rejected':
+        statusColor = Colors.red.shade700;
+        statusLabel = 'Rejected';
+        break;
+      default:
+        statusColor = Colors.amber.shade700;
+        statusLabel = 'Pending';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _formatDateRange(startDate, days),
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    reason.length > 28
+                        ? '${reason.substring(0, 25)}…'
+                        : reason,
+                    style: const TextStyle(
+                        fontSize: 11, color: AppTheme.primary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: statusColor.withOpacity(0.3)),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$days day${days == 1 ? '' : 's'}',
+                style: TextStyle(
+                    fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDateRange(String startDate, int days) {
+    const months = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    try {
+      final parts = startDate.split('-');
+      final start = DateTime(
+          int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+      final end = start.add(Duration(days: days - 1));
+      if (days == 1) {
+        return '${start.day} ${months[start.month]} ${start.year}';
+      }
+      if (start.month == end.month && start.year == end.year) {
+        return '${start.day}–${end.day} ${months[start.month]} ${start.year}';
+      }
+      return '${start.day} ${months[start.month]} – '
+          '${end.day} ${months[end.month]} ${end.year}';
+    } catch (_) {
+      return startDate;
+    }
   }
 
   Widget _stepperBtn({required IconData icon, VoidCallback? onTap}) {

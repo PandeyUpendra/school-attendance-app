@@ -3,12 +3,15 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:provider/provider.dart';
-
 import '../data/student_data.dart';
-import '../providers/auth_provider.dart';
+import '../services/auth_service.dart';
+import 'role_selection_screen.dart';
 import '../services/firestore_service.dart';
+import '../services/role_permission_service.dart';
+import '../services/timetable_service.dart';
+import '../theme.dart';
 
 class PrincipalHome extends StatefulWidget {
   const PrincipalHome({super.key});
@@ -46,12 +49,24 @@ class _PrincipalHomeState extends State<PrincipalHome> {
   String _lbCategory = 'Academic';
   List<Map<String, dynamic>> _lbEntries = [];
 
+  // ── Attendance card ──
+  bool _cardLoading = true;
+  bool _cardError = false;
+  int _cardPresent = 0;
+  int _cardTotal = 0;
+  List<Map<String, dynamic>> _classBreakdown = [];
+
   // ── Events ──
   bool _eventsLoading = true;
   List<Map<String, dynamic>> _events = [];
   bool _eventUploading = false;
 
   final _scrollCtrl = ScrollController();
+
+  // My-created coordinators list
+  List<Map<String, dynamic>> _myCoordinators = [];
+  bool _coordListLoading = false;
+  String _myEmail = '';
 
   @override
   void initState() {
@@ -66,20 +81,285 @@ class _PrincipalHomeState extends State<PrincipalHome> {
   }
 
   Future<void> _initUser() async {
-    final auth = context.read<AuthProvider>();
-    _schoolId = auth.user?.schoolId ?? '';
-    _principalName = auth.user?.name ?? 'Principal';
+    final session = await AuthService().getSession();
+    _myEmail = session?['email'] as String? ?? '';
+    if (_myEmail.isNotEmpty) _principalName = _myEmail;
+
     await _loadAll();
+    await _loadMyCoordinators();
+  }
+
+  Future<void> _loadMyCoordinators() async {
+    if (_myEmail.isEmpty) return;
+    setState(() => _coordListLoading = true);
+    final users = await TimetableService().getUsersCreatedBy(_myEmail);
+    if (!mounted) return;
+    setState(() {
+      _myCoordinators = users
+          .where((u) => (u['role'] as String) == 'coordinator')
+          .toList();
+      _coordListLoading = false;
+    });
+  }
+
+  void _showCreateCoordinatorSheet() {
+    final nameCtrl  = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final passCtrl  = TextEditingController();
+    bool showPass   = false;
+    bool saving     = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => Padding(
+          padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36, height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.admin_panel_settings_outlined,
+                        color: AppTheme.primary, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text('Create Coordinator',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold)),
+                ]),
+                const SizedBox(height: 20),
+                _sheetField(nameCtrl, 'Full Name', Icons.person_outline),
+                const SizedBox(height: 12),
+                _sheetField(emailCtrl, 'Email Address', Icons.email_outlined,
+                    keyboardType: TextInputType.emailAddress),
+                const SizedBox(height: 12),
+                StatefulBuilder(
+                  builder: (_, setSub) => TextField(
+                    controller: passCtrl,
+                    obscureText: !showPass,
+                    maxLength: 50,
+                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline,
+                          color: AppTheme.primary),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                            showPass
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.grey.shade400, size: 18),
+                        onPressed: () {
+                          setLocal(() => showPass = !showPass);
+                        },
+                      ),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(
+                            color: AppTheme.primary, width: 1.5),
+                      ),
+                      counterText: '',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            final name  = nameCtrl.text.trim();
+                            final email = emailCtrl.text.trim().toLowerCase();
+                            final pass  = passCtrl.text.trim();
+                            if (name.isEmpty) return;
+                            if (email.isEmpty ||
+                                !RegExp(r'^[^@]+@[^@]+\.[^@]+$')
+                                    .hasMatch(email)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('Enter a valid email')));
+                              return;
+                            }
+                            if (pass.length < 6) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text(
+                                          'Password must be at least 6 characters')));
+                              return;
+                            }
+                            setLocal(() => saving = true);
+                            try {
+                              await TimetableService().addAllowedUser(
+                                email, pass, 'coordinator',
+                                createdByEmail: _myEmail,
+                                createdByRole:  'principal',
+                              );
+                              await FirebaseFirestore.instance
+                                  .collection('allowed_users')
+                                  .doc(email)
+                                  .update({'name': name});
+                              if (!ctx.mounted) return;
+                              Navigator.pop(ctx);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context)
+                                    .showSnackBar(SnackBar(
+                                  content:
+                                      Text('Coordinator $email created'),
+                                  backgroundColor: AppTheme.success,
+                                ));
+                                await _loadMyCoordinators();
+                              }
+                            } catch (e) {
+                              setLocal(() => saving = false);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error: $e')));
+                              }
+                            }
+                          },
+                    child: saving
+                        ? const SizedBox(
+                            width: 20, height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Text('Create Coordinator Account',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sheetField(
+    TextEditingController ctrl,
+    String label,
+    IconData icon, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: AppTheme.primary),
+        border:
+            OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadAll() async {
     await Future.wait([
+      _loadAttendanceCard(),
       _loadOverview(),
       _loadComplaints(),
       _loadTeacherActivity(),
       _loadLeaderboard(),
       _loadEvents(),
     ]);
+  }
+
+  // ── Attendance card ───────────────────────────────────────────────────────
+
+  Future<void> _loadAttendanceCard() async {
+    if (mounted) setState(() { _cardLoading = true; _cardError = false; });
+    try {
+      final db = FirebaseFirestore.instance;
+      final snap = await db.collection('students').get();
+
+      final Map<String, int> classTotals = {};
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final cls = data['className'] as String? ?? '';
+        if (cls.isEmpty) continue;
+        classTotals[cls] = (classTotals[cls] ?? 0) + 1;
+      }
+
+      final today = _dateKey(DateTime.now());
+      final Map<String, int> classPresent = {};
+      for (final cls in classTotals.keys) {
+        try {
+          final summary = await FirestoreService.loadAttendanceSummary(
+              schoolId: _schoolId, classId: cls, date: today);
+          classPresent[cls] = summary != null ? (summary['present'] as int? ?? 0) : 0;
+        } catch (_) {
+          classPresent[cls] = 0;
+        }
+      }
+
+      final int totalStudents = classTotals.values.fold(0, (s, v) => s + v);
+      final int totalPresent = classPresent.values.fold(0, (s, v) => s + v);
+
+      final breakdown = classTotals.entries.map((e) => {
+        'className': e.key,
+        'total': e.value,
+        'present': classPresent[e.key] ?? 0,
+      }).toList()
+        ..sort((a, b) {
+          final at = a['total'] as int;
+          final bt = b['total'] as int;
+          final aPct = at > 0 ? (a['present'] as int) / at : 0.0;
+          final bPct = bt > 0 ? (b['present'] as int) / bt : 0.0;
+          return aPct.compareTo(bPct);
+        });
+
+      if (mounted) {
+        setState(() {
+          _cardPresent = totalPresent;
+          _cardTotal = totalStudents;
+          _classBreakdown = breakdown;
+          _cardLoading = false;
+          _cardError = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() { _cardLoading = false; _cardError = true; });
+    }
   }
 
   // ── Overview ──────────────────────────────────────────────────────────────
@@ -706,15 +986,320 @@ class _PrincipalHomeState extends State<PrincipalHome> {
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancel')),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              context.read<AuthProvider>().signOut();
+              await AuthService().clearSession();
+              if (!mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const RoleSelectionScreen()),
+                (_) => false,
+              );
             },
             child:
                 const Text('Sign Out', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
+    );
+  }
+
+  // ── Attendance card sheet ─────────────────────────────────────────────────
+
+  void _showClassBreakdownSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.92,
+        expand: false,
+        builder: (_, ctrl) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Row(
+                children: [
+                  const Text('Class-wise Attendance',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const Spacer(),
+                  Text('Worst first',
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                ],
+              ),
+            ),
+            const Divider(),
+            Expanded(
+              child: _classBreakdown.isEmpty
+                  ? Center(
+                      child: Text('No data available',
+                          style: TextStyle(color: Colors.grey.shade500)))
+                  : ListView.builder(
+                      controller: ctrl,
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                      itemCount: _classBreakdown.length,
+                      itemBuilder: (_, i) {
+                        final c = _classBreakdown[i];
+                        final cls = c['className'] as String;
+                        final total = c['total'] as int;
+                        final present = c['present'] as int;
+                        final pct = total > 0 ? present / total * 100 : 0.0;
+                        final color = pct >= 90
+                            ? Colors.green.shade600
+                            : pct >= 75
+                                ? Colors.amber.shade700
+                                : Colors.red.shade600;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(cls,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600, fontSize: 13)),
+                              ),
+                              Text('$present / $total',
+                                  style: TextStyle(
+                                      fontSize: 13, color: Colors.grey.shade600)),
+                              const SizedBox(width: 12),
+                              Container(
+                                width: 58,
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: color.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${pct.toStringAsFixed(0)}%',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                      color: color,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttendanceCard() {
+    if (_cardLoading) {
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        height: 148,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))
+          ],
+        ),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_cardError) {
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))
+          ],
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 36),
+            const SizedBox(height: 8),
+            Text('Could not load data. Pull to refresh.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600)),
+          ],
+        ),
+      );
+    }
+
+    final pct = _cardTotal > 0 ? _cardPresent / _cardTotal * 100 : 0.0;
+    final Color pctColor = pct >= 90
+        ? Colors.green.shade600
+        : pct >= 75
+            ? Colors.amber.shade700
+            : Colors.red.shade600;
+
+    return GestureDetector(
+      onTap: _showClassBreakdownSheet,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [pctColor.withOpacity(0.80), pctColor],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+                color: pctColor.withOpacity(0.30),
+                blurRadius: 10,
+                offset: const Offset(0, 4))
+          ],
+        ),
+        child: Column(
+          children: [
+            Text(
+              '$_cardPresent / $_cardTotal',
+              style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Students Present Today',
+              style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.25),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${pct.toStringAsFixed(1)}% attendance',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('Tap to see class-wise breakdown',
+                    style: TextStyle(fontSize: 12, color: Colors.white70)),
+                SizedBox(width: 4),
+                Icon(Icons.arrow_forward_ios, size: 10, color: Colors.white70),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── My Coordinators ───────────────────────────────────────────────────────
+
+  Widget _buildMyCoordinatorsSection() {
+    if (_coordListLoading) {
+      return const _ShimmerList(
+          count: 2, margin: EdgeInsets.symmetric(horizontal: 16));
+    }
+    if (_myCoordinators.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.person_add_alt_1_outlined,
+                  size: 48, color: Colors.grey.shade300),
+              const SizedBox(height: 8),
+              Text('No coordinators created yet',
+                  style: TextStyle(color: Colors.grey.shade500)),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.add),
+                label: const Text('Create Coordinator'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _accent,
+                  side: BorderSide(color: _accent.withOpacity(0.4)),
+                ),
+                onPressed: _showCreateCoordinatorSheet,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: _myCoordinators.length,
+      itemBuilder: (_, i) {
+        final u = _myCoordinators[i];
+        final email     = u['email'] as String;
+        final createdAt = u['createdAt'];
+        String dateStr  = '';
+        if (createdAt is Timestamp) {
+          final dt = createdAt.toDate();
+          dateStr = '${dt.day}/${dt.month}/${dt.year}';
+        }
+        return _pCard(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: _accent.withOpacity(0.12),
+                child: Text(
+                  email.isNotEmpty ? email[0].toUpperCase() : 'C',
+                  style: const TextStyle(
+                      color: _accent, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(email,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 13),
+                        overflow: TextOverflow.ellipsis),
+                    if (dateStr.isNotEmpty)
+                      Text('Created: $dateStr',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade500)),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _accent.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text('Coordinator',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: _accent)),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -751,12 +1336,20 @@ class _PrincipalHomeState extends State<PrincipalHome> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showCreateCoordinatorSheet,
+        backgroundColor: AppTheme.accent,
+        icon: const Icon(Icons.person_add_outlined),
+        label: const Text('Create Coordinator'),
+      ),
       body: RefreshIndicator(
         onRefresh: _loadAll,
         child: CustomScrollView(
           controller: _scrollCtrl,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
+            SliverToBoxAdapter(child: _buildAttendanceCard()),
+
             SliverToBoxAdapter(
                 child: _sectionHeader('School Overview')),
             SliverToBoxAdapter(child: _buildOverviewSection()),
@@ -813,7 +1406,17 @@ class _PrincipalHomeState extends State<PrincipalHome> {
             ),
             SliverToBoxAdapter(child: _buildEventsSection()),
 
-            const SliverToBoxAdapter(child: SizedBox(height: 40)),
+            SliverToBoxAdapter(
+                child: _sectionHeader('My Coordinators',
+                    trailing: IconButton(
+                      icon: const Icon(Icons.add_circle_outline,
+                          color: _accent, size: 22),
+                      tooltip: 'Create Coordinator',
+                      onPressed: _showCreateCoordinatorSheet,
+                    ))),
+            SliverToBoxAdapter(child: _buildMyCoordinatorsSection()),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),

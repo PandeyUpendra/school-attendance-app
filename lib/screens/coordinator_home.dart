@@ -1,14 +1,20 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/student_data.dart';
 import '../models/student.dart';
-import '../providers/auth_provider.dart';
 import '../services/attendance_service.dart';
+import '../services/auth_service.dart';
+import '../services/fee_reminder_service.dart';
 import '../services/firestore_service.dart';
+import '../services/timetable_service.dart';
+import '../theme.dart';
+import 'role_selection_screen.dart';
+import 'coordinator/fee_defaulters_screen.dart';
 
 class CoordinatorHome extends StatefulWidget {
   const CoordinatorHome({super.key});
@@ -50,6 +56,20 @@ class _CoordinatorHomeState extends State<CoordinatorHome>
   final Set<int> _expandedRolls = {};
   String _studentSearch = '';
 
+  // ── Tab 5: Create Teacher ──
+  final _ctNameCtrl  = TextEditingController();
+  final _ctEmailCtrl = TextEditingController();
+  final _ctPassCtrl  = TextEditingController();
+  bool _ctShowPass   = false;
+  bool _ctSaving     = false;
+  List<Map<String, dynamic>> _myTeachers = [];
+  bool _myTeachersLoading = true;
+  String _myEmail = '';
+
+  // ── Fee Defaulters ──
+  int _feeDefaultersCount = 0;
+  bool _defaultersLoading = false;
+
   // ── Period / day constants ──
   static const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   static const _subjects = [
@@ -66,7 +86,7 @@ class _CoordinatorHomeState extends State<CoordinatorHome>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         _loadTabData(_tabController.index);
@@ -78,21 +98,25 @@ class _CoordinatorHomeState extends State<CoordinatorHome>
   @override
   void dispose() {
     _tabController.dispose();
+    _ctNameCtrl.dispose();
+    _ctEmailCtrl.dispose();
+    _ctPassCtrl.dispose();
     super.dispose();
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
   Future<void> _initUser() async {
-    final user = context.read<AuthProvider>().user;
-    if (user == null) return;
-    _schoolId = user.schoolId;
-    _coordinatorName = user.name;
+    final session = await AuthService().getSession();
+    _myEmail = session?['email'] as String? ?? '';
+    _coordinatorName = _myEmail;
 
-    // Coordinator sees all classes if classIds is empty, otherwise their list
+    // Coordinator sees all classes if no specific assignment saved
     final allClasses = classStudents.keys.toList();
-    _assignedClasses =
-        user.classIds.isEmpty ? allClasses : user.classIds;
+    final savedClasses = session?['assignedClasses'];
+    _assignedClasses = (savedClasses is List && savedClasses.isNotEmpty)
+        ? List<String>.from(savedClasses)
+        : allClasses;
 
     if (_assignedClasses.isNotEmpty) {
       _ttClass = _assignedClasses.first;
@@ -106,7 +130,85 @@ class _CoordinatorHomeState extends State<CoordinatorHome>
             t['role'] == 'teacher' || t['role'] == 'subjectTeacher')
         .toList();
 
-    await _loadRichTimetable();
+    await Future.wait([
+      _loadRichTimetable(),
+      _loadDefaultersCount(),
+      _loadMyTeachers(),
+    ]);
+  }
+
+  Future<void> _loadMyTeachers() async {
+    if (_myEmail.isEmpty) return;
+    setState(() => _myTeachersLoading = true);
+    final users = await TimetableService().getUsersCreatedBy(_myEmail);
+    if (!mounted) return;
+    setState(() {
+      _myTeachers = users
+          .where((u) => (u['role'] as String) == 'teacher')
+          .toList();
+      _myTeachersLoading = false;
+    });
+  }
+
+  Future<void> _createTeacher() async {
+    final name  = _ctNameCtrl.text.trim();
+    final email = _ctEmailCtrl.text.trim().toLowerCase();
+    final pass  = _ctPassCtrl.text.trim();
+
+    if (name.isEmpty) {
+      _ctSnack('Enter a name');
+      return;
+    }
+    if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
+      _ctSnack('Enter a valid email');
+      return;
+    }
+    if (pass.length < 6) {
+      _ctSnack('Password must be at least 6 characters');
+      return;
+    }
+    setState(() => _ctSaving = true);
+    try {
+      await TimetableService().addAllowedUser(
+        email, pass, 'teacher',
+        createdByEmail: _myEmail,
+        createdByRole:  'coordinator',
+      );
+      await FirebaseFirestore.instance
+          .collection('allowed_users')
+          .doc(email)
+          .update({'name': name});
+      _ctNameCtrl.clear();
+      _ctEmailCtrl.clear();
+      _ctPassCtrl.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Teacher $email created'),
+          backgroundColor: AppTheme.success,
+          duration: const Duration(seconds: 2),
+        ));
+        await _loadMyTeachers();
+      }
+    } catch (e) {
+      if (mounted) _ctSnack('Error: $e');
+    }
+    if (mounted) setState(() => _ctSaving = false);
+  }
+
+  void _ctSnack(String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+
+  Future<void> _loadDefaultersCount() async {
+    if (_assignedClasses.isEmpty) return;
+    setState(() => _defaultersLoading = true);
+    final defaulters =
+        await FeeReminderService().getDefaulters(_assignedClasses);
+    if (mounted) {
+      setState(() {
+        _feeDefaultersCount = defaulters.length;
+        _defaultersLoading = false;
+      });
+    }
   }
 
   void _loadTabData(int tab) {
@@ -119,6 +221,8 @@ class _CoordinatorHomeState extends State<CoordinatorHome>
         if (!_complaintsLoaded) _loadComplaints();
       case 3:
         if (!_studentsLoaded) _loadStudents();
+      case 4:
+        if (_myTeachersLoading && _myEmail.isNotEmpty) _loadMyTeachers();
     }
   }
 
@@ -841,17 +945,93 @@ class _CoordinatorHomeState extends State<CoordinatorHome>
                 text: 'Complaints'),
             Tab(icon: Icon(Icons.school_outlined, size: 17),
                 text: 'Students'),
+            Tab(icon: Icon(Icons.person_add_outlined, size: 17),
+                text: 'Create Teacher'),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildTimetableTab(),
-          _buildTeachersTab(),
-          _buildComplaintsTab(),
-          _buildStudentsTab(),
+          // ── Fee Defaulters quick-action tile ──
+          _buildDefaultersBanner(),
+          // ── Tabs ──
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildTimetableTab(),
+                _buildTeachersTab(),
+                _buildComplaintsTab(),
+                _buildStudentsTab(),
+                _buildCreateTeacherTab(),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDefaultersBanner() {
+    if (_defaultersLoading) {
+      return const LinearProgressIndicator(
+          minHeight: 2, color: Color(0xFF6A1B9A));
+    }
+    if (_feeDefaultersCount == 0) return const SizedBox.shrink();
+
+    return Material(
+      color: Colors.white,
+      elevation: 1,
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => FeeDefaultersScreen(classNames: _assignedClasses),
+          ),
+        ).then((_) => _loadDefaultersCount()),
+        child: Container(
+          width: double.infinity,
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            border: Border(
+                bottom: BorderSide(color: Colors.red.shade200, width: 1)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child:
+                    Icon(Icons.warning_amber_rounded, color: Colors.red.shade600, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                        color: Colors.black87, fontSize: 13),
+                    children: [
+                      const TextSpan(text: 'Fee Defaulters  '),
+                      TextSpan(
+                        text: '($_feeDefaultersCount)',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red.shade700,
+                            fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right,
+                  color: Colors.red.shade400, size: 18),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1453,6 +1633,219 @@ class _CoordinatorHomeState extends State<CoordinatorHome>
     );
   }
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // TAB 5 — CREATE TEACHER
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildCreateTeacherTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Form card ──
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: const [
+                BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _accent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.person_add_outlined, color: _accent, size: 20),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text('New Teacher Account',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _ctField(
+                  controller: _ctNameCtrl,
+                  label: 'Full Name',
+                  icon: Icons.badge_outlined,
+                  capitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 12),
+                _ctField(
+                  controller: _ctEmailCtrl,
+                  label: 'Email Address',
+                  icon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 12),
+                StatefulBuilder(
+                  builder: (ctx, setInner) => TextField(
+                    controller: _ctPassCtrl,
+                    obscureText: !_ctShowPass,
+                    maxLength: 50,
+                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(_ctShowPass ? Icons.visibility_off : Icons.visibility, size: 18),
+                        onPressed: () => setState(() => _ctShowPass = !_ctShowPass),
+                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      isDense: true,
+                      counterText: '',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: _ctSaving
+                        ? const SizedBox(
+                            width: 16, height: 16,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.person_add_outlined),
+                    label: Text(_ctSaving ? 'Creating…' : 'Create Teacher'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _accent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: _ctSaving ? null : _createTeacher,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // ── Created teachers list ──
+          Row(
+            children: [
+              const Icon(Icons.people_outline, size: 16, color: _accent),
+              const SizedBox(width: 6),
+              const Text('Teachers I Created',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const Spacer(),
+              if (!_myTeachersLoading)
+                Text('${_myTeachers.length}',
+                    style: const TextStyle(color: _accent, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          if (_myTeachersLoading)
+            const Center(
+                child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ))
+          else if (_myTeachers.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.person_off_outlined, size: 40, color: Colors.grey),
+                  SizedBox(height: 8),
+                  Text('No teachers created yet',
+                      style: TextStyle(color: Colors.grey, fontSize: 13)),
+                ],
+              ),
+            )
+          else
+            ...(_myTeachers.map((t) {
+              final name  = t['name']  as String? ?? '—';
+              final email = t['email'] as String? ?? '';
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: _accent.withOpacity(0.12),
+                      child: Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : 'T',
+                        style: const TextStyle(color: _accent, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(name,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                          Text(email,
+                              style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('Teacher',
+                          style: TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+              );
+            })),
+        ],
+      ),
+    );
+  }
+
+  Widget _ctField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    TextCapitalization capitalization = TextCapitalization.none,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      textCapitalization: capitalization,
+      maxLength: 100,
+      maxLengthEnforcement: MaxLengthEnforcement.enforced,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        isDense: true,
+        counterText: '',
+      ),
+    );
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   ({Color color, IconData icon}) _statusInfo(String status) {
@@ -1527,9 +1920,15 @@ class _CoordinatorHomeState extends State<CoordinatorHome>
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancel')),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              context.read<AuthProvider>().signOut();
+              await AuthService().clearSession();
+              if (!mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+                (_) => false,
+              );
             },
             child: const Text('Sign Out',
                 style: TextStyle(color: Colors.red)),

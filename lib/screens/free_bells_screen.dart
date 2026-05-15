@@ -26,16 +26,6 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
   int _bellCount = 8;
   bool _loading = true;
 
-  static const _days = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
-  ];
-
-  static const List<Color> _palette = [
-    Color(0xFF009688), Color(0xFF3F51B5), Color(0xFFFF9800), Color(0xFFE91E63),
-    Color(0xFF9C27B0), Color(0xFF4CAF50), Color(0xFFF44336), Color(0xFF795548),
-    Color(0xFF00BCD4), Color(0xFF673AB7),
-  ];
-
   String get _today {
     const map = {
       1: 'Monday', 2: 'Tuesday', 3: 'Wednesday',
@@ -76,17 +66,8 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
     });
   }
 
-  Color _teacherColor(String? tid) {
-    if (tid == null || tid.isEmpty) return Colors.grey.shade300;
-    final idx = _teachers.indexWhere((t) => t.id == tid);
-    return idx < 0 ? Colors.grey.shade300 : _palette[idx % _palette.length];
-  }
-
   Teacher? _teacherById(String? id) =>
       id == null ? null : _teachers.where((t) => t.id == id).firstOrNull;
-
-  String _teacherName(String? tid) =>
-      _teacherById(tid)?.name ?? (tid?.isEmpty != false ? '—' : '?');
 
   String _subject(TimetableEntry? e) {
     if (e == null || e.isEmpty) return '';
@@ -110,217 +91,35 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
     return _teachers.where((t) => !busyIds.contains(t.id)).toList();
   }
 
-  /// Effective teacher for a class+bell (substitution overrides timetable).
-  String? _effectiveTeacherId(String cls, int b) {
-    final subKey = '${cls}_$b';
-    final subId  = _substitutions[subKey];
-    if (subId != null && subId.isNotEmpty) return subId;
-    return _timetable[cls]?[_today]?[b]?.teacherId;
-  }
-
   bool _isSubstituted(String cls, int b) {
     final subKey = '${cls}_$b';
     return _substitutions.containsKey(subKey);
   }
 
-  // ── Assign substitute dialog ──────────────────────────────────────────────
+  // ── Assign substitute (inline dropdown save) ─────────────────────────────
 
-  Future<void> _showAssignSheet(String cls, int bell) async {
-    // Sort free teachers: least-covered first (auto-suggest)
-    final freeTeachers = List<Teacher>.from(_freeTeachersForBell(bell))
-      ..sort((a, b) {
-        final ca = _subCounts[a.id] ?? 0;
-        final cb = _subCounts[b.id] ?? 0;
-        return ca.compareTo(cb);
-      });
+  Future<void> _assignSubstitute(String cls, int bell, String? teacherId) async {
+    await _service.setSubstitution(cls, bell, teacherId);
 
-    final currentSub = _substitutions['${cls}_$bell'];
-    String? selectedId = currentSub;
-
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => Container(
-          constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(ctx).size.height * 0.75),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            // Handle
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 36, height: 4,
-              decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2)),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                const Text('Assign Substitute',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
-                Text('$cls  ·  Bell $bell  ·  $_today',
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade500)),
-                const SizedBox(height: 4),
-                Text('★ = Suggested (least covered this month)',
-                    style: TextStyle(
-                        fontSize: 10, color: AppTheme.primaryDark)),
-              ]),
-            ),
-            const Divider(height: 1),
-
-            if (freeTeachers.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('No free teachers for this bell.',
-                    style: TextStyle(color: Colors.grey)),
-              )
-            else
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: freeTeachers.length,
-                  itemBuilder: (_, i) {
-                    final t     = freeTeachers[i];
-                    final sel   = t.id == selectedId;
-                    final cidx  = _teachers.indexOf(t);
-                    final clr   = cidx >= 0
-                        ? _palette[cidx % _palette.length]
-                        : Colors.grey;
-                    final count = _subCounts[t.id] ?? 0;
-                    // Suggest first teacher (least covered)
-                    final isSuggested = i == 0;
-
-                    return ListTile(
-                      leading: Stack(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor:
-                                sel ? clr : clr.withOpacity(0.2),
-                            child: Text(t.name[0].toUpperCase(),
-                                style: TextStyle(
-                                    color: sel ? Colors.white : clr,
-                                    fontWeight: FontWeight.bold)),
-                          ),
-                          if (isSuggested && currentSub == null)
-                            Positioned(
-                              right: -2, top: -2,
-                              child: Container(
-                                width: 14, height: 14,
-                                decoration: const BoxDecoration(
-                                  color: AppTheme.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Center(
-                                  child: Text('★',
-                                      style: TextStyle(
-                                          fontSize: 8, color: Colors.white)),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      title: Text(t.name,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w500)),
-                      subtitle: Text(
-                        '${t.subject}  •  $count sub${count == 1 ? '' : 's'} this month',
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade600),
-                      ),
-                      trailing: sel
-                          ? Icon(Icons.check_circle, color: clr)
-                          : null,
-                      selected: sel,
-                      selectedTileColor: clr.withOpacity(0.06),
-                      onTap: () =>
-                          setS(() => selectedId = sel ? null : t.id),
-                    );
-                  },
-                ),
-              ),
-
-            // Action bar
-            Container(
-              padding: EdgeInsets.fromLTRB(
-                  20, 10, 20, MediaQuery.of(ctx).padding.bottom + 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border:
-                    Border(top: BorderSide(color: Colors.grey.shade200)),
-              ),
-              child: Row(children: [
-                if (currentSub != null)
-                  TextButton.icon(
-                    onPressed: () {
-                      setS(() => selectedId = null);
-                      Navigator.pop(ctx, true);
-                    },
-                    icon: const Icon(Icons.clear,
-                        color: Colors.red, size: 16),
-                    label: const Text('Remove Sub',
-                        style: TextStyle(color: Colors.red)),
-                  ),
-                const Spacer(),
-                ElevatedButton.icon(
-                  onPressed: selectedId == null
-                      ? null
-                      : () => Navigator.pop(ctx, true),
-                  icon: const Icon(Icons.check, size: 16),
-                  label: const Text('Assign'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey.shade200,
-                  ),
-                ),
-              ]),
-            ),
-          ]),
-        ),
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    // Save substitution in the daily doc (existing behavior)
-    await _service.setSubstitution(cls, bell, selectedId);
-
-    // Also log to history if assigning (not removing)
-    // Use a final local so Dart can promote the type (selectedId was in a closure)
-    final subId = selectedId;
-    if (subId != null && subId.isNotEmpty) {
-      final subTeacher   = _teacherById(subId);
-      final origTeacherId =
-          _timetable[cls]?[_today]?[bell]?.teacherId ?? '';
-      final origTeacher  = _teacherById(origTeacherId);
-      final subj =
-          _subject(_timetable[cls]?[_today]?[bell]);
-
-      final now = DateTime.now();
-      await _histService.logSubstitution(
-        SubstitutionRecord(
-          id:                    '',
-          dateKey:               '${now.year}-${now.month}-${now.day}',
-          date:                  now,
-          className:             cls,
-          bell:                  bell,
-          substituteTeacherId:   subId,
-          substituteTeacherName: subTeacher?.name ?? subId,
-          originalTeacherId:     origTeacherId,
-          originalTeacherName:   origTeacher?.name ?? '',
-          subject:               subj,
-          createdAt:             now,
-        ),
-      );
+    if (teacherId != null && teacherId.isNotEmpty) {
+      final subTeacher    = _teacherById(teacherId);
+      final origTeacherId = _timetable[cls]?[_today]?[bell]?.teacherId ?? '';
+      final origTeacher   = _teacherById(origTeacherId);
+      final subj          = _subject(_timetable[cls]?[_today]?[bell]);
+      final now           = DateTime.now();
+      await _histService.logSubstitution(SubstitutionRecord(
+        id:                    '',
+        dateKey:               '${now.year}-${now.month}-${now.day}',
+        date:                  now,
+        className:             cls,
+        bell:                  bell,
+        substituteTeacherId:   teacherId,
+        substituteTeacherName: subTeacher?.name ?? teacherId,
+        originalTeacherId:     origTeacherId,
+        originalTeacherName:   origTeacher?.name ?? '',
+        subject:               subj,
+        createdAt:             now,
+      ));
     }
 
     _load();
@@ -451,142 +250,123 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
         for (final cls in _classes)
           _buildClassRow(cls, bell),
 
-        // Free teachers
-        if (freeTeachers.isNotEmpty) ...[
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
-            child: Text('Free Teachers',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.green.shade600,
-                    letterSpacing: 0.4)),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: freeTeachers.map((t) {
-                final idx = _teachers.indexOf(t);
-                final clr =
-                    idx >= 0 ? _palette[idx % _palette.length] : Colors.grey;
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: clr.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: clr.withOpacity(0.3)),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    CircleAvatar(
-                        radius: 8,
-                        backgroundColor: clr,
-                        child: Text(t.name[0].toUpperCase(),
-                            style: const TextStyle(
-                                fontSize: 8, color: Colors.white))),
-                    const SizedBox(width: 4),
-                    Text(t.name,
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: clr)),
-                  ]),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
       ]),
     );
   }
 
   Widget _buildClassRow(String cls, int bell) {
-    final tid  = _effectiveTeacherId(cls, bell);
-    final isSub = _isSubstituted(cls, bell);
-    final clr  = _teacherColor(tid);
-    final name = _teacherName(tid);
-    final tt   = _timetable[cls]?[_today]?[bell];
-    final sub  = _subject(tt);
+    final isSub        = _isSubstituted(cls, bell);
+    final tt           = _timetable[cls]?[_today]?[bell];
+    final origSubject  = _subject(tt);
+    final currentSubId = isSub ? _substitutions['${cls}_$bell'] : null;
 
-    return InkWell(
-      onTap: () => _showAssignSheet(cls, bell),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border(
-              top: BorderSide(color: Colors.grey.shade100)),
-        ),
-        child: Row(children: [
-          // Class label
-          SizedBox(
-            width: 80,
-            child: Text(cls,
-                style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w600)),
-          ),
-          // Teacher info
-          Expanded(
-            child: tid == null || tid.isEmpty
-                ? Row(children: [
-                    Icon(Icons.add_circle_outline,
-                        size: 14, color: Colors.grey.shade400),
-                    const SizedBox(width: 4),
-                    Text('Tap to assign substitute',
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade400)),
-                  ])
-                : Row(children: [
-                    CircleAvatar(
-                      radius: 12,
-                      backgroundColor: clr,
-                      child: Text(name[0].toUpperCase(),
-                          style: const TextStyle(
-                              fontSize: 10, color: Colors.white)),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                        Text(name,
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: clr),
-                            overflow: TextOverflow.ellipsis),
-                        if (sub.isNotEmpty)
-                          Text(sub,
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  color: clr.withOpacity(0.7)),
-                              overflow: TextOverflow.ellipsis),
-                      ]),
-                    ),
-                    if (isSub)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                              color: Colors.orange.shade300),
-                        ),
-                        child: Text('Sub',
-                            style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange.shade800)),
-                      ),
-                  ]),
-          ),
-          Icon(Icons.edit_outlined,
-              size: 14, color: Colors.grey.shade400),
-        ]),
+    // Sort free teachers: least-covered first (preserves auto-suggest order)
+    final sortedFree = List<Teacher>.from(_freeTeachersForBell(bell))
+      ..sort((a, b) {
+        final ca = _subCounts[a.id] ?? 0;
+        final cb = _subCounts[b.id] ?? 0;
+        return ca.compareTo(cb);
+      });
+
+    // Ensure the current sub appears in items even if they're "busy" elsewhere
+    final currentSubTeacher =
+        (currentSubId != null && currentSubId.isNotEmpty)
+            ? _teacherById(currentSubId)
+            : null;
+    final itemTeachers = <Teacher>[];
+    if (currentSubTeacher != null &&
+        !sortedFree.any((t) => t.id == currentSubId)) {
+      itemTeachers.add(currentSubTeacher);
+    }
+    itemTeachers.addAll(sortedFree);
+
+    final validValue =
+        (currentSubId != null &&
+                currentSubId.isNotEmpty &&
+                itemTeachers.any((t) => t.id == currentSubId))
+            ? currentSubId
+            : null;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.grey.shade100)),
       ),
+      child: Row(children: [
+        SizedBox(
+          width: 72,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(cls,
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600)),
+              if (origSubject.isNotEmpty)
+                Text(origSubject,
+                    style: TextStyle(
+                        fontSize: 10, color: Colors.grey.shade500),
+                    overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: DropdownButtonFormField<String>(
+            value: validValue,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'Select Teacher',
+              labelStyle:
+                  const TextStyle(fontSize: 11, color: Color(0xFF1565C0)),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                    color: isSub
+                        ? Colors.orange.shade400
+                        : const Color(0xFF1565C0).withOpacity(0.6)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide:
+                    const BorderSide(color: Color(0xFF1565C0), width: 2),
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              isDense: true,
+            ),
+            hint: const Text('Select Teacher',
+                style: TextStyle(fontSize: 11)),
+            items: [
+              if (validValue != null)
+                const DropdownMenuItem<String>(
+                  value: '',
+                  child: Text('— Remove substitute —',
+                      style: TextStyle(fontSize: 11, color: Colors.red)),
+                ),
+              ...itemTeachers.asMap().entries.map((e) {
+                final t     = e.value;
+                final isTop = e.key == 0 && validValue == null;
+                final count = _subCounts[t.id] ?? 0;
+                return DropdownMenuItem<String>(
+                  value: t.id,
+                  child: Text(
+                    '${isTop ? '★ ' : ''}${t.name}  ·  ${t.subject}'
+                    '${isTop ? '  ($count subs)' : ''}',
+                    style: const TextStyle(fontSize: 11),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              }),
+            ],
+            onChanged: (val) async {
+              await _assignSubstitute(
+                  cls, bell, (val == null || val.isEmpty) ? null : val);
+            },
+          ),
+        ),
+      ]),
     );
   }
 

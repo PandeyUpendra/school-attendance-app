@@ -291,6 +291,10 @@ class _ClassSelectionScreenState extends State<ClassSelectionScreen> {
         return 'Principal';
       case UserRole.subjectTeacher:
         return 'Subject Teacher';
+      case UserRole.owner:
+        return 'Owner';
+      case UserRole.ownerPrincipal:
+        return 'Owner-Principal';
     }
   }
 

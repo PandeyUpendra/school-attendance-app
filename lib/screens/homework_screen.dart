@@ -4,6 +4,7 @@ import '../models/homework.dart';
 import '../models/teacher.dart';
 import '../services/homework_service.dart';
 import '../services/copy_check_service.dart'; // for getClassesForTeacher
+import '../services/base_firestore_service.dart';
 import '../theme.dart';
 
 class HomeworkScreen extends StatefulWidget {
@@ -43,7 +44,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
 
   Future<void> _loadHomework() async {
     setState(() => _loading = true);
-    final list = await _service.getHomeworkForTeacher(widget.teacher.id);
+    final list = await _service.getHomeworkForTeacher(BaseFirestoreService.currentSchoolId ?? 'default_school', widget.teacher.id);
     if (!mounted) return;
     setState(() {
       _list    = list;
@@ -78,7 +79,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
   }
 
   Future<void> _markReviewed(Homework hw) async {
-    await _service.markReviewed(hw.id);
+    await _service.markReviewed(BaseFirestoreService.currentSchoolId ?? 'default_school', hw.id);
     _loadHomework();
   }
 
@@ -100,7 +101,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
       ),
     );
     if (ok == true) {
-      await _service.deleteHomework(hw.id);
+      await _service.deleteHomework(BaseFirestoreService.currentSchoolId ?? 'default_school', hw.id);
       _loadHomework();
     }
   }
@@ -446,7 +447,7 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
       dueDate:     _dueDate,
       postedAt:    DateTime.now(),
     );
-    await _service.postHomework(hw);
+    await _service.postHomework(BaseFirestoreService.currentSchoolId ?? 'default_school', hw);
     if (!mounted) return;
     Navigator.pop(context);
     widget.onPosted();

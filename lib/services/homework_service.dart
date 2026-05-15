@@ -11,12 +11,12 @@ class HomeworkService {
   CollectionReference get _col => _db.collection('homework');
 
   // ── Teacher: post new homework ────────────────────────────────────────────
-  Future<void> postHomework(Homework hw) async {
+  Future<void> postHomework(String schoolId, Homework hw) async {
     await _col.add(hw.toJson());
   }
 
   // ── Teacher: get their own posts, newest first ────────────────────────────
-  Future<List<Homework>> getHomeworkForTeacher(String teacherId) async {
+  Future<List<Homework>> getHomeworkForTeacher(String schoolId, String teacherId) async {
     final snap = await _col
         .where('teacherId', isEqualTo: teacherId)
         .get();
@@ -28,7 +28,7 @@ class HomeworkService {
   }
 
   // ── Guardian / Student: get homework for a class, newest first ────────────
-  Future<List<Homework>> getHomeworkForClass(String className) async {
+  Future<List<Homework>> getHomeworkForClass(String schoolId, String className) async {
     final snap = await _col
         .where('className', isEqualTo: className)
         .get();
@@ -40,7 +40,7 @@ class HomeworkService {
   }
 
   // ── Coordinator: all homework across all classes, newest first ────────────
-  Future<List<Homework>> getAllHomework({int limit = 100}) async {
+  Future<List<Homework>> getAllHomework(String schoolId, {int limit = 100}) async {
     final snap = await _col.get();
     final list = snap.docs
         .map((d) => Homework.fromDoc(d.id, d.data() as Map<String, dynamic>))
@@ -51,12 +51,12 @@ class HomeworkService {
   }
 
   // ── Teacher: mark reviewed ────────────────────────────────────────────────
-  Future<void> markReviewed(String id) async {
+  Future<void> markReviewed(String schoolId, String id) async {
     await _col.doc(id).update({'isReviewed': true});
   }
 
   // ── Teacher / Coordinator: delete ─────────────────────────────────────────
-  Future<void> deleteHomework(String id) async {
+  Future<void> deleteHomework(String schoolId, String id) async {
     await _col.doc(id).delete();
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
+import '../services/base_firestore_service.dart';
 import 'free_bells_screen.dart';
 import 'substitution_plan_screen.dart';
 import '../theme.dart';
@@ -54,7 +55,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
     final id          = app['id']          as String;
     final teacherId   = app['teacherId']   as String? ?? '';
     final teacherName = app['teacherName'] as String? ?? '';
-    await _service.updateLeaveApplication(id, status);
+    await _service.updateLeaveApplication(BaseFirestoreService.currentSchoolId ?? 'default_school', id, status);
     if (teacherId.isNotEmpty &&
         (status == 'approved' || status == 'rejected')) {
       NotificationService().addLeaveResolved(
@@ -629,7 +630,8 @@ String _fmtStatus(String status, String viewerRole) {
     case 'rejected': return 'Rejected';
     case 'pending':  return 'Pending';
     case 'forwarded_to_principal':
-      return viewerRole == 'principal' ? 'Forwarded to You' : 'Forwarded to Principal';
+      return (viewerRole == 'principal' || viewerRole == 'owner' || viewerRole == 'ownerPrincipal')
+          ? 'Forwarded to You' : 'Forwarded to Principal';
     default:
       return status[0].toUpperCase() + status.substring(1);
   }

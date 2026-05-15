@@ -9,6 +9,7 @@ import '../models/student.dart';
 import '../models/student_profile_data.dart';
 import '../providers/auth_provider.dart';
 import '../services/attendance_service.dart';
+import '../services/fee_reminder_service.dart';
 import '../services/firestore_service.dart';
 import 'timetable_screen.dart';
 
@@ -33,6 +34,8 @@ class _GuardianHomeState extends State<GuardianHome>
   bool _childLoading = true;
   Map<String, AttendanceStatus?> _monthAttendance = {};
   FeesStatus _feesStatus = FeesStatus.pending;
+  String? _feeDueDate;
+  double? _feeAmount;
   int _presentCount = 0;
   int _totalDays = 0;
 
@@ -173,14 +176,23 @@ class _GuardianHomeState extends State<GuardianHome>
       }
     }
 
-    // Load fees status
+    // Load fees status + due date + amount
     FeesStatus feesStatus = FeesStatus.pending;
+    String? feeDueDate;
+    double? feeAmount;
     if (_schoolId.isNotEmpty && _classId.isNotEmpty && _roll > 0) {
       final profile = await FirestoreService.loadStudentProfile(
           schoolId: _schoolId, classId: _classId, roll: _roll);
       if (profile != null) {
         feesStatus = FeesStatus.fromString(profile['feesStatus'] as String?);
+        feeDueDate = profile['feeDueDate'] as String?;
+        feeAmount = (profile['feeAmount'] as num?)?.toDouble();
       }
+    }
+    // Also check student document fields if profile didn't have them
+    if (feeDueDate == null && child != null) {
+      feeDueDate = child.feeDueDate;
+      feeAmount ??= child.feeAmount;
     }
 
     if (mounted) {
@@ -188,6 +200,8 @@ class _GuardianHomeState extends State<GuardianHome>
         _child = child;
         _monthAttendance = monthAttendance;
         _feesStatus = feesStatus;
+        _feeDueDate = feeDueDate;
+        _feeAmount = feeAmount;
         _presentCount = presentCount;
         _totalDays = totalDays;
         _childLoading = false;
@@ -472,6 +486,12 @@ class _GuardianHomeState extends State<GuardianHome>
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
+          // ── Fee reminder card (shown only when not Paid) ──
+          if (_feesStatus != FeesStatus.paid) ...[
+            _buildFeeReminderCard(),
+            const SizedBox(height: 12),
+          ],
+
           // ── Student card ──
           _card(
             child: Row(
@@ -1450,6 +1470,148 @@ class _GuardianHomeState extends State<GuardianHome>
   // ══════════════════════════════════════════════════════════════════════════
   // HELPERS & SMALL WIDGETS
   // ══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildFeeReminderCard() {
+    final reminder = FeeReminderService().checkFeeStatus(
+      Student(
+        roll: _roll,
+        name: _child?.name ?? '',
+        feeStatus: _feesStatus == FeesStatus.overdue
+            ? 'Overdue'
+            : _feesStatus == FeesStatus.paid
+                ? 'Paid'
+                : 'Pending',
+        feeDueDate: _feeDueDate,
+        feeAmount: _feeAmount,
+      ),
+    );
+
+    final isOverdue = _feesStatus == FeesStatus.overdue || reminder.isOverdue;
+    final amtStr = _feeAmount != null
+        ? '₹${_feeAmount!.toStringAsFixed(0)}'
+        : 'Amount not set';
+    final daysDiff = reminder.daysDiff;
+
+    String title;
+    String subtitle;
+    if (isOverdue) {
+      final overdueDays = daysDiff != null && daysDiff < 0 ? (-daysDiff) : null;
+      title = overdueDays != null
+          ? 'Fee OVERDUE by $overdueDays day${overdueDays == 1 ? '' : 's'}'
+          : 'Fee OVERDUE';
+      subtitle = amtStr;
+    } else {
+      final dueDays = daysDiff;
+      title = dueDays != null
+          ? 'Fee Due in $dueDays day${dueDays == 1 ? '' : 's'}'
+          : 'Fee Due Soon';
+      subtitle = '$amtStr'
+          '${_feeDueDate != null ? '  ·  Due: ${_feeDueDate!}' : ''}';
+    }
+
+    final borderColor = isOverdue ? Colors.red.shade400 : Colors.amber.shade600;
+    final bgColor = isOverdue
+        ? Colors.red.shade50
+        : Theme.of(context).cardTheme.color ?? Colors.white;
+    final iconColor = isOverdue ? Colors.red.shade600 : Colors.amber.shade700;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: 1.5),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: borderColor.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isOverdue ? Icons.warning_rounded : Icons.schedule_rounded,
+              color: iconColor,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: isOverdue
+                            ? Colors.red.shade700
+                            : Colors.amber.shade900)),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: isOverdue
+                            ? Colors.red.shade600
+                            : Colors.amber.shade800)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (isOverdue)
+            OutlinedButton(
+              onPressed: () {
+                if (_child?.parentPhone != null) {
+                  launchUrl(Uri.parse('tel:+91${_child!.parentPhone!.replaceAll(RegExp(r'\D'), '')}'));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('No contact number available'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red.shade600,
+                side: BorderSide(color: Colors.red.shade400),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('Contact\nSchool',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11)),
+            )
+          else
+            OutlinedButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please contact the school to view fee details.'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.amber.shade800,
+                side: BorderSide(color: Colors.amber.shade500),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('View\nDetails',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11)),
+            ),
+        ],
+      ),
+    );
+  }
 
   Widget _childAvatar() {
     final hasPhoto = _child?.photoUrl != null && _child!.photoUrl!.isNotEmpty;

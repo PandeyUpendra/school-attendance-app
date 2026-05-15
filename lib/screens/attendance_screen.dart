@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/student.dart';
@@ -10,18 +13,25 @@ import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_queue_service.dart';
+import '../services/base_firestore_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../models/student_remark.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  AttendanceScreen
 // ─────────────────────────────────────────────────────────────────────────────
 
 class AttendanceScreen extends StatefulWidget {
+  final String? schoolId;
   final String className;
   final String section;
+  final DateTime? date;
   const AttendanceScreen({
     super.key,
+    this.schoolId,
     required this.className,
     this.section = '',
+    this.date,
   });
 
   @override
@@ -35,17 +45,27 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   StreamSubscription<List<ConnectivityResult>>? _connectSub;
   StreamSubscription<List<Student>>? _studentSub;
 
+  late final String _schoolId;
   List<Student>    _students   = [];
   Map<int, String> _attendance = {}; // roll → 'Present' | 'Leave' | 'Absent'
   bool   _loading        = true;
   bool   _dirty          = false;
   bool   _isOnline       = true;   // current connectivity status
-  bool   _savedOffline   = false;  // pending offline records queued
   int    _pendingCount   = 0;      // items waiting to sync
-  String _search         = '';
   bool   _alreadySaved   = false; // today's attendance doc exists
   bool   _isMarking      = false; // user is actively marking attendance
   bool   _noAssignment   = false; // teacher has no assigned class/section
+
+  // Feedback settings
+  bool _soundEnabled = true;
+  bool _vibrationEnabled = true;
+
+  // Pager & Stats
+  final PageController _pageController = PageController();
+  int _currentIndex = 0;
+  Map<int, List<StudentRemark>> _remarks = {};
+  Map<int, String> _lastWeekStats = {};
+  Map<int, String> _lastMonthStats = {};
 
   // Effective class, section, and teacher — fetched from Firestore on load,
   // so the screen always uses the teacher's actual assignment.
@@ -66,29 +86,55 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   int get _leave   => _attendance.values.where((v) => v == 'Leave').length;
   int get _absent  => _attendance.values.where((v) => v == 'Absent').length;
 
-  List<Student> get _filtered {
-    if (_search.trim().isEmpty) return _students;
-    final q = _search.toLowerCase();
-    return _students.where((s) =>
-        s.name.toLowerCase().contains(q) ||
-        s.roll.toString().contains(q)).toList();
-  }
-
   // ── Lifecycle ───────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
+    _schoolId  = widget.schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     _className = widget.className;
     _section   = widget.section;
+    _loadSettings();
     _checkConnectivity();
     _connectSub = _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
     _load();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _soundEnabled = prefs.getBool('att_sound_enabled') ?? true;
+        _vibrationEnabled = prefs.getBool('att_vibration_enabled') ?? true;
+      });
+    }
+  }
+
+  Future<void> _toggleSound() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() => _soundEnabled = !_soundEnabled);
+    await prefs.setBool('att_sound_enabled', _soundEnabled);
+  }
+
+  Future<void> _toggleVibration() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() => _vibrationEnabled = !_vibrationEnabled);
+    await prefs.setBool('att_vibration_enabled', _vibrationEnabled);
+  }
+
+  void _triggerFeedback() {
+    if (_vibrationEnabled) {
+      HapticFeedback.vibrate();
+    }
+    if (_soundEnabled) {
+      SystemSound.play(SystemSoundType.click);
+    }
   }
 
   @override
   void dispose() {
     _connectSub?.cancel();
     _studentSub?.cancel();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -131,7 +177,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (!mounted) return synced;
     setState(() {
       _pendingCount  = pending;
-      _savedOffline  = pending > 0;
     });
     return synced;
   }
@@ -140,11 +185,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() => _loading = true);
 
     // Fetch teacher's assigned class AND section from Firestore teachers collection.
-    // Always prefer fresh Firestore data over widget params.
     final session   = await AuthService().getSession();
     final teacherId = session?['teacherId'] as String?;
     if (teacherId != null) {
-      final teacher         = await TimetableService().getTeacherById(teacherId);
+      final teacher         = await TimetableService().getTeacherById(schoolId: _schoolId, id: teacherId);
       final assignedClass   = teacher?.classTeacherOf ?? '';
       final assignedSection = teacher?.section ?? '';
       if (assignedClass.isEmpty || assignedSection.isEmpty) {
@@ -157,68 +201,143 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       _teacherId  = teacherId;
     }
 
-    // Hard guard: section must be set — without it we cannot distinguish
-    // between sections and would show ALL students in the class.
     if (_section.trim().isEmpty) {
       if (!mounted) return;
       setState(() { _noAssignment = true; _loading = false; });
       return;
     }
 
-    // Students list — try Firestore; if offline, use cached list from queue
     List<Student> students = [];
     Map<int, String> saved = {};
 
     if (_isOnline) {
-      students = await _service.getStudentsByClass(_className,
+      // Start both fetches simultaneously — they're independent once we have className/section.
+      final studentsFuture = _service.getStudentsByClass(
+          schoolId: widget.schoolId, className: _className,
           section: _section, teacherId: _teacherId);
-      saved    = await _service.loadTodayAttendance(_attendanceKey);
-      // If Firestore has nothing, check local queue too
-      if (saved.isEmpty) {
+      final savedFuture = widget.date == null
+          ? _service.loadTodayAttendance(schoolId: widget.schoolId, className: _attendanceKey)
+          : _service.loadAttendanceByDate(schoolId: widget.schoolId, className: _attendanceKey, date: widget.date!);
+      try {
+        students = await studentsFuture;
+      } catch (_) {
+        // Composite index may not exist yet — retry without teacherId filter.
+        students = await _service.getStudentsByClass(
+            schoolId: widget.schoolId, className: _className, section: _section);
+      }
+      saved = await savedFuture;
+      if (saved.isEmpty && widget.date == null) {
         final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
         if (cached != null) saved = cached;
       }
     } else {
-      // Offline: load students from Firestore best-effort; load attendance from local queue
       try {
-        students = await _service.getStudentsByClass(_className,
+        students = await _service.getStudentsByClass(className: _className,
                 section: _section, teacherId: _teacherId)
             .timeout(const Duration(seconds: 3));
       } catch (_) {
         students = [];
       }
-      final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
-      if (cached != null) saved = cached;
+      if (widget.date == null) {
+        final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
+        if (cached != null) saved = cached;
+      }
     }
 
-    assert(students.length == {for (final s in students) s.roll: s}.length,
-        'Duplicate rolls detected in class $_className');
-    debugPrint('[StudentList][$_className] count=${students.length}');
-
     final pending = await _offlineQueue.pendingCount();
+
+    // Debug: verify section correctness before committing to state
+    debugPrint('Teacher: (id=$_teacherId)');
+    debugPrint('Class: $_className');
+    debugPrint('Section: $_section');
+    debugPrint('Students loaded: ${students.length}');
+    if (students.isNotEmpty) {
+      debugPrint('First student section: ${students.first.section}');
+    }
+    assert(
+      students.every((s) => s.section == _section),
+      'SECTION MISMATCH: Wrong students loaded for section "$_section"! '
+      'Mismatched: ${students.where((s) => s.section != _section).map((s) => '${s.name}(${s.section})').join(', ')}',
+    );
+
     if (!mounted) return;
     setState(() {
       _students     = students;
       _pendingCount = pending;
       _alreadySaved = saved.isNotEmpty;
       for (final s in students) {
+        // Initial state is unmarked ('') so counter starts at 0
         _attendance[s.roll] = saved[s.roll] ?? '';
       }
       _loading = false;
-      _dirty   = false;
+      _dirty   = saved.isEmpty && students.isNotEmpty;
     });
     _subscribeStudents();
+    _loadExtraData();
   }
 
-  /// Subscribes to live student updates after the initial load.
-  /// Skips the first emission (identical to what _load() just fetched) and
-  /// responds to subsequent changes: removes deleted students from the
-  /// attendance map and adds new ones with a default of 'Absent'.
+  Future<void> _loadExtraData() async {
+    try {
+      final now = DateTime.now();
+      final monthData = await _service.loadMonthAttendance(schoolId: widget.schoolId, className: _attendanceKey, year: now.year, month: now.month);
+      
+      final Map<int, String> lw = {};
+      final Map<int, String> lm = {};
+
+      for (final s in _students) {
+        // Last week (last 7 recorded days)
+        int totalW = 0, presentW = 0;
+        final days = monthData.keys.toList()..sort((a,b) => b.compareTo(a));
+        int count = 0;
+        for (final d in days) {
+          if (count >= 7) break;
+          final st = monthData[d]?[s.roll];
+          if (st != null) {
+            totalW++;
+            if (st == 'Present') presentW++;
+            count++;
+          }
+        }
+        lw[s.roll] = totalW == 0 ? 'N/A' : '${(presentW/totalW*100).round()}%';
+        
+        // Month avg
+        int totalM = 0, presentM = 0;
+        monthData.forEach((_, rolls) {
+          final st = rolls[s.roll];
+          if (st != null) {
+            totalM++;
+            if (st == 'Present') presentM++;
+          }
+        });
+        lm[s.roll] = totalM == 0 ? 'N/A' : '${(presentM/totalM*100).round()}%';
+      }
+
+      // Remarks - fetch in parallel
+      final remarksResults = await Future.wait(
+        _students.map((s) => _service.getStudentRemarks(schoolId: widget.schoolId, className: _className, roll: s.roll, section: _section))
+      );
+      final Map<int, List<StudentRemark>> rm = {};
+      for (int i=0; i<_students.length; i++) {
+        rm[_students[i].roll] = remarksResults[i];
+      }
+
+      if (mounted) {
+        setState(() {
+          _lastWeekStats = lw;
+          _lastMonthStats = lm;
+          _remarks = rm;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading extra data: $e');
+    }
+  }
+
   void _subscribeStudents() {
     _studentSub?.cancel();
     bool isFirst = true;
     _studentSub = _service
-        .watchStudentsByClass(_className, section: _section, teacherId: _teacherId)
+        .watchStudentsByClass(schoolId: widget.schoolId, className: _className, section: _section, teacherId: _teacherId)
         .listen((list) {
       if (isFirst) { isFirst = false; return; }
       if (!mounted) return;
@@ -233,7 +352,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     });
   }
 
-  /// Pull-to-refresh — silent (no full-screen spinner)
   Future<void> _refresh() async {
     final connectivity = await _connectivity.checkConnectivity();
     final online = connectivity.any((r) => r != ConnectivityResult.none);
@@ -243,12 +361,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     Map<int, String> saved    = {};
 
     if (online) {
-      students = await _service.getStudentsByClass(_className,
+      students = await _service.getStudentsByClass(schoolId: widget.schoolId, className: _className,
           section: _section, teacherId: _teacherId);
-      saved    = await _service.loadTodayAttendance(_attendanceKey);
+      saved    = widget.date == null
+          ? await _service.loadTodayAttendance(schoolId: widget.schoolId, className: _attendanceKey)
+          : await _service.loadAttendanceByDate(schoolId: widget.schoolId, className: _attendanceKey, date: widget.date!);
     } else {
-      final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
-      if (cached != null) saved = cached;
+      if (widget.date == null) {
+        final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
+        if (cached != null) saved = cached;
+      }
     }
 
     final pending = await _offlineQueue.pendingCount();
@@ -262,6 +384,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       }
       _dirty = false;
     });
+    _loadExtraData();
   }
 
   // ── Actions ─────────────────────────────────────────────────────────────────
@@ -274,14 +397,36 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _dirty = true;
       });
 
+  Future<void> _saveQuietly() async {
+    if (!_dirty) return;
+    final results = await _connectivity.checkConnectivity();
+    final online  = results.any((r) => r != ConnectivityResult.none);
+    
+    final toSave = Map<int, String>.fromEntries(
+        _attendance.entries.where((e) => e.value.isNotEmpty));
+
+    if (!online) {
+      await _offlineQueue.enqueue(className: _attendanceKey, attendance: toSave);
+      final pending = await _offlineQueue.pendingCount();
+      if (mounted) setState(() { _pendingCount = pending; _dirty = false; });
+      return;
+    }
+
+    if (widget.date == null) {
+      await _service.saveAttendance(schoolId: widget.schoolId, className: _attendanceKey, attendance: toSave);
+    } else {
+      await _service.saveAttendanceForDate(schoolId: widget.schoolId, className: _attendanceKey, attendance: toSave, date: widget.date!);
+    }
+    if (mounted) setState(() { _dirty = false; });
+  }
+
   Future<void> _save() async {
-    // Re-check connectivity right before saving
+    // Re-check connectivity
     final results = await _connectivity.checkConnectivity();
     final online  = results.any((r) => r != ConnectivityResult.none);
     setState(() => _isOnline = online);
 
     if (!online) {
-      // ── OFFLINE PATH ────────────────────────────────────────────────────
       final toQueue = Map<int, String>.fromEntries(
           _attendance.entries.where((e) => e.value.isNotEmpty));
       await _offlineQueue.enqueue(
@@ -292,12 +437,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       if (!mounted) return;
       setState(() {
         _dirty        = false;
-        _savedOffline = true;
         _pendingCount = pending;
         _alreadySaved = true;
         _isMarking    = false;
       });
-      // Show offline-save dialog instead of normal one
       await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -308,16 +451,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             Text('Saved Offline', style: TextStyle(fontSize: 16)),
           ]),
           content: const Text(
-            'No internet connection. Attendance has been saved locally '
-            'and will sync automatically when you go online.',
+            'No internet connection. Attendance has been saved locally.',
             style: TextStyle(fontSize: 13),
           ),
           actions: [
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx),
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
               child: const Text('OK'),
             ),
           ],
@@ -326,13 +466,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       return;
     }
 
-    // ── ONLINE PATH ──────────────────────────────────────────────────────
     final toSave = Map<int, String>.fromEntries(
         _attendance.entries.where((e) => e.value.isNotEmpty));
-    await _service.saveAttendance(_attendanceKey, toSave);
+    
+    if (widget.date == null) {
+      await _service.saveAttendance(schoolId: widget.schoolId, className: _attendanceKey, attendance: toSave);
+    } else {
+      await _service.saveAttendanceForDate(schoolId: widget.schoolId, className: _attendanceKey, attendance: toSave, date: widget.date!);
+    }
 
-    // Fire off guardian notifications for every absent / leave student.
-    // These are "fire and forget" — we don't await to keep save fast.
     for (final s in _students) {
       final status = _attendance[s.roll];
       if (status == 'Absent' || status == 'Leave') {
@@ -352,12 +494,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       _isMarking    = false;
     });
 
-    // ── Attendance summary dialog ────────────────────────────────────────────
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
         title: const Row(children: [
           Icon(Icons.check_circle, color: Colors.green, size: 24),
           SizedBox(width: 10),
@@ -368,43 +508,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           _SummaryRow('Present', '$_present', const Color(0xFF2E7D32)),
           _SummaryRow('On Leave', '$_leave', const Color(0xFFF57F17)),
           _SummaryRow('Absent', '$_absent', const Color(0xFFC62828)),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: _total == 0 ? 0 : _present / _total,
-              minHeight: 6,
-              backgroundColor: Colors.grey.shade200,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                  _total > 0 && _present == _total
-                      ? Colors.green
-                      : AppTheme.primary),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _total == 0
-                ? 'No students'
-                : '${(_present / _total * 100).round()}% attendance today',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-          ),
         ]),
         actions: [
           if (_absent + _leave > 0)
             TextButton.icon(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _showWhatsAppSheet();
-              },
-              icon: const Icon(Icons.message, size: 16, color: Colors.green),
-              label: const Text('Notify Guardians via WhatsApp',
-                  style: TextStyle(color: Colors.green)),
+              onPressed: () { Navigator.pop(ctx); _showWhatsAppSheet(); },
+              icon: const Icon(FontAwesomeIcons.whatsapp, size: 16, color: Colors.green),
+              label: const Text('Notify via WhatsApp', style: TextStyle(color: Colors.green)),
             ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
             child: const Text('Done'),
           ),
         ],
@@ -451,7 +565,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
     );
     if (ok != true) return;
-    await _service.removeStudent(s.roll, _className, section: _section);
+    await _service.removeStudent(schoolId: widget.schoolId, roll: s.roll, className: _className, section: _section);
     setState(() { _students.remove(s); _attendance.remove(s.roll); });
   }
 
@@ -474,7 +588,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   String _dateLabel() {
-    final d = DateTime.now();
+    final d = widget.date ?? DateTime.now();
     const mo = ['Jan','Feb','Mar','Apr','May','Jun',
                  'Jul','Aug','Sep','Oct','Nov','Dec'];
     const dy = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -508,10 +622,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    final dateStr = _dateLabel();
-    final subtitle = (_alreadySaved && !_isMarking)
-        ? 'Attendance Taken  ·  $dateStr'
-        : '$dateStr${_students.isNotEmpty ? "  ·  $_total students" : ""}';
+    final title = _section.isNotEmpty ? '$_className - $_section' : _className;
     return AppBar(
       leading: (_isMarking && _alreadySaved)
           ? IconButton(
@@ -519,216 +630,189 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               onPressed: () => setState(() => _isMarking = false),
             )
           : null,
-      title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(_className,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-        Text(subtitle,
-            style: const TextStyle(fontSize: 11, color: Colors.white60)),
-      ]),
-    );
-  }
-
-  Widget _buildBody() {
-    return Stack(
-      children: [
-        Column(children: [
-          // ── Offline / pending-sync banner ─────────────────────────────────
-          if (!_isOnline)
-            Container(
-              width: double.infinity,
-              color: Colors.orange.shade700,
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-              child: Row(children: [
-                const Icon(Icons.cloud_off_outlined,
-                    color: Colors.white, size: 16),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'No internet — attendance will be saved locally',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ]),
-            )
-          else if (_pendingCount > 0)
-            GestureDetector(
-              onTap: () async {
-                final synced = await _syncOfflineQueue();
-                if (mounted && synced > 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('✓ Synced $synced record${synced > 1 ? "s" : ""}'),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              },
-              child: Container(
-                width: double.infinity,
-                color: AppTheme.primaryMid,
-                padding: const EdgeInsets.symmetric(
-                    vertical: 6, horizontal: 16),
-                child: Row(children: [
-                  const Icon(Icons.sync_outlined,
-                      color: Colors.white, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '$_pendingCount offline record${_pendingCount > 1 ? "s" : ""} waiting — Tap to sync now',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ]),
-              ),
-            ),
-
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _refresh,
-              color: AppTheme.primary,
-              child: ListView.builder(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.only(bottom: 90),
-                  itemCount: _students.length + 2,
-                  itemBuilder: (_, i) {
-                    if (i == 0) {
-                      return _AttendanceHeroCard(
-                        className: _className,
-                        total: _total,
-                        present: _present,
-                        leave: _leave,
-                        absent: _absent,
-                        dateLabel: _dateLabel(),
-                      );
-                    }
-                    if (i == 1) {
-                      return _MarkAllRow(onMarkAll: _markAll);
-                    }
-                    final idx = i - 2;
-                    return _StudentRow(
-                      student:     _students[idx],
-                      status:      _attendance[_students[idx].roll] ?? '',
-                      accentColor: _accentColor(_attendance[_students[idx].roll] ?? ''),
-                      rowBg:       _rowBg(_attendance[_students[idx].roll] ?? ''),
-                      onChanged:   (v) => _setStatus(_students[idx].roll, v),
-                      onRemove:    () => _removeStudent(_students[idx]),
-                      isLast:      idx == _students.length - 1,
-                    );
-                  },
-                ),
-            ),
+      title: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      actions: [
+        if (_students.isNotEmpty && _currentIndex < _students.length)
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.white),
+            onPressed: _showSearchRollDialog,
+            tooltip: 'Search by Roll No.',
           ),
-        ]),
-        // Floating Save button
-        Positioned(
-          bottom: 16, left: 20, right: 20,
-          child: _SaveButton(
-              dirty: _dirty, isOnline: _isOnline, onTap: _save),
-        ),
       ],
     );
   }
 
-  Widget _buildStatsCard() {
-    final progress = _total == 0 ? 0.0 : _present / _total;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.07),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+  void _showSearchRollDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Go to Roll Number'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(hintText: 'Enter Roll Number'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final roll = int.tryParse(controller.text);
+              if (roll != null) {
+                final idx = _students.indexWhere((s) => s.roll == roll);
+                if (idx != -1) {
+                  Navigator.pop(ctx);
+                  _pageController.animateToPage(
+                    idx,
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeInOut,
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Roll number not found')),
+                  );
+                }
+              }
+            },
+            child: const Text('Go'),
           ),
         ],
       ),
-      child: Column(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-          child: Row(children: [
-            _StatBubble(_total,   'Total',   const Color(0xFF546E7A)),
-            _StatBubble(_present, 'Present', const Color(0xFF2E7D32)),
-            _StatBubble(_leave,   'Leave',   const Color(0xFFF57F17)),
-            _StatBubble(_absent,  'Absent',  const Color(0xFFC62828)),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 6,
-                  backgroundColor: Colors.grey.shade200,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    progress == 1.0
-                        ? Colors.green.shade600
-                        : AppTheme.primary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                _total == 0
-                    ? 'No students'
-                    : '$_present of $_total marked present (${(_present / _total * 100).round()}%)',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-              ),
-            ],
-          ),
-        ),
-      ]),
     );
   }
 
-  Widget _buildSearchBar() {
-    if (_students.length < 10) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
-      child: TextField(
-        onChanged: (v) => setState(() => _search = v),
-        style: const TextStyle(fontSize: 14),
-        decoration: InputDecoration(
-          hintText: 'Search by name or roll…',
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-          prefixIcon: Icon(Icons.search, color: Colors.grey.shade400, size: 20),
-          suffixIcon: _search.isNotEmpty
-              ? IconButton(
-                  icon: Icon(Icons.clear, color: Colors.grey.shade400, size: 18),
-                  onPressed: () => setState(() => _search = ''),
-                )
-              : null,
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(vertical: 10),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+  Widget _buildBody() {
+    if (_students.isEmpty) return _emptyState();
+
+    return Container(
+      color: Colors.white, // Screen background is white
+      child: Column(
+        children: [
+          // ── Top Bar: Hero Card (Fixed & Shifted Up) ──────────────────────
+          _AttendanceHeroCard(
+            className: _className,
+            total: _total,
+            present: _present,
+            leave: _leave,
+            absent: _absent,
+            dateLabel: _dateLabel(),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade200),
+
+          // ── Connectivity / Sync Banners ───────────────────────────────────
+          if (!_isOnline)
+            _banner(Colors.orange.shade700, Icons.cloud_off_outlined, 'Offline — saving locally')
+          else if (_pendingCount > 0)
+            GestureDetector(
+              onTap: _syncOfflineQueue,
+              child: _banner(AppTheme.primaryMid, Icons.sync_outlined, '$_pendingCount offline records — Tap to sync'),
+            ),
+
+          // ── Main Student Section: Vertical Swipe Card System ──────────────
+          Expanded(
+            child: PageView.builder(
+              scrollDirection: Axis.vertical,
+              controller: _pageController,
+              physics: _currentIndex == _students.length 
+                  ? const NeverScrollableScrollPhysics() 
+                  : const BouncingScrollPhysics(),
+              itemCount: _students.length + 1, // +1 for the Summary Screen
+              onPageChanged: (i) {
+                // If moving forward, mark the student we just FINISHED as Present (if unmarked)
+                if (i > _currentIndex && _currentIndex < _students.length) {
+                  final prevStudent = _students[_currentIndex];
+                  if (_attendance[prevStudent.roll] == '') {
+                    _setStatus(prevStudent.roll, 'Present');
+                  }
+                }
+                setState(() => _currentIndex = i);
+                if (i < _students.length) _saveQuietly();
+              },
+              itemBuilder: (context, index) {
+                // Final Summary Screen
+                if (index == _students.length) {
+                  return _AttendanceSummaryCard(
+                    total: _total,
+                    present: _present,
+                    absent: _absent,
+                    leave: _leave,
+                    onSave: _save,
+                    onNotify: _showWhatsAppSheet,
+                  );
+                }
+
+                final s = _students[index];
+                // Use AnimatedBuilder to achieve 3D swipe effect
+                return AnimatedBuilder(
+                  animation: _pageController,
+                  builder: (context, child) {
+                    double value = 1.0;
+                    if (_pageController.position.haveDimensions) {
+                      value = _pageController.page! - index;
+                      value = (1 - (value.abs() * 0.3)).clamp(0.0, 1.0);
+                    } else {
+                      if (_currentIndex == index) value = 1.0;
+                      else value = 0.7;
+                    }
+
+                    return Center(
+                      child: Transform(
+                        transform: Matrix4.identity()
+                          ..setEntry(3, 2, 0.001)
+                          ..scale(value),
+                        alignment: Alignment.center,
+                        child: Opacity(
+                          opacity: value.clamp(0.5, 1.0),
+                          child: _VerticalStudentCard(
+                            student: s,
+                            status:  _attendance[s.roll] ?? '',
+                            remarks: _remarks[s.roll] ?? [],
+                            lastWeek: _lastWeekStats[s.roll],
+                            lastMonth: _lastMonthStats[s.roll],
+                            onStatusChanged: (status) {
+                              _setStatus(s.roll, status);
+                              _saveQuietly();
+                              _triggerFeedback();
+                              // Auto-swipe to next card after a very small delay
+                              Future.delayed(const Duration(milliseconds: 150), () {
+                                if (_pageController.hasClients) {
+                                  _pageController.nextPage(
+                                    duration: const Duration(milliseconds: 350),
+                                    curve: Curves.easeOutCubic,
+                                  );
+                                }
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
-          ),
-        ),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }
+
+  Widget _banner(Color color, IconData icon, String text) => Container(
+    width: double.infinity, color: color,
+    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+    child: Row(children: [
+      Icon(icon, color: Colors.white, size: 16),
+      const SizedBox(width: 8),
+      Text(text, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+    ]),
+  );
+
+  Widget _buildStatsCard() {
+    return const SizedBox.shrink();
+  }
+
+
 
   // ── Entry view: attendance not yet taken today ──────────────────────────────
   Widget _buildEntryView() {
@@ -776,8 +860,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             ElevatedButton.icon(
               onPressed: () => setState(() => _isMarking = true),
               icon: const Icon(Icons.how_to_reg_outlined, size: 22),
-              label: const Text('Take Attendance for Today',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              label: Text(widget.date == null 
+                  ? 'Take Attendance for Today'
+                  : 'Update Attendance for ${_formatDate(widget.date!)}',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
@@ -941,7 +1027,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     color: Colors.green.shade600, size: 20),
                 const SizedBox(width: 10),
                 Text(
-                  'Attendance saved for today',
+                  widget.date == null ? 'Attendance saved for today' : 'Attendance updated for ${_formatDate(widget.date!)}',
                   style: TextStyle(
                       fontSize: 13,
                       color: Colors.green.shade700,
@@ -978,7 +1064,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: OutlinedButton.icon(
                 onPressed: _showWhatsAppSheet,
-                icon: const Icon(Icons.message,
+                icon: const Icon(FontAwesomeIcons.whatsapp,
                     size: 20, color: Color(0xFF25D366)),
                 label: const Text('Notify Guardians via WhatsApp',
                     style: TextStyle(
@@ -1002,6 +1088,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
     );
   }
+
+  String _formatDate(DateTime dt) => '${dt.day}/${dt.month}/${dt.year}';
 
   Widget _noAssignmentState() => Center(
     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -1063,74 +1151,46 @@ class _AttendanceHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pct = total == 0 ? 0.0 : present / total * 100;
-    return ClipPath(
-      clipper: _WaveClipper(),
-      child: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppTheme.primaryDark, Color(0xFF880E4F)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppTheme.primaryDark, Color(0xFF880E4F)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 56),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+      child: SafeArea(
+        bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Label row
+            // Only show Day and Date
             Text(
-              '${className.toUpperCase()}  ·  TODAY  ·  $dateLabel',
+              dateLabel.toUpperCase(),
               style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
                 letterSpacing: 0.8,
               ),
             ),
-            const SizedBox(height: 10),
-            // Big percentage
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${pct.round()}%',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 42,
-                    fontWeight: FontWeight.bold,
-                    height: 1.0,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    'Present',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Glassmorphism stats row
+            const SizedBox(height: 12),
+            // Glassmorphism stats row - Moved Up and Compact
             Container(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white24),
               ),
               child: Row(children: [
                 _HeroStat('$total',   'Total'),
-                Container(width: 1, height: 28, color: Colors.white24),
+                Container(width: 1, height: 24, color: Colors.white24),
                 _HeroStat('$present', 'Present'),
-                Container(width: 1, height: 28, color: Colors.white24),
+                Container(width: 1, height: 24, color: Colors.white24),
                 _HeroStat('$leave',   'Leave'),
-                Container(width: 1, height: 28, color: Colors.white24),
+                Container(width: 1, height: 24, color: Colors.white24),
                 _HeroStat('$absent',  'Absent'),
               ]),
             ),
@@ -1191,293 +1251,8 @@ class _WaveClipper extends CustomClipper<Path> {
   bool shouldReclip(_WaveClipper _) => false;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Mark All row — small secondary action above the student list
-// ─────────────────────────────────────────────────────────────────────────────
+// Unused widgets removed for clarity.
 
-class _MarkAllRow extends StatelessWidget {
-  final void Function(String) onMarkAll;
-  const _MarkAllRow({required this.onMarkAll});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Text(
-            'Quick mark:',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-          ),
-          const Spacer(),
-          _SmallMarkChip(
-            label: 'All Present',
-            color: const Color(0xFF2E7D32),
-            onTap: () => onMarkAll('Present'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SmallMarkChip extends StatelessWidget {
-  final String label;
-  final Color  color;
-  final VoidCallback onTap;
-  const _SmallMarkChip(
-      {required this.label, required this.color, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withOpacity(0.35)),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: color),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Student row
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _StudentRow extends StatelessWidget {
-  final Student  student;
-  final String   status;
-  final Color    accentColor, rowBg;
-  final ValueChanged<String> onChanged;
-  final Future<void> Function() onRemove;
-  final bool isLast;
-
-  const _StudentRow({
-    required this.student,
-    required this.status,
-    required this.accentColor,
-    required this.rowBg,
-    required this.onChanged,
-    required this.onRemove,
-    this.isLast = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        color: rowBg,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: 4,
-                    color: accentColor,
-                  ),
-                  const SizedBox(width: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: _Avatar(student: student, ringColor: accentColor),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            student.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.1,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            [
-                              'Roll ${student.roll}',
-                              if (student.fatherName.isNotEmpty) student.fatherName,
-                            ].join('  ·  '),
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: Colors.grey.shade500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 2),
-                    child: _StatusToggle(value: status, onChanged: onChanged),
-                  ),
-                  const SizedBox(width: 10),
-                ],
-              ),
-            ),
-            if (!isLast)
-              Divider(height: 1, indent: 68, color: Colors.grey.shade200),
-          ],
-        ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Avatar with status ring
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _Avatar extends StatelessWidget {
-  final Student student;
-  final Color   ringColor;
-  const _Avatar({required this.student, required this.ringColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.all(2.5),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: ringColor, width: 2.5),
-      ),
-      child: CircleAvatar(
-        radius: 22,
-        backgroundColor: Colors.grey.shade100,
-        backgroundImage: student.photoPath != null
-            ? FileImage(File(student.photoPath!))
-            : null,
-        child: student.photoPath == null
-            ? Text(
-                student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.grey.shade600,
-                ),
-              )
-            : null,
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Status toggle  A | L | P
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _StatusToggle extends StatelessWidget {
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  const _StatusToggle({required this.value, required this.onChanged});
-
-  static const _opts = [
-    _Opt('A', 'Absent',  Color(0xFFC62828)),
-    _Opt('L', 'Leave',   Color(0xFFF57F17)),
-    _Opt('P', 'Present', Color(0xFF2E7D32)),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.primary.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.primary.withOpacity(0.18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < _opts.length; i++) ...[
-            if (i > 0)
-              Container(width: 1, height: 24, color: AppTheme.primary.withOpacity(0.15)),
-            _Pill(
-              opt:     _opts[i],
-              selected: value == _opts[i].state,
-              isFirst:  i == 0,
-              isLast:   i == _opts.length - 1,
-              onTap:    () => onChanged(_opts[i].state),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Opt {
-  final String label, state;
-  final Color  color;
-  const _Opt(this.label, this.state, this.color);
-}
-
-class _Pill extends StatelessWidget {
-  final _Opt opt;
-  final bool selected, isFirst, isLast;
-  final VoidCallback onTap;
-
-  const _Pill({
-    required this.opt,
-    required this.selected,
-    required this.isFirst,
-    required this.isLast,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final r = BorderRadius.horizontal(
-      left:  isFirst ? const Radius.circular(9) : Radius.zero,
-      right: isLast  ? const Radius.circular(9) : Radius.zero,
-    );
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        width: 40, height: 36,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? opt.color : Colors.transparent,
-          borderRadius: r,
-        ),
-        child: Text(
-          opt.label,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.bold,
-            color: selected ? Colors.white : opt.color.withOpacity(0.7),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Floating Save button
@@ -1576,6 +1351,7 @@ class _StatBubble extends StatelessWidget {
   }
 }
 
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Summary row used in the post-save dialog
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1604,9 +1380,404 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  WhatsApp Guardian Notification Sheet
-// ─────────────────────────────────────────────────────────────────────────────
+class _VerticalStudentCard extends StatelessWidget {
+  final Student student;
+  final String status;
+  final List<StudentRemark> remarks;
+  final String? lastWeek;
+  final String? lastMonth;
+  final ValueChanged<String> onStatusChanged;
+
+  const _VerticalStudentCard({
+    required this.student,
+    required this.status,
+    required this.remarks,
+    this.lastWeek,
+    this.lastMonth,
+    required this.onStatusChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+      decoration: BoxDecoration(
+        color: AppTheme.primary, // Violet card background
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primary.withOpacity(0.35),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          children: [
+            // Student photo taking upper half with faded end
+            Positioned(
+              top: 0, left: 0, right: 0,
+              height: 300, // Roughly upper half
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: student.photoUrl != null
+                        ? CachedNetworkImage(
+                            imageUrl: student.photoUrl!,
+                            fit: BoxFit.cover,
+                            alignment: const Alignment(0, -0.5), // Heuristic: center face higher
+                            placeholder: (context, url) => Container(color: Colors.white10),
+                            errorWidget: (context, url, error) => const Icon(Icons.person, size: 150, color: Colors.white24),
+                          )
+                        : student.photoPath != null
+                            ? Image.file(
+                                File(student.photoPath!),
+                                fit: BoxFit.cover,
+                                alignment: const Alignment(0, -0.5),
+                              )
+                            : Container(
+                                color: Colors.white10,
+                                child: const Icon(Icons.person, size: 150, color: Colors.white24),
+                              ),
+                  ),
+                  // Fade effect at bottom of photo
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            AppTheme.primary.withOpacity(0.5),
+                            AppTheme.primary,
+                          ],
+                          stops: const [0.6, 0.9, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Main Content shifted below photo
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 310, 88, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Name
+                  Text(student.name, 
+                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5)),
+                  const SizedBox(height: 12),
+
+                  // Highlighted Roll
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'ROLL NO. ${student.roll}', 
+                      style: const TextStyle(
+                        fontSize: 18, 
+                        color: Colors.white, 
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                  
+                  // Complaints / Remarks
+                  const Text('REMARKS / COMPLAINTS', 
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white70, letterSpacing: 1.5)),
+                  const SizedBox(height: 10),
+                  if (remarks.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text('No active remarks.', 
+                          style: TextStyle(color: Colors.white38, fontStyle: FontStyle.italic, fontSize: 13.5)),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        padding: EdgeInsets.zero,
+                        itemCount: remarks.length,
+                        itemBuilder: (ctx, i) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(margin: const EdgeInsets.only(top: 8), width: 6, height: 6, 
+                                  decoration: const BoxDecoration(color: Colors.white54, shape: BoxShape.circle)),
+                              const SizedBox(width: 12),
+                              Expanded(child: Text(remarks[i].remark, style: const TextStyle(fontSize: 15, color: Colors.white, height: 1.3))),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // Stats
+                  const Divider(height: 32, color: Colors.white24),
+                  Row(
+                    children: [
+                      _StatItem('LAST WEEK', lastWeek ?? '...', isDark: false),
+                      const SizedBox(width: 40),
+                      _StatItem('LAST MONTH', lastMonth ?? '...', isDark: false),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Action Buttons attached to the card
+            Positioned(
+              right: 16,
+              top: 0, bottom: 0,
+              child: Center(
+                child: _VerticalActionButtons(
+                  status: status,
+                  onChanged: onStatusChanged,
+                  isDark: false,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _statusColor(String status) {
+    if (status == 'Present') return const Color(0xFF2E7D32);
+    if (status == 'Leave')   return const Color(0xFFF57F17);
+    if (status == 'Absent')  return const Color(0xFFC62828);
+    return Colors.grey.shade200;
+  }
+}
+
+class _AttendanceSummaryCard extends StatelessWidget {
+  final int total, present, absent, leave;
+  final VoidCallback onSave, onNotify;
+
+  const _AttendanceSummaryCard({
+    required this.total,
+    required this.present,
+    required this.absent,
+    required this.leave,
+    required this.onSave,
+    required this.onNotify,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.primary,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(color: AppTheme.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10)),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.check_circle_outline, size: 80, color: Colors.white),
+            const SizedBox(height: 24),
+            const Text('ATTENDANCE DONE', 
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.0)),
+            const SizedBox(height: 40),
+            _SummaryItem('Total Students', '$total'),
+            const Divider(color: Colors.white24, height: 24),
+            _SummaryItem('Present', '$present'),
+            const Divider(color: Colors.white24, height: 24),
+            _SummaryItem('Absent', '$absent'),
+            const Divider(color: Colors.white24, height: 24),
+            _SummaryItem('On Leave', '$leave'),
+            const SizedBox(height: 48),
+            
+            ElevatedButton(
+              onPressed: onSave,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppTheme.primary,
+                minimumSize: const Size(double.infinity, 56),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+              ),
+              child: const Text('SAVE ATTENDANCE', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+            ),
+            if (absent > 0 || leave > 0) ...[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: onNotify,
+                icon: const Icon(FontAwesomeIcons.whatsapp, size: 18),
+                label: const Text('WHATSAPP ABSENCE NOTICE'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white, width: 2),
+                  minimumSize: const Size(double.infinity, 56),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryItem extends StatelessWidget {
+  final String label, value;
+  const _SummaryItem(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 16, color: Colors.white70, fontWeight: FontWeight.w600)),
+        Text(value, style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.w900)),
+      ],
+    );
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  final String label, value;
+  final bool isDark;
+  const _StatItem(this.label, this.value, {this.isDark = true});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? Colors.grey.shade500 : Colors.white60, letterSpacing: 0.5)),
+        const SizedBox(height: 4),
+        Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? AppTheme.primaryDark : Colors.white)),
+      ],
+    );
+  }
+}
+
+class _VerticalActionButtons extends StatelessWidget {
+  final String status;
+  final ValueChanged<String> onChanged;
+  final bool isDark;
+
+  const _VerticalActionButtons({required this.status, required this.onChanged, this.isDark = true});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _CircleAction('P', 'Present', const Color(0xFF2E7D32), status == 'Present', () => onChanged('Present'), isDark: isDark),
+        const SizedBox(height: 24),
+        _CircleAction('L', 'Leave', const Color(0xFFF57F17), status == 'Leave', () => onChanged('Leave'), isDark: isDark),
+        const SizedBox(height: 24),
+        _CircleAction('A', 'Absent', const Color(0xFFC62828), status == 'Absent', () => onChanged('Absent'), isDark: isDark),
+      ],
+    );
+  }
+}
+
+class _CircleAction extends StatelessWidget {
+  final String label, full;
+  final Color color;
+  final bool selected, isDark;
+  final VoidCallback onTap;
+
+  const _CircleAction(this.label, this.full, this.color, this.selected, this.onTap, {this.isDark = true});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        width: 62, height: 62,
+        decoration: BoxDecoration(
+          color: selected ? (isDark ? color : Colors.white) : Colors.transparent,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected ? (isDark ? color : Colors.white) : (isDark ? color.withOpacity(0.35) : Colors.white38), 
+            width: selected ? 3.0 : 2.0
+          ),
+          boxShadow: [
+            if (selected) 
+              BoxShadow(
+                color: (isDark ? color : Colors.white).withOpacity(0.4), 
+                blurRadius: 12, 
+                offset: const Offset(0, 5)
+              ),
+          ],
+        ),
+        child: Center(
+          child: AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            style: TextStyle(
+              color: selected ? (isDark ? Colors.white : AppTheme.primary) : (isDark ? color : Colors.white70),
+              fontSize: 24, 
+              fontWeight: FontWeight.w900
+            ),
+            child: Text(label),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VerticalProgressBar extends StatelessWidget {
+  final int total, current;
+  const _VerticalProgressBar({required this.total, required this.current});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        const h = 220.0;
+        return Container(
+          width: 5, height: h,
+          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(3)),
+          child: Stack(
+            children: [
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                top: 0, left: 0, right: 0,
+                height: h * (current / total),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppTheme.primary, AppTheme.primaryDark],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    );
+  }
+}
 
 class _WhatsAppNotifySheet extends StatelessWidget {
   final List<Student>    students;
@@ -1683,8 +1854,8 @@ class _WhatsAppNotifySheet extends StatelessWidget {
                 color: const Color(0xFF25D366).withOpacity(0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.message,
-                  color: Color(0xFF25D366), size: 24),
+              child: const Icon(FontAwesomeIcons.whatsapp,
+                  color: Color(0xFF25D366), size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(child: Column(
@@ -1829,7 +2000,7 @@ class _NotifyRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.message, color: Colors.white, size: 14),
+                Icon(FontAwesomeIcons.whatsapp, color: Colors.white, size: 14),
                 SizedBox(width: 4),
                 Text('WhatsApp',
                     style: TextStyle(

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../services/timetable_service.dart';
+import '../services/base_firestore_service.dart';
 import '../theme.dart';
 
 // ── Bell model ────────────────────────────────────────────────────────────────
@@ -53,6 +54,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   bool _loading = true;
   bool _settingsEditing = false;
   bool _timetableEditing = false;
+  String? _legendTeacherId;
 
   static const _days = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
@@ -380,7 +382,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
         });
     final firstBell = _bells.isNotEmpty ? _fmt(_startOf(0)) : '08:00';
 
-    await _service.saveSettings({
+    await _service.saveSettings(BaseFirestoreService.currentSchoolId ?? 'default_school', {
       'numberOfBells': _bells.length,
       'classes': _classes,
       'firstBellTime': firstBell,
@@ -951,27 +953,36 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                 color: Colors.grey.shade600,
                 fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        Wrap(
-          spacing: 6,
-          runSpacing: 4,
-          children: _teachers.asMap().entries.map((e) {
-            final color = _palette[e.key % _palette.length];
-            return Chip(
-              avatar: CircleAvatar(
-                backgroundColor: color,
-                child: Text(e.value.name[0].toUpperCase(),
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 10)),
-              ),
-              label: Text(e.value.name,
-                  style: const TextStyle(fontSize: 11)),
-              backgroundColor: color.withOpacity(0.1),
-              side: BorderSide(color: color.withOpacity(0.3)),
-              visualDensity: VisualDensity.compact,
-              labelPadding: const EdgeInsets.only(right: 4),
-              padding: EdgeInsets.zero,
+        DropdownButtonFormField<String>(
+          value: _legendTeacherId,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: 'Select Teacher',
+            prefixIcon: const Icon(Icons.person_outline, size: 20),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10)),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFF1565C0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide:
+                  const BorderSide(color: Color(0xFF1565C0), width: 2),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          ),
+          hint: const Text('Select Teacher'),
+          items: _teachers.map((t) {
+            return DropdownMenuItem<String>(
+              value: t.id,
+              child: Text('${t.name}  ·  ${t.subject}',
+                  style: const TextStyle(fontSize: 13),
+                  overflow: TextOverflow.ellipsis),
             );
           }).toList(),
+          onChanged: (val) => setState(() => _legendTeacherId = val),
         ),
       ]),
     );

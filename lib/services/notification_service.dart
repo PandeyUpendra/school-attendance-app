@@ -119,6 +119,45 @@ class NotificationService {
     });
   }
 
+  Future<void> addTaskNotice({
+    required String title,
+    required String createdBy,
+    required List<String> classes,
+  }) async {
+    await _coll.add({
+      'type':      'task',
+      'title':     'New task assigned: $title',
+      'body':      'Assigned by $createdBy to ${classes.join(", ")}',
+      'audience':  'teachers',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Sends a targeted notification to a specific teacher when a staff task
+  /// is assigned to them.
+  Future<void> addStaffTaskNotice({
+    required String taskTitle,
+    required String assignedTeacherId,
+    required String assignedByName,
+    String? dueDateStr,
+    String? priority,
+  }) async {
+    final parts = <String>[taskTitle];
+    if (dueDateStr != null && dueDateStr.isNotEmpty) {
+      parts.add('Due: $dueDateStr');
+    }
+    if (priority != null && priority.isNotEmpty) {
+      parts.add('Priority: $priority');
+    }
+    await _coll.add({
+      'type':      'staff_task',
+      'title':     'New Task Assigned',
+      'body':      '${parts.join(' · ')} — by $assignedByName',
+      'audience':  'teacher:$assignedTeacherId',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   // ── Deleters ───────────────────────────────────────────────────────────────
 
   /// Deletes a single notification by its Firestore document ID.

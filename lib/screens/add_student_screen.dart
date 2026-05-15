@@ -28,6 +28,8 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
   final _motherCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   String _feeStatus = 'Pending';
+  String? _feeDueDate;
+  final _feeAmountCtrl = TextEditingController();
   String? _photoPath;
   bool _saving = false;
 
@@ -44,6 +46,8 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       _motherCtrl.text = s.motherName ?? '';
       _phoneCtrl.text = s.phone;
       _feeStatus = s.feeStatus;
+      _feeDueDate = s.feeDueDate;
+      _feeAmountCtrl.text = s.feeAmount?.toStringAsFixed(0) ?? '';
       _photoPath = s.photoPath;
     }
   }
@@ -55,6 +59,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     _fatherCtrl.dispose();
     _motherCtrl.dispose();
     _phoneCtrl.dispose();
+    _feeAmountCtrl.dispose();
     super.dispose();
   }
 
@@ -98,6 +103,8 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       phone: _phoneCtrl.text.trim(),
       photoPath: _photoPath,
       feeStatus: _feeStatus,
+      feeDueDate: _feeDueDate,
+      feeAmount: double.tryParse(_feeAmountCtrl.text.trim()),
       // Preserve existing teacherId on edits; stamp it on new records.
       teacherId: widget.teacherId ?? widget.existing?.teacherId,
     );
@@ -306,6 +313,64 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                     ])),
               ],
               onChanged: (v) => setState(() => _feeStatus = v!),
+            ),
+            const SizedBox(height: 14),
+
+            // Fee Amount (optional)
+            _Field(
+              controller: _feeAmountCtrl,
+              label: 'Fee Amount (optional)',
+              icon: Icons.currency_rupee,
+              keyboard: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Fee Due Date (optional)
+            GestureDetector(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _feeDueDate != null
+                      ? (DateTime.tryParse(_feeDueDate!) ?? DateTime.now())
+                      : DateTime.now().add(const Duration(days: 30)),
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2100),
+                );
+                if (picked != null) {
+                  setState(() {
+                    _feeDueDate =
+                        '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+                  });
+                }
+              },
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  labelText: 'Fee Due Date (optional)',
+                  prefixIcon: const Icon(Icons.calendar_today_outlined),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 14),
+                  suffixIcon: _feeDueDate != null
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () =>
+                              setState(() => _feeDueDate = null),
+                        )
+                      : null,
+                ),
+                child: Text(
+                  _feeDueDate ?? 'Tap to select a date',
+                  style: TextStyle(
+                      fontSize: 15,
+                      color: _feeDueDate != null
+                          ? Colors.black87
+                          : Colors.grey.shade500),
+                ),
+              ),
             ),
             const SizedBox(height: 32),
             SizedBox(

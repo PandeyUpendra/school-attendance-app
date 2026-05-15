@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../services/timetable_service.dart';
+import '../services/base_firestore_service.dart';
 import '../theme.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,7 +94,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     );
     if (ok != true || !mounted) return;
     for (final id in _selectedIds) {
-      await _service.removeTeacher(id);
+      await _service.removeTeacher(BaseFirestoreService.currentSchoolId ?? 'default_school', id);
     }
     if (!mounted) return;
     setState(() { _selectMode = false; _selectedIds = {}; });
@@ -125,7 +126,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
             t.section.trim().toLowerCase() ==
                 teacher.section.trim().toLowerCase(),
         orElse: () =>
-            const Teacher(id: '', name: '', subject: '', email: ''),
+            const Teacher(id: '', name: '', subject: '', email: '', schoolId: 'default_school'),
       );
       if (duplicate.id.isNotEmpty) {
         if (!mounted) return;
@@ -160,9 +161,9 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     }
 
     if (existing == null) {
-      await _service.addTeacher(teacher);
+      await _service.addTeacher(BaseFirestoreService.currentSchoolId ?? 'default_school', teacher);
     } else {
-      await _service.updateTeacher(teacher);
+      await _service.updateTeacher(BaseFirestoreService.currentSchoolId ?? 'default_school', teacher);
     }
     _load();
   }
@@ -189,7 +190,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
       ),
     );
     if (ok == true) {
-      await _service.removeTeacher(teacher.id);
+      await _service.removeTeacher(BaseFirestoreService.currentSchoolId ?? 'default_school', teacher.id);
       _load();
     }
   }
@@ -247,6 +248,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
         subject: get(row, 'subject'),
         email: get(row, 'email'),
         section: get(row, 'section'),
+        schoolId: BaseFirestoreService.currentSchoolId ?? 'default_school',
       ));
     }
 
@@ -303,7 +305,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     if (confirm != true || !mounted) return;
 
     for (final t in teachers) {
-      await _service.addTeacher(t);
+      await _service.addTeacher(BaseFirestoreService.currentSchoolId ?? 'default_school', t);
     }
     await _load();
     if (!mounted) return;
@@ -968,7 +970,7 @@ class _TeacherDialogState extends State<_TeacherDialog> {
     settings['classes']        = classes;
     settings['numberOfBells']  =
         (settings['bells'] as List? ?? []).length;
-    await TimetableService().saveSettings(settings);
+    await TimetableService().saveSettings(BaseFirestoreService.currentSchoolId ?? 'default_school', settings);
     if (!mounted) return;
     setState(() {
       _classes        = classes;
@@ -1245,6 +1247,7 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                 isClassTeacher: _isClassTeacher,
                 classTeacherOf:
                     _isClassTeacher ? _classTeacherOf : null,
+                schoolId: BaseFirestoreService.currentSchoolId ?? 'default_school',
               );
               Navigator.pop(context, teacher);
             }

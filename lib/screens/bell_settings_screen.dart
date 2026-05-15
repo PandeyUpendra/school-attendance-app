@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/timetable_service.dart';
+import '../services/base_firestore_service.dart';
 import '../theme.dart';
 
 class BellSettingsScreen extends StatefulWidget {
@@ -40,7 +41,7 @@ class _BellSettingsScreenState extends State<BellSettingsScreen> {
   }
 
   Future<void> _save() async {
-    await _service.saveSettings({'numberOfBells': _bellCount, 'classes': _classes});
+    await _service.saveSettings(BaseFirestoreService.currentSchoolId ?? 'default_school', {'numberOfBells': _bellCount, 'classes': _classes});
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

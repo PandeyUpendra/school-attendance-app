@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/homework.dart';
 import '../services/homework_service.dart';
 import '../services/timetable_service.dart';
+import '../services/base_firestore_service.dart';
 import '../theme.dart';
 
 /// Coordinator screen — view all homework across classes.
@@ -32,7 +33,7 @@ class _HomeworkOverviewScreenState extends State<HomeworkOverviewScreen> {
     setState(() => _loading = true);
     final settings = await TimetableService().getSettings();
     final classes  = List<String>.from(settings['classes'] as List? ?? []);
-    final all      = await _service.getAllHomework();
+    final all      = await _service.getAllHomework(BaseFirestoreService.currentSchoolId ?? 'default_school');
     if (!mounted) return;
     setState(() {
       _classes       = classes;
@@ -70,7 +71,7 @@ class _HomeworkOverviewScreenState extends State<HomeworkOverviewScreen> {
       ),
     );
     if (ok == true) {
-      await _service.deleteHomework(hw.id);
+      await _service.deleteHomework(BaseFirestoreService.currentSchoolId ?? 'default_school', hw.id);
       _load();
     }
   }

@@ -14,6 +14,7 @@ import '../services/fee_service.dart';
 import '../services/homework_service.dart';
 import '../services/notification_service.dart';
 import '../services/timetable_service.dart';
+import '../services/base_firestore_service.dart';
 import 'role_selection_screen.dart';
 import 'announcements_screen.dart';
 import 'notifications_screen.dart';
@@ -95,14 +96,14 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         _service.loadMonthAttendance(
             widget.studentClass, _month.year, _month.month),                  // 1
         _service.loadTodayAttendance(widget.studentClass),                     // 2
-        _feeService.getFeeStructure(widget.studentClass),                      // 3
-        _feeService.getTotalPaid(widget.studentClass, widget.studentRoll),     // 4
+        _feeService.getFeeStructure(className: widget.studentClass),            // 3
+        _feeService.getTotalPaid(className: widget.studentClass, roll: widget.studentRoll),  // 4
         NotificationService().unreadCount(
           role:         'guardian',
           studentClass: widget.studentClass,
           studentRoll:  widget.studentRoll,
         ),                                                                     // 5
-        _hwService.getHomeworkForClass(widget.studentClass),                   // 6
+        _hwService.getHomeworkForClass(BaseFirestoreService.currentSchoolId ?? 'default_school', widget.studentClass),  // 6
         _loadExamData(),                                                       // 7
         _ttService.getTimetable(),                                             // 8
         _ttService.getSettings(),                                              // 9

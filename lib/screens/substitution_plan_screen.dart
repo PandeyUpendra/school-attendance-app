@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/substitution_record.dart';
-import '../models/teacher.dart';
 import '../services/notification_service.dart';
 import '../services/substitution_history_service.dart';
 import '../services/substitution_suggester_service.dart';
@@ -122,21 +121,6 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
     Navigator.pop(context);
   }
 
-  Future<void> _pickAlternate(SuggestedSlot slot) async {
-    final currentSel = _selections[slot.key];
-    final picked = await showModalBottomSheet<String?>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return _CandidatePickerSheet(slot: slot, currentSelection: currentSel);
-      },
-    );
-    if (picked == null) return; // sheet dismissed without action
-    setState(() {
-      _selections[slot.key] = picked.isEmpty ? null : picked;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -306,107 +290,121 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
   }
 
   Widget _buildSlotRow(SuggestedSlot slot) {
-    final selId = _selections[slot.key];
-    final selected = slot.candidates
-        .where((c) => c.teacher.id == selId)
-        .firstOrNull
-        ?.teacher;
-    final reasons = slot.candidates
-        .where((c) => c.teacher.id == selId)
-        .firstOrNull
-        ?.reasons ?? const <String>[];
-
+    final selId          = _selections[slot.key];
     final hasNoCandidate = slot.candidates.isEmpty;
 
-    return InkWell(
-      onTap: hasNoCandidate ? null : () => _pickAlternate(slot),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-          // Bell pill
-          Container(
-            width: 38, height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppTheme.primary,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Text('${slot.bell}',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      height: 1.0)),
-              const Text('bell',
-                  style: TextStyle(
-                      color: Colors.white70, fontSize: 8, height: 1.0)),
-            ]),
+    // Validate the current selection is still in candidates
+    final validSelId = (selId != null &&
+            slot.candidates.any((c) => c.teacher.id == selId))
+        ? selId
+        : null;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+        // Bell pill
+        Container(
+          width: 38, height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppTheme.primary,
+            borderRadius: BorderRadius.circular(10),
           ),
-          const SizedBox(width: 12),
-          // Class + subject + selected sub
-          Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Text(slot.className,
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w700)),
-                    if (slot.subject.isNotEmpty) ...[
-                      const SizedBox(width: 6),
-                      Text('· ${slot.subject}',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade600)),
-                    ],
-                  ]),
-                  const SizedBox(height: 4),
-                  if (hasNoCandidate)
-                    Row(children: [
-                      Icon(Icons.error_outline,
-                          color: Colors.orange.shade700, size: 14),
-                      const SizedBox(width: 4),
-                      Text('No free teachers for this bell',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.orange.shade800,
-                              fontWeight: FontWeight.w600)),
-                    ])
-                  else if (selected == null)
-                    Row(children: [
-                      Icon(Icons.remove_circle_outline,
-                          color: Colors.grey.shade500, size: 14),
-                      const SizedBox(width: 4),
-                      Text('Skipped — tap to assign',
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade600)),
-                    ])
-                  else
-                    Row(children: [
-                      const Icon(Icons.person, color: AppTheme.primary, size: 14),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(selected.name,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w600)),
-                      ),
-                      if (reasons.isNotEmpty) ...[
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text('• ${reasons.first}',
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontSize: 10, color: Colors.grey.shade500)),
-                        ),
-                      ],
-                    ]),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Text('${slot.bell}',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    height: 1.0)),
+            const Text('bell',
+                style: TextStyle(
+                    color: Colors.white70, fontSize: 8, height: 1.0)),
+          ]),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Text(slot.className,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700)),
+                  if (slot.subject.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Text('· ${slot.subject}',
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade600)),
+                  ],
                 ]),
-          ),
-          if (!hasNoCandidate)
-            Icon(Icons.chevron_right, color: Colors.grey.shade400),
-        ]),
-      ),
+                const SizedBox(height: 6),
+                if (hasNoCandidate)
+                  Row(children: [
+                    Icon(Icons.error_outline,
+                        color: Colors.orange.shade700, size: 14),
+                    const SizedBox(width: 4),
+                    Text('No free teachers for this bell',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.orange.shade800,
+                            fontWeight: FontWeight.w600)),
+                  ])
+                else
+                  DropdownButtonFormField<String>(
+                    value: validSelId,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Select Substitute Teacher',
+                      labelStyle: const TextStyle(
+                          fontSize: 11, color: Color(0xFF1565C0)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide:
+                            const BorderSide(color: Color(0xFF1565C0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(
+                            color: Color(0xFF1565C0), width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      isDense: true,
+                    ),
+                    hint: const Text('Select Substitute Teacher',
+                        style: TextStyle(fontSize: 11)),
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: '',
+                        child: Text('— Skip this bell —',
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey)),
+                      ),
+                      ...slot.candidates.asMap().entries.map((e) {
+                        final c     = e.value;
+                        final t     = c.teacher;
+                        final isTop = e.key == 0;
+                        return DropdownMenuItem<String>(
+                          value: t.id,
+                          child: Text(
+                            '${isTop ? '★ ' : ''}${t.name}  ·  ${t.subject}',
+                            style: const TextStyle(fontSize: 11),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (val) => setState(() {
+                      _selections[slot.key] =
+                          (val == null || val.isEmpty) ? null : val;
+                    }),
+                  ),
+              ]),
+        ),
+      ]),
     );
   }
 
@@ -462,224 +460,3 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
   }
 }
 
-// ── Candidate picker bottom sheet ────────────────────────────────────────────
-
-class _CandidatePickerSheet extends StatefulWidget {
-  final SuggestedSlot slot;
-  final String?       currentSelection;
-
-  const _CandidatePickerSheet({
-    required this.slot,
-    required this.currentSelection,
-  });
-
-  @override
-  State<_CandidatePickerSheet> createState() => _CandidatePickerSheetState();
-}
-
-class _CandidatePickerSheetState extends State<_CandidatePickerSheet> {
-  late String? _selectedId;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedId = widget.currentSelection;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final slot = widget.slot;
-    return Container(
-      constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.78),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          margin: const EdgeInsets.symmetric(vertical: 12),
-          width: 36, height: 4,
-          decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2)),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Pick Substitute',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
-                Text(
-                    '${slot.className} · Bell ${slot.bell} · ${slot.dayName}'
-                    '${slot.subject.isEmpty ? '' : ' · ${slot.subject}'}',
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade600)),
-              ]),
-        ),
-        const Divider(height: 1),
-        if (slot.candidates.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(24),
-            child: Text('No free teachers for this bell.',
-                style: TextStyle(color: Colors.grey)),
-          )
-        else
-          Flexible(
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: slot.candidates.length,
-              itemBuilder: (_, i) {
-                final c   = slot.candidates[i];
-                final t   = c.teacher;
-                final sel = t.id == _selectedId;
-                final isTopPick = i == 0;
-                return _CandidateTile(
-                  teacher:    t,
-                  reasons:    c.reasons,
-                  selected:   sel,
-                  isTopPick:  isTopPick,
-                  score:      c.score,
-                  onTap: () =>
-                      setState(() => _selectedId = sel ? null : t.id),
-                );
-              },
-            ),
-          ),
-        Container(
-          padding: EdgeInsets.fromLTRB(
-              20, 10, 20, MediaQuery.of(context).padding.bottom + 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: Colors.grey.shade200)),
-          ),
-          child: Row(children: [
-            if (widget.currentSelection != null)
-              TextButton.icon(
-                onPressed: () => Navigator.pop(context, ''),
-                icon: const Icon(Icons.clear, color: Colors.red, size: 16),
-                label: const Text('Skip this bell',
-                    style: TextStyle(color: Colors.red)),
-              ),
-            const Spacer(),
-            ElevatedButton.icon(
-              onPressed: _selectedId == null
-                  ? null
-                  : () => Navigator.pop(context, _selectedId),
-              icon: const Icon(Icons.check, size: 16),
-              label: const Text('Use this teacher'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.grey.shade200,
-              ),
-            ),
-          ]),
-        ),
-      ]),
-    );
-  }
-}
-
-class _CandidateTile extends StatelessWidget {
-  final Teacher      teacher;
-  final List<String> reasons;
-  final bool         selected;
-  final bool         isTopPick;
-  final int          score;
-  final VoidCallback onTap;
-
-  const _CandidateTile({
-    required this.teacher,
-    required this.reasons,
-    required this.selected,
-    required this.isTopPick,
-    required this.score,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final initial = teacher.name.isEmpty
-        ? '?'
-        : teacher.name[0].toUpperCase();
-    return ListTile(
-      leading: Stack(clipBehavior: Clip.none, children: [
-        CircleAvatar(
-          backgroundColor: selected
-              ? AppTheme.primary
-              : AppTheme.primary.withOpacity(0.12),
-          child: Text(initial,
-              style: TextStyle(
-                  color: selected ? Colors.white : AppTheme.primary,
-                  fontWeight: FontWeight.bold)),
-        ),
-        if (isTopPick)
-          Positioned(
-            right: -4, top: -4,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              decoration: BoxDecoration(
-                color: AppTheme.accent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text('TOP',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 8,
-                      fontWeight: FontWeight.bold)),
-            ),
-          ),
-      ]),
-      title: Text(teacher.name,
-          style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(teacher.subject,
-                style: TextStyle(
-                    fontSize: 11, color: Colors.grey.shade600)),
-            if (reasons.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 4,
-                runSpacing: 3,
-                children: reasons.map(_reasonChip).toList(),
-              ),
-            ],
-          ]),
-      trailing: selected
-          ? const Icon(Icons.check_circle, color: AppTheme.primary)
-          : null,
-      selected: selected,
-      selectedTileColor: AppTheme.primary.withOpacity(0.05),
-      onTap: onTap,
-    );
-  }
-
-  Widget _reasonChip(String label) {
-    Color color;
-    if (label.toLowerCase().contains('same subject')) {
-      color = AppTheme.primary;
-    } else if (label.toLowerCase().contains('on duty')) {
-      color = Colors.orange;
-    } else if (label.toLowerCase().contains('no subs')) {
-      color = Colors.green;
-    } else {
-      color = Colors.blueGrey;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: 9, fontWeight: FontWeight.w600, color: color)),
-    );
-  }
-}

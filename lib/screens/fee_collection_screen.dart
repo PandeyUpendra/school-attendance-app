@@ -49,7 +49,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
     setState(() { _selectedClass = cls; _loading = true; });
     final results = await Future.wait([
       _studentService.getStudentsByClass(cls),
-      _feeService.getFeeStructure(cls),
+      _feeService.getFeeStructure(className: cls),
     ]);
     final students  = results[0] as List<Student>;
     final structure = results[1] as FeeStructure;
@@ -59,7 +59,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
     debugPrint('[StudentList][$cls] count=${students.length}');
 
     final rolls     = students.map((s) => s.roll).toList();
-    final paid      = await _feeService.getClassFeeOverview(cls, rolls);
+    final paid      = await _feeService.getClassFeeOverview(className: cls, rolls: rolls);
     if (!mounted) return;
     setState(() {
       _students  = students;
@@ -70,7 +70,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   }
 
   Future<void> _refreshStudent(int roll) async {
-    final paid = await _feeService.getTotalPaid(_selectedClass!, roll);
+    final paid = await _feeService.getTotalPaid(className: _selectedClass!, roll: roll);
     if (!mounted) return;
     setState(() => _paid[roll] = paid);
   }
@@ -365,7 +365,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
   Future<void> _loadPayments() async {
     setState(() => _loading = true);
     final payments = await _feeService.getPayments(
-        widget.student.className, widget.student.roll);
+        className: widget.student.className, roll: widget.student.roll);
     if (!mounted) return;
     final paid = payments.fold(0.0, (s, p) => s + p.amount);
     setState(() {
@@ -505,9 +505,9 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                                 : noteCtrl.text.trim(),
                           );
                           await _feeService.addPayment(
-                            widget.student.className,
-                            widget.student.roll,
-                            payment,
+                            className: widget.student.className,
+                            roll: widget.student.roll,
+                            payment: payment,
                           );
                           if (ctx.mounted) Navigator.pop(ctx, true);
                         },

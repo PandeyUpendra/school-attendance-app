@@ -27,7 +27,7 @@ class TimetableService {
     return Teacher.fromJson(Map<String, dynamic>.from(doc.data()!));
   }
 
-  Future<List<Teacher>> getTeachers() async {
+  Future<List<Teacher>> getTeachers({String? schoolId, bool refresh = false}) async {
     final snap = await _teachers.get();
     final list = snap.docs
         .map((d) => Teacher.fromJson(Map<String, dynamic>.from(d.data())))
@@ -36,15 +36,15 @@ class TimetableService {
     return list;
   }
 
-  Future<void> addTeacher(Teacher teacher) async {
+  Future<void> addTeacher(String schoolId, Teacher teacher) async {
     await _teachers.doc(teacher.id).set(teacher.toJson());
   }
 
-  Future<void> updateTeacher(Teacher teacher) async {
+  Future<void> updateTeacher(String schoolId, Teacher teacher) async {
     await _teachers.doc(teacher.id).set(teacher.toJson());
   }
 
-  Future<void> removeTeacher(String id) async {
+  Future<void> removeTeacher(String schoolId, String id) async {
     await _teachers.doc(id).delete();
 
     // Scrub teacher from every timetable slot
@@ -109,7 +109,7 @@ class TimetableService {
     return result;
   }
 
-  Future<void> saveSettings(Map<String, dynamic> settings) async {
+  Future<void> saveSettings(String schoolId, Map<String, dynamic> settings) async {
     _settingsCache = null; // invalidate so next getSettings re-fetches
     await _settings.doc('main').set(settings);
   }
@@ -241,7 +241,8 @@ class TimetableService {
       data['studentClass'] = null;
       data['studentRoll']  = null;
     }
-    if (role == 'coordinator' || role == 'principal') {
+    if (role == 'coordinator' || role == 'principal' ||
+        role == 'owner' || role == 'ownerPrincipal') {
       data['assignedClasses'] = assignedClasses ?? [];
     } else {
       data['assignedClasses'] = null;
@@ -256,20 +257,49 @@ class TimetableService {
     String?       studentClass,
     int?          studentRoll,
     List<String>? assignedClasses,
+    String?       createdByEmail,
+    String?       createdByRole,
   }) async {
     final data = <String, dynamic>{
       'role':     role,
       'email':    email.toLowerCase().trim(),
       'password': password,
+      'createdAt': FieldValue.serverTimestamp(),
+      if (createdByEmail != null) 'createdByEmail': createdByEmail,
+      if (createdByRole  != null) 'createdByRole':  createdByRole,
     };
     if (role == 'guardian' && studentClass != null && studentRoll != null) {
       data['studentClass'] = studentClass;
       data['studentRoll']  = studentRoll;
     }
-    if (role == 'coordinator' || role == 'principal') {
+    if (role == 'coordinator' || role == 'principal' ||
+        role == 'owner' || role == 'ownerPrincipal') {
       data['assignedClasses'] = assignedClasses ?? [];
     }
     await _allowedUsers.doc(email.toLowerCase().trim()).set(data);
+  }
+
+  /// Returns users created by the given creator email.
+  Future<List<Map<String, dynamic>>> getUsersCreatedBy(String creatorEmail) async {
+    final snap = await _allowedUsers
+        .where('createdByEmail', isEqualTo: creatorEmail.toLowerCase().trim())
+        .get();
+    return snap.docs.map((d) {
+      final data = Map<String, dynamic>.from(d.data());
+      return <String, dynamic>{
+        'email':          d.id,
+        'role':           data['role']           as String?   ?? '',
+        'createdAt':      data['createdAt'],
+        'createdByEmail': data['createdByEmail'] as String?   ?? '',
+        'createdByRole':  data['createdByRole']  as String?   ?? '',
+        'studentClass':   data['studentClass']   as String?   ?? '',
+        'studentRoll':    data['studentRoll']    as int?      ?? 0,
+        'assignedClasses': data['assignedClasses'] != null
+            ? List<String>.from(data['assignedClasses'] as List)
+            : <String>[],
+      };
+    }).toList()
+      ..sort((a, b) => (a['email'] as String).compareTo(b['email'] as String));
   }
 
   /// Returns {studentClass, studentRoll} for a guardian, or null if not found.
@@ -367,7 +397,7 @@ class TimetableService {
     return list;
   }
 
-  Future<void> updateLeaveApplication(String id, String status,
+  Future<void> updateLeaveApplication(String schoolId, String id, String status,
       {String? note}) async {
     final update = <String, dynamic>{'status': status};
     if (note != null && note.isNotEmpty) update['coordinatorNote'] = note;

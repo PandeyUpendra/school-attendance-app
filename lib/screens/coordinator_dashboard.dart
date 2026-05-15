@@ -11,6 +11,7 @@ import 'student_details_screen.dart';
 import 'my_timetable_screen.dart';
 import 'role_selection_screen.dart';
 import 'free_bells_screen.dart';
+import 'substitution_history_screen.dart';
 import 'leave_requests_screen.dart';
 import 'attendance_history_screen.dart';
 import 'class_picker_screen.dart';
@@ -23,8 +24,9 @@ import 'exam_management_screen.dart';
 import 'copy_check_overview_screen.dart';
 import 'homework_overview_screen.dart';
 import 'analytics_screen.dart';
-import 'gallery/gallery_home_screen.dart';
 import 'student_remarks_screen.dart';
+import 'coordinator_staff_tasks_screen.dart';
+import '../services/staff_task_service.dart';
 
 const _cPurple    = AppTheme.primary;
 const _cPurpleMid = AppTheme.primaryMid;
@@ -47,6 +49,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
   int  _unreadNotifCount    = 0;
   int  _teachersAbsent      = 0;
   int  _unassignedBells     = 0;
+  int  _incompleteTaskCount = 0;
   String _coordEmail        = '';
 
   StreamSubscription? _studentSub;
@@ -92,11 +95,13 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
     final leavesFuture      = TimetableService().getLeaveApplications(status: 'pending');
     final notifFuture       = NotificationService().unreadCount(role: 'coordinator');
     final absentInfoFuture  = TimetableService().getTodayAbsentTeachersInfo();
+    final taskCountFuture   = StaffTaskService().getIncompleteCountByAssigner(email);
 
-    final summaries  = await summariesFuture;
-    final leaves     = await leavesFuture;
-    final notifCount = await notifFuture;
-    final absentInfo = await absentInfoFuture;
+    final summaries     = await summariesFuture;
+    final leaves        = await leavesFuture;
+    final notifCount    = await notifFuture;
+    final absentInfo    = await absentInfoFuture;
+    final incompleteTaskCount = await taskCountFuture;
 
     // Load consecutive absence streaks for all classes in parallel.
     final streaksList = await Future.wait(
@@ -109,14 +114,15 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
 
     if (!mounted) return;
     setState(() {
-      _coordEmail         = email;
-      _summaries          = summaries;
-      _streaks            = streaks;
-      _pendingLeaveCount  = leaves.length;
-      _unreadNotifCount   = notifCount;
-      _teachersAbsent     = absentInfo['absentCount']    ?? 0;
-      _unassignedBells    = absentInfo['unassignedBells'] ?? 0;
-      _attendanceLoading  = false;
+      _coordEmail           = email;
+      _summaries            = summaries;
+      _streaks              = streaks;
+      _pendingLeaveCount    = leaves.length;
+      _unreadNotifCount     = notifCount;
+      _teachersAbsent       = absentInfo['absentCount']    ?? 0;
+      _unassignedBells      = absentInfo['unassignedBells'] ?? 0;
+      _incompleteTaskCount  = incompleteTaskCount;
+      _attendanceLoading    = false;
     });
   }
 
@@ -161,6 +167,24 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
 
             const SizedBox(height: 4),
 
+            // ── Staff Tasks ───────────────────────────────────────────────
+            _SectionHeader('STAFF TASKS'),
+            _FeatureTile(
+              icon: Icons.assignment_outlined,
+              color: _cPurple,
+              title: 'Staff Tasks',
+              subtitle: 'Assign tasks to teachers and track progress',
+              badge: _incompleteTaskCount > 0
+                  ? '$_incompleteTaskCount'
+                  : null,
+              onTap: () async {
+                await _navigate(CoordinatorStaffTasksScreen(
+                  coordinatorEmail: _coordEmail,
+                ));
+                _loadAll();
+              },
+            ),
+
             // ── Announcements ──────────────────────────────────────────────
             _SectionHeader('ANNOUNCEMENTS'),
             _FeatureTile(
@@ -171,19 +195,6 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               onTap: () => _navigate(AnnouncementsScreen(
                 viewerRole: 'coordinator',
                 posterName: _coordEmail,
-              )),
-            ),
-
-            // ── Gallery ────────────────────────────────────────────────────
-            _SectionHeader('GALLERY'),
-            _FeatureTile(
-              icon: Icons.photo_library_outlined,
-              color: _cPurple,
-              title: 'Event Gallery',
-              subtitle: 'Upload and manage school event photos',
-              onTap: () => _navigate(GalleryHomeScreen(
-                role:      'coordinator',
-                userEmail: _coordEmail,
               )),
             ),
 
@@ -291,13 +302,21 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Free Bells & Substitution ──────────────────────────────────
-            _SectionHeader('FREE BELLS'),
+            _SectionHeader('FREE BELLS & SUBSTITUTION'),
             _FeatureTile(
               icon: Icons.swap_horiz_outlined,
               color: AppTheme.warning,
               title: "Teacher's Free Bells",
               subtitle: 'View free periods & assign substitutions',
               onTap: () => _navigate(const FreeBellsScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.history_outlined,
+              color: AppTheme.warning,
+              title: 'Substitution Bells',
+              subtitle: 'View all substitution assignments & leaderboard',
+              onTap: () => _navigate(const SubstitutionHistoryScreen()),
             ),
 
             // ── Leave Requests ─────────────────────────────────────────────
@@ -949,6 +968,7 @@ class _FeatureTile extends StatelessWidget {
   final Color color;
   final String title, subtitle;
   final VoidCallback onTap;
+  final String? badge;
 
   const _FeatureTile({
     required this.icon,
@@ -956,6 +976,7 @@ class _FeatureTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.badge,
   });
 
   @override
@@ -965,14 +986,34 @@ class _FeatureTile extends StatelessWidget {
           color: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
+            Stack(clipBehavior: Clip.none, children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 22),
               ),
-              child: Icon(icon, color: color, size: 22),
-            ),
+              if (badge != null)
+                Positioned(
+                  top: -4,
+                  right: -4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accent,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(badge!,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ),
+            ]),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

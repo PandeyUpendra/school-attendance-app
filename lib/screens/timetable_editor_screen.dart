@@ -26,6 +26,7 @@ class _TimetableEditorScreenState extends State<TimetableEditorScreen> {
   Map<String, Map<String, Map<int, TimetableEntry>>> _timetable = {};
   bool _loading = true;
   String _selectedDay = 'Monday';
+  String? _filterTeacherId; // null = show all
 
   static const _days = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
@@ -261,29 +262,75 @@ class _TimetableEditorScreenState extends State<TimetableEditorScreen> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
       color: Colors.grey.shade50,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Legend', style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 6,
-          runSpacing: 4,
-          children: _teachers.asMap().entries.map((e) {
-            final color = _palette[e.key % _palette.length];
-            return Chip(
-              avatar: CircleAvatar(
-                backgroundColor: color,
-                child: Text(e.value.name[0].toUpperCase(),
-                    style: const TextStyle(color: Colors.white, fontSize: 10)),
+      child: Row(children: [
+        // Day selector
+        Expanded(
+          child: DropdownButtonFormField<String>(
+            value: _selectedDay,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'Day',
+              labelStyle: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              isDense: true,
+            ),
+            items: _days.map((d) => DropdownMenuItem<String>(
+              value: d,
+              child: Text(_dayAbbr[d] ?? d,
+                  style: const TextStyle(fontSize: 12)),
+            )).toList(),
+            onChanged: (d) {
+              if (d != null) setState(() => _selectedDay = d);
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Teacher filter
+        Expanded(
+          flex: 2,
+          child: DropdownButtonFormField<String?>(
+            value: _filterTeacherId,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'Filter teacher',
+              labelStyle: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              isDense: true,
+            ),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('All teachers',
+                    style: TextStyle(fontSize: 12)),
               ),
-              label: Text(e.value.name,
-                  style: const TextStyle(fontSize: 11)),
-              backgroundColor: color.withOpacity(0.1),
-              side: BorderSide(color: color.withOpacity(0.3)),
-              visualDensity: VisualDensity.compact,
-              labelPadding: const EdgeInsets.only(right: 6),
-              padding: EdgeInsets.zero,
-            );
-          }).toList(),
+              ..._teachers.asMap().entries.map((e) {
+                final color = _palette[e.key % _palette.length];
+                return DropdownMenuItem<String?>(
+                  value: e.value.id,
+                  child: Row(children: [
+                    CircleAvatar(
+                      radius: 8,
+                      backgroundColor: color,
+                      child: Text(e.value.name[0].toUpperCase(),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 8)),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(e.value.name,
+                          style: const TextStyle(fontSize: 12),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ]),
+                );
+              }),
+            ],
+            onChanged: (v) => setState(() => _filterTeacherId = v),
+          ),
         ),
       ]),
     );
@@ -355,47 +402,60 @@ class _TimetableEditorScreenState extends State<TimetableEditorScreen> {
     final teacher = _teacherById(teacherId);
     final hasTeacher = teacher != null;
 
+    // Dim this cell if a teacher filter is active and this cell's teacher doesn't match
+    final filtered = _filterTeacherId != null;
+    final matches = filtered && teacherId == _filterTeacherId;
+    final dimmed  = filtered && !matches;
+
     return GestureDetector(
       onTap: () => _editCell(cls, bell),
-      child: Container(
-        width: w,
-        height: h,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: hasTeacher
-              ? color.withOpacity(0.14)
-              : (evenRow ? Colors.grey.shade50 : Colors.white),
-          border: Border.all(
-              color: hasTeacher ? color.withOpacity(0.35) : Colors.grey.shade200),
-        ),
-        child: hasTeacher
-            ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                CircleAvatar(
-                  radius: 13,
-                  backgroundColor: color,
-                  child: Text(teacher.name[0].toUpperCase(),
-                      style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(height: 3),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    _shortName(teacherId),
-                    style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: color),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    textAlign: TextAlign.center,
+      child: Opacity(
+        opacity: dimmed ? 0.25 : 1.0,
+        child: Container(
+          width: w,
+          height: h,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: hasTeacher
+                ? color.withOpacity(matches ? 0.22 : 0.14)
+                : (evenRow ? Colors.grey.shade50 : Colors.white),
+            border: Border.all(
+                color: matches
+                    ? color
+                    : (hasTeacher
+                        ? color.withOpacity(0.35)
+                        : Colors.grey.shade200),
+                width: matches ? 2 : 1),
+          ),
+          child: hasTeacher
+              ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  CircleAvatar(
+                    radius: 13,
+                    backgroundColor: color,
+                    child: Text(teacher.name[0].toUpperCase(),
+                        style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold)),
                   ),
-                ),
-              ])
-            : Icon(Icons.add_circle_outline,
-                size: 20, color: Colors.grey.shade400),
+                  const SizedBox(height: 3),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      _shortName(teacherId),
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: color),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ])
+              : Icon(Icons.add_circle_outline,
+                  size: 20, color: Colors.grey.shade400),
+        ),
       ),
     );
   }
