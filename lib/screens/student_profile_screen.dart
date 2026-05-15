@@ -1,12 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/attendance_status.dart';
 import '../models/student.dart';
 import '../models/student_profile_data.dart';
-import '../providers/auth_provider.dart';
+import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 
 class StudentProfileScreen extends StatefulWidget {
@@ -57,7 +56,6 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
           setState(() => _currentTab = _tabController.index);
         }
       });
-    _teacherName = context.read<AuthProvider>().user?.name;
     _loadData();
   }
 
@@ -132,6 +130,9 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
   // ── Data loading ──────────────────────────────────────────────────────────
 
   Future<void> _loadData() async {
+    final session = await AuthService().getSession();
+    _teacherName = session?['email'];
+
     if (widget.schoolId.isEmpty) {
       setState(() => _loading = false);
       return;
