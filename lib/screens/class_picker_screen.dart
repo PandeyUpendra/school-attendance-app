@@ -15,7 +15,13 @@ class ClassSectionPick {
 
 class ClassPickerScreen extends StatefulWidget {
   final ClassPickerMode mode;
-  const ClassPickerScreen({super.key, required this.mode});
+  /// When non-empty, only these classes are shown. Empty means show all.
+  final List<String> allowedClasses;
+  const ClassPickerScreen({
+    super.key,
+    required this.mode,
+    this.allowedClasses = const [],
+  });
 
   @override
   State<ClassPickerScreen> createState() => _ClassPickerScreenState();
@@ -25,6 +31,7 @@ class _ClassPickerScreenState extends State<ClassPickerScreen> {
   List<String> _classes = [];
   Map<String, List<String>> _sectionsByClass = {}; // className → sorted sections
   bool _loading = true;
+  bool _noneAssigned = false; // allowedClasses was set but nothing matched
 
   @override
   void initState() {
@@ -53,11 +60,25 @@ class _ClassPickerScreenState extends State<ClassPickerScreen> {
       list.sort();
     }
 
+    final allClasses = List<String>.from(settings['classes'] as List);
+    final filtered = widget.allowedClasses.isEmpty
+        ? allClasses
+        : allClasses.where((c) => widget.allowedClasses.contains(c)).toList();
+
     setState(() {
-      _classes = List<String>.from(settings['classes'] as List);
+      _classes = filtered;
       _sectionsByClass = sections;
+      _noneAssigned =
+          widget.allowedClasses.isNotEmpty && filtered.isEmpty;
       _loading = false;
     });
+
+    // Auto-navigate when exactly one class is allowed — no need to show the picker.
+    if (filtered.length == 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _onClassTap(filtered.first);
+      });
+    }
   }
 
   void _onClassTap(String cls) {
@@ -125,13 +146,21 @@ class _ClassPickerScreenState extends State<ClassPickerScreen> {
                       Icon(Icons.class_outlined,
                           size: 64, color: Colors.grey.shade300),
                       const SizedBox(height: 16),
-                      Text('No classes configured',
-                          style: TextStyle(
-                              fontSize: 16, color: Colors.grey.shade400)),
+                      Text(
+                        _noneAssigned
+                            ? 'No classes assigned to you'
+                            : 'No classes configured',
+                        style: TextStyle(
+                            fontSize: 16, color: Colors.grey.shade400),
+                      ),
                       const SizedBox(height: 6),
-                      Text('Ask the coordinator to add classes',
-                          style: TextStyle(
-                              fontSize: 13, color: Colors.grey.shade400)),
+                      Text(
+                        _noneAssigned
+                            ? 'Contact your coordinator to get classes assigned'
+                            : 'Ask the coordinator to add classes',
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.grey.shade400),
+                      ),
                     ],
                   ),
                 )

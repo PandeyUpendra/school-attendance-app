@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/student.dart';
-import '../services/base_firestore_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/fee_service.dart';
 import '../theme.dart';
-import 'tasks/staff_task_analytics_view.dart';
 
 /// Analytics Dashboard — coordinator / principal only.
 /// Tabs: Overview · Attendance · Absences · Fee
@@ -19,6 +17,9 @@ class AnalyticsScreen extends StatefulWidget {
 
 class _AnalyticsScreenState extends State<AnalyticsScreen>
     with SingleTickerProviderStateMixin {
+  final _studentService = StudentService();
+  final _feeService     = FeeService();
+
   late TabController _tab;
 
   List<String>    _classes = [];
@@ -27,7 +28,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 5, vsync: this);
+    _tab = TabController(length: 4, vsync: this);
     _loadClasses();
   }
 
@@ -36,28 +37,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
 
   Future<void> _loadClasses() async {
     final settings = await TimetableService().getSettings();
-    final baseClasses = List<String>.from(settings['classes'] as List? ?? []);
-
-    // Fetch student roster to identify all active sections.
-    final students = await StudentService().getStudents();
-    final combos = <String>{};
-    for (final s in students) {
-      if (baseClasses.contains(s.className)) {
-        final combo = s.section.trim().isEmpty
-            ? s.className
-            : '${s.className} ${s.section.trim()}';
-        combos.add(combo);
-      }
-    }
-
-    // Use identified sections; fall back to base classes if no students exist.
-    final finalClasses = combos.toList()..sort();
-
+    final cls = List<String>.from(settings['classes'] as List? ?? []);
     if (!mounted) return;
-    setState(() {
-      _classes = finalClasses.isEmpty ? baseClasses : finalClasses;
-      _classesLoading = false;
-    });
+    setState(() { _classes = cls; _classesLoading = false; });
   }
 
   @override
@@ -85,7 +67,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             Tab(text: 'Attendance'),
             Tab(text: 'Absences'),
             Tab(text: 'Fees'),
-            Tab(text: 'Staff Tasks'),
           ],
         ),
       ),
@@ -102,7 +83,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                     _AttendanceTrendTab(classes: _classes),
                     _AbsenceLeaderboardTab(classes: _classes),
                     _FeeTab(classes: _classes),
-                    StaffTaskAnalyticsView(schoolId: BaseFirestoreService.currentSchoolId ?? 'default_school'),
                   ],
                 ),
     );
@@ -133,7 +113,7 @@ class _OverviewTabState extends State<_OverviewTab>
   Future<void> _load() async {
     setState(() => _loading = true);
     final summaries =
-        await _service.loadTodayFullSummary(classes: widget.classes);
+        await _service.loadTodayFullSummary(widget.classes);
     if (!mounted) return;
     setState(() { _summaries = summaries; _loading = false; });
   }
@@ -202,7 +182,7 @@ class _OverviewTabState extends State<_OverviewTab>
                     barTouchData: BarTouchData(
                       touchTooltipData: BarTouchTooltipData(
                         getTooltipItem: (group, _, rod, __) {
-                          final cls = markedSummaries[group.x].displayName;
+                          final cls = markedSummaries[group.x].className;
                           return BarTooltipItem(
                             '$cls\n${rod.toY.toStringAsFixed(1)}%',
                             const TextStyle(color: Colors.white, fontSize: 12),
@@ -220,13 +200,12 @@ class _OverviewTabState extends State<_OverviewTab>
                             if (i < 0 || i >= markedSummaries.length) {
                               return const SizedBox();
                             }
-                            final name = markedSummaries[i].displayName;
                             return Padding(
                               padding: const EdgeInsets.only(top: 6),
                               child: Text(
-                                name.length > 6
-                                    ? name.substring(0, 6)
-                                    : name,
+                                markedSummaries[i].className.length > 6
+                                    ? markedSummaries[i].className.substring(0, 6)
+                                    : markedSummaries[i].className,
                                 style: const TextStyle(fontSize: 9),
                               ),
                             );
@@ -322,7 +301,7 @@ class _OverviewTabState extends State<_OverviewTab>
               children: [
                 Row(children: [
                   Expanded(
-                    child: Text(s.displayName,
+                    child: Text(s.className,
                         style: const TextStyle(
                             fontSize: 14, fontWeight: FontWeight.bold)),
                   ),
@@ -393,8 +372,8 @@ class _AttendanceTrendTabState extends State<_AttendanceTrendTab>
     setState(() => _loading = true);
     final now = DateTime.now();
     final results = await Future.wait([
-      _service.loadMonthAttendance(className: cls, year: now.year, month: now.month),
-      _service.getStudentsByClass(className: cls),
+      _service.loadMonthAttendance(cls, now.year, now.month),
+      _service.getStudentsByClass(cls),
     ]);
     if (!mounted) return;
     final monthData = results[0] as Map<int, Map<int, String>>;
@@ -682,8 +661,8 @@ class _AbsenceLeaderboardTabState extends State<_AbsenceLeaderboardTab>
   Future<void> _load(String cls) async {
     setState(() => _loading = true);
     final results = await Future.wait([
-      _service.loadRecentAbsenceDays(className: cls, days: 30),
-      _service.getStudentsByClass(className: cls),
+      _service.loadRecentAbsenceDays(cls, days: 30),
+      _service.getStudentsByClass(cls),
     ]);
     final absMap  = results[0] as Map<int, int>;
     final students = results[1] as List<Student>;
@@ -883,7 +862,7 @@ class _FeeTabState extends State<_FeeTab>
     for (final cls in widget.classes) {
       final results = await Future.wait([
         _feeService.getFeeStructure(className: cls),
-        _studentService.getStudentsByClass(className: cls),
+        _studentService.getStudentsByClass(cls),
       ]);
       final structure = results[0] as dynamic; // FeeStructure
       final students  = results[1] as List<Student>;

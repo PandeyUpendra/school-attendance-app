@@ -7,12 +7,12 @@
       "files": 134
     },
     {
-      "date": "2026-05-12T15:47:28.703361+00:00",
-      "input_tokens": 8200,
-      "output_tokens": 3800,
-      "files": 203
+      "date": "2026-05-11T17:25:17.672031+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 185
     }
   ],
-  "total_input_tokens": 10560,
-  "total_output_tokens": 8970
+  "total_input_tokens": 2360,
+  "total_output_tokens": 5170
 }

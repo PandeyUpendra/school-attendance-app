@@ -12,34 +12,32 @@ class AdminScreen extends StatefulWidget {
 
 class _AdminScreenState extends State<AdminScreen> {
   final _service   = TimetableService();
-  final _emailCtrl = TextEditingController();
-  final _nameCtrl  = TextEditingController();
-  final _schoolIdCtrl = TextEditingController(text: 'primary_school');
-  final _passwordCtrl = TextEditingController();
-  final _rollCtrl  = TextEditingController();
+  final _emailCtrl  = TextEditingController();
+  final _passCtrl   = TextEditingController();
 
-
-  String  _selectedRole           = 'teacher';
-  String? _selectedStudentClass;
+  String  _selectedRole           = 'owner';
   List<String> _selectedAssignedClasses = [];
   List<String>              _availableClasses = [];
   List<Map<String, dynamic>> _users           = [];
   bool _loading  = true;
   bool _saving   = false;
+  bool _showPass = false;
 
+  // Admin can only create Owner and Owner-Principal. All other roles are
+  // created by the appropriate role in their own home screen.
   static const _roles = [
-    {'value': 'teacher',     'label': 'Teacher',     'icon': Icons.person_outline},
-    {'value': 'coordinator', 'label': 'Coordinator', 'icon': Icons.admin_panel_settings_outlined},
-    {'value': 'principal',   'label': 'Principal',   'icon': Icons.business_outlined},
-    {'value': 'guardian',    'label': 'Guardian',    'icon': Icons.family_restroom_outlined},
+    {'value': 'owner',          'label': 'Owner',            'icon': Icons.stars_outlined},
+    {'value': 'ownerPrincipal', 'label': 'Owner-Principal',  'icon': Icons.manage_accounts_outlined},
   ];
 
   // Role → accent colour (all purple-family now, semantic distinction by shade/hue)
   static const _roleColors = {
-    'teacher':     AppTheme.primary,
-    'coordinator': AppTheme.primaryMid,
-    'principal':   AppTheme.primaryDark,
-    'guardian':    AppTheme.accent,
+    'teacher':        AppTheme.primary,
+    'coordinator':    AppTheme.primaryMid,
+    'principal':      AppTheme.primaryDark,
+    'guardian':       AppTheme.accent,
+    'owner':          Color(0xFF37474F),
+    'ownerPrincipal': Color(0xFF1B5E20),
   };
 
   @override
@@ -51,7 +49,7 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   void dispose() {
     _emailCtrl.dispose();
-    _rollCtrl.dispose();
+    _passCtrl.dispose();
     super.dispose();
   }
 
@@ -64,10 +62,15 @@ class _AdminScreenState extends State<AdminScreen> {
       _service.getSettings(),
     ]);
     if (!mounted) return;
-    final users    = results[0] as List<Map<String, dynamic>>;
+    final allUsers = results[0] as List<Map<String, dynamic>>;
     final settings = results[1] as Map<String, dynamic>;
+    // Admin sees only Owner and Owner-Principal accounts.
+    final owners = allUsers.where((u) {
+      final r = u['role'] as String;
+      return r == 'owner' || r == 'ownerPrincipal';
+    }).toList();
     setState(() {
-      _users            = users;
+      _users            = owners;
       _availableClasses = List<String>.from(settings['classes'] as List? ?? []);
       _loading          = false;
     });
@@ -77,90 +80,46 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _add() async {
     final email = _emailCtrl.text.trim().toLowerCase();
-    final name  = _nameCtrl.text.trim();
-    final schoolId = _schoolIdCtrl.text.trim();
-    final password = _passwordCtrl.text.trim();
+    final pass  = _passCtrl.text.trim();
 
-    if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
+    if (email.isEmpty ||
+        !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
       _snack('Enter a valid email address');
       return;
     }
-    if (name.isEmpty) {
-      _snack('Enter the user\'s name');
+    if (pass.isEmpty) {
+      _snack('Enter a password for this user');
       return;
     }
-    if (schoolId.isEmpty) {
-      _snack('Enter a School ID');
-      return;
-    }
-    if (password.length < 6) {
+    if (pass.length < 6) {
       _snack('Password must be at least 6 characters');
       return;
     }
-
     if (_users.any((u) => u['email'] == email)) {
       _snack('Email already registered');
       return;
     }
 
-    int? studentRoll;
-    String? studentClass;
-    if (_selectedRole == 'guardian') {
-      if (_selectedStudentClass == null) {
-        _snack("Select the student's class");
-        return;
-      }
-      final rollText = _rollCtrl.text.trim();
-      studentRoll = int.tryParse(rollText);
-      if (studentRoll == null || studentRoll < 1 || studentRoll > 999) {
-        _snack('Roll number must be between 1 and 999');
-        return;
-      }
-      studentClass = _selectedStudentClass;
-    }
-
     setState(() => _saving = true);
-    try {
-      // NOTE: In a real production app, you'd use a Cloud Function to create the
-      // Firebase Auth user to avoid logging out the current admin.
-      // For this refactor, we store the password in Firestore as requested,
-      // but remind the user to migrate to Firebase Admin SDK/Cloud Functions.
-      await _service.addAllowedUser(
-        email,
-        password,
-        _selectedRole,
-        name: name,
-        schoolId: schoolId,
-        studentClass: studentClass,
-        studentRoll: studentRoll,
-        assignedClasses: (_selectedRole == 'coordinator' || _selectedRole == 'principal')
-            ? _selectedAssignedClasses
-            : null,
-      );
-      _emailCtrl.clear();
-      _nameCtrl.clear();
-      // Keep schoolIdCtrl for next addition
-      _passwordCtrl.clear();
-
-      _rollCtrl.clear();
-      setState(() {
-        _selectedStudentClass = null;
-        _selectedAssignedClasses = [];
-        _saving = false;
-      });
-      await _load();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('$email added as $_selectedRole'),
-          backgroundColor: Colors.green.shade700,
-        ));
-      }
-    } catch (e) {
-      setState(() => _saving = false);
-      _snack('Failed to add user: $e');
+    await _service.addAllowedUser(
+      email, pass, _selectedRole,
+      assignedClasses: _selectedAssignedClasses,
+    );
+    _emailCtrl.clear();
+    _passCtrl.clear();
+    setState(() {
+      _selectedAssignedClasses = [];
+      _saving                  = false;
+    });
+    await _load();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('$email added as $_selectedRole'),
+        backgroundColor: Colors.green.shade700,
+        duration: const Duration(seconds: 2),
+      ));
     }
   }
-
 
   // ── Edit ───────────────────────────────────────────────────────────────────
 
@@ -172,8 +131,10 @@ class _AdminScreenState extends State<AdminScreen> {
     List<String> editAssigned =
         List<String>.from((user['assignedClasses'] as List?) ?? []);
 
+    final passCtrl  = TextEditingController();
     final rollCtrl  = TextEditingController(text: editRoll > 0 ? '$editRoll' : '');
     String? selClass = editClass.isNotEmpty ? editClass : null;
+    bool showPass    = false;
 
     await showModalBottomSheet(
       context: context,
@@ -261,7 +222,8 @@ class _AdminScreenState extends State<AdminScreen> {
                               selClass = null;
                               rollCtrl.clear();
                             }
-                            if (val != 'coordinator' && val != 'principal') {
+                            if (val != 'coordinator' && val != 'principal' &&
+                                val != 'owner' && val != 'ownerPrincipal') {
                               editAssigned = [];
                             }
                           }),
@@ -303,9 +265,11 @@ class _AdminScreenState extends State<AdminScreen> {
                       }).toList(),
                     ),
 
-                    // Coordinator / Principal — assigned classes
+                    // Coordinator / Principal / Owner — assigned classes
                     if (editRole == 'coordinator' ||
-                        editRole == 'principal') ...[
+                        editRole == 'principal'   ||
+                        editRole == 'owner'       ||
+                        editRole == 'ownerPrincipal') ...[
                       const SizedBox(height: 16),
                       Text('ASSIGNED CLASSES',
                           style: TextStyle(
@@ -420,6 +384,50 @@ class _AdminScreenState extends State<AdminScreen> {
                       ]),
                     ],
 
+                    // New password (optional)
+                    const SizedBox(height: 16),
+                    Text('NEW PASSWORD (OPTIONAL)',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.grey.shade500,
+                            letterSpacing: 0.8)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: passCtrl,
+                      obscureText: !showPass,
+                      maxLength: 50,
+                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                      decoration: InputDecoration(
+                        hintText: 'Leave blank to keep current password',
+                        hintStyle: TextStyle(
+                            color: Colors.grey.shade400, fontSize: 13),
+                        prefixIcon: const Icon(Icons.lock_outline,
+                            color: AppTheme.primary),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                              showPass
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: Colors.grey.shade400,
+                              size: 18),
+                          onPressed: () =>
+                              setLocal(() => showPass = !showPass),
+                        ),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 12),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                              color: AppTheme.primary, width: 1.5),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
                     // Save button
                     SizedBox(
                       width: double.infinity,
@@ -446,15 +454,23 @@ class _AdminScreenState extends State<AdminScreen> {
                               return;
                             }
                           }
+                          final newPass = passCtrl.text.trim();
+                          if (newPass.isNotEmpty && newPass.length < 6) {
+                            _snack('Password must be at least 6 characters');
+                            return;
+                          }
                           Navigator.pop(ctx);
                           final roll = int.tryParse(rollCtrl.text.trim());
                           await _service.updateAllowedUser(
                             email,
                             role:            editRole,
+                            newPassword:     newPass.isNotEmpty ? newPass : null,
                             studentClass:    editRole == 'guardian' ? selClass : null,
                             studentRoll:     editRole == 'guardian' ? roll     : null,
                             assignedClasses: (editRole == 'coordinator' ||
-                                              editRole == 'principal')
+                                              editRole == 'principal'   ||
+                                              editRole == 'owner'       ||
+                                              editRole == 'ownerPrincipal')
                                 ? editAssigned
                                 : null,
                           );
@@ -483,6 +499,7 @@ class _AdminScreenState extends State<AdminScreen> {
         );
       },
     );
+    passCtrl.dispose();
     rollCtrl.dispose();
   }
 
@@ -523,10 +540,12 @@ class _AdminScreenState extends State<AdminScreen> {
 
   IconData _roleIcon(String role) {
     switch (role) {
-      case 'coordinator': return Icons.admin_panel_settings_outlined;
-      case 'principal':   return Icons.business_outlined;
-      case 'guardian':    return Icons.family_restroom_outlined;
-      default:            return Icons.person_outline;
+      case 'coordinator':    return Icons.admin_panel_settings_outlined;
+      case 'principal':      return Icons.business_outlined;
+      case 'guardian':       return Icons.family_restroom_outlined;
+      case 'owner':          return Icons.stars_outlined;
+      case 'ownerPrincipal': return Icons.manage_accounts_outlined;
+      default:               return Icons.person_outline;
     }
   }
 
@@ -592,166 +611,6 @@ class _AdminScreenState extends State<AdminScreen> {
             ),
             const SizedBox(height: 10),
 
-            // Name field
-            TextField(
-              controller: _nameCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Full Name…',
-                hintStyle: const TextStyle(color: Colors.white60),
-                prefixIcon: const Icon(Icons.person_outline, color: Colors.white70),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.15),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // School ID field
-            TextField(
-              controller: _schoolIdCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'School ID (e.g. primary_school)…',
-                hintStyle: const TextStyle(color: Colors.white60),
-                prefixIcon: const Icon(Icons.school_outlined, color: Colors.white70),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.15),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-            const SizedBox(height: 10),
-
-
-            // Guardian extras
-            if (_selectedRole == 'guardian') ...[
-              Row(children: [
-                Expanded(
-                  flex: 3,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedStudentClass,
-                        isExpanded: true,
-                        hint: const Text("Child's class",
-                            style: TextStyle(
-                                color: Colors.white60, fontSize: 14)),
-                        dropdownColor: AppTheme.primaryDark,
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 14),
-                        iconEnabledColor: Colors.white70,
-                        items: _availableClasses
-                            .map((c) => DropdownMenuItem(
-                                  value: c,
-                                  child: Text(c,
-                                      style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight:
-                                              FontWeight.w600)),
-                                ))
-                            .toList(),
-                        onChanged: (v) =>
-                            setState(() => _selectedStudentClass = v),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: TextField(
-                    controller: _rollCtrl,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    maxLength: 3,
-                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'Roll no.',
-                      hintStyle:
-                          const TextStyle(color: Colors.white60),
-                      prefixIcon: const Icon(Icons.tag,
-                          color: Colors.white70, size: 18),
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.15),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none),
-                      contentPadding:
-                          const EdgeInsets.symmetric(vertical: 12),
-                      counterText: '',
-                    ),
-                  ),
-                ),
-              ]),
-              const SizedBox(height: 8),
-            ],
-
-            // Coordinator / Principal — assigned classes
-            if (_selectedRole == 'coordinator' ||
-                _selectedRole == 'principal') ...[
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text('ASSIGNED CLASSES (tap to toggle)',
-                    style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.7)),
-              ),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: _availableClasses.map((cls) {
-                  final sel = _selectedAssignedClasses.contains(cls);
-                  return GestureDetector(
-                    onTap: () => setState(() {
-                      sel
-                          ? _selectedAssignedClasses.remove(cls)
-                          : _selectedAssignedClasses.add(cls);
-                    }),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: sel
-                            ? Colors.white
-                            : Colors.white.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: sel
-                                ? Colors.white
-                                : Colors.white30),
-                      ),
-                      child: Text(cls,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: sel
-                                  ? AppTheme.primaryDark
-                                  : Colors.white)),
-                    ),
-                  );
-                }).toList(),
-              ),
-              if (_availableClasses.isEmpty)
-                Text('No classes configured yet',
-                    style: TextStyle(
-                        color: Colors.white60, fontSize: 12)),
-              const SizedBox(height: 8),
-            ],
 
             // Email field
             TextField(
@@ -760,35 +619,53 @@ class _AdminScreenState extends State<AdminScreen> {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Email address…',
-                hintStyle: const TextStyle(color: Colors.white60),
-                prefixIcon: const Icon(Icons.email_outlined, color: Colors.white70),
+                hintStyle:
+                    const TextStyle(color: Colors.white60),
+                prefixIcon: const Icon(Icons.email_outlined,
+                    color: Colors.white70),
                 filled: true,
                 fillColor: Colors.white.withOpacity(0.15),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
 
-            // Password field + Add button
+            // Password + Add button
             Row(children: [
               Expanded(
                 child: TextField(
-                  controller: _passwordCtrl,
-                  obscureText: true,
+                  controller: _passCtrl,
+                  obscureText: !_showPass,
+                  maxLength: 50,
+                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    hintText: 'Password (min 6 chars)…',
-                    hintStyle: const TextStyle(color: Colors.white60),
-                    prefixIcon: const Icon(Icons.lock_outline, color: Colors.white70),
+                    hintText: 'Password…',
+                    hintStyle:
+                        const TextStyle(color: Colors.white60),
+                    prefixIcon: const Icon(Icons.lock_outline,
+                        color: Colors.white70),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                          _showPass
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.white70, size: 18),
+                      onPressed: () =>
+                          setState(() => _showPass = !_showPass),
+                    ),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.15),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 12),
+                    counterStyle: const TextStyle(color: Colors.white60),
                   ),
                   onSubmitted: (_) => _add(),
                 ),
@@ -815,7 +692,6 @@ class _AdminScreenState extends State<AdminScreen> {
                             fontWeight: FontWeight.bold)),
               ),
             ]),
-
           ]),
         ),
 
@@ -835,12 +711,25 @@ class _AdminScreenState extends State<AdminScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Only registered emails can sign in. '
-                'Tap the pencil icon on any user to edit their role or configuration.',
+                'Admin can only create Owner and Owner-Principal accounts. '
+                'Each role creates the roles below them in the hierarchy.',
                 style: TextStyle(
                     fontSize: 12, color: Colors.orange.shade800),
               ),
             ),
+          ]),
+        ),
+
+        // ── Users section header ──────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+          child: Row(children: [
+            Text('REGISTERED USERS (${_users.length})',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey.shade500,
+                    letterSpacing: 0.6)),
           ]),
         ),
 

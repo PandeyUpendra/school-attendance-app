@@ -8,17 +8,16 @@ class HomeworkService {
 
   final _db = FirebaseFirestore.instance;
 
-  CollectionReference _col(String schoolId) =>
-      _db.collection('schools').doc(schoolId).collection('homework');
+  CollectionReference get _col => _db.collection('homework');
 
   // ── Teacher: post new homework ────────────────────────────────────────────
   Future<void> postHomework(String schoolId, Homework hw) async {
-    await _col(schoolId).add(hw.toJson());
+    await _col.add(hw.toJson());
   }
 
   // ── Teacher: get their own posts, newest first ────────────────────────────
   Future<List<Homework>> getHomeworkForTeacher(String schoolId, String teacherId) async {
-    final snap = await _col(schoolId)
+    final snap = await _col
         .where('teacherId', isEqualTo: teacherId)
         .get();
     final list = snap.docs
@@ -30,7 +29,7 @@ class HomeworkService {
 
   // ── Guardian / Student: get homework for a class, newest first ────────────
   Future<List<Homework>> getHomeworkForClass(String schoolId, String className) async {
-    final snap = await _col(schoolId)
+    final snap = await _col
         .where('className', isEqualTo: className)
         .get();
     final list = snap.docs
@@ -42,7 +41,7 @@ class HomeworkService {
 
   // ── Coordinator: all homework across all classes, newest first ────────────
   Future<List<Homework>> getAllHomework(String schoolId, {int limit = 100}) async {
-    final snap = await _col(schoolId).get();
+    final snap = await _col.get();
     final list = snap.docs
         .map((d) => Homework.fromDoc(d.id, d.data() as Map<String, dynamic>))
         .toList();
@@ -53,11 +52,11 @@ class HomeworkService {
 
   // ── Teacher: mark reviewed ────────────────────────────────────────────────
   Future<void> markReviewed(String schoolId, String id) async {
-    await _col(schoolId).doc(id).update({'isReviewed': true});
+    await _col.doc(id).update({'isReviewed': true});
   }
 
   // ── Teacher / Coordinator: delete ─────────────────────────────────────────
   Future<void> deleteHomework(String schoolId, String id) async {
-    await _col(schoolId).doc(id).delete();
+    await _col.doc(id).delete();
   }
 }

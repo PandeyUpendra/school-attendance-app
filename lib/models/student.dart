@@ -13,6 +13,10 @@ class Student {
   final String? photoPath;
   final String? photoUrl;
   final String feeStatus; // 'Paid' | 'Pending' | 'Partial'
+  /// ISO date string "YYYY-MM-DD" for the fee due date.
+  final String? feeDueDate;
+  /// Fee amount in rupees.
+  final double? feeAmount;
   /// ID of the class teacher who owns this student record.
   /// Null on legacy records created before this field was introduced.
   final String? teacherId;
@@ -33,6 +37,8 @@ class Student {
     this.photoPath,
     this.photoUrl,
     this.feeStatus = 'Pending',
+    this.feeDueDate,
+    this.feeAmount,
     this.teacherId,
     this.guardianDetails,
     this.guardianEmail,
@@ -51,6 +57,8 @@ class Student {
         'photoPath': photoPath,
         'photoUrl': photoUrl,
         'feeStatus': feeStatus,
+        if (feeDueDate != null) 'feeDueDate': feeDueDate,
+        if (feeAmount != null) 'feeAmount': feeAmount,
         if (teacherId != null) 'teacherId': teacherId,
         if (guardianDetails != null) 'guardianDetails': guardianDetails!.toJson(),
         if (guardianEmail != null) 'guardianEmail': guardianEmail,
@@ -69,6 +77,8 @@ class Student {
         photoPath: json['photoPath'] as String?,
         photoUrl: json['photoUrl'] as String?,
         feeStatus: json['feeStatus'] as String? ?? 'Pending',
+        feeDueDate: json['feeDueDate'] as String?,
+        feeAmount: (json['feeAmount'] as num?)?.toDouble(),
         teacherId: json['teacherId'] as String?,
         guardianDetails: json['guardianDetails'] != null
             ? GuardianStudentDetails.fromJson(
@@ -89,6 +99,8 @@ class Student {
     String? photoPath,
     String? photoUrl,
     String? feeStatus,
+    String? feeDueDate,
+    double? feeAmount,
     String? teacherId,
     GuardianStudentDetails? guardianDetails,
     String? guardianEmail,
@@ -106,6 +118,8 @@ class Student {
         photoPath: photoPath ?? this.photoPath,
         photoUrl: photoUrl ?? this.photoUrl,
         feeStatus: feeStatus ?? this.feeStatus,
+        feeDueDate: feeDueDate ?? this.feeDueDate,
+        feeAmount: feeAmount ?? this.feeAmount,
         teacherId: teacherId ?? this.teacherId,
         guardianDetails: guardianDetails ?? this.guardianDetails,
         guardianEmail: guardianEmail ?? this.guardianEmail,

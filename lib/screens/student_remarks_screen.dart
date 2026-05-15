@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/student.dart';
 import '../models/student_remark.dart';
-import '../models/teacher.dart';
 import '../services/auth_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
-import '../services/base_firestore_service.dart';
 import '../theme.dart';
 
 // ── Common predefined remark options ─────────────────────────────────────────
@@ -66,11 +62,8 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
   String? _myTeacherId;
 
   // Class/student selection
-  Map<String, List<String>> _classToSections = {};
   List<String>  _classes        = [];
   String?       _selectedClass;
-  List<String>  _sections       = [];
-  String?       _selectedSection;
   List<Student> _classStudents  = [];
   Student?      _selectedStudent;
   bool          _loadingStudents = false;
@@ -109,133 +102,36 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
       return;
     }
 
-    if (widget.role == 'teacher') {
-      final taught = <String>{};
-      if (widget.teacherClassName != null) {
-        final combo = (widget.teacherSection ?? '').isEmpty
-            ? widget.teacherClassName!
-            : '${widget.teacherClassName!} ${widget.teacherSection!}';
-        taught.add(combo);
-      }
-      if (_myTeacherId != null) {
-        final fromTT = await _ttService.getClassesTaughtByTeacher(BaseFirestoreService.currentSchoolId ?? 'default_school', _myTeacherId!);
-        taught.addAll(fromTT);
-      }
-
-      final map = <String, List<String>>{};
-      for (final combo in taught) {
-        var cls = combo;
-        var sec = '';
-        if (combo.contains(' ')) {
-          final parts = combo.split(' ');
-          final last = parts.last;
-          if (last.length <= 5) {
-            sec = last;
-            cls = parts.sublist(0, parts.length - 1).join(' ');
-          }
-        }
-        map.putIfAbsent(cls, () => []).add(sec);
-      }
-      for (final list in map.values) {
-        list.sort();
-      }
-
-      if (mounted) {
-        setState(() {
-          _classToSections = map;
-          _classes = map.keys.toList()..sort();
-        });
-
-        // Auto-select if there's only one class or a specific class was passed
-        if (_classes.length == 1) {
-          _onClassSelected(_classes.first);
-        } else if (widget.teacherClassName != null && _classes.contains(widget.teacherClassName)) {
-          _onClassSelected(widget.teacherClassName!);
-          if (widget.teacherSection != null && _sections.contains(widget.teacherSection)) {
-            _onSectionSelected(widget.teacherSection!);
-          }
-        }
-      }
-    } else if (widget.role != 'guardian') {
-      final results = await Future.wait([
-        _ttService.getSettings(),
-        _ttService.getTeachers(),
-      ]);
-      final settings = results[0] as Map<String, dynamic>;
-      final teachers = results[1] as List<Teacher>;
-      final classes  = List<String>.from(settings['classes'] as List? ?? []);
-
-      // Build class→sections from class-teacher assignments so coordinator
-      // gets the same section picker that teachers have.
-      final map = <String, List<String>>{};
-      for (final t in teachers) {
-        if (t.isClassTeacher &&
-            t.classTeacherOf != null &&
-            classes.contains(t.classTeacherOf)) {
-          map.putIfAbsent(t.classTeacherOf!, () => []);
-          final sec = t.section.trim();
-          if (sec.isNotEmpty && !map[t.classTeacherOf!]!.contains(sec)) {
-            map[t.classTeacherOf!]!.add(sec);
-          }
-        }
-      }
-      for (final list in map.values) list.sort();
-
-      if (mounted) setState(() { _classes = classes; _classToSections = map; });
-    }
-  }
-
-  void _onClassSelected(String cls) {
-    final sections = _classToSections[cls] ?? [];
-    setState(() {
-      _selectedClass   = cls;
-      _sections        = sections;
-      _selectedSection = null;
-      _selectedStudent = null;
-      _classStudents   = [];
-      _remarks         = [];
-      _resetInput();
-    });
-
-    if (widget.role != 'teacher') {
-      // For coordinator/principal: respect sections if they exist.
-      // Only auto-load if there is at most one (or no) section defined.
-      final secs = _classToSections[cls] ?? [];
-      if (secs.isEmpty || (secs.length == 1 && secs.first.isEmpty)) {
-        final sec = secs.isNotEmpty ? secs.first : '';
-        setState(() { _selectedSection = sec; _sections = secs; });
-        _loadStudents(cls, sec);
-      } else {
-        // Multiple sections: show section picker, auto-select first.
-        setState(() { _sections = secs; _selectedSection = secs.first; });
-        _loadStudents(cls, secs.first);
-      }
+    if (widget.role == 'teacher' && widget.teacherClassName != null) {
+      // Class teacher: load their class directly
+      setState(() { _selectedClass = widget.teacherClassName; _loadingStudents = true; });
+      final list = await _studentService.getStudentsByClass(
+        widget.teacherClassName!,
+        section:   widget.teacherSection ?? '',
+        teacherId: widget.teacherId,
+      );
+      if (!mounted) return;
+      setState(() { _classStudents = list; _loadingStudents = false; });
       return;
     }
 
-    // If there's only one section and it's empty, or no sections defined,
-    // load students immediately.
-    if (sections.isEmpty || (sections.length == 1 && sections.first.isEmpty)) {
-      final sec = sections.isNotEmpty ? sections.first : '';
-      setState(() => _selectedSection = sec);
-      _loadStudents(cls, sec);
-    }
+    // Coordinator: load class list from settings
+    final settings = await _ttService.getSettings();
+    final classes  = List<String>.from(settings['classes'] as List? ?? []);
+    if (!mounted) return;
+    setState(() => _classes = classes);
   }
 
-  void _onSectionSelected(String sec) {
+  Future<void> _onClassSelected(String cls) async {
     setState(() {
-      _selectedSection = sec;
+      _selectedClass   = cls;
       _selectedStudent = null;
       _classStudents   = [];
+      _loadingStudents = true;
       _remarks         = [];
       _resetInput();
     });
-    _loadStudents(_selectedClass!, sec);
-  }
-
-  Future<void> _loadStudents(String cls, String sec) async {
-    setState(() => _loadingStudents = true);
-    final list = await _studentService.getStudentsByClass(className: cls, section: sec);
+    final list = await _studentService.getStudentsByClass(cls);
     if (!mounted) return;
     setState(() { _classStudents = list; _loadingStudents = false; });
   }
@@ -251,7 +147,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
   Future<void> _loadRemarks(Student s) async {
     setState(() => _loadingRemarks = true);
     final list = await _studentService.getStudentRemarks(
-      className: s.className, roll: s.roll, section: s.section);
+      s.className, s.roll, section: s.section);
     if (!mounted) return;
     setState(() { _remarks = list; _loadingRemarks = false; });
   }
@@ -262,7 +158,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
     _customCtrl.clear();
   }
 
-  Future<void> _submit({bool sendWhatsApp = false}) async {
+  Future<void> _submit() async {
     final s = _selectedStudent;
     if (s == null) return;
 
@@ -274,13 +170,9 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
     setState(() => _saving = true);
     try {
       await _studentService.addStudentRemark(
-        className:      s.className,
-        roll:           s.roll,
-        createdByEmail: _myEmail,
-        role:           _myRole,
-        remark:         text,
-        section:        s.section,
-        teacherId:      _myTeacherId,
+        s.className, s.roll, _myEmail, _myRole, text,
+        section:   s.section,
+        teacherId: _myTeacherId,
       );
       if (!mounted) return;
       setState(() { _saving = false; _resetInput(); });
@@ -292,10 +184,6 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
         ),
       );
       _loadRemarks(s);
-
-      if (sendWhatsApp) {
-        _sendToWhatsApp(text);
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -330,63 +218,13 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
     if (ok != true || !mounted) return;
     try {
       await _studentService.deleteStudentRemark(
-          className: s.className,
-          roll: s.roll,
-          remarkId: r.id,
-          currentUserEmail: _myEmail,
-          section: s.section);
+          s.className, s.roll, r.id, _myEmail, section: s.section);
       _loadRemarks(s);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString()), backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating),
-      );
-    }
-  }
-
-  Future<void> _sendToWhatsApp(String text) async {
-    final s = _selectedStudent;
-    if (s == null) return;
-
-    final phone = s.parentPhone ?? s.phone;
-    if (phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No guardian phone number found'),
-          backgroundColor: Colors.orange,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    // Basic cleaning of phone number
-    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    String finalPhone = cleanPhone;
-    // Assume Indian country code if 10 digits
-    if (finalPhone.length == 10) {
-      finalPhone = '91$finalPhone';
-    }
-
-    final message = Uri.encodeComponent("School Remark for ${s.name}:\n$text");
-    final url = 'https://wa.me/$finalPhone?text=$message';
-
-    try {
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        throw 'Could not launch WhatsApp';
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
       );
     }
   }
@@ -411,8 +249,8 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          // ── Step 1: class picker (teacher / coordinator / principal) ─────
-          if (widget.role != 'guardian') ...[
+          // ── Step 1: class picker (coordinator only) ──────────────────────
+          if (widget.role == 'coordinator' || widget.role == 'ownerPrincipal') ...[
             _sectionLabel('Select Class'),
             _ClassDropdown(
               classes:  _classes,
@@ -420,25 +258,13 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
               onChanged: _onClassSelected,
             ),
             const SizedBox(height: 16),
-
-            if (_sections.isNotEmpty && !(_sections.length == 1 && _sections.first.isEmpty)) ...[
-              _sectionLabel('Select Section'),
-              _SectionDropdown(
-                sections: _sections,
-                selected: _selectedSection,
-                onChanged: _onSectionSelected,
-              ),
-              const SizedBox(height: 16),
-            ],
           ],
 
           // ── Step 2: student picker (teacher / coordinator) ───────────────
           if (widget.role != 'guardian') ...[
             _sectionLabel('Select Student'),
-            if (_selectedClass == null && widget.role != 'guardian')
+            if (_selectedClass == null && (widget.role == 'coordinator' || widget.role == 'ownerPrincipal'))
               _hintCard('Pick a class above first')
-            else if (_sections.isNotEmpty && _selectedSection == null && !(_sections.length == 1 && _sections.first.isEmpty))
-              _hintCard('Pick a section first')
             else if (_loadingStudents)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
@@ -469,7 +295,6 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
               customMode:   _customMode,
               customCtrl:   _customCtrl,
               saving:       _saving,
-              showWhatsApp: widget.role != 'guardian',
               onChipSelected: (text) => setState(() {
                 _selectedChip = text;
                 _customMode   = false;
@@ -479,9 +304,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
                 _customMode   = !_customMode;
                 _selectedChip = null;
               }),
-              onTextChanged: () => setState(() {}),
-              onSubmit: () => _submit(),
-              onWhatsAppSubmit: () => _submit(sendWhatsApp: true),
+              onSubmit: _submit,
             ),
             const SizedBox(height: 24),
 
@@ -500,9 +323,6 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
                     isOwn:    r.createdBy == _myEmail,
                     onDelete: r.createdBy == _myEmail
                         ? () => _deleteRemark(r)
-                        : null,
-                    onWhatsApp: widget.role != 'guardian'
-                        ? () => _sendToWhatsApp(r.remark)
                         : null,
                   )),
           ],
@@ -570,45 +390,6 @@ class _ClassDropdown extends StatelessWidget {
               style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
           items: classes
               .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-              .toList(),
-          onChanged: (v) { if (v != null) onChanged(v); },
-        ),
-      ),
-    );
-  }
-}
-
-// ── Section dropdown ──────────────────────────────────────────────────────────
-
-class _SectionDropdown extends StatelessWidget {
-  final List<String> sections;
-  final String?      selected;
-  final ValueChanged<String> onChanged;
-
-  const _SectionDropdown({
-    required this.sections,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: selected,
-          isExpanded: true,
-          hint: Text('Choose a section',
-              style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
-          items: sections
-              .map((s) => DropdownMenuItem(
-                  value: s, child: Text(s.isEmpty ? 'No Section' : 'Section $s')))
               .toList(),
           onChanged: (v) { if (v != null) onChanged(v); },
         ),
@@ -706,24 +487,18 @@ class _AddRemarkPanel extends StatelessWidget {
   final bool     customMode;
   final TextEditingController customCtrl;
   final bool     saving;
-  final bool     showWhatsApp;
   final ValueChanged<String> onChipSelected;
   final VoidCallback onCustomToggle;
-  final VoidCallback onTextChanged;
   final VoidCallback onSubmit;
-  final VoidCallback onWhatsAppSubmit;
 
   const _AddRemarkPanel({
     required this.selectedChip,
     required this.customMode,
     required this.customCtrl,
     required this.saving,
-    required this.showWhatsApp,
     required this.onChipSelected,
     required this.onCustomToggle,
-    required this.onTextChanged,
     required this.onSubmit,
-    required this.onWhatsAppSubmit,
   });
 
   bool get _canSubmit {
@@ -774,78 +549,63 @@ class _AddRemarkPanel extends StatelessWidget {
           // Custom text field
           if (customMode) ...[
             const SizedBox(height: 12),
-            TextField(
-              controller: customCtrl,
-              maxLength:  200,
-              maxLines:   3,
-              autofocus:  true,
-              onChanged:  (_) => onTextChanged(),
-              decoration: InputDecoration(
-                hintText: 'Write your own remark…',
-                hintStyle: TextStyle(
-                    color: Colors.grey.shade400, fontSize: 13),
-                counterStyle: TextStyle(
-                    color: Colors.grey.shade400, fontSize: 11),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-                contentPadding: const EdgeInsets.all(12),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide:
-                        BorderSide(color: Colors.grey.shade300)),
-                enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide:
-                        BorderSide(color: Colors.grey.shade300)),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(
-                        color: AppTheme.primary, width: 1.5)),
-              ),
-            ),
+            StatefulBuilder(builder: (_, setInner) {
+              return TextField(
+                controller: customCtrl,
+                maxLength:  200,
+                maxLines:   3,
+                autofocus:  true,
+                onChanged:  (_) => setInner(() {}),
+                decoration: InputDecoration(
+                  hintText: 'Write your own remark…',
+                  hintStyle: TextStyle(
+                      color: Colors.grey.shade400, fontSize: 13),
+                  counterStyle: TextStyle(
+                      color: Colors.grey.shade400, fontSize: 11),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  contentPadding: const EdgeInsets.all(12),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          BorderSide(color: Colors.grey.shade300)),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          BorderSide(color: Colors.grey.shade300)),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                          color: AppTheme.primary, width: 1.5)),
+                ),
+              );
+            }),
           ],
 
           const SizedBox(height: 14),
 
-          // Submit buttons
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: (_canSubmit && !saving) ? onSubmit : null,
-                  icon: saving
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.save_alt_rounded, size: 18),
-                  label: const Text('Save',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
+          // Submit button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: (_canSubmit && !saving) ? onSubmit : null,
+              icon: saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.save_alt_rounded, size: 18),
+              label: const Text('Save Remark',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
-              if (showWhatsApp) ...[
-                const SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: (_canSubmit && !saving) ? onWhatsAppSubmit : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade600,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Icon(FontAwesomeIcons.whatsapp, size: 18),
-                ),
-              ],
-            ],
+            ),
           ),
         ],
       ),
@@ -898,13 +658,11 @@ class _RemarkCard extends StatelessWidget {
   final StudentRemark remark;
   final bool          isOwn;
   final VoidCallback? onDelete;
-  final VoidCallback? onWhatsApp;
 
   const _RemarkCard({
     required this.remark,
     required this.isOwn,
     this.onDelete,
-    this.onWhatsApp,
   });
 
   Color _roleColor(String role) {
@@ -978,16 +736,8 @@ class _RemarkCard extends StatelessWidget {
               _fmtTime(remark.timestamp),
               style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
             ),
-            if (onWhatsApp != null) ...[
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: onWhatsApp,
-                child: const Icon(FontAwesomeIcons.whatsapp,
-                    size: 16, color: Colors.green),
-              ),
-            ],
             if (onDelete != null) ...[
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               GestureDetector(
                 onTap: onDelete,
                 child: Icon(Icons.delete_outline,

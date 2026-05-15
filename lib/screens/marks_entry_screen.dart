@@ -27,6 +27,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
   List<Student>    _students = [];
   // roll → subject → marks controller
   Map<int, Map<String, TextEditingController>> _controllers = {};
+  // Previously saved results
+  Map<int, ExamResult> _savedResults = {};
 
   @override
   void initState() {
@@ -38,7 +40,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     setState(() => _loading = true);
     final exam = widget.exam;
     final results = await Future.wait([
-      _studentService.getStudentsByClass(className: exam.className, section: widget.section),
+      _studentService.getStudentsByClass(exam.className, section: widget.section),
       _examService.getResults(examId: exam.id),
     ]);
     final students    = results[0] as List<Student>;
@@ -71,6 +73,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     setState(() {
       _students      = students;
       _controllers   = ctrlMap;
+      _savedResults  = savedMap;
       _loading       = false;
     });
   }

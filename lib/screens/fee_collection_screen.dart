@@ -6,7 +6,6 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../models/fee.dart';
 import '../models/student.dart';
-import '../models/teacher.dart';
 import '../services/fee_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
@@ -25,13 +24,11 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   final _studentService = StudentService();
 
   bool _loading = true;
-  List<String>              _classes      = [];
-  Map<String, List<String>> _classSections = {};  // class → sorted section list
-  String?                   _selectedClass;
-  String                    _selectedSection = '';
-  List<Student>             _students   = [];
-  FeeStructure?             _structure;
-  Map<int, double>          _paid       = {};
+  List<String>  _classes    = [];
+  String?       _selectedClass;
+  List<Student> _students   = [];
+  FeeStructure? _structure;
+  Map<int, double> _paid   = {};   // roll → total paid
 
   @override
   void initState() {
@@ -40,62 +37,29 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   }
 
   Future<void> _loadClasses() async {
-    final results = await Future.wait([
-      TimetableService().getSettings(),
-      TimetableService().getTeachers(),
-    ]);
-    final settings = results[0] as Map<String, dynamic>;
-    final teachers = results[1] as List<Teacher>;
+    final settings = await TimetableService().getSettings();
     final classes  = List<String>.from(settings['classes'] as List? ?? []);
-
-    // Build class → sections map from class teachers
-    final sectionMap = <String, List<String>>{};
-    for (final t in teachers) {
-      if (t.isClassTeacher &&
-          t.classTeacherOf != null &&
-          classes.contains(t.classTeacherOf)) {
-        sectionMap.putIfAbsent(t.classTeacherOf!, () => []);
-        final sec = t.section.trim();
-        if (sec.isNotEmpty && !sectionMap[t.classTeacherOf!]!.contains(sec)) {
-          sectionMap[t.classTeacherOf!]!.add(sec);
-        }
-      }
-    }
-    for (final list in sectionMap.values) list.sort();
-
     if (!mounted) return;
-    setState(() { _classes = classes; _classSections = sectionMap; });
+    setState(() { _classes = classes; });
     if (classes.isNotEmpty) await _selectClass(classes.first);
-    if (mounted) setState(() => _loading = false);
+    setState(() => _loading = false);
   }
 
   Future<void> _selectClass(String cls) async {
-    final secs = _classSections[cls] ?? [];
-    final sec  = secs.isNotEmpty ? secs.first : '';
-    setState(() { _selectedClass = cls; _selectedSection = sec; _loading = true; });
-    await _fetchStudents(cls, sec);
-  }
-
-  Future<void> _selectSection(String sec) async {
-    if (_selectedClass == null) return;
-    setState(() { _selectedSection = sec; _loading = true; });
-    await _fetchStudents(_selectedClass!, sec);
-  }
-
-  Future<void> _fetchStudents(String cls, String sec) async {
+    setState(() { _selectedClass = cls; _loading = true; });
     final results = await Future.wait([
-      _studentService.getStudentsByClass(className: cls, section: sec),
+      _studentService.getStudentsByClass(cls),
       _feeService.getFeeStructure(className: cls),
     ]);
     final students  = results[0] as List<Student>;
     final structure = results[1] as FeeStructure;
 
     assert(students.length == {for (final s in students) s.roll: s}.length,
-        'Duplicate rolls detected in $cls${sec.isNotEmpty ? " $sec" : ""}');
-    debugPrint('[FeeStudents][$cls${sec.isNotEmpty ? " $sec" : ""}] count=${students.length}');
+        'Duplicate rolls detected in class $cls');
+    debugPrint('[StudentList][$cls] count=${students.length}');
 
-    final rolls = students.map((s) => s.roll).toList();
-    final paid  = await _feeService.getClassFeeOverview(className: cls, rolls: rolls);
+    final rolls     = students.map((s) => s.roll).toList();
+    final paid      = await _feeService.getClassFeeOverview(className: cls, rolls: rolls);
     if (!mounted) return;
     setState(() {
       _students  = students;
@@ -195,40 +159,6 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                         ),
                       ),
                     ),
-                    // Section chips — shown only when the selected class has multiple sections
-                    if (_selectedClass != null &&
-                        (_classSections[_selectedClass!] ?? []).length > 1) ...[
-                      Container(
-                        color: Colors.grey.shade50,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: (_classSections[_selectedClass!] ?? [])
-                                .map((sec) {
-                              final sel = sec == _selectedSection;
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: ChoiceChip(
-                                  label: Text('Section $sec'),
-                                  selected: sel,
-                                  selectedColor: Colors.green.shade600,
-                                  labelStyle: TextStyle(
-                                    color: sel ? Colors.white : null,
-                                    fontWeight: sel
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                    fontSize: 12,
-                                  ),
-                                  onSelected: (_) => _selectSection(sec),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                    ],
                     const Divider(height: 1),
 
                     // Summary banner
@@ -250,7 +180,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                                       color: Colors.grey.shade500)),
                             )
                           : RefreshIndicator(
-                              onRefresh: () => _fetchStudents(_selectedClass!, _selectedSection),
+                              onRefresh: () => _selectClass(_selectedClass!),
                               color: Colors.green.shade700,
                               child: ListView.separated(
                                 physics:

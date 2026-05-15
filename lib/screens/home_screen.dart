@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme.dart';
 import '../models/teacher.dart';
-import '../models/copy_check.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
-import '../services/copy_check_service.dart';
+import '../services/staff_task_service.dart';
+import '../services/timetable_service.dart';
 import 'attendance_screen.dart';
 import 'student_list_screen.dart';
 import 'my_timetable_screen.dart';
@@ -13,21 +14,14 @@ import 'class_picker_screen.dart';
 import 'leave_application_screen.dart';
 import 'daily_calls_screen.dart';
 import 'attendance_history_screen.dart';
-import 'attendance_report_screen.dart';
 import 'announcements_screen.dart';
 import 'notifications_screen.dart';
-import 'calendar_screen.dart';
 import 'exam_management_screen.dart';
 import 'copy_checking_screen.dart';
 import 'homework_screen.dart';
 import 'substitution_history_screen.dart';
 import 'student_remarks_screen.dart';
-import 'guardian_details_list_screen.dart';
-import 'tasks/staff_task_management_screen.dart';
-import 'teacher_tasks_screen.dart';
-import 'leaderboard_screen.dart';
-import 'create_account_sheet.dart';
-import '../services/timetable_service.dart';
+import 'staff_tasks_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -38,51 +32,35 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _unreadNotifCount = 0;
+  int _unreadNotifCount  = 0;
+  int _pendingTaskCount  = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadNotifCount();
+    _loadCounts();
   }
 
-  Future<void> _loadNotifCount() async {
-    final session = await AuthService().getSession();
-    final email = session?['email'];
-    final sId   = widget.teacher?.schoolId ?? session?['schoolId'] ?? 'default_school';
-    final count = await NotificationService().unreadCount(
-      schoolId:  sId,
+  Future<void> _loadCounts() async {
+    final tid = widget.teacher?.id ?? '';
+    final notifFuture = NotificationService().unreadCount(
       role:      'teacher',
-      teacherId: widget.teacher?.id,
-      userEmail: email,
+      teacherId: tid,
     );
-    if (mounted) setState(() => _unreadNotifCount = count);
-  }
+    final taskFuture = tid.isNotEmpty
+        ? StaffTaskService().getPendingCountForTeacher(tid)
+        : Future.value(0);
 
-  Future<void> _showCreateGuardianSheet() async {
-    final session  = await AuthService().getSession();
-    final schoolId = widget.teacher?.schoolId
-        ?? (session?['schoolId'] as String?)
-        ?? 'default_school';
-    final settings = await TimetableService().getSettings(schoolId: schoolId);
-    final classes  = List<String>.from(settings['classes'] as List? ?? []);
-    if (!mounted) return;
-    final created = await showCreateAccountSheet(
-      context,
-      targetRole: 'guardian',
-      schoolId: schoolId,
-      availableClasses: classes,
-      defaultClass: widget.teacher?.classTeacherOf,
-    );
-    if (created && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Guardian account created successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+    final results = await Future.wait([notifFuture, taskFuture]);
+    if (mounted) {
+      setState(() {
+        _unreadNotifCount = results[0];
+        _pendingTaskCount = results[1];
+      });
     }
   }
+
+  Future<void> _loadNotifCount() => _loadCounts();
 
   @override
   Widget build(BuildContext context) {
@@ -273,6 +251,196 @@ class _HomeScreenState extends State<HomeScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 8),
       );
 
+  void _showAddGuardianSheet(BuildContext context) {
+    final emailCtrl = TextEditingController();
+    final rollCtrl  = TextEditingController();
+    final classCtrl = TextEditingController(
+        text: _isClassTeacher ? (teacher!.classTeacherOf ?? '') : '');
+    bool saving = false;
+    String? sheetError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setInner) => Padding(
+          padding: EdgeInsets.fromLTRB(
+              20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.family_restroom_outlined,
+                        color: AppTheme.primary, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text('Add Guardian Account',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                  IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx)),
+                ]),
+                const SizedBox(height: 4),
+                const Text(
+                  'Creates a guardian login linked to a student. Default password: Parent@123',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  maxLength: 100,
+                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                  decoration: InputDecoration(
+                    labelText: 'Guardian Email',
+                    prefixIcon: const Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    isDense: true,
+                    counterText: '',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: classCtrl,
+                  readOnly: _isClassTeacher,
+                  maxLength: 20,
+                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                  decoration: InputDecoration(
+                    labelText: 'Student Class',
+                    prefixIcon: const Icon(Icons.class_outlined),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    isDense: true,
+                    counterText: '',
+                    filled: _isClassTeacher,
+                    fillColor:
+                        _isClassTeacher ? Colors.grey.shade100 : null,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: rollCtrl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                  decoration: InputDecoration(
+                    labelText: 'Student Roll Number',
+                    prefixIcon: const Icon(Icons.tag_outlined),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    isDense: true,
+                    counterText: '',
+                  ),
+                ),
+                if (sheetError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(sheetError!,
+                      style: const TextStyle(
+                          color: Colors.red, fontSize: 12)),
+                ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.person_add_outlined),
+                    label: Text(saving ? 'Adding…' : 'Add Guardian'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            final email =
+                                emailCtrl.text.trim().toLowerCase();
+                            final cls = classCtrl.text.trim();
+                            final roll =
+                                int.tryParse(rollCtrl.text.trim());
+
+                            if (email.isEmpty ||
+                                !RegExp(r'^[^@]+@[^@]+\.[^@]+$')
+                                    .hasMatch(email)) {
+                              setInner(
+                                  () => sheetError = 'Enter a valid email');
+                              return;
+                            }
+                            if (cls.isEmpty) {
+                              setInner(() =>
+                                  sheetError = 'Enter the student class');
+                              return;
+                            }
+                            if (roll == null || roll <= 0) {
+                              setInner(() =>
+                                  sheetError = 'Enter a valid roll number');
+                              return;
+                            }
+                            setInner(() {
+                              saving = true;
+                              sheetError = null;
+                            });
+                            try {
+                              await TimetableService().addAllowedUser(
+                                email,
+                                'Parent@123',
+                                'guardian',
+                                studentClass: cls,
+                                studentRoll: roll,
+                                createdByEmail: teacher?.email ?? '',
+                                createdByRole: 'teacher',
+                              );
+                              if (ctx.mounted) {
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context)
+                                    .showSnackBar(SnackBar(
+                                  content: Text(
+                                      'Guardian $email added (password: Parent@123)'),
+                                  backgroundColor: AppTheme.success,
+                                  duration: const Duration(seconds: 3),
+                                ));
+                              }
+                            } catch (e) {
+                              if (ctx.mounted) {
+                                setInner(() {
+                                  saving = false;
+                                  sheetError = 'Error: $e';
+                                });
+                              }
+                            }
+                          },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildBody(BuildContext context) {
     if (_isClassTeacher) {
       return ListView(
@@ -280,74 +448,24 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildHero(),
           const SizedBox(height: 4),
 
-          // ── ATTENDANCE ────────────────────────────────────────────────
-          const _SectionHeader('ATTENDANCE'),
+          _SectionHeader('ACADEMICS'),
           _FeatureTile(
             icon: Icons.fact_check_outlined,
             color: AppTheme.primary,
             title: 'Take Attendance',
-            subtitle: 'Mark daily attendance for students',
-            onTap: () {
-              // Direct navigation for class teacher to their own class.
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AttendanceScreen(
-                    schoolId: teacher!.schoolId,
-                    className: teacher!.classTeacherOf!,
-                    section: teacher!.section,
-                  ),
-                ),
-              );
-            },
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.phone_callback_outlined,
-            color: AppTheme.primary,
-            title: 'Daily Calls',
-            subtitle: 'Track guardian calls for absent/leave students',
+            subtitle: 'Mark attendance for ${teacher!.classTeacherOf}',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (_) => DailyCallsScreen(teacher: teacher!)),
-            ),
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.bar_chart_outlined,
-            color: AppTheme.primary,
-            title: 'Attendance History',
-            subtitle:
-                'Monthly reports, % per student & low-attendance flags',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => AttendanceHistoryScreen(
-                    className: teacher!.classTeacherOf!,
-                    section:   teacher!.section),
+                builder: (_) =>
+                    AttendanceScreen(
+                      className: teacher!.classTeacherOf!,
+                      section: teacher!.section,
+                    ),
               ),
             ),
           ),
-          _FeatureTile(
-            icon: Icons.assessment_outlined,
-            color: AppTheme.primary,
-            title: 'Attendance Summary & Edit',
-            subtitle: 'Weekly/Monthly summaries and edit past attendance',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => AttendanceReportScreen(
-                  schoolId:  teacher!.schoolId,
-                  className: teacher!.classTeacherOf!,
-                  section: teacher!.section,
-                ),
-              ),
-            ),
-          ),
-
-          // ── ACADEMICS ─────────────────────────────────────────────────
-          const _SectionHeader('ACADEMICS'),
+          const _Divider(),
           _FeatureTile(
             icon: Icons.calendar_month_outlined,
             color: AppTheme.primary,
@@ -359,53 +477,22 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const _Divider(),
           _FeatureTile(
-            icon: Icons.assignment_outlined,
+            icon: Icons.swap_horiz_outlined,
             color: AppTheme.primary,
-            title: 'Homework',
-            subtitle: 'Post and manage assignments for your classes',
-            onTap: () {
-              if (teacher != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => HomeworkScreen(teacher: teacher!)),
-                );
-              }
-            },
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.menu_book_outlined,
-            color: AppTheme.primary,
-            title: 'Copy Checking',
-            subtitle: 'Mark student copies for your classes',
-            onTap: () {
-              if (teacher != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) =>
-                          CopyCheckingScreen(teacher: teacher!)),
-                );
-              }
-            },
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.quiz_outlined,
-            color: AppTheme.primary,
-            title: 'Exams & Marks',
-            subtitle: 'Enter marks and view report cards',
+            title: 'My Substitution Duties',
+            subtitle: 'Classes I have covered as substitute',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (_) =>
-                      ExamManagementScreen(role: 'teacher', section: teacher!.section)),
+                builder: (_) => SubstitutionHistoryScreen(
+                  teacherId:   teacher?.id,
+                  teacherName: teacher?.name,
+                ),
+              ),
             ),
           ),
 
-          // ── STUDENTS ──────────────────────────────────────────────────
-          const _SectionHeader('STUDENTS'),
+          _SectionHeader('STUDENTS'),
           _FeatureTile(
             icon: Icons.people_outline,
             color: AppTheme.primary,
@@ -426,21 +513,21 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const _Divider(),
           _FeatureTile(
-            icon: Icons.badge_outlined,
+            icon: Icons.bar_chart_outlined,
             color: AppTheme.primary,
-            title: 'Details by Guardian',
-            subtitle: 'View student information provided by parents',
+            title: 'Attendance History',
+            subtitle:
+                'Monthly reports, % per student & low-attendance flags',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => GuardianDetailsListScreen(
-                  className: teacher!.classTeacherOf!,
-                  section: teacher!.section,
-                  teacherId: teacher!.id,
-                ),
+                builder: (_) => AttendanceHistoryScreen(
+                    className: teacher!.classTeacherOf!,
+                    section:   teacher!.section),
               ),
             ),
           ),
+
           const _Divider(),
           _FeatureTile(
             icon: Icons.comment_outlined,
@@ -460,87 +547,20 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const _Divider(),
+          _SectionHeader('CALLS'),
           _FeatureTile(
-            icon: Icons.leaderboard_outlined,
+            icon: Icons.phone_callback_outlined,
             color: AppTheme.primary,
-            title: 'Class Leaderboard',
-            subtitle: 'Rankings for academics, attendance, discipline & more',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => LeaderboardScreen(
-                    className: teacher!.classTeacherOf!,
-                    section:   teacher!.section,
-                    schoolId:  teacher!.schoolId,
-                  ),
-                ),
-              );
-            },
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.family_restroom_outlined,
-            color: AppTheme.primary,
-            title: 'Create Guardian Account',
-            subtitle: 'Set up a parent/guardian login for a student',
-            onTap: _showCreateGuardianSheet,
-          ),
-
-          // ── DUTIES & TASKS ────────────────────────────────────────────
-          const _SectionHeader('DUTIES & TASKS'),
-          _FeatureTile(
-            icon: Icons.assignment_outlined,
-            color: AppTheme.primary,
-            title: 'Staff Tasks',
-            subtitle: 'View tasks from leadership & manage personal to-do',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const StaffTaskManagementScreen()),
-            ),
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.swap_horiz_outlined,
-            color: AppTheme.primary,
-            title: 'My Substitution Duties',
-            subtitle: 'Classes I have covered as substitute',
+            title: 'Daily Calls',
+            subtitle: 'Track guardian calls for absent/leave students',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => SubstitutionHistoryScreen(
-                  teacherId:   teacher?.id,
-                  teacherName: teacher?.name,
-                ),
-              ),
+                  builder: (_) => DailyCallsScreen(teacher: teacher!)),
             ),
           ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.task_outlined,
-            color: AppTheme.primary,
-            title: 'Tasks',
-            subtitle: 'View and mark tasks from coordinator/principal',
-            onTap: () {
-              if (teacher != null && teacher!.classTeacherOf != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => TeacherTasksScreen(
-                      className: teacher!.classTeacherOf!,
-                      section: teacher!.section,
-                    ),
-                  ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Only class teachers can access tasks for now')),
-                );
-              }
-            },
-          ),
-          const _Divider(),
+
+          _SectionHeader('LEAVE'),
           _FeatureTile(
             icon: Icons.event_busy_outlined,
             color: AppTheme.warning,
@@ -555,8 +575,78 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // ── COMMUNICATION ─────────────────────────────────────────────
-          const _SectionHeader('COMMUNICATION'),
+          _SectionHeader('COPY CHECKING'),
+          _FeatureTile(
+            icon: Icons.menu_book_outlined,
+            color: AppTheme.primary,
+            title: 'Copy Checking',
+            subtitle: 'Mark student copies for your classes',
+            onTap: () {
+              if (teacher != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          CopyCheckingScreen(teacher: teacher!)),
+                );
+              }
+            },
+          ),
+
+          _SectionHeader('HOMEWORK'),
+          _FeatureTile(
+            icon: Icons.assignment_outlined,
+            color: AppTheme.primary,
+            title: 'Homework',
+            subtitle: 'Post and manage assignments for your classes',
+            onTap: () {
+              if (teacher != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => HomeworkScreen(teacher: teacher!)),
+                );
+              }
+            },
+          ),
+
+          _SectionHeader('EXAMS & MARKS'),
+          _FeatureTile(
+            icon: Icons.quiz_outlined,
+            color: AppTheme.primary,
+            title: 'Exams & Marks',
+            subtitle: 'Enter marks and view report cards',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => ExamManagementScreen(
+                      role: 'teacher',
+                      section: teacher!.section,
+                      allowedClasses: teacher!.classTeacherOf != null
+                          ? [teacher!.classTeacherOf!]
+                          : [])),
+            ),
+          ),
+
+          _SectionHeader('MY TASKS'),
+          _FeatureTile(
+            icon: Icons.task_outlined,
+            color: AppTheme.primary,
+            title: 'My Tasks',
+            subtitle: 'View tasks assigned to you',
+            badge: _pendingTaskCount > 0 ? '$_pendingTaskCount' : null,
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        StaffTasksScreen(teacherId: teacher?.id)),
+              );
+              _loadCounts();
+            },
+          ),
+
+          _SectionHeader('ANNOUNCEMENTS'),
           _FeatureTile(
             icon: Icons.campaign_outlined,
             color: AppTheme.primary,
@@ -567,31 +657,19 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(
                   builder: (_) => AnnouncementsScreen(
                       viewerRole: 'class_teacher',
-                      posterName: teacher?.email,
-                      viewerClass: teacher?.classTeacherOf)),
+                      posterName: teacher?.email)),
             ),
           ),
-          const _Divider(),
+
+          _SectionHeader('GUARDIANS'),
           _FeatureTile(
-            icon: Icons.calendar_month_outlined,
+            icon: Icons.family_restroom_outlined,
             color: AppTheme.primary,
-            title: 'School Calendar',
-            subtitle: 'View holidays and school events',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const CalendarScreen(userRole: 'teacher'),
-              ),
-            ),
+            title: 'Add Guardian',
+            subtitle: 'Create a guardian login linked to a student',
+            onTap: () => _showAddGuardianSheet(context),
           ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.privacy_tip_outlined,
-            color: Colors.grey,
-            title: 'Privacy Policy',
-            subtitle: 'How we protect your data',
-            onTap: () => _showPrivacyPolicy(context),
-          ),
+
           const SizedBox(height: 32),
         ],
       );
@@ -603,8 +681,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _buildHero(),
         const SizedBox(height: 4),
 
-        // ── ACADEMICS ─────────────────────────────────────────────────
-        const _SectionHeader('ACADEMICS'),
+        _SectionHeader('ACADEMICS'),
         _FeatureTile(
           icon: Icons.calendar_month_outlined,
           color: AppTheme.primary,
@@ -616,53 +693,22 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const _Divider(),
         _FeatureTile(
-          icon: Icons.assignment_outlined,
+          icon: Icons.swap_horiz_outlined,
           color: AppTheme.primary,
-          title: 'Homework',
-          subtitle: 'Post and manage assignments for your classes',
-          onTap: () {
-            if (teacher != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => HomeworkScreen(teacher: teacher!)),
-              );
-            }
-          },
-        ),
-        const _Divider(),
-        _FeatureTile(
-          icon: Icons.menu_book_outlined,
-          color: AppTheme.primary,
-          title: 'Copy Checking',
-          subtitle: 'Mark student copies for your classes',
-          onTap: () {
-            if (teacher != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) =>
-                        CopyCheckingScreen(teacher: teacher!)),
-              );
-            }
-          },
-        ),
-        const _Divider(),
-        _FeatureTile(
-          icon: Icons.quiz_outlined,
-          color: AppTheme.primary,
-          title: 'Exams & Marks',
-          subtitle: 'Enter marks and view report cards',
+          title: 'My Substitution Duties',
+          subtitle: 'Classes I have covered as substitute',
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (_) =>
-                    ExamManagementScreen(role: 'teacher', section: teacher?.section ?? '')),
+              builder: (_) => SubstitutionHistoryScreen(
+                teacherId:   teacher?.id,
+                teacherName: teacher?.name,
+              ),
+            ),
           ),
         ),
 
-        // ── STUDENTS ──────────────────────────────────────────────────
-        const _SectionHeader('STUDENTS'),
+        _SectionHeader('STUDENTS'),
         _FeatureTile(
           icon: Icons.people_outline,
           color: AppTheme.primary,
@@ -672,8 +718,9 @@ class _HomeScreenState extends State<HomeScreen> {
             final pick = await Navigator.push<ClassSectionPick>(
               context,
               MaterialPageRoute(
-                  builder: (_) => const ClassPickerScreen(
-                      mode: ClassPickerMode.studentList)),
+                  builder: (_) => ClassPickerScreen(
+                      mode: ClassPickerMode.studentList,
+                      allowedClasses: teacher?.assignedClasses ?? [])),
             );
             if (pick != null && context.mounted) {
               Navigator.push(
@@ -706,70 +753,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-        const _Divider(),
-        _FeatureTile(
-          icon: Icons.family_restroom_outlined,
-          color: AppTheme.primary,
-          title: 'Create Guardian Account',
-          subtitle: 'Set up a parent/guardian login for a student',
-          onTap: _showCreateGuardianSheet,
-        ),
 
-        // ── DUTIES & TASKS ────────────────────────────────────────────
-        const _SectionHeader('DUTIES & TASKS'),
-        _FeatureTile(
-          icon: Icons.assignment_outlined,
-          color: AppTheme.primary,
-          title: 'Staff Tasks',
-          subtitle: 'View tasks from leadership & manage personal to-do',
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const StaffTaskManagementScreen()),
-          ),
-        ),
-        const _Divider(),
-        _FeatureTile(
-          icon: Icons.swap_horiz_outlined,
-          color: AppTheme.primary,
-          title: 'My Substitution Duties',
-          subtitle: 'Classes I have covered as substitute',
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => SubstitutionHistoryScreen(
-                teacherId:   teacher?.id,
-                teacherName: teacher?.name,
-              ),
-            ),
-          ),
-        ),
-        const _Divider(),
-        _FeatureTile(
-          icon: Icons.task_outlined,
-          color: AppTheme.primary,
-          title: 'Tasks',
-          subtitle: 'View and mark tasks from coordinator/principal',
-          onTap: () async {
-            final pick = await Navigator.push<ClassSectionPick>(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => const ClassPickerScreen(
-                      mode: ClassPickerMode.studentList)),
-            );
-            if (pick != null && context.mounted) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TeacherTasksScreen(
-                    className: pick.className,
-                    section: pick.section,
-                  ),
-                ),
-              );
-            }
-          },
-        ),
-        const _Divider(),
+        _SectionHeader('LEAVE'),
         _FeatureTile(
           icon: Icons.event_busy_outlined,
           color: AppTheme.warning,
@@ -788,8 +773,75 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
 
-        // ── COMMUNICATION ─────────────────────────────────────────────
-        const _SectionHeader('COMMUNICATION'),
+        _SectionHeader('COPY CHECKING'),
+        _FeatureTile(
+          icon: Icons.menu_book_outlined,
+          color: AppTheme.primary,
+          title: 'Copy Checking',
+          subtitle: 'Mark student copies for your classes',
+          onTap: () {
+            if (teacher != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        CopyCheckingScreen(teacher: teacher!)),
+              );
+            }
+          },
+        ),
+
+        _SectionHeader('HOMEWORK'),
+        _FeatureTile(
+          icon: Icons.assignment_outlined,
+          color: AppTheme.primary,
+          title: 'Homework',
+          subtitle: 'Post and manage assignments for your classes',
+          onTap: () {
+            if (teacher != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => HomeworkScreen(teacher: teacher!)),
+              );
+            }
+          },
+        ),
+
+        _SectionHeader('EXAMS & MARKS'),
+        _FeatureTile(
+          icon: Icons.quiz_outlined,
+          color: AppTheme.primary,
+          title: 'Exams & Marks',
+          subtitle: 'Enter marks and view report cards',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => ExamManagementScreen(
+                    role: 'teacher',
+                    section: teacher?.section ?? '',
+                    allowedClasses: teacher?.assignedClasses ?? [])),
+          ),
+        ),
+
+        _SectionHeader('MY TASKS'),
+        _FeatureTile(
+          icon: Icons.task_outlined,
+          color: AppTheme.primary,
+          title: 'My Tasks',
+          subtitle: 'View tasks assigned to you',
+          badge: _pendingTaskCount > 0 ? '$_pendingTaskCount' : null,
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => StaffTasksScreen(teacherId: teacher?.id)),
+            );
+            _loadCounts();
+          },
+        ),
+
+        _SectionHeader('ANNOUNCEMENTS'),
         _FeatureTile(
           icon: Icons.campaign_outlined,
           color: AppTheme.primary,
@@ -800,57 +852,21 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(
                 builder: (_) => AnnouncementsScreen(
                     viewerRole: 'teacher',
-                    posterName: teacher?.email,
-                    viewerClass: teacher?.classTeacherOf)),
+                    posterName: teacher?.email)),
           ),
         ),
-        const _Divider(),
+
+        _SectionHeader('GUARDIANS'),
         _FeatureTile(
-          icon: Icons.calendar_month_outlined,
+          icon: Icons.family_restroom_outlined,
           color: AppTheme.primary,
-          title: 'School Calendar',
-          subtitle: 'View holidays and school events',
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const CalendarScreen(userRole: 'teacher'),
-            ),
-          ),
+          title: 'Add Guardian',
+          subtitle: 'Create a guardian login linked to a student',
+          onTap: () => _showAddGuardianSheet(context),
         ),
-        const _Divider(),
-        _FeatureTile(
-          icon: Icons.privacy_tip_outlined,
-          color: Colors.grey,
-          title: 'Privacy Policy',
-          subtitle: 'How we protect your data',
-          onTap: () => _showPrivacyPolicy(context),
-        ),
+
         const SizedBox(height: 32),
       ],
-    );
-  }
-
-  void _showPrivacyPolicy(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Privacy Policy'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'This School App is committed to protecting your privacy. '
-            'We collect minimal data required for school operations, including '
-            'attendance, marks, and communication. Your data is never shared '
-            'with third parties without consent.\n\n'
-            'For full details, please visit: https://example.com/privacy', // TODO: Update with real link
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CLOSE'),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -942,6 +958,7 @@ class _FeatureTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  final String? badge;
 
   const _FeatureTile({
     required this.icon,
@@ -949,6 +966,7 @@ class _FeatureTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.badge,
   });
 
   @override
@@ -959,15 +977,35 @@ class _FeatureTile extends StatelessWidget {
         color: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
+          Stack(clipBehavior: Clip.none, children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 22),
             ),
-            child: Icon(icon, color: color, size: 22),
-          ),
+            if (badge != null)
+              Positioned(
+                top: -4,
+                right: -4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(badge!,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold)),
+                ),
+              ),
+          ]),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -989,125 +1027,4 @@ class _FeatureTile extends StatelessWidget {
       ),
     );
   }
-}
-
-// ── Cascading Attendance Dialog ──────────────────────────────────────────────
-
-class _CascadingAttendanceDialog extends StatefulWidget {
-  final Teacher teacher;
-  const _CascadingAttendanceDialog({required this.teacher});
-
-  @override
-  State<_CascadingAttendanceDialog> createState() => _CascadingAttendanceDialogState();
-}
-
-class _CascadingAttendanceDialogState extends State<_CascadingAttendanceDialog> {
-  bool _loading = true;
-  List<TeacherAssignment> _assignments = [];
-  String? _selectedClass;
-  String? _selectedSection;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final assignments = await CopyCheckService().getTeacherAssignments(widget.teacher.id);
-    if (!mounted) return;
-    
-    // For attendance, we also want to include the teacher's own class if they are a class teacher,
-    // even if it's not explicitly in the subject timetable (though it usually is).
-    if (widget.teacher.isClassTeacher && widget.teacher.classTeacherOf != null) {
-      final ownClass = widget.teacher.classTeacherOf!;
-      final ownSection = widget.teacher.section;
-      bool exists = assignments.any((a) => a.className == ownClass && a.section == ownSection);
-      if (!exists) {
-        assignments.add(TeacherAssignment(className: ownClass, section: ownSection, subject: 'Class Teacher'));
-      }
-    }
-
-    setState(() {
-      _assignments = assignments;
-      _loading = false;
-      
-      final classes = _classes;
-      if (classes.isNotEmpty) {
-        _selectedClass = classes.first;
-        final sects = _sections;
-        if (sects.contains(widget.teacher.section)) {
-          _selectedSection = widget.teacher.section;
-        } else if (sects.isNotEmpty) {
-          _selectedSection = sects.first;
-        }
-      }
-    });
-  }
-
-  List<String> get _classes => _assignments.map((a) => a.className).toSet().toList()..sort();
-  List<String> get _sections => _selectedClass == null 
-      ? [] 
-      : _assignments.where((a) => a.className == _selectedClass).map((a) => a.section).toSet().toList()..sort();
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Take Attendance', style: TextStyle(fontWeight: FontWeight.bold)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Select Class', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(height: 6),
-          DropdownButtonFormField<String>(
-            value: _selectedClass,
-            isExpanded: true,
-            decoration: _inputDeco(),
-            items: _classes.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-            onChanged: (val) {
-              setState(() {
-                _selectedClass = val;
-                _selectedSection = null;
-                final sects = _sections;
-                if (sects.isNotEmpty) {
-                  _selectedSection = sects.contains(widget.teacher.section) ? widget.teacher.section : sects.first;
-                }
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          const Text('Select Section', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(height: 6),
-          DropdownButtonFormField<String>(
-            value: _selectedSection,
-            isExpanded: true,
-            decoration: _inputDeco(enabled: _selectedClass != null),
-            items: _sections.map((s) => DropdownMenuItem(value: s, child: Text(s.isEmpty ? 'General' : 'Section $s'))).toList(),
-            onChanged: _selectedClass == null ? null : (val) => setState(() => _selectedSection = val),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
-        ElevatedButton(
-          onPressed: _selectedSection == null ? null : () {
-            Navigator.pop(context, ClassSectionPick(_selectedClass!, section: _selectedSection!));
-          },
-          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary, foregroundColor: Colors.white),
-          child: const Text('PROCEED'),
-        ),
-      ],
-    );
-  }
-
-  InputDecoration _inputDeco({bool enabled = true}) => InputDecoration(
-    filled: true,
-    fillColor: enabled ? Colors.white : Colors.grey.shade100,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-  );
 }

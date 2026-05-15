@@ -10,22 +10,18 @@ import 'class_picker_screen.dart';
 import 'leave_requests_screen.dart';
 import 'my_timetable_screen.dart';
 import 'student_details_screen.dart';
-import 'student_remarks_screen.dart';
 import 'role_selection_screen.dart';
 import 'announcements_screen.dart';
 import 'notifications_screen.dart';
 import 'analytics_screen.dart';
-import 'calendar_screen.dart';
-import 'class_setup_screen.dart';
-import 'timetable_settings_screen.dart';
-import 'school_contacts_screen.dart';
-import 'tasks/staff_task_management_screen.dart';
-import 'tasks/staff_task_analytics_view.dart';
+import 'principal_digest_screen.dart';
+import 'staff_task_management_screen.dart';
 import 'create_task_screen.dart';
 import 'task_status_screen.dart';
-import 'create_account_sheet.dart';
+import 'coordinator_dashboard.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
+import '../utils/role_guard.dart';
 
 /// The Principal Portal — school-wide overview dashboard.
 class PrincipalDashboard extends StatefulWidget {
@@ -39,13 +35,12 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   bool _loading = true;
 
   List<ClassSummary>         _summaries      = [];
-  List<String>               _availableClasses = [];
   int  _pendingLeaveCount    = 0;
   int  _teachersAbsent       = 0;
   int  _unassignedBells      = 0;
   int  _unreadNotifCount     = 0;
   String _principalEmail     = '';
-  String _schoolId           = '';
+  String _sessionRole        = 'principal';
 
   StreamSubscription? _studentSub;
   Set<String> _knownStudentIds = {};
@@ -53,7 +48,18 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      RoleGuard.verify(context, ['principal', 'ownerPrincipal']);
+    });
     _loadAll();
+    // Re-run summaries whenever the student roster changes (add/delete).
+    _studentSub = StudentService().watchStudents().listen((students) {
+      final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
+      if (_knownStudentIds.isNotEmpty && ids != _knownStudentIds) {
+        _loadAll();
+      }
+      _knownStudentIds = ids;
+    });
   }
 
   @override
@@ -67,30 +73,10 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
     final session = await AuthService().getSession();
     final email   = (session?['email'] as String?) ?? '';
-    final schoolId = (session?['schoolId'] as String?) ?? '';
+    final role    = (session?['role']  as String?) ?? 'principal';
 
-    if (schoolId.isEmpty) {
-      _logout();
-      return;
-    }
-
-    _schoolId = schoolId;
-    _principalEmail = email;
-
-    // Set up student subscription if not already done
-    if (_studentSub == null) {
-      _studentSub = StudentService().watchStudents(schoolId: schoolId).listen((students) {
-        final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
-        if (_knownStudentIds.isNotEmpty && ids != _knownStudentIds) {
-          _loadAll();
-        }
-        _knownStudentIds = ids;
-      });
-    }
-
-    final settings   = await TimetableService().getSettings(schoolId: schoolId);
+    final settings   = await TimetableService().getSettings();
     final allClasses = List<String>.from(settings['classes'] as List);
-    _availableClasses = allClasses;
 
     // Filter to assigned classes; fall back to all.
     final assignedRaw = session?['assignedClasses'];
@@ -99,27 +85,20 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
         : allClasses;
 
     // Fire all heavy reads in parallel.
-    final summariesFuture  = StudentService().loadTodayFullSummary(schoolId: schoolId, classes: classes);
-    final leavesFuture     = TimetableService().getLeaveApplications(schoolId: schoolId, status: 'pending');
-    final notifFuture      = NotificationService().unreadCount(schoolId: schoolId, role: 'principal', userEmail: email);
-    final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo(schoolId);
+    final summariesFuture  = StudentService().loadTodayFullSummary(classes);
+    final leavesFuture     = TimetableService().getLeaveApplications(status: 'pending');
+    final notifFuture      = NotificationService().unreadCount(role: 'principal');
+    final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo();
 
-    List<ClassSummary> summaries = [];
-    List<Map<String, dynamic>> pending = [];
-    int notifCount = 0;
-    Map<String, int> absentInfo = {};
-
-    try {
-      summaries  = await summariesFuture;
-      pending    = await leavesFuture;
-      notifCount = await notifFuture;
-      absentInfo = await absentInfoFuture;
-    } catch (e) {
-      debugPrint('PrincipalDashboard _loadAll error: $e');
-    }
+    final summaries  = await summariesFuture;
+    final pending    = await leavesFuture;
+    final notifCount = await notifFuture;
+    final absentInfo = await absentInfoFuture;
 
     if (!mounted) return;
     setState(() {
+      _principalEmail      = email;
+      _sessionRole         = role;
       _summaries           = summaries;
       _pendingLeaveCount   = pending.length;
       _teachersAbsent      = absentInfo['absentCount']    ?? 0;
@@ -127,8 +106,18 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       _unreadNotifCount    = notifCount;
       _loading             = false;
     });
+
+    _maybeAutoPromptDigest();
   }
 
+  /// After 5pm, if today's digest hasn't been opened yet, push the principal
+  /// straight into it.  Runs once per day per device.
+  Future<void> _maybeAutoPromptDigest() async {
+    if (DateTime.now().hour < 17) return;
+    if (await PrincipalDigestScreen.hasViewedToday()) return;
+    if (!mounted) return;
+    await _navigate(const PrincipalDigestScreen());
+  }
 
   Future<void> _logout() async {
     await AuthService().clearSession();
@@ -164,14 +153,16 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             ),
 
             if (!_loading) ...[
-              // ── TODAY'S OVERVIEW ─────────────────────────────────────
-              const _SectionHeader('TODAY\'S OVERVIEW'),
+              // ── Today's Attendance ─────────────────────────────────────
+              _SectionHeader("TODAY'S ATTENDANCE"),
               _buildAttendanceSection(),
-              _buildTasksSection(),
-              _buildStaffTasksSummary(),
 
-              // ── ANALYTICS & SETUP ──────────────────────────────────────
-              const _SectionHeader('ANALYTICS & SETUP'),
+              // ── Active Tasks ───────────────────────────────────────────
+              _SectionHeader('ACTIVE TASKS'),
+              _buildTasksSection(),
+
+              // ── Analytics ─────────────────────────────────────────────
+              _SectionHeader('ANALYTICS'),
               _FeatureTile(
                 icon: Icons.analytics_outlined,
                 color: AppTheme.primary,
@@ -180,97 +171,14 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 onTap: () => _navigate(const AnalyticsScreen()),
               ),
               const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.list_alt_outlined,
-                color: AppTheme.primary,
-                title: 'Classes & Sections',
-                subtitle: 'Set up class range and manage sections',
-                onTap: () async {
-                  final changed = await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ClassSetupScreen()),
-                  );
-                  if (changed == true) _loadAll();
-                },
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.people_outlined,
-                color: AppTheme.primary,
-                title: 'Student Records',
-                subtitle: 'View student details and contact info by class',
-                onTap: () => _navigate(const StudentDetailsScreen()),
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.comment_outlined,
-                color: AppTheme.primary,
-                title: 'Student Remarks',
-                subtitle: 'Add and view observations for any student',
-                onTap: () => _navigate(const StudentRemarksScreen(role: 'principal')),
-              ),
 
-              // ── SCHOOL INFO ─────────────────────────────────────────────
-              const _SectionHeader('SCHOOL INFO'),
+              // ── Tools ─────────────────────────────────────────────────
+              _SectionHeader('TOOLS'),
               _FeatureTile(
-                icon: Icons.contact_phone_outlined,
-                color: AppTheme.primary,
-                title: 'School Contact List',
-                subtitle: 'Manage roles and numbers for staff/drivers',
-                onTap: () => _navigate(const SchoolContactsScreen(canEdit: true)),
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.table_chart_outlined,
-                color: AppTheme.primary,
-                title: 'School Timetable',
-                subtitle: 'View & share class timetables as PDF',
-                onTap: () => _navigate(const MyTimetableScreen()),
-              ),
-
-              // ── REPORTS & REQUESTS ──────────────────────────────────────
-              const _SectionHeader('REPORTS & REQUESTS'),
-              _FeatureTile(
-                icon: Icons.bar_chart_outlined,
-                color: AppTheme.primary,
-                title: 'Attendance Reports',
-                subtitle: 'Monthly history, % per student & low-attendance flags',
-                onTap: () async {
-                  final pick = await Navigator.push<ClassSectionPick>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ClassPickerScreen(
-                          mode: ClassPickerMode.reports),
-                    ),
-                  );
-                  if (pick != null && mounted) {
-                    _navigate(AttendanceHistoryScreen(
-                      className: pick.className,
-                      section:   pick.section,
-                    ));
-                  }
-                },
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.hourglass_top_outlined,
-                color: AppTheme.warning,
-                title: 'Leave Requests',
-                subtitle: 'Review & approve pending applications from teachers',
-                badge: _pendingLeaveCount > 0 ? '$_pendingLeaveCount' : null,
-                onTap: () async {
-                  await _navigate(const LeaveRequestsScreen(viewerRole: 'principal'));
-                  _loadAll();
-                },
-              ),
-
-              // ── TASKS & TOOLS ───────────────────────────────────────────
-              const _SectionHeader('TASKS & TOOLS'),
-              _FeatureTile(
-                icon: Icons.assignment_outlined,
+                icon: Icons.task_outlined,
                 color: AppTheme.primary,
                 title: 'Staff Task Management',
-                subtitle: 'Hierarchical to-do list for coordinators & teachers',
+                subtitle: 'Assign tasks to staff, track status and overdue',
                 onTap: () => _navigate(const StaffTaskManagementScreen()),
               ),
               const Divider(height: 1, indent: 72),
@@ -295,13 +203,19 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   creatorRole: 'principal',
                 )),
               ),
-
-              // ── COMMUNICATION & EVENTS ──────────────────────────────────
-              const _SectionHeader('COMMUNICATION & EVENTS'),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.summarize_outlined,
+                color: AppTheme.primary,
+                title: "Today's Digest",
+                subtitle: 'EOD summary · attendance, leaves, fees, copy-check',
+                onTap: () => _navigate(const PrincipalDigestScreen()),
+              ),
+              const Divider(height: 1, indent: 72),
               _FeatureTile(
                 icon: Icons.campaign_outlined,
                 color: AppTheme.primary,
-                title: 'Notice Board (Announcements)',
+                title: 'Announcements',
                 subtitle: 'Post and view school notices',
                 onTap: () => _navigate(AnnouncementsScreen(
                   viewerRole: 'principal',
@@ -310,84 +224,72 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(
-                icon: Icons.calendar_month_outlined,
-                color: AppTheme.primary,
-                title: 'School Calendar',
-                subtitle: 'National, state holidays and school events',
-                onTap: () => _navigate(const CalendarScreen(userRole: 'principal')),
-              ),
-
-              // ── ACCOUNT MANAGEMENT ─────────────────────────────────────
-              const _SectionHeader('ACCOUNT MANAGEMENT'),
-              _FeatureTile(
-                icon: Icons.manage_accounts_outlined,
-                color: AppTheme.primary,
-                title: 'Create Coordinator Account',
-                subtitle: 'Add a new coordinator login for this school',
+                icon: Icons.hourglass_top_outlined,
+                color: AppTheme.warning,
+                title: 'Leave Requests',
+                subtitle: 'Review & approve pending applications from teachers',
+                badge: _pendingLeaveCount > 0 ? '$_pendingLeaveCount' : null,
                 onTap: () async {
-                  final created = await showCreateAccountSheet(
-                    context,
-                    targetRole: 'coordinator',
-                    schoolId: _schoolId,
-                    availableClasses: _availableClasses,
-                  );
-                  if (created && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Coordinator account created successfully'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
+                  await _navigate(const LeaveRequestsScreen(viewerRole: 'principal'));
+                  _loadAll();
                 },
-              ),
-
-              // ── SETTINGS ───────────────────────────────────────────────
-              const _SectionHeader('SETTINGS'),
-              _FeatureTile(
-                icon: Icons.settings_outlined,
-                color: AppTheme.primary,
-                title: 'School Settings',
-                subtitle: 'Manage bells and general schedule',
-                onTap: () => _navigate(const TimetableSettingsScreen()),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(
-                icon: Icons.privacy_tip_outlined,
-                color: Colors.grey,
-                title: 'Privacy Policy',
-                subtitle: 'How we protect your data',
-                onTap: () => _showPrivacyPolicy(context),
+                icon: Icons.bar_chart_outlined,
+                color: AppTheme.primary,
+                title: 'Attendance Reports',
+                subtitle: 'Monthly history, % per student & low-attendance flags',
+                onTap: () async {
+                  final pick = await Navigator.push<ClassSectionPick>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ClassPickerScreen(
+                          mode: ClassPickerMode.reports),
+                    ),
+                  );
+                  if (pick != null && mounted) {
+                    _navigate(AttendanceHistoryScreen(
+                      className: pick.className,
+                      section:   pick.section,
+                    ));
+                  }
+                },
               ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.table_chart_outlined,
+                color: AppTheme.primary,
+                title: 'School Timetable',
+                subtitle: 'View & share class timetables as PDF',
+                onTap: () => _navigate(const MyTimetableScreen()),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.people_outlined,
+                color: AppTheme.primary,
+                title: 'Student Records',
+                subtitle: 'View student details and contact info by class',
+                onTap: () => _navigate(const StudentDetailsScreen()),
+              ),
+
+              // ── Owner-Principal: Coordinator Tools ────────────────────────
+              if (_sessionRole == 'ownerPrincipal') ...[
+                const Divider(height: 1, indent: 72),
+                _SectionHeader('COORDINATOR TOOLS'),
+                _FeatureTile(
+                  icon: Icons.admin_panel_settings_outlined,
+                  color: AppTheme.primaryMid,
+                  title: 'Coordinator Tools',
+                  subtitle: 'Access timetable, substitutions, leave management & more',
+                  onTap: () => _navigate(const CoordinatorDashboard()),
+                ),
+              ],
 
               const SizedBox(height: 32),
             ],
           ],
         ),
-      ),
-    );
-  }
-
-  void _showPrivacyPolicy(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Privacy Policy'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'This School App is committed to protecting your privacy. '
-            'We collect minimal data required for school operations, including '
-            'attendance, marks, and communication. Your data is never shared '
-            'with third parties without consent.\n\n'
-            'For full details, please visit: https://example.com/privacy', // TODO: Update with real link
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CLOSE'),
-          ),
-        ],
       ),
     );
   }
@@ -433,7 +335,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 ),
               ),
               const SizedBox(width: 10),
-              Text(s.displayName,
+              Text(s.className,
                   style: const TextStyle(
                       fontSize: 14, fontWeight: FontWeight.w700)),
               if (!s.marked) ...[
@@ -470,7 +372,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
   Widget _buildTasksSection() {
     return StreamBuilder<List<Task>>(
-      stream: TaskService().getAllTasks(schoolId: _schoolId),
+      stream: TaskService().getAllTasks(),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return _emptyInfo('No active tasks');
@@ -528,34 +430,6 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
           }).toList(),
         );
       },
-    );
-  }
-
-  Widget _buildStaffTasksSummary() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Staff Task Analytics', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              TextButton(
-                onPressed: () => _navigate(const AnalyticsScreen()),
-                child: const Text('View All', style: TextStyle(fontSize: 12)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(height: 150, child: StaffTaskAnalyticsView(schoolId: _schoolId)),
-        ],
-      ),
     );
   }
 

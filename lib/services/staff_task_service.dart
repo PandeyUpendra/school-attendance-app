@@ -1,158 +1,101 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/staff_task.dart';
-import 'audit_log_service.dart';
-import 'base_firestore_service.dart';
 
-class StaffTaskService extends BaseFirestoreService {
+class StaffTaskService {
   static final StaffTaskService _instance = StaffTaskService._();
-  StaffTaskService._();
   factory StaffTaskService() => _instance;
+  StaffTaskService._();
 
-  CollectionReference _tasks(String schoolId) =>
-      db.collection('schools').doc(schoolId).collection('staff_tasks');
+  static final _db    = FirebaseFirestore.instance;
+  static final _tasks = _db.collection('staff_tasks');
 
-  Future<void> createTaskWithAutoId(StaffTask task) async {
-    final docRef = _tasks(task.schoolId).doc();
-    final taskWithId = task.copyWith(
-      schoolId: task.schoolId, // Ensure it's set
-    );
-    // Note: copyWith doesn't take id, so we'll just set it in toFirestore or here
-    final data = taskWithId.toFirestore();
-    data['id'] = docRef.id; // Ensure ID is in document too if needed
+  // ── Writers ───────────────────────────────────────────────────────────────
 
-    await docRef.set(data);
-
-    await AuditLogService().log(
-      schoolId: task.schoolId,
-      userId: task.createdBy,
-      userName: task.creatorName,
-      userRole: task.creatorRole,
-      action: AuditAction.create,
-      resourceType: 'staff_task',
-      resourceId: docRef.id,
-      description: 'Created task: ${task.title}',
-    );
+  Future<void> createTask(StaffTask task) async {
+    final ref = _tasks.doc();
+    await ref.set(task.toJson());
   }
 
-  Future<void> updateTask(StaffTask task, String updaterId, String updaterName, String updaterRole) async {
-    await _tasks(task.schoolId).doc(task.id).update(task.toFirestore());
+  Future<void> updateTaskStatus(String taskId, TaskStatus status) =>
+      _tasks.doc(taskId).update({'status': status.name});
 
-    await AuditLogService().log(
-      schoolId: task.schoolId,
-      userId: updaterId,
-      userName: updaterName,
-      userRole: updaterRole,
-      action: AuditAction.update,
-      resourceType: 'staff_task',
-      resourceId: task.id,
-      description: 'Updated task: ${task.title}',
-    );
+  Future<void> deleteTask(String taskId) => _tasks.doc(taskId).delete();
+
+  // ── Teacher streams ────────────────────────────────────────────────────────
+
+  /// Real-time stream of tasks assigned to one teacher, sorted urgent-first.
+  Stream<List<StaffTask>> getTasksForTeacherStream(String teacherId) =>
+      _tasks
+          .where('assignedTo', isEqualTo: teacherId)
+          .snapshots()
+          .map(_sortByDueDate);
+
+  /// Pending (non-completed) count for home-screen badge.
+  Future<int> getPendingCountForTeacher(String teacherId) async {
+    final snap =
+        await _tasks.where('assignedTo', isEqualTo: teacherId).get();
+    return snap.docs
+        .where((d) => (d.data()['status'] as String? ?? '') != 'completed')
+        .length;
   }
 
-  /// Soft delete
-  Future<void> deleteTask(StaffTask task, String updaterId, String updaterName, String updaterRole) async {
-    await _tasks(task.schoolId).doc(task.id).update({
-      'isDeleted': true,
-      'deletedAt': FieldValue.serverTimestamp(),
+  // ── Coordinator streams ────────────────────────────────────────────────────
+
+  /// Real-time stream of tasks created BY a specific coordinator/principal.
+  Stream<List<StaffTask>> getTasksByAssignerStream(String assignedBy) =>
+      _tasks
+          .where('assignedBy', isEqualTo: assignedBy)
+          .snapshots()
+          .map(_sortByCreatedAt);
+
+  /// Incomplete task count for coordinator dashboard badge.
+  Future<int> getIncompleteCountByAssigner(String assignedBy) async {
+    final snap =
+        await _tasks.where('assignedBy', isEqualTo: assignedBy).get();
+    return snap.docs
+        .where((d) => (d.data()['status'] as String? ?? '') != 'completed')
+        .length;
+  }
+
+  /// School-wide incomplete task count for coordinator dashboard badge.
+  Future<int> getAllIncompleteCount() async {
+    final snap = await _tasks.get();
+    return snap.docs
+        .where((d) => (d.data()['status'] as String? ?? '') != 'completed')
+        .length;
+  }
+
+  // ── Principal streams ──────────────────────────────────────────────────────
+
+  /// Real-time stream of ALL tasks in the school.
+  Stream<List<StaffTask>> getAllTasksStream() =>
+      _tasks.snapshots().map(_sortByCreatedAt);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  List<StaffTask> _sortByDueDate(
+      QuerySnapshot<Map<String, dynamic>> snap) {
+    final tasks = snap.docs
+        .map((d) => StaffTask.fromJson(d.data(), d.id))
+        .toList();
+    tasks.sort((a, b) {
+      // Overdue first, then by due date asc, null due-dates last.
+      if (a.dueDate == null && b.dueDate == null) {
+        return b.createdAt.compareTo(a.createdAt);
+      }
+      if (a.dueDate == null) return 1;
+      if (b.dueDate == null) return -1;
+      return a.dueDate!.compareTo(b.dueDate!);
     });
-
-    await AuditLogService().log(
-      schoolId: task.schoolId,
-      userId: updaterId,
-      userName: updaterName,
-      userRole: updaterRole,
-      action: AuditAction.delete,
-      resourceType: 'staff_task',
-      resourceId: task.id,
-      description: 'Soft-deleted task: ${task.title}',
-    );
+    return tasks;
   }
 
-  Future<void> restoreTask(StaffTask task, String updaterId, String updaterName, String updaterRole) async {
-    await _tasks(task.schoolId).doc(task.id).update({
-      'isDeleted': false,
-      'deletedAt': null,
-    });
-
-    await AuditLogService().log(
-      schoolId: task.schoolId,
-      userId: updaterId,
-      userName: updaterName,
-      userRole: updaterRole,
-      action: AuditAction.restore,
-      resourceType: 'staff_task',
-      resourceId: task.id,
-      description: 'Restored task: ${task.title}',
-    );
-  }
-
-  Stream<List<StaffTask>> getTasksAssignedTo(String schoolId, String userId, String userRole, {int limit = 20, DocumentSnapshot? startAfter}) {
-    Query query = _tasks(schoolId)
-        .where('isDeleted', isEqualTo: false)
-        .where(Filter.or(
-          Filter('assignedToIds', arrayContains: userId),
-          Filter('targetRoles', arrayContains: userRole),
-        ))
-        .orderBy('createdAt', descending: true)
-        .limit(limit);
-
-    if (startAfter != null) {
-      query = query.startAfterDocument(startAfter);
-    }
-
-    return query.snapshots().map((snap) => snap.docs
-        .map((doc) => StaffTask.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
-        .toList());
-  }
-
-  Stream<List<StaffTask>> getTasksCreatedBy(String schoolId, String userId, {int limit = 20, DocumentSnapshot? startAfter}) {
-    Query query = _tasks(schoolId)
-        .where('createdBy', isEqualTo: userId)
-        .where('isDeleted', isEqualTo: false)
-        .orderBy('createdAt', descending: true)
-        .limit(limit);
-
-    if (startAfter != null) {
-      query = query.startAfterDocument(startAfter);
-    }
-
-    return query.snapshots().map((snap) => snap.docs
-        .map((doc) => StaffTask.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
-        .toList());
-  }
-
-  Stream<List<StaffTask>> getAllStaffTasks(String schoolId, {int limit = 20, DocumentSnapshot? startAfter}) {
-    Query query = _tasks(schoolId)
-        .where('isDeleted', isEqualTo: false)
-        .orderBy('createdAt', descending: true)
-        .limit(limit);
-
-    if (startAfter != null) {
-      query = query.startAfterDocument(startAfter);
-    }
-
-    return query.snapshots().map((snap) => snap.docs
-        .map((doc) => StaffTask.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
-        .toList());
-  }
-
-  Stream<List<StaffTask>> getPersonalTasks(String schoolId, String userId, {int limit = 20, DocumentSnapshot? startAfter}) {
-    // A personal task is one created by the user where assignedToIds contains only them
-    // and no target roles. We can simplify this query.
-    Query query = _tasks(schoolId)
-        .where('createdBy', isEqualTo: userId)
-        .where('assignedToIds', isEqualTo: [userId])
-        .where('isDeleted', isEqualTo: false)
-        .orderBy('createdAt', descending: true)
-        .limit(limit);
-
-    if (startAfter != null) {
-      query = query.startAfterDocument(startAfter);
-    }
-
-    return query.snapshots().map((snap) => snap.docs
-        .map((doc) => StaffTask.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
-        .toList());
+  List<StaffTask> _sortByCreatedAt(
+      QuerySnapshot<Map<String, dynamic>> snap) {
+    final tasks = snap.docs
+        .map((d) => StaffTask.fromJson(d.data(), d.id))
+        .toList();
+    tasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return tasks;
   }
 }
-

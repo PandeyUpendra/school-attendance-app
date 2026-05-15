@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
-import '../services/base_firestore_service.dart';
 import '../services/timetable_service.dart';
+import '../services/base_firestore_service.dart';
 import '../theme.dart';
-import 'class_setup_screen.dart';
 
 // ── Bell model ────────────────────────────────────────────────────────────────
 
@@ -55,6 +54,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   bool _loading = true;
   bool _settingsEditing = false;
   bool _timetableEditing = false;
+  String? _legendTeacherId;
 
   static const _days = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
@@ -373,44 +373,6 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
 
   void _removeClass(String cls) => setState(() => _classes.remove(cls));
 
-  Future<void> _showClassSetupDialog() async {
-    final changed = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => const ClassSetupScreen()),
-    );
-    if (changed == true && mounted) {
-      _load();
-    }
-  }
-
-  void _editClass(int index) async {
-    final currentName = _classes[index];
-    final ctrl = TextEditingController(text: currentName);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Edit Class Name'),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(hintText: 'e.g. 10A'),
-          autofocus: true,
-          textCapitalization: TextCapitalization.characters,
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(_), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(_, ctrl.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-    if (result != null && result.isNotEmpty && result != currentName) {
-      setState(() => _classes[index] = result);
-    }
-  }
-
   Future<void> _saveSettings() async {
     final bellsData = List.generate(_bells.length, (i) => {
           'duration': _bells[i].durationMinutes,
@@ -420,15 +382,12 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
         });
     final firstBell = _bells.isNotEmpty ? _fmt(_startOf(0)) : '08:00';
 
-    await _service.saveSettings(
-      BaseFirestoreService.currentSchoolId ?? 'default_school',
-      {
-        'numberOfBells': _bells.length,
-        'classes': _classes,
-        'firstBellTime': firstBell,
-        'bells': bellsData,
-      },
-    );
+    await _service.saveSettings(BaseFirestoreService.currentSchoolId ?? 'default_school', {
+      'numberOfBells': _bells.length,
+      'classes': _classes,
+      'firstBellTime': firstBell,
+      'bells': bellsData,
+    });
     if (!mounted) return;
     setState(() => _settingsEditing = false);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -494,7 +453,6 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     if (result.days.isEmpty) return;
 
     final error = await _service.assignTeacher(
-      schoolId: BaseFirestoreService.currentSchoolId ?? 'default_school',
       className: cls,
       days: result.days,
       bell: bell,
@@ -789,31 +747,16 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
 
   Widget _buildClassSection() {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Expanded(
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Classes (${_classes.length})',
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text(
-                  _settingsEditing
-                      ? 'Drag to reorder · tap × to remove'
-                      : 'Press Edit to add or remove classes',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                ),
-              ]),
-        ),
-        if (_settingsEditing)
-          TextButton.icon(
-            onPressed: _showClassSetupDialog,
-            icon: const Icon(Icons.auto_awesome, size: 16),
-            label: const Text('Setup Range'),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.accent),
-          ),
-      ]),
+      Text('Classes (${_classes.length})',
+          style: const TextStyle(
+              fontSize: 15, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 4),
+      Text(
+        _settingsEditing
+            ? 'Drag to reorder · tap × to remove'
+            : 'Press Edit to add or remove classes',
+        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+      ),
       const SizedBox(height: 12),
 
       if (_settingsEditing) ...[
@@ -885,25 +828,12 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                     const Icon(Icons.drag_handle, color: Colors.grey),
                 title: Text(cls,
                     style: const TextStyle(fontWeight: FontWeight.w500)),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined,
-                          color: AppTheme.primary, size: 18),
-                      onPressed: () => _editClass(i),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.close,
-                          color: Colors.red, size: 18),
-                      onPressed: () => _removeClass(cls),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
+                trailing: IconButton(
+                  icon: const Icon(Icons.close,
+                      color: Colors.red, size: 18),
+                  onPressed: () => _removeClass(cls),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
               ),
             );
@@ -1023,27 +953,36 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                 color: Colors.grey.shade600,
                 fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        Wrap(
-          spacing: 6,
-          runSpacing: 4,
-          children: _teachers.asMap().entries.map((e) {
-            final color = _palette[e.key % _palette.length];
-            return Chip(
-              avatar: CircleAvatar(
-                backgroundColor: color,
-                child: Text(e.value.name[0].toUpperCase(),
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 10)),
-              ),
-              label: Text(e.value.name,
-                  style: const TextStyle(fontSize: 11)),
-              backgroundColor: color.withOpacity(0.1),
-              side: BorderSide(color: color.withOpacity(0.3)),
-              visualDensity: VisualDensity.compact,
-              labelPadding: const EdgeInsets.only(right: 4),
-              padding: EdgeInsets.zero,
+        DropdownButtonFormField<String>(
+          value: _legendTeacherId,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: 'Select Teacher',
+            prefixIcon: const Icon(Icons.person_outline, size: 20),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10)),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFF1565C0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide:
+                  const BorderSide(color: Color(0xFF1565C0), width: 2),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          ),
+          hint: const Text('Select Teacher'),
+          items: _teachers.map((t) {
+            return DropdownMenuItem<String>(
+              value: t.id,
+              child: Text('${t.name}  ·  ${t.subject}',
+                  style: const TextStyle(fontSize: 13),
+                  overflow: TextOverflow.ellipsis),
             );
           }).toList(),
+          onChanged: (val) => setState(() => _legendTeacherId = val),
         ),
       ]),
     );

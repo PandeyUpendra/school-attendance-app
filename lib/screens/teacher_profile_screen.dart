@@ -31,10 +31,38 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   }
 
   Future<void> _load() async {
+    final session = await AuthService().getSession();
+    final currentEmail =
+        (session?['email'] as String? ?? '').toLowerCase().trim();
     final list = await TimetableService().getTeachers();
     if (!mounted) return;
+
+    final matched = list
+        .where((t) => t.email.toLowerCase().trim() == currentEmail)
+        .toList();
+
+    if (matched.length == 1) {
+      await _select(matched.first);
+      return;
+    }
+
+    if (matched.isEmpty) {
+      setState(() => _loading = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'No teacher profile found for this email. Contact your coordinator to register your email.'),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 5),
+      ));
+      await AuthService().clearSession();
+      if (!mounted) return;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      return;
+    }
+
     setState(() {
-      _teachers = list;
+      _teachers = matched;
       _loading = false;
     });
   }

@@ -44,7 +44,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _load();
   }
 
-  bool get _canDelete => widget.role == 'principal';
+  bool get _canDelete => widget.role == 'principal' ||
+      widget.role == 'owner' || widget.role == 'ownerPrincipal';
 
   Future<void> _deleteOne(Map<String, dynamic> n) async {
     final id = n['id'] as String?;

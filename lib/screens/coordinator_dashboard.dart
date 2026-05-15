@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme.dart';
-import '../services/base_firestore_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
@@ -12,11 +11,11 @@ import 'student_details_screen.dart';
 import 'my_timetable_screen.dart';
 import 'role_selection_screen.dart';
 import 'free_bells_screen.dart';
+import 'substitution_history_screen.dart';
 import 'leave_requests_screen.dart';
 import 'attendance_history_screen.dart';
 import 'class_picker_screen.dart';
 import '../services/auth_service.dart';
-import 'school_contacts_screen.dart';
 import 'announcements_screen.dart';
 import 'notifications_screen.dart';
 import 'fee_structure_screen.dart';
@@ -25,17 +24,10 @@ import 'exam_management_screen.dart';
 import 'copy_check_overview_screen.dart';
 import 'homework_overview_screen.dart';
 import 'analytics_screen.dart';
-import 'calendar_screen.dart';
 import 'student_remarks_screen.dart';
-import 'tasks/staff_task_management_screen.dart';
-import 'create_task_screen.dart';
-import 'task_status_screen.dart';
-import 'school_policy_screen.dart';
-import 'create_account_sheet.dart';
-import '../models/task.dart';
-import '../models/copy_check.dart';
-import '../services/task_service.dart';
-import '../services/copy_check_service.dart';
+import 'coordinator_staff_tasks_screen.dart';
+import '../services/staff_task_service.dart';
+import '../utils/role_guard.dart';
 
 const _cPurple    = AppTheme.primary;
 const _cPurpleMid = AppTheme.primaryMid;
@@ -53,15 +45,13 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
   bool _attendanceLoading = true;
   bool _navigating        = false; // prevents double-push navigation loop
   List<ClassSummary>       _summaries          = [];
-  List<String>             _availableClasses   = [];
   Map<String, Map<int, int>> _streaks          = {}; // className → roll → days
-  List<CopyCheckSummary>   _copySummaries      = [];
   int  _pendingLeaveCount   = 0;
   int  _unreadNotifCount    = 0;
   int  _teachersAbsent      = 0;
   int  _unassignedBells     = 0;
+  int  _incompleteTaskCount = 0;
   String _coordEmail        = '';
-  String _schoolId           = '';
 
   StreamSubscription? _studentSub;
   Set<String> _knownStudentIds = {};
@@ -69,7 +59,18 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      RoleGuard.verify(context, ['coordinator', 'ownerPrincipal']);
+    });
     _loadAll();
+    // Re-run summaries whenever the student roster changes (add/delete).
+    _studentSub = StudentService().watchStudents().listen((students) {
+      final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
+      if (_knownStudentIds.isNotEmpty && ids != _knownStudentIds) {
+        _loadAll();
+      }
+      _knownStudentIds = ids;
+    });
   }
 
   @override
@@ -83,33 +84,9 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
 
     final session = await AuthService().getSession();
     final email   = (session?['email'] as String?) ?? '';
-    final schoolId = (session?['schoolId'] as String?) ?? '';
 
-    if (schoolId.isEmpty) {
-      await AuthService().clearSession();
-      if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const RoleSelectionScreen()));
-      }
-      return;
-    }
-
-    _schoolId = schoolId;
-    _coordEmail = email;
-
-    // Set up student subscription
-    if (_studentSub == null) {
-      _studentSub = StudentService().watchStudents(schoolId: schoolId).listen((students) {
-        final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
-        if (_knownStudentIds.isNotEmpty && ids != _knownStudentIds) {
-          _loadAll();
-        }
-        _knownStudentIds = ids;
-      });
-    }
-
-    final settings = await TimetableService().getSettings(schoolId: schoolId);
+    final settings = await TimetableService().getSettings();
     final allClasses = List<String>.from(settings['classes'] as List);
-    _availableClasses = allClasses;
 
     // Filter to assigned classes; fall back to all if none assigned.
     final assignedRaw = session?['assignedClasses'];
@@ -117,33 +94,39 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
         ? List<String>.from(assignedRaw).where(allClasses.contains).toList()
         : allClasses;
 
-    final summariesFuture   = StudentService().loadTodayFullSummary(schoolId: schoolId, classes: classes);
-    final leavesFuture      = TimetableService().getLeaveApplications(schoolId: schoolId, status: 'pending');
-    final notifFuture       = NotificationService().unreadCount(schoolId: schoolId, role: 'coordinator', userEmail: email);
-    final absentInfoFuture  = TimetableService().getTodayAbsentTeachersInfo(schoolId);
+    // Fire everything in parallel.
+    final summariesFuture   = StudentService().loadTodayFullSummary(classes);
+    final leavesFuture      = TimetableService().getLeaveApplications(status: 'pending');
+    final notifFuture       = NotificationService().unreadCount(role: 'coordinator');
+    final absentInfoFuture  = TimetableService().getTodayAbsentTeachersInfo();
+    final taskCountFuture   = StaffTaskService().getAllIncompleteCount();
 
-    List<ClassSummary> summaries = [];
-    List<Map<String, dynamic>> leaves = [];
-    int notifCount = 0;
-    Map<String, int> absentInfo = {};
+    final summaries     = await summariesFuture;
+    final leaves        = await leavesFuture;
+    final notifCount    = await notifFuture;
+    final absentInfo    = await absentInfoFuture;
+    final incompleteTaskCount = await taskCountFuture;
 
-    try {
-      summaries  = await summariesFuture;
-      leaves     = await leavesFuture;
-      notifCount = await notifFuture;
-      absentInfo = await absentInfoFuture;
-    } catch (e) {
-      debugPrint('CoordinatorDashboard _loadAll error: $e');
+    // Load consecutive absence streaks for all classes in parallel.
+    final streaksList = await Future.wait(
+      classes.map((cls) => StudentService().loadConsecutiveAbsenceDays(cls)),
+    );
+    final streaks = <String, Map<int, int>>{};
+    for (var i = 0; i < classes.length; i++) {
+      streaks[classes[i]] = streaksList[i];
     }
 
+    if (!mounted) return;
     setState(() {
-      _coordEmail         = email;
-      _summaries          = summaries;
-      _pendingLeaveCount  = leaves.length;
-      _unreadNotifCount   = notifCount;
-      _teachersAbsent     = absentInfo['absentCount'] ?? 0;
-      _unassignedBells    = absentInfo['unassignedBells'] ?? 0;
-      _attendanceLoading  = false;
+      _coordEmail           = email;
+      _summaries            = summaries;
+      _streaks              = streaks;
+      _pendingLeaveCount    = leaves.length;
+      _unreadNotifCount     = notifCount;
+      _teachersAbsent       = absentInfo['absentCount']    ?? 0;
+      _unassignedBells      = absentInfo['unassignedBells'] ?? 0;
+      _incompleteTaskCount  = incompleteTaskCount;
+      _attendanceLoading    = false;
     });
   }
 
@@ -186,8 +169,182 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               },
             ),
 
-            // ── REPORTS & ANALYTICS ───────────────────────────────────────
-            const _SectionHeader('REPORTS & ANALYTICS'),
+            const SizedBox(height: 4),
+
+            // ── Staff Tasks ───────────────────────────────────────────────
+            _SectionHeader('STAFF TASKS'),
+            _FeatureTile(
+              icon: Icons.assignment_outlined,
+              color: _cPurple,
+              title: 'Staff Tasks',
+              subtitle: 'Assign tasks to teachers and track progress',
+              badge: _incompleteTaskCount > 0
+                  ? '$_incompleteTaskCount'
+                  : null,
+              onTap: () async {
+                await _navigate(CoordinatorStaffTasksScreen(
+                  coordinatorEmail: _coordEmail,
+                ));
+                _loadAll();
+              },
+            ),
+
+            // ── Announcements ──────────────────────────────────────────────
+            _SectionHeader('ANNOUNCEMENTS'),
+            _FeatureTile(
+              icon: Icons.campaign_outlined,
+              color: _cPurple,
+              title: 'Notice Board',
+              subtitle: 'Post and manage school announcements',
+              onTap: () => _navigate(AnnouncementsScreen(
+                viewerRole: 'coordinator',
+                posterName: _coordEmail,
+              )),
+            ),
+
+            // ── Fee Management ─────────────────────────────────────────────
+            _SectionHeader('FEE MANAGEMENT'),
+            _FeatureTile(
+              icon: Icons.account_balance_wallet_outlined,
+              color: AppTheme.success,
+              title: 'Fee Structure',
+              subtitle: 'Set annual fee and components per class',
+              onTap: () => _navigate(const FeeStructureScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.currency_rupee_outlined,
+              color: AppTheme.success,
+              title: 'Fee Collection',
+              subtitle: 'Record payments and view outstanding dues',
+              onTap: () => _navigate(const FeeCollectionScreen()),
+            ),
+
+            // ── Exams & Marks ──────────────────────────────────────────────
+            _SectionHeader('EXAMS & MARKS'),
+            _FeatureTile(
+              icon: Icons.quiz_outlined,
+              color: _cPurple,
+              title: 'Exam Management',
+              subtitle: 'Create exams, enter marks and view report cards',
+              onTap: () => _navigate(const ExamManagementScreen(role: 'coordinator')),
+            ),
+
+            // ── Copy Checking ──────────────────────────────────────────────
+            _SectionHeader('COPY CHECKING'),
+            _FeatureTile(
+              icon: Icons.menu_book_outlined,
+              color: _cPurple,
+              title: 'Copy Checking Overview',
+              subtitle: 'View copy-checking status across all classes',
+              onTap: () => _navigate(const CopyCheckOverviewScreen()),
+            ),
+
+            // ── Homework ───────────────────────────────────────────────────
+            _SectionHeader('HOMEWORK'),
+            _FeatureTile(
+              icon: Icons.assignment_outlined,
+              color: _cPurple,
+              title: 'Homework Overview',
+              subtitle: 'View all assignments posted across classes',
+              onTap: () => _navigate(const HomeworkOverviewScreen()),
+            ),
+
+            // ── Timetable ──────────────────────────────────────────────────
+            _SectionHeader('TIMETABLE'),
+            _FeatureTile(
+              icon: Icons.table_chart_outlined,
+              color: _cPurple,
+              title: 'Timetable & Settings',
+              subtitle: 'Bell schedule, classes and teacher assignments',
+              onTap: () => _navigate(const TimetableSettingsScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.picture_as_pdf_outlined,
+              color: _cPurple,
+              title: 'School Timetable (PDF)',
+              subtitle: 'View & share class timetables as PDF',
+              onTap: () => _navigate(const MyTimetableScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.swap_vert_circle_outlined,
+              color: _cPurple,
+              title: 'Assign Duties',
+              subtitle: 'Assembly, lunch duty, gate duty and more',
+              onTap: () => _navigate(const AssignDutiesScreen()),
+            ),
+
+            // ── Staff ──────────────────────────────────────────────────────
+            _SectionHeader('STAFF'),
+            _FeatureTile(
+              icon: Icons.people_outline,
+              color: _cPurple,
+              title: 'Manage Teachers',
+              subtitle: 'Add or remove teachers from the school',
+              onTap: () => _navigate(const TeacherManagementScreen()),
+            ),
+
+            // ── Students ───────────────────────────────────────────────────
+            _SectionHeader('STUDENTS'),
+            _FeatureTile(
+              icon: Icons.school_outlined,
+              color: _cPurple,
+              title: 'Student Details',
+              subtitle: 'View and manage student records by class',
+              onTap: () => _navigate(const StudentDetailsScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.comment_outlined,
+              color: _cPurple,
+              title: 'Student Remarks',
+              subtitle: 'Add and view observations for any student',
+              onTap: () => _navigate(
+                  const StudentRemarksScreen(role: 'coordinator')),
+            ),
+
+            // ── Free Bells & Substitution ──────────────────────────────────
+            _SectionHeader('FREE BELLS & SUBSTITUTION'),
+            _FeatureTile(
+              icon: Icons.swap_horiz_outlined,
+              color: AppTheme.warning,
+              title: "Teacher's Free Bells",
+              subtitle: 'View free periods & assign substitutions',
+              onTap: () => _navigate(const FreeBellsScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.history_outlined,
+              color: AppTheme.warning,
+              title: 'Substitution Bells',
+              subtitle: 'View all substitution assignments & leaderboard',
+              onTap: () => _navigate(const SubstitutionHistoryScreen()),
+            ),
+
+            // ── Leave Requests ─────────────────────────────────────────────
+            _SectionHeader('LEAVE REQUESTS'),
+            _LeaveRequestTile(
+              pendingCount: _pendingLeaveCount,
+              onTap: () async {
+                await _navigate(const LeaveRequestsScreen(viewerRole: 'coordinator'));
+                _loadAll();
+              },
+            ),
+
+            // ── Analytics ─────────────────────────────────────────────────
+            _SectionHeader('ANALYTICS'),
+            _FeatureTile(
+              icon: Icons.analytics_outlined,
+              color: _cPurpleMid,
+              title: 'Analytics Dashboard',
+              subtitle: 'Attendance trends, absences, fee progress & charts',
+              onTap: () => _navigate(const AnalyticsScreen()),
+            ),
+
+            // ── Attendance Reports ─────────────────────────────────────────
+            _SectionHeader('REPORTS'),
             _FeatureTile(
               icon: Icons.bar_chart_outlined,
               color: _cPurpleMid,
@@ -214,231 +371,10 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
                 }
               },
             ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.analytics_outlined,
-              color: _cPurpleMid,
-              title: 'Analytics Dashboard',
-              subtitle: 'Attendance trends, absences, fee progress & charts',
-              onTap: () => _navigate(const AnalyticsScreen()),
-            ),
 
-            // ── STAFF & STUDENTS ──────────────────────────────────────────
-            const _SectionHeader('STAFF & STUDENTS'),
-            _FeatureTile(
-              icon: Icons.person_add_outlined,
-              color: _cPurple,
-              title: 'Create Teacher Account',
-              subtitle: 'Add a new teacher login for this school',
-              onTap: () async {
-                final created = await showCreateAccountSheet(
-                  context,
-                  targetRole: 'teacher',
-                  schoolId: _schoolId,
-                  availableClasses: _availableClasses,
-                );
-                if (created && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Teacher account created successfully'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              },
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.people_outline,
-              color: _cPurple,
-              title: 'Manage Teachers',
-              subtitle: 'Add or remove teachers from the school',
-              onTap: () => _navigate(TeacherManagementScreen(schoolId: BaseFirestoreService.currentSchoolId ?? 'default_school')),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.school_outlined,
-              color: _cPurple,
-              title: 'Student Details',
-              subtitle: 'View and manage student records by class',
-              onTap: () => _navigate(const StudentDetailsScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.comment_outlined,
-              color: _cPurple,
-              title: 'Student Remarks',
-              subtitle: 'Add and view observations for any student',
-              onTap: () => _navigate(
-                  const StudentRemarksScreen(role: 'coordinator')),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.swap_horiz_outlined,
-              color: AppTheme.warning,
-              title: "Substitution Bell",
-              subtitle: 'Assign substitutes for free periods',
-              onTap: () => _navigate(const FreeBellsScreen()),
-            ),
-            const _Divider(),
-            _LeaveRequestTile(
-              pendingCount: _pendingLeaveCount,
-              onTap: () async {
-                await _navigate(const LeaveRequestsScreen(viewerRole: 'coordinator'));
-                _loadAll();
-              },
-            ),
-
-            // ── INFORMATION ───────────────────────────────────────────────
-            const _SectionHeader('INFORMATION'),
-            _FeatureTile(
-              icon: Icons.contact_phone_outlined,
-              color: _cPurple,
-              title: 'School Contact List',
-              subtitle: 'Manage roles and numbers for staff/drivers',
-              onTap: () => _navigate(const SchoolContactsScreen(canEdit: true)),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.campaign_outlined,
-              color: _cPurple,
-              title: 'Notice Board',
-              subtitle: 'Post and manage school announcements',
-              onTap: () => _navigate(AnnouncementsScreen(
-                viewerRole: 'coordinator',
-                posterName: _coordEmail,
-              )),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.calendar_month_outlined,
-              color: _cPurple,
-              title: 'School Calendar',
-              subtitle: 'National, state holidays and school events',
-              onTap: () => _navigate(const CalendarScreen(userRole: 'coordinator')),
-            ),
-            const _Divider(),
-            // ── TASKS & DUTIES ───────────────────────────────────────────
-            const _SectionHeader('TASKS & DUTIES'),
-            _FeatureTile(
-              icon: Icons.assignment_outlined,
-              color: _cPurple,
-              title: 'Staff Task Management',
-              subtitle: 'Manage assigned and personal tasks',
-              onTap: () => _navigate(const StaffTaskManagementScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.add_task_outlined,
-              color: _cPurple,
-              title: 'Create Task',
-              subtitle: 'Assign tasks to teachers/classes',
-              onTap: () => _navigate(CreateTaskScreen(
-                createdBy: _coordEmail,
-                creatorRole: 'coordinator',
-              )),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.task_alt_outlined,
-              color: _cPurple,
-              title: 'Task Status',
-              subtitle: 'Check completion status of created tasks',
-              onTap: () => _navigate(TaskStatusScreen(
-                createdByEmail: _coordEmail,
-                isAdmin: true,
-              )),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.swap_vert_circle_outlined,
-              color: _cPurple,
-              title: 'Assign Duties',
-              subtitle: 'Assembly, lunch duty, gate duty and more',
-              onTap: () => _navigate(const AssignDutiesScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.assignment_turned_in_outlined,
-              color: _cPurple,
-              title: 'Ideal Dress & Discipline',
-              subtitle: 'Manage uniform standards and rules',
-              onTap: () => _navigate(const SchoolPolicyScreen()),
-            ),
-
-            // ── ACADEMICS ───────────────────────────────────────────────
-            const _SectionHeader('ACADEMICS'),
-            _FeatureTile(
-              icon: Icons.menu_book_outlined,
-              color: _cPurple,
-              title: 'Copy Checking Overview',
-              subtitle: 'View copy-checking status across all classes',
-              onTap: () => _navigate(const CopyCheckOverviewScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.assignment_outlined,
-              color: _cPurple,
-              title: 'Homework Overview',
-              subtitle: 'View all assignments posted across classes',
-              onTap: () => _navigate(const HomeworkOverviewScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.quiz_outlined,
-              color: _cPurple,
-              title: 'Exam Management',
-              subtitle: 'Create exams, enter marks and view report cards',
-              onTap: () => _navigate(const ExamManagementScreen(role: 'coordinator')),
-            ),
-
-            // ── ADMINISTRATION ───────────────────────────────────────────
-            const _SectionHeader('ADMINISTRATION'),
-            _FeatureTile(
-              icon: Icons.account_balance_wallet_outlined,
-              color: AppTheme.success,
-              title: 'Fee Structure',
-              subtitle: 'Set annual fee and components per class',
-              onTap: () => _navigate(const FeeStructureScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.currency_rupee_outlined,
-              color: AppTheme.success,
-              title: 'Fee Collection',
-              subtitle: 'Record payments and view outstanding dues',
-              onTap: () => _navigate(const FeeCollectionScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.table_chart_outlined,
-              color: _cPurple,
-              title: 'Timetable & Settings',
-              subtitle: 'Bell schedule, classes and teacher assignments',
-              onTap: () => _navigate(const TimetableSettingsScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.picture_as_pdf_outlined,
-              color: _cPurple,
-              title: 'School Timetable (PDF)',
-              subtitle: 'View & share class timetables as PDF',
-              onTap: () => _navigate(const MyTimetableScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.privacy_tip_outlined,
-              color: Colors.grey,
-              title: 'Privacy Policy',
-              subtitle: 'How we protect your data',
-              onTap: () => _showPrivacyPolicy(context),
-            ),
-
-            // ── TODAY'S OVERVIEW ─────────────────────────────────────────
-            const _SectionHeader('TODAY\'S OVERVIEW'),
+            // ── Today's Attendance ─────────────────────────────────────────
+            _SectionHeader("TODAY'S ATTENDANCE"),
             _buildAttendanceSection(),
-            _buildTasksSection(),
-            _buildCopyCheckingSection(),
 
             const SizedBox(height: 32),
           ],
@@ -446,207 +382,6 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
       ),
     );
   }
-
-  // ── Inline tasks section ──────────────────────────────────────────────────
-  Widget _buildTasksSection() {
-    if (_schoolId.isEmpty) return _emptyCard('Loading tasks…');
-    return StreamBuilder<List<Task>>(
-      stream: TaskService().getAllTasks(schoolId: _schoolId),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return _emptyCard('No active tasks');
-        }
-        final tasks = snapshot.data!.take(3).toList(); // Show last 3 tasks
-        return Column(
-          children: tasks.map((task) {
-            final done = task.studentStatuses.values.where((v) => v).length;
-            final totalMarked = task.studentStatuses.length;
-            final progress = totalMarked == 0 ? 0.0 : done / totalMarked;
-
-            return Container(
-              margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.task_alt, color: AppTheme.primary, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          task.title,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Text(
-                        '${(progress * 100).round()}%',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primary),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: Colors.grey.shade100,
-                    color: AppTheme.success,
-                    minHeight: 6,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Classes: ${task.assignedClasses.join(", ")}',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-
-  // ── Inline Copy Checking Section ──────────────────────────────────────────
-
-  Widget _buildCopyCheckingSection() {
-    if (_attendanceLoading) return const SizedBox();
-    if (_copySummaries.isEmpty) {
-      return _emptyCard('No copy checking sessions recorded yet');
-    }
-
-    // Since _copySummaries is currently a flat list of CopyCheckSummary,
-    // and I want Class -> Section -> Summary structure, 
-    // I should use the getStructuredSummaries method I added to the service,
-    // or group it here. Let's group it here for simplicity since I have the data.
-
-    final classMap = <String, Map<String, List<CopyCheckSummary>>>{};
-    for (final s in _copySummaries) {
-      classMap.putIfAbsent(s.check.className, () => {});
-      classMap[s.check.className]!.putIfAbsent(s.check.section, () => []);
-      classMap[s.check.className]![s.check.section]!.add(s);
-    }
-
-    final sortedClasses = classMap.keys.toList()..sort();
-
-    return Column(
-      children: sortedClasses.map((className) {
-        final sectionsMap = classMap[className]!;
-        final sortedSections = sectionsMap.keys.toList()..sort();
-
-        return Card(
-          margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-              side: BorderSide(color: Colors.grey.shade200)),
-          child: ExpansionTile(
-            leading: const Icon(Icons.class_outlined, color: AppTheme.primary),
-            title: Text(className,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            children: sortedSections.map((section) {
-              final summaries = sectionsMap[section]!;
-              return Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: ExpansionTile(
-                  leading: const Icon(Icons.grid_view, color: AppTheme.primaryMid, size: 20),
-                  title: Text(section.isEmpty ? 'General Section' : 'Section $section',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  children: summaries.map((s) => _buildSummaryTile(s)).toList(),
-                ),
-              );
-            }).toList(),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildSummaryTile(CopyCheckSummary s) {
-    final c = s.check;
-    final progress = s.progress;
-    final progressPct = (progress * 100).round();
-    
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(c.subject,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              ),
-              Text('$progressPct%',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: progress == 1.0 ? Colors.green : AppTheme.primary)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: progress,
-            backgroundColor: Colors.grey.shade200,
-            color: progress == 1.0 ? Colors.green : Colors.orange,
-            minHeight: 6,
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _stat('Total', '${s.totalCount}'),
-              _stat('Checked', '${s.checkedCount}', color: Colors.green),
-              _stat('Pending', '${s.totalCount - s.checkedCount}', color: Colors.red),
-            ],
-          ),
-          if (s.uncheckedNames.isNotEmpty) ...[
-            const Divider(height: 20),
-            const Text('PENDING STUDENTS:',
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.redAccent,
-                    letterSpacing: 0.5)),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: s.uncheckedNames.map((name) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(name, style: TextStyle(fontSize: 11, color: Colors.red.shade800)),
-              )).toList(),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _stat(String label, String value, {Color? color}) => Column(
-        children: [
-          Text(value,
-              style: TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.bold, color: color)),
-          Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
-        ],
-      );
 
   // ── Inline attendance section ─────────────────────────────────────────────
 
@@ -677,7 +412,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
   Widget _buildClassBlock(ClassSummary s) {
     final absent  = s.absentLeave.where((n) => n.status == 'Absent').toList();
     final onLeave = s.absentLeave.where((n) => n.status == 'Leave').toList();
-    final classStreaks = _streaks[s.displayName] ?? {};
+    final classStreaks = _streaks[s.className] ?? {};
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
@@ -711,7 +446,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(s.displayName,
+                    Text(s.className,
                         style: const TextStyle(
                             fontSize: 14, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 1),
@@ -823,30 +558,6 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
         ]),
       );
-
-  void _showPrivacyPolicy(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Privacy Policy'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'This School App is committed to protecting your privacy. '
-            'We collect minimal data required for school operations, including '
-            'attendance, marks, and communication. Your data is never shared '
-            'with third parties without consent.\n\n'
-            'For full details, please visit: https://example.com/privacy', // TODO: Update with real link
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CLOSE'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ── Per-student row ───────────────────────────────────────────────────────────
@@ -1261,6 +972,7 @@ class _FeatureTile extends StatelessWidget {
   final Color color;
   final String title, subtitle;
   final VoidCallback onTap;
+  final String? badge;
 
   const _FeatureTile({
     required this.icon,
@@ -1268,6 +980,7 @@ class _FeatureTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.badge,
   });
 
   @override
@@ -1277,14 +990,34 @@ class _FeatureTile extends StatelessWidget {
           color: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
+            Stack(clipBehavior: Clip.none, children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 22),
               ),
-              child: Icon(icon, color: color, size: 22),
-            ),
+              if (badge != null)
+                Positioned(
+                  top: -4,
+                  right: -4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accent,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(badge!,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ),
+            ]),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

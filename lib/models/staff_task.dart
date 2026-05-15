@@ -1,195 +1,128 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum TaskPriority { high, medium, low }
+enum TaskStatus { pending, inProgress, completed }
 
-enum TaskStatus { pending, inProgress, completed, overdue }
+enum TaskPriority { low, medium, high }
 
-class Checkpoint {
-  final String title;
-  final bool isCompleted;
-
-  Checkpoint({required this.title, this.isCompleted = false});
-
-  factory Checkpoint.fromJson(Map<String, dynamic> json) {
-    return Checkpoint(
-      title: json['title'] ?? '',
-      isCompleted: json['isCompleted'] ?? false,
-    );
+TaskStatus _parseStatus(String? s) {
+  switch (s) {
+    case 'inProgress': return TaskStatus.inProgress;
+    case 'completed':  return TaskStatus.completed;
+    case 'done':       return TaskStatus.completed; // legacy
+    default:           return TaskStatus.pending;
   }
+}
 
-  Map<String, dynamic> toJson() {
-    return {
-      'title': title,
-      'isCompleted': isCompleted,
-    };
+TaskPriority _parsePriority(String? s) {
+  switch (s?.toLowerCase()) {
+    case 'medium': return TaskPriority.medium;
+    case 'high':   return TaskPriority.high;
+    default:       return TaskPriority.low;
+  }
+}
+
+extension TaskStatusLabel on TaskStatus {
+  String get label {
+    switch (this) {
+      case TaskStatus.pending:    return 'Pending';
+      case TaskStatus.inProgress: return 'In Progress';
+      case TaskStatus.completed:  return 'Completed';
+    }
+  }
+}
+
+extension TaskPriorityLabel on TaskPriority {
+  String get label {
+    switch (this) {
+      case TaskPriority.low:    return 'Low';
+      case TaskPriority.medium: return 'Medium';
+      case TaskPriority.high:   return 'High';
+    }
   }
 }
 
 class StaffTask {
-  final String id;
-  final String schoolId;
-  final String title;
-  final String description;
-  final String? notes;
-  final String createdBy; // ID or Email
-  final String creatorRole; // 'principal' or 'coordinator'
-  final String creatorName;
-  final List<String> assignedToIds;
-  final List<String> assignedToNames;
-  final List<String> assignedToRoles;
-  final List<String> targetRoles; // e.g. ["teacher", "coordinator"] for "All Teachers"
-  final List<String> targetClasses; // e.g. ["10-A", "9-B"]
+  final String       id;
+  final String       title;
+  final String       description;
+  final String       assignedTo;       // teacher doc ID
+  final String       assignedToName;   // denormalized teacher name
+  final String       assignedBy;       // creator email/userId
+  final String       assignedByRole;   // 'coordinator' | 'principal'
+  final DateTime?    dueDate;
+  final TaskStatus   status;
   final TaskPriority priority;
-  final TaskStatus status;
-  final DateTime createdAt;
-  final DateTime dueDate;
-  final bool isRecurring;
-  final String? recurrencePattern;
-  final List<Checkpoint> checkpoints;
-  final String? completionNotes;
-  final List<String> progressUpdates;
-  final bool isDeleted;
-  final DateTime? deletedAt;
+  final String       classId;          // optional class context
+  final DateTime     createdAt;
 
-  StaffTask({
+  const StaffTask({
     required this.id,
-    required this.schoolId,
     required this.title,
     required this.description,
-    this.notes,
-    required this.createdBy,
-    required this.creatorRole,
-    required this.creatorName,
-    required this.assignedToIds,
-    required this.assignedToNames,
-    required this.assignedToRoles,
-    this.targetRoles = const [],
-    required this.targetClasses,
-    required this.priority,
+    required this.assignedTo,
+    required this.assignedToName,
+    required this.assignedBy,
+    required this.assignedByRole,
+    this.dueDate,
     required this.status,
+    required this.priority,
+    this.classId = '',
     required this.createdAt,
-    required this.dueDate,
-    this.isRecurring = false,
-    this.recurrencePattern,
-    this.checkpoints = const [],
-    this.completionNotes,
-    this.progressUpdates = const [],
-    this.isDeleted = false,
-    this.deletedAt,
   });
 
-  factory StaffTask.fromFirestore(Map<String, dynamic> json, String id) {
-    return StaffTask(
-      id: id,
-      schoolId: json['schoolId'] ?? '',
-      title: json['title'] ?? '',
-      description: json['description'] ?? '',
-      notes: json['notes'],
-      createdBy: json['createdBy'] ?? '',
-      creatorRole: json['creatorRole'] ?? '',
-      creatorName: json['creatorName'] ?? '',
-      assignedToIds: List<String>.from(json['assignedToIds'] ?? []),
-      assignedToNames: List<String>.from(json['assignedToNames'] ?? []),
-      assignedToRoles: List<String>.from(json['assignedToRoles'] ?? []),
-      targetRoles: List<String>.from(json['targetRoles'] ?? []),
-      targetClasses: List<String>.from(json['targetClasses'] ?? []),
-      priority: TaskPriority.values.firstWhere(
-        (e) => e.name == (json['priority'] ?? 'medium'),
-        orElse: () => TaskPriority.medium,
-      ),
-      status: TaskStatus.values.firstWhere(
-        (e) => e.name == (json['status'] ?? 'pending'),
-        orElse: () => TaskStatus.pending,
-      ),
-      createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      dueDate: (json['dueDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      isRecurring: json['isRecurring'] ?? false,
-      recurrencePattern: json['recurrencePattern'],
-      checkpoints: (json['checkpoints'] as List? ?? [])
-          .map((e) => Checkpoint.fromJson(Map<String, dynamic>.from(e)))
-          .toList(),
-      completionNotes: json['completionNotes'],
-      progressUpdates: List<String>.from(json['progressUpdates'] ?? []),
-      isDeleted: json['isDeleted'] ?? false,
-      deletedAt: (json['deletedAt'] as Timestamp?)?.toDate(),
-    );
-  }
+  bool get isOverdue =>
+      dueDate != null &&
+      DateTime.now().isAfter(dueDate!) &&
+      status != TaskStatus.completed;
 
-  Map<String, dynamic> toFirestore() {
-    return {
-      'schoolId': schoolId,
-      'title': title,
-      'description': description,
-      'notes': notes,
-      'createdBy': createdBy,
-      'creatorRole': creatorRole,
-      'creatorName': creatorName,
-      'assignedToIds': assignedToIds,
-      'assignedToNames': assignedToNames,
-      'assignedToRoles': assignedToRoles,
-      'targetRoles': targetRoles,
-      'targetClasses': targetClasses,
-      'priority': priority.name,
-      'status': status.name,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'dueDate': Timestamp.fromDate(dueDate),
-      'isRecurring': isRecurring,
-      'recurrencePattern': recurrencePattern,
-      'checkpoints': checkpoints.map((e) => e.toJson()).toList(),
-      'completionNotes': completionNotes,
-      'progressUpdates': progressUpdates,
-      'isDeleted': isDeleted,
-      'deletedAt': deletedAt != null ? Timestamp.fromDate(deletedAt!) : null,
-    };
-  }
+  int get overdueDays =>
+      isOverdue ? DateTime.now().difference(dueDate!).inDays : 0;
 
-  StaffTask copyWith({
-    String? schoolId,
-    String? title,
-    String? description,
-    String? notes,
-    List<String>? assignedToIds,
-    List<String>? assignedToNames,
-    List<String>? assignedToRoles,
-    List<String>? targetRoles,
-    List<String>? targetClasses,
-    TaskPriority? priority,
-    TaskStatus? status,
-    DateTime? dueDate,
-    bool? isRecurring,
-    String? recurrencePattern,
-    List<Checkpoint>? checkpoints,
-    String? completionNotes,
-    List<String>? progressUpdates,
-    bool? isDeleted,
-    DateTime? deletedAt,
-  }) {
-    return StaffTask(
-      id: id,
-      schoolId: schoolId ?? this.schoolId,
-      title: title ?? this.title,
-      description: description ?? this.description,
-      notes: notes ?? this.notes,
-      createdBy: createdBy,
-      creatorRole: creatorRole,
-      creatorName: creatorName,
-      assignedToIds: assignedToIds ?? this.assignedToIds,
-      assignedToNames: assignedToNames ?? this.assignedToNames,
-      assignedToRoles: assignedToRoles ?? this.assignedToRoles,
-      targetRoles: targetRoles ?? this.targetRoles,
-      targetClasses: targetClasses ?? this.targetClasses,
-      priority: priority ?? this.priority,
-      status: status ?? this.status,
-      createdAt: createdAt,
-      dueDate: dueDate ?? this.dueDate,
-      isRecurring: isRecurring ?? this.isRecurring,
-      recurrencePattern: recurrencePattern ?? this.recurrencePattern,
-      checkpoints: checkpoints ?? this.checkpoints,
-      completionNotes: completionNotes ?? this.completionNotes,
-      progressUpdates: progressUpdates ?? this.progressUpdates,
-      isDeleted: isDeleted ?? this.isDeleted,
-      deletedAt: deletedAt ?? this.deletedAt,
-    );
-  }
+  factory StaffTask.fromJson(Map<String, dynamic> json, String docId) =>
+      StaffTask(
+        id:             docId,
+        title:          json['title']          as String? ?? '',
+        description:    json['description']    as String? ?? '',
+        assignedTo:     json['assignedTo']     as String? ?? '',
+        assignedToName: json['assignedToName'] as String? ?? '',
+        // backward compat: old docs used 'createdBy'
+        assignedBy:     (json['assignedBy']    as String?) ??
+                        (json['createdBy']     as String?) ?? '',
+        assignedByRole: json['assignedByRole'] as String? ?? 'principal',
+        dueDate:        (json['dueDate'] as Timestamp?)?.toDate(),
+        status:         _parseStatus(json['status'] as String?),
+        priority:       _parsePriority(json['priority'] as String?),
+        classId:        json['classId']        as String? ?? '',
+        createdAt:      (json['createdAt'] as Timestamp?)?.toDate() ??
+                        DateTime.now(),
+      );
+
+  Map<String, dynamic> toJson() => {
+    'title':          title,
+    'description':    description,
+    'assignedTo':     assignedTo,
+    'assignedToName': assignedToName,
+    'assignedBy':     assignedBy,
+    'assignedByRole': assignedByRole,
+    if (dueDate != null) 'dueDate': Timestamp.fromDate(dueDate!),
+    'status':         status.name,
+    'priority':       priority.name,
+    'classId':        classId,
+    'createdAt':      FieldValue.serverTimestamp(),
+  };
+
+  StaffTask copyWith({TaskStatus? status}) => StaffTask(
+    id:             id,
+    title:          title,
+    description:    description,
+    assignedTo:     assignedTo,
+    assignedToName: assignedToName,
+    assignedBy:     assignedBy,
+    assignedByRole: assignedByRole,
+    dueDate:        dueDate,
+    status:         status ?? this.status,
+    priority:       priority,
+    classId:        classId,
+    createdAt:      createdAt,
+  );
 }
-

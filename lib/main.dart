@@ -1,5 +1,4 @@
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'firebase_options.dart';
@@ -9,10 +8,10 @@ import 'screens/coordinator_dashboard.dart';
 import 'screens/home_screen.dart';
 import 'screens/principal_dashboard.dart';
 import 'screens/guardian_dashboard.dart';
-import 'screens/student_selection_screen.dart';
+import 'screens/owner/owner_home.dart';
+import 'screens/owner/owner_principal_home.dart';
 import 'services/auth_service.dart';
 import 'services/timetable_service.dart';
-import 'services/base_firestore_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,16 +26,6 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  // Ensure we have a Firebase Auth session for Storage/Firestore rules
-  try {
-    if (FirebaseAuth.instance.currentUser == null) {
-      await FirebaseAuth.instance.signInAnonymously();
-    }
-  } catch (e) {
-    debugPrint('Firebase Anonymous Sign-in failed: $e');
-    // We continue so the app doesn't crash, but some features may fail 
-    // if Firebase rules require authentication.
-  }
   runApp(const SchoolApp());
 }
 
@@ -72,9 +61,6 @@ class _SplashGateState extends State<_SplashGate> {
 
   Future<void> _checkSession() async {
     final session = await AuthService().getSession();
-    if (session != null && session['schoolId'] != null) {
-      BaseFirestoreService.currentSchoolId = session['schoolId'];
-    }
 
     if (!mounted) return;
 
@@ -94,23 +80,22 @@ class _SplashGateState extends State<_SplashGate> {
         _go(const PrincipalDashboard());
         return;
 
+      case 'owner':
+        _go(const OwnerHome());
+        return;
+
+      case 'ownerPrincipal':
+        _go(const OwnerPrincipalHome());
+        return;
+
       case 'guardian':
-        final links = session['studentLinks'] as List?;
-        final schoolId = session['schoolId'] as String? ?? 'default_school';
-        if (links != null && links.isNotEmpty) {
-          if (links.length == 1) {
-            final parts = (links.first as String).split('|');
-            if (parts.length >= 2) {
-              _go(GuardianDashboard(
-                  schoolId: schoolId,
-                  studentClass: parts[0], studentRoll: int.parse(parts[1])));
-              return;
-            }
-          } else {
-            // Multiple children: go to selection screen
-            _go(StudentSelectionScreen(schoolId: schoolId, links: List<String>.from(links)));
-            return;
-          }
+        final sClass   = session['studentClass']   as String?;
+        final sRoll    = session['studentRoll']    as int?;
+        final sSection = session['studentSection'] as String? ?? '';
+        if (sClass != null && sRoll != null) {
+          _go(GuardianDashboard(
+              studentClass: sClass, studentRoll: sRoll, studentSection: sSection));
+          return;
         }
         // Guardian session missing student link → re-login
         _go(const RoleSelectionScreen());
@@ -118,13 +103,12 @@ class _SplashGateState extends State<_SplashGate> {
 
       case 'teacher':
         final teacherId = session['teacherId'] as String?;
-        final schoolId = session['schoolId'] as String? ?? 'default_school';
         if (teacherId != null) {
           final teacher =
-              await TimetableService().getTeacherById(schoolId: schoolId, id: teacherId);
+              await TimetableService().getTeacherById(teacherId);
           if (!mounted) return;
           if (teacher != null) {
-            _go(HomeScreen(teacher: teacher.copyWith(schoolId: schoolId)));
+            _go(HomeScreen(teacher: teacher));
             return;
           }
         }

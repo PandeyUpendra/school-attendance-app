@@ -12,8 +12,15 @@ import 'report_card_screen.dart';
 class ExamManagementScreen extends StatefulWidget {
   final String role;    // 'coordinator' | 'teacher' | 'principal'
   final String section; // teacher's section — passed down to MarksEntryScreen
+  /// When non-empty, only these classes are shown. Empty means show all.
+  final List<String> allowedClasses;
 
-  const ExamManagementScreen({super.key, required this.role, this.section = ''});
+  const ExamManagementScreen({
+    super.key,
+    required this.role,
+    this.section = '',
+    this.allowedClasses = const [],
+  });
 
   @override
   State<ExamManagementScreen> createState() => _ExamManagementScreenState();
@@ -27,7 +34,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
   String? _selectedClass;
   List<Exam> _exams = [];
 
-  bool get _canManage => widget.role == 'coordinator';
+  bool get _canManage => widget.role == 'coordinator' || widget.role == 'ownerPrincipal';
 
   @override
   void initState() {
@@ -37,7 +44,10 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
 
   Future<void> _loadClasses() async {
     final settings = await TimetableService().getSettings();
-    final classes = List<String>.from(settings['classes'] as List? ?? []);
+    final all = List<String>.from(settings['classes'] as List? ?? []);
+    final classes = widget.allowedClasses.isEmpty
+        ? all
+        : all.where((c) => widget.allowedClasses.contains(c)).toList();
     if (!mounted) return;
     setState(() { _classes = classes; });
     if (classes.isNotEmpty) await _selectClass(classes.first);

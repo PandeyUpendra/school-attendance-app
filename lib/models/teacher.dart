@@ -7,6 +7,7 @@ class Teacher {
   final bool isClassTeacher;
   final String? classTeacherOf; // the class this teacher is class teacher of
   final String schoolId;
+  final List<String> assignedClasses; // classes a subject teacher is allowed to access
 
   const Teacher({
     required this.id,
@@ -16,7 +17,8 @@ class Teacher {
     this.section = '',
     this.isClassTeacher = false,
     this.classTeacherOf,
-    required this.schoolId,
+    this.schoolId = 'default_school',
+    this.assignedClasses = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -28,6 +30,7 @@ class Teacher {
         'isClassTeacher': isClassTeacher,
         'classTeacherOf': classTeacherOf,
         'schoolId': schoolId,
+        'assignedClasses': assignedClasses,
       };
 
   factory Teacher.fromJson(Map<String, dynamic> json) => Teacher(
@@ -39,6 +42,10 @@ class Teacher {
         isClassTeacher: json['isClassTeacher'] as bool? ?? false,
         classTeacherOf: json['classTeacherOf'] as String?,
         schoolId: json['schoolId'] as String? ?? 'default_school',
+        assignedClasses: (json['assignedClasses'] as List?)
+                ?.map((e) => e as String)
+                .toList() ??
+            [],
       );
 
   Teacher copyWith({
@@ -49,6 +56,7 @@ class Teacher {
     bool? isClassTeacher,
     String? classTeacherOf,
     String? schoolId,
+    List<String>? assignedClasses,
   }) =>
       Teacher(
         id: id,
@@ -59,5 +67,6 @@ class Teacher {
         isClassTeacher: isClassTeacher ?? this.isClassTeacher,
         classTeacherOf: classTeacherOf ?? this.classTeacherOf,
         schoolId: schoolId ?? this.schoolId,
+        assignedClasses: assignedClasses ?? this.assignedClasses,
       );
 }

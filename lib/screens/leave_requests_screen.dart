@@ -3,6 +3,7 @@ import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import '../services/base_firestore_service.dart';
 import 'free_bells_screen.dart';
+import 'substitution_plan_screen.dart';
 import '../theme.dart';
 
 class LeaveRequestsScreen extends StatefulWidget {
@@ -66,20 +67,40 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
     _load();
     if (!mounted) return;
     if (status == 'approved') {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text(
-            'Leave approved. Use Free Bells screen to assign substitutes.'),
-        backgroundColor: Colors.green.shade700,
-        duration: const Duration(seconds: 4),
-        action: SnackBarAction(
-          label: 'Free Bells',
-          textColor: Colors.white,
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const FreeBellsScreen()),
+      // Jump straight into the smart substitution plan for this leave.
+      final startStr = app['startDate'] as String? ?? '';
+      final start    = DateTime.tryParse(startStr);
+      final days     = (app['numberOfDays'] as num?)?.toInt() ?? 1;
+
+      if (teacherId.isNotEmpty && start != null) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SubstitutionPlanScreen(
+              teacherId:    teacherId,
+              teacherName:  teacherName,
+              startDate:    start,
+              numberOfDays: days,
+            ),
           ),
-        ),
-      ));
+        );
+      } else {
+        // Fallback when teacher/start is missing — fall back to Free Bells.
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text(
+              'Leave approved. Use Free Bells screen to assign substitutes.'),
+          backgroundColor: Colors.green.shade700,
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: 'Free Bells',
+            textColor: Colors.white,
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FreeBellsScreen()),
+            ),
+          ),
+        ));
+      }
     } else if (status == 'forwarded_to_principal') {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Leave request forwarded to Principal.'),
@@ -609,7 +630,8 @@ String _fmtStatus(String status, String viewerRole) {
     case 'rejected': return 'Rejected';
     case 'pending':  return 'Pending';
     case 'forwarded_to_principal':
-      return viewerRole == 'principal' ? 'Forwarded to You' : 'Forwarded to Principal';
+      return (viewerRole == 'principal' || viewerRole == 'owner' || viewerRole == 'ownerPrincipal')
+          ? 'Forwarded to You' : 'Forwarded to Principal';
     default:
       return status[0].toUpperCase() + status.substring(1);
   }
