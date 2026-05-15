@@ -6,7 +6,6 @@ import '../models/attendance_status.dart';
 import '../models/student.dart';
 import '../models/student_profile_data.dart';
 import '../providers/auth_provider.dart';
-import '../services/attendance_service.dart';
 import '../services/firestore_service.dart';
 import 'attendance_screen.dart';
 import 'student_profile_screen.dart';
@@ -88,8 +87,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
               classId: widget.className,
               date: dateKey);
         }
-        att ??= await AttendanceService.loadAttendance(
-            className: widget.className, date: today);
+        // No local fallback — Firestore is the source of truth.
         if (mounted) {
           setState(() {
             _todayAtt = att ?? {};
@@ -146,7 +144,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
             .toList();
       }
     }
-    students ??= await AttendanceService.loadStudents(widget.className);
+    // No local fallback — Firestore is the source of truth.
     if (mounted && students != null) {
       setState(() { _students = students!; _studentsLoaded = true; });
     }

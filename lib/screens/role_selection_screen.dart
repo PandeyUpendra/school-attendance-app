@@ -5,11 +5,13 @@ import '../theme.dart';
 
 import '../services/timetable_service.dart';
 import '../services/auth_service.dart';
+import '../services/base_firestore_service.dart';
 import 'coordinator_dashboard.dart';
 import 'teacher_profile_screen.dart';
 import 'admin_screen.dart';
 import 'principal_dashboard.dart';
 import 'guardian_dashboard.dart';
+import 'guardian_login_screen.dart';
 import 'student_selection_screen.dart';
 import 'school_registration_screen.dart';
 
@@ -24,6 +26,7 @@ class RoleSelectionScreen extends StatelessWidget {
     final passwordCtrl = TextEditingController();
     bool checking   = false;
     bool obscurePassword = true;
+    bool cancelled  = false;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -90,7 +93,7 @@ class RoleSelectionScreen extends StatelessWidget {
                   setS(() => checking = true);
                   final allowed = await _validateAndLogin(
                       ctx, emailCtrl.text, passwordCtrl.text, role);
-                  if (!ctx.mounted) return;
+                  if (!ctx.mounted || cancelled) return;
                   if (allowed) Navigator.pop(ctx, true);
                   else setS(() => checking = false);
                 },
@@ -99,7 +102,10 @@ class RoleSelectionScreen extends StatelessWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () {
+                cancelled = true;
+                Navigator.pop(ctx, false);
+              },
               child: const Text('Cancel'),
             ),
             ElevatedButton(
@@ -109,7 +115,7 @@ class RoleSelectionScreen extends StatelessWidget {
                       setS(() => checking = true);
                       final allowed = await _validateAndLogin(
                           ctx, emailCtrl.text, passwordCtrl.text, role);
-                      if (!ctx.mounted) return;
+                      if (!ctx.mounted || cancelled) return;
                       if (allowed) {
                         Navigator.pop(ctx, true);
                       } else {
@@ -142,6 +148,7 @@ class RoleSelectionScreen extends StatelessWidget {
       final userData = userDoc.data() ?? {};
       final name = userData['name'] as String? ?? email.split('@')[0];
       final schoolId = userData['schoolId'] as String? ?? 'default_school';
+      BaseFirestoreService.currentSchoolId = schoolId;
 
       // Route based on role (existing logic)
       if (role == 'guardian') {
@@ -206,16 +213,20 @@ class RoleSelectionScreen extends StatelessWidget {
     }
 
     try {
-      // 1. Authenticate with Firebase Auth
-      await AuthService().login(trimmedEmail, password);
-
-      // 2. Verify Role
-      final role = await TimetableService().getAllowedRole(trimmedEmail);
-      if (role != expectedRole) {
-        await AuthService().signOut();
+      final role = await TimetableService().validateLogin(trimmedEmail, password);
+      if (role == null) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Access denied. This account is registered as ${role ?? "unknown"}.'),
+            content: const Text('Invalid email or password.'),
+            backgroundColor: Colors.red.shade700,
+          ));
+        }
+        return false;
+      }
+      if (role != expectedRole) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Access denied. This account is registered as ${role[0].toUpperCase()}${role.substring(1)}.'),
             backgroundColor: Colors.red.shade700,
           ));
         }
@@ -224,12 +235,8 @@ class RoleSelectionScreen extends StatelessWidget {
       return true;
     } catch (e) {
       if (context.mounted) {
-        String errorMsg = 'Login failed. Please check your credentials.';
-        if (e.toString().contains('user-not-found')) errorMsg = 'No account found with this email.';
-        else if (e.toString().contains('wrong-password')) errorMsg = 'Incorrect password.';
-
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(errorMsg),
+          content: const Text('Login failed. Please try again.'),
           backgroundColor: Colors.red.shade700,
         ));
       }
@@ -321,10 +328,12 @@ class RoleSelectionScreen extends StatelessWidget {
               _RoleCard(
                 icon: Icons.family_restroom_outlined,
                 title: 'Guardian',
-                subtitle: "View your child's attendance & progress",
+                subtitle: "Sign in with Google to view your child's progress",
                 color: AppTheme.primary,
-                onTap: () => _loginAsRole(
-                    context, 'guardian', const _PlaceholderDestination()),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const GuardianLoginScreen()),
+                ),
               ),
 
               const SizedBox(height: 32),
@@ -350,16 +359,6 @@ class RoleSelectionScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Placeholder used when the real destination depends on data fetched
-/// during login (e.g. Guardian → needs student class+roll from Firestore).
-/// Never actually shown — _loginAsRole handles the guardian branch directly.
-class _PlaceholderDestination extends StatelessWidget {
-  const _PlaceholderDestination();
-  @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: SizedBox.shrink());
 }
 
 class _RoleCard extends StatelessWidget {

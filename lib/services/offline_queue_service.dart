@@ -93,7 +93,7 @@ class OfflineQueueService {
             int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
 
         await StudentService().saveAttendanceForDate(
-          className, attendance, date);
+          className: className, attendance: attendance, date: date);
         synced++;
       } catch (_) {
         // Keep failed entries for retry

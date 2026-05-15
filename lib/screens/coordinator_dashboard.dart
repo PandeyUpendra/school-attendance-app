@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../services/base_firestore_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
@@ -30,6 +31,7 @@ import 'tasks/staff_task_management_screen.dart';
 import 'create_task_screen.dart';
 import 'task_status_screen.dart';
 import 'school_policy_screen.dart';
+import 'create_account_sheet.dart';
 import '../models/task.dart';
 import '../models/copy_check.dart';
 import '../services/task_service.dart';
@@ -51,6 +53,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
   bool _attendanceLoading = true;
   bool _navigating        = false; // prevents double-push navigation loop
   List<ClassSummary>       _summaries          = [];
+  List<String>             _availableClasses   = [];
   Map<String, Map<int, int>> _streaks          = {}; // className → roll → days
   List<CopyCheckSummary>   _copySummaries      = [];
   int  _pendingLeaveCount   = 0;
@@ -106,6 +109,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
 
     final settings = await TimetableService().getSettings(schoolId: schoolId);
     final allClasses = List<String>.from(settings['classes'] as List);
+    _availableClasses = allClasses;
 
     // Filter to assigned classes; fall back to all if none assigned.
     final assignedRaw = session?['assignedClasses'];
@@ -118,10 +122,19 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
     final notifFuture       = NotificationService().unreadCount(schoolId: schoolId, role: 'coordinator', userEmail: email);
     final absentInfoFuture  = TimetableService().getTodayAbsentTeachersInfo(schoolId);
 
-    final summaries  = await summariesFuture;
-    final leaves     = await leavesFuture;
-    final notifCount = await notifFuture;
-    final absentInfo = await absentInfoFuture;
+    List<ClassSummary> summaries = [];
+    List<Map<String, dynamic>> leaves = [];
+    int notifCount = 0;
+    Map<String, int> absentInfo = {};
+
+    try {
+      summaries  = await summariesFuture;
+      leaves     = await leavesFuture;
+      notifCount = await notifFuture;
+      absentInfo = await absentInfoFuture;
+    } catch (e) {
+      debugPrint('CoordinatorDashboard _loadAll error: $e');
+    }
 
     setState(() {
       _coordEmail         = email;
@@ -213,11 +226,34 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             // ── STAFF & STUDENTS ──────────────────────────────────────────
             const _SectionHeader('STAFF & STUDENTS'),
             _FeatureTile(
+              icon: Icons.person_add_outlined,
+              color: _cPurple,
+              title: 'Create Teacher Account',
+              subtitle: 'Add a new teacher login for this school',
+              onTap: () async {
+                final created = await showCreateAccountSheet(
+                  context,
+                  targetRole: 'teacher',
+                  schoolId: _schoolId,
+                  availableClasses: _availableClasses,
+                );
+                if (created && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Teacher account created successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              },
+            ),
+            const _Divider(),
+            _FeatureTile(
               icon: Icons.people_outline,
               color: _cPurple,
               title: 'Manage Teachers',
               subtitle: 'Add or remove teachers from the school',
-              onTap: () => _navigate(const TeacherManagementScreen()),
+              onTap: () => _navigate(TeacherManagementScreen(schoolId: BaseFirestoreService.currentSchoolId ?? 'default_school')),
             ),
             const _Divider(),
             _FeatureTile(
@@ -413,6 +449,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
 
   // ── Inline tasks section ──────────────────────────────────────────────────
   Widget _buildTasksSection() {
+    if (_schoolId.isEmpty) return _emptyCard('Loading tasks…');
     return StreamBuilder<List<Task>>(
       stream: TaskService().getAllTasks(schoolId: _schoolId),
       builder: (context, snapshot) {

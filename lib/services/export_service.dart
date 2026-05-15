@@ -3,7 +3,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/student.dart';
 import '../models/attendance_status.dart';
-import 'attendance_service.dart';
 import 'firestore_service.dart';
 
 /// Feature 2: Generates a CSV of attendance data and shares it via the
@@ -20,9 +19,7 @@ class ExportService {
       dates = await FirestoreService.getAttendanceDates(
           schoolId: schoolId, classId: className);
     }
-    if (dates.isEmpty) {
-      dates = await AttendanceService.getSavedDates(className);
-    }
+    // No local fallback available — dates come from Firestore only.
 
     // 2. Build CSV header
     final buffer = StringBuffer();
@@ -44,8 +41,7 @@ class ExportService {
           att = await FirestoreService.loadAttendance(
               schoolId: schoolId, classId: className, date: date);
         }
-        att ??= await AttendanceService.loadAttendance(
-            className: className, date: DateTime.parse(date));
+        // No local fallback — Firestore is the source of truth.
 
         final status = att?[student.roll] ?? AttendanceStatus.absent;
         row.write(',${status.code}');

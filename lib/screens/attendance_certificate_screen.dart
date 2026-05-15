@@ -68,7 +68,7 @@ class _AttendanceCertificateScreenState
     DateTime cursor = DateTime(_from.year, _from.month);
     while (!cursor.isAfter(DateTime(_to.year, _to.month))) {
       final monthData = await _service.loadMonthAttendance(
-          widget.student.className, cursor.year, cursor.month);
+          className: widget.student.className, year: cursor.year, month: cursor.month);
 
       for (final entry in monthData.entries) {
         final day  = entry.key;

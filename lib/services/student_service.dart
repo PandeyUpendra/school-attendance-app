@@ -36,15 +36,11 @@ class StudentService extends BaseFirestoreService {
     return null;
   }
 
-  /// Fetch students for a class/section, optionally scoped to one teacher.
-  /// Supports pagination with limit and startAfter.
   Future<List<Student>> getStudentsByClass({
     String? schoolId,
     required String className,
     String section = '',
     String? teacherId,
-    int limit = 50,
-    DocumentSnapshot? startAfter,
   }) async {
     final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     String effectiveClass = className;
@@ -68,29 +64,11 @@ class StudentService extends BaseFirestoreService {
       q = q.where('teacherId', isEqualTo: teacherId);
     }
 
-    // Apply pagination
-    q = q.orderBy('roll').limit(limit);
-    if (startAfter != null) {
-      q = q.startAfterDocument(startAfter);
-    }
-
     final snap = await q.get();
-    final list = snap.docs
+    return snap.docs
         .map((d) => Student.fromJson(Map<String, dynamic>.from(d.data())))
-        .toList();
-
-    // Fallback logic if no students found with split className/section
-    if (list.isEmpty && effectiveClass != className && startAfter == null) {
-      final fallbackSnap =
-          await _students(sId).where('className', isEqualTo: className).orderBy('roll').limit(limit).get();
-      if (fallbackSnap.docs.isNotEmpty) {
-        return fallbackSnap.docs
-            .map((d) => Student.fromJson(Map<String, dynamic>.from(d.data())))
-            .toList();
-      }
-    }
-
-    return list;
+        .toList()
+      ..sort((a, b) => a.roll.compareTo(b.roll));
   }
 
   Stream<List<Student>> watchStudentsByClass({

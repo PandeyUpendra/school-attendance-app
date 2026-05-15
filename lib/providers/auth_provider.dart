@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
-import '../services/notification_service.dart';
 
 enum AuthStatus { idle, loading, authenticated, error }
 
@@ -25,8 +24,6 @@ class AuthProvider extends ChangeNotifier {
     try {
       _user = await _service.signInWithEmail(email, password);
       _status = AuthStatus.authenticated;
-      // Feature 4: Init notifications and save FCM token after login.
-      NotificationService.init(_user?.uid).catchError((_) {});
     } catch (e) {
       _user = null;
       _status = AuthStatus.error;

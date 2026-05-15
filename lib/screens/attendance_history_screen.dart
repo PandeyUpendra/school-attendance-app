@@ -83,9 +83,9 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
   Future<void> _loadAll() async {
     setState(() => _loading = true);
     final results = await Future.wait([
-      _service.getStudentsByClass(widget.className, section: widget.section),
+      _service.getStudentsByClass(className: widget.className, section: widget.section),
       _service.loadMonthAttendance(
-          _attendanceKey, _month.year, _month.month),
+          className: _attendanceKey, year: _month.year, month: _month.month),
     ]);
     if (!mounted) return;
     final students  = results[0] as List<Student>;
@@ -103,7 +103,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
   Future<void> _loadMonth() async {
     setState(() => _loading = true);
     final monthData = await _service.loadMonthAttendance(
-        _attendanceKey, _month.year, _month.month);
+        className: _attendanceKey, year: _month.year, month: _month.month);
     if (!mounted) return;
     setState(() {
       _monthData   = monthData;
@@ -617,8 +617,11 @@ class _StudentCalendarScreenState extends State<_StudentCalendarScreen> {
 
   Future<void> _changeMonth(DateTime newMonth) async {
     setState(() { _month = newMonth; _loading = true; });
+    final attKey = widget.student.section.trim().isEmpty
+        ? widget.student.className
+        : '${widget.student.className} ${widget.student.section.trim()}';
     final data = await StudentService().loadMonthAttendance(
-        widget.student.className, newMonth.year, newMonth.month);
+        className: attKey, year: newMonth.year, month: newMonth.month);
     if (!mounted) return;
     setState(() { _monthData = data; _loading = false; });
   }

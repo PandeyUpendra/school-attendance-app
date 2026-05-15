@@ -71,7 +71,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
       _tabController = TabController(length: 2, vsync: this);
     }
     _load();
-    NotificationService().markAnnouncementsSeen();
+    // markAnnouncementsSeen removed — method no longer in NotificationService
   }
 
   @override

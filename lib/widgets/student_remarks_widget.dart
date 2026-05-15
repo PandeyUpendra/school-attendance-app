@@ -49,8 +49,8 @@ class _StudentRemarksWidgetState extends State<StudentRemarksWidget> {
     if (!mounted) return;
     setState(() => _loading = true);
     final list = await _service.getStudentRemarks(
-      widget.student.className,
-      widget.student.roll,
+      className: widget.student.className,
+      roll: widget.student.roll,
       section: widget.student.section,
     );
     if (!mounted) return;
@@ -80,10 +80,10 @@ class _StudentRemarksWidgetState extends State<StudentRemarksWidget> {
     if (ok != true || !mounted) return;
     try {
       await _service.deleteStudentRemark(
-        widget.student.className,
-        widget.student.roll,
-        r.id,
-        _currentEmail,
+        className: widget.student.className,
+        roll: widget.student.roll,
+        remarkId: r.id,
+        currentUserEmail: _currentEmail,
         section: widget.student.section,
       );
       await _loadRemarks();
@@ -358,13 +358,13 @@ class _AddRemarkSheetState extends State<_AddRemarkSheet> {
     setState(() => _saving = true);
     try {
       await _service.addStudentRemark(
-        widget.student.className,
-        widget.student.roll,
-        widget.userEmail,
-        widget.userRole,
-        text,
-        section:   widget.student.section,
-        teacherId: widget.teacherId,
+        className:       widget.student.className,
+        roll:            widget.student.roll,
+        createdByEmail:  widget.userEmail,
+        role:            widget.userRole,
+        remark:          text,
+        section:         widget.student.section,
+        teacherId:       widget.teacherId,
       );
       if (!mounted) return;
       Navigator.pop(context, true);

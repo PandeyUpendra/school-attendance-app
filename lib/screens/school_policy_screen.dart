@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme.dart';
 import '../services/school_service.dart';
+import '../services/base_firestore_service.dart';
 
 class SchoolPolicyScreen extends StatefulWidget {
   const SchoolPolicyScreen({super.key});
@@ -36,7 +37,7 @@ class _SchoolPolicyScreenState extends State<SchoolPolicyScreen> {
   Future<void> _loadPolicy() async {
     setState(() => _loading = true);
     try {
-      final data = await _service.getSchoolPolicy();
+      final data = await _service.getSchoolPolicy(BaseFirestoreService.currentSchoolId ?? 'default_school');
       setState(() {
         _dressPhotoUrl = data['idealDressPhoto'] ?? '';
         _rules = List<String>.from(data['disciplineRules'] ?? []);
@@ -60,12 +61,13 @@ class _SchoolPolicyScreenState extends State<SchoolPolicyScreen> {
 
     setState(() => _saving = true);
     try {
-      final url = await _service.uploadDressPhoto(File(picked.path));
+      final sId = BaseFirestoreService.currentSchoolId ?? 'default_school';
+      final url = await _service.uploadDressPhoto(sId, File(picked.path));
       setState(() {
         _dressPhotoUrl = url;
         _saving = false;
       });
-      await _service.updateSchoolPolicy({'idealDressPhoto': url});
+      await _service.updateSchoolPolicy(sId, {'idealDressPhoto': url});
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -91,7 +93,7 @@ class _SchoolPolicyScreenState extends State<SchoolPolicyScreen> {
   Future<void> _savePolicy() async {
     setState(() => _saving = true);
     try {
-      await _service.updateSchoolPolicy({
+      await _service.updateSchoolPolicy(BaseFirestoreService.currentSchoolId ?? 'default_school', {
         'idealDressPhoto': _dressPhotoUrl,
         'disciplineRules': _rules,
       });

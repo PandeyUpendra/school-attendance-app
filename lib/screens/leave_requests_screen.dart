@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
+import '../services/base_firestore_service.dart';
 import 'free_bells_screen.dart';
 import '../theme.dart';
 
@@ -53,7 +54,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
     final id          = app['id']          as String;
     final teacherId   = app['teacherId']   as String? ?? '';
     final teacherName = app['teacherName'] as String? ?? '';
-    await _service.updateLeaveApplication(id, status);
+    await _service.updateLeaveApplication(BaseFirestoreService.currentSchoolId ?? 'default_school', id, status);
     if (teacherId.isNotEmpty &&
         (status == 'approved' || status == 'rejected')) {
       NotificationService().addLeaveResolved(

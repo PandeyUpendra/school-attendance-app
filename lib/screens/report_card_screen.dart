@@ -44,7 +44,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
     _load();
     // Keep the student roster in sync so deletions are reflected immediately.
     _studentSub = _studentService
-        .watchStudentsByClass(widget.className, section: widget.section)
+        .watchStudentsByClass(className: widget.className, section: widget.section)
         .listen((list) {
       if (!mounted) return;
       setState(() => _students = list);
@@ -60,8 +60,8 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final data = await Future.wait([
-      _studentService.getStudentsByClass(widget.className, section: widget.section),
-      _examService.getResults(widget.exam.id),
+      _studentService.getStudentsByClass(className: widget.className, section: widget.section),
+      _examService.getResults(examId: widget.exam.id),
     ]);
     final students = data[0] as List<Student>;
     final results  = data[1] as List<ExamResult>;

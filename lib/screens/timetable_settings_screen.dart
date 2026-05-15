@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
+import '../services/base_firestore_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
 import 'class_setup_screen.dart';
@@ -419,12 +420,15 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
         });
     final firstBell = _bells.isNotEmpty ? _fmt(_startOf(0)) : '08:00';
 
-    await _service.saveSettings({
-      'numberOfBells': _bells.length,
-      'classes': _classes,
-      'firstBellTime': firstBell,
-      'bells': bellsData,
-    });
+    await _service.saveSettings(
+      BaseFirestoreService.currentSchoolId ?? 'default_school',
+      {
+        'numberOfBells': _bells.length,
+        'classes': _classes,
+        'firstBellTime': firstBell,
+        'bells': bellsData,
+      },
+    );
     if (!mounted) return;
     setState(() => _settingsEditing = false);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -490,6 +494,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     if (result.days.isEmpty) return;
 
     final error = await _service.assignTeacher(
+      schoolId: BaseFirestoreService.currentSchoolId ?? 'default_school',
       className: cls,
       days: result.days,
       bell: bell,

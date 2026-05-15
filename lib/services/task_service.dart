@@ -68,7 +68,7 @@ class TaskService extends BaseFirestoreService {
   }
 
   Stream<List<Task>> getAllTasks({String? schoolId}) {
-    final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final sId = (schoolId != null && schoolId.isNotEmpty) ? schoolId : (BaseFirestoreService.currentSchoolId ?? 'default_school');
     return _tasks(sId)
         .snapshots()
         .map((snap) => snap.docs

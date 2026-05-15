@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/guardian_student_details.dart';
 import '../models/student.dart';
+import '../services/base_firestore_service.dart';
 import '../services/student_service.dart';
+import '../services/timetable_service.dart';
 import '../theme.dart';
 
 class AddStudentScreen extends StatefulWidget {
@@ -31,6 +33,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
   final _parentPhoneCtrl = TextEditingController();
   
   // Guardian details
+  final _guardianEmailCtrl = TextEditingController();
   final _dobCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   final _bloodGroupCtrl = TextEditingController();
@@ -60,7 +63,8 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       _parentPhoneCtrl.text = s.parentPhone ?? '';
       _feeStatus = s.feeStatus;
       _photoPath = s.photoPath;
-      
+      _guardianEmailCtrl.text = s.guardianEmail ?? '';
+
       if (s.guardianDetails != null) {
         final g = s.guardianDetails!;
         _dobCtrl.text = g.dob;
@@ -84,6 +88,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     _motherCtrl.dispose();
     _phoneCtrl.dispose();
     _parentPhoneCtrl.dispose();
+    _guardianEmailCtrl.dispose();
     _dobCtrl.dispose();
     _addressCtrl.dispose();
     _bloodGroupCtrl.dispose();
@@ -123,6 +128,10 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
 
+    final newGuardianEmail = _guardianEmailCtrl.text.trim().isEmpty
+        ? null
+        : _guardianEmailCtrl.text.trim().toLowerCase();
+
     final student = Student(
       id: widget.existing?.id ?? '',
       roll: int.parse(_rollCtrl.text.trim()),
@@ -154,23 +163,63 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         previousSchool: _previousSchoolCtrl.text.trim(),
         lastUpdated: DateTime.now().toIso8601String(),
       ),
+      guardianEmail: newGuardianEmail,
     );
 
     final service = StudentService();
     if (_isEdit) {
-      await service.updateStudent(student);
+      await service.updateStudent(updated: student);
+      await _syncGuardianEmail(
+        newEmail: newGuardianEmail,
+        oldEmail: widget.existing?.guardianEmail?.toLowerCase().trim(),
+        student: student,
+      );
       if (mounted) Navigator.pop(context, student);
     } else {
-      final error = await service.addStudent(student);
+      final error = await service.addStudent(student: student);
       if (!mounted) return;
       if (error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(error), backgroundColor: Colors.red));
         setState(() => _saving = false);
       } else {
-        Navigator.pop(context, student);
+        if (newGuardianEmail != null) {
+          await _syncGuardianEmail(
+            newEmail: newGuardianEmail,
+            oldEmail: null,
+            student: student,
+          );
+        }
+        if (mounted) Navigator.pop(context, student);
       }
     }
+  }
+
+  Future<void> _syncGuardianEmail({
+    required String? newEmail,
+    required String? oldEmail,
+    required Student student,
+  }) async {
+    final svc = TimetableService();
+    final schoolId = BaseFirestoreService.currentSchoolId ?? 'default_school';
+    try {
+      if (oldEmail != null && oldEmail.isNotEmpty && oldEmail != newEmail) {
+        await svc.removeGuardianLink(
+          email: oldEmail,
+          studentClass: student.className,
+          studentRoll: student.roll,
+        );
+      }
+      if (newEmail != null && newEmail.isNotEmpty) {
+        await svc.linkGuardianEmail(
+          email: newEmail,
+          studentClass: student.className,
+          studentRoll: student.roll,
+          studentName: student.name,
+          schoolId: schoolId,
+        );
+      }
+    } catch (_) {}
   }
 
   @override
@@ -384,6 +433,22 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                       letterSpacing: 0.8)),
             ]),
             const Divider(height: 24),
+
+            _Field(
+              controller: _guardianEmailCtrl,
+              label: 'Guardian Gmail (for Portal login)',
+              icon: Icons.email_outlined,
+              keyboard: TextInputType.emailAddress,
+              hint: 'guardian@gmail.com',
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return null;
+                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(v.trim())) {
+                  return 'Enter a valid email address';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 14),
 
             Row(children: [
               Expanded(

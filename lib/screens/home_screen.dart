@@ -25,6 +25,9 @@ import 'student_remarks_screen.dart';
 import 'guardian_details_list_screen.dart';
 import 'tasks/staff_task_management_screen.dart';
 import 'teacher_tasks_screen.dart';
+import 'leaderboard_screen.dart';
+import 'create_account_sheet.dart';
+import '../services/timetable_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -54,6 +57,31 @@ class _HomeScreenState extends State<HomeScreen> {
       userEmail: email,
     );
     if (mounted) setState(() => _unreadNotifCount = count);
+  }
+
+  Future<void> _showCreateGuardianSheet() async {
+    final session  = await AuthService().getSession();
+    final schoolId = widget.teacher?.schoolId
+        ?? (session?['schoolId'] as String?)
+        ?? 'default_school';
+    final settings = await TimetableService().getSettings(schoolId: schoolId);
+    final classes  = List<String>.from(settings['classes'] as List? ?? []);
+    if (!mounted) return;
+    final created = await showCreateAccountSheet(
+      context,
+      targetRole: 'guardian',
+      schoolId: schoolId,
+      availableClasses: classes,
+      defaultClass: widget.teacher?.classTeacherOf,
+    );
+    if (created && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Guardian account created successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   @override
@@ -432,6 +460,34 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.leaderboard_outlined,
+            color: AppTheme.primary,
+            title: 'Class Leaderboard',
+            subtitle: 'Rankings for academics, attendance, discipline & more',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => LeaderboardScreen(
+                    className: teacher!.classTeacherOf!,
+                    section:   teacher!.section,
+                    schoolId:  teacher!.schoolId,
+                  ),
+                ),
+              );
+            },
+          ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.family_restroom_outlined,
+            color: AppTheme.primary,
+            title: 'Create Guardian Account',
+            subtitle: 'Set up a parent/guardian login for a student',
+            onTap: _showCreateGuardianSheet,
+          ),
+
           // ── DUTIES & TASKS ────────────────────────────────────────────
           const _SectionHeader('DUTIES & TASKS'),
           _FeatureTile(
@@ -649,6 +705,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+        ),
+        const _Divider(),
+        _FeatureTile(
+          icon: Icons.family_restroom_outlined,
+          color: AppTheme.primary,
+          title: 'Create Guardian Account',
+          subtitle: 'Set up a parent/guardian login for a student',
+          onTap: _showCreateGuardianSheet,
         ),
 
         // ── DUTIES & TASKS ────────────────────────────────────────────

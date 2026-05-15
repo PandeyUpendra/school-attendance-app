@@ -23,7 +23,7 @@ class TeacherTasksScreen extends StatelessWidget {
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<List<Task>>(
-        stream: TaskService().getTasksForTeacher(className),
+        stream: TaskService().getTasksForTeacher(className: className),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

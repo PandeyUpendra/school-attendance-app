@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/student.dart';
+import '../services/base_firestore_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/fee_service.dart';
@@ -101,7 +102,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                     _AttendanceTrendTab(classes: _classes),
                     _AbsenceLeaderboardTab(classes: _classes),
                     _FeeTab(classes: _classes),
-                    const StaffTaskAnalyticsView(),
+                    StaffTaskAnalyticsView(schoolId: BaseFirestoreService.currentSchoolId ?? 'default_school'),
                   ],
                 ),
     );
@@ -132,7 +133,7 @@ class _OverviewTabState extends State<_OverviewTab>
   Future<void> _load() async {
     setState(() => _loading = true);
     final summaries =
-        await _service.loadTodayFullSummary(widget.classes);
+        await _service.loadTodayFullSummary(classes: widget.classes);
     if (!mounted) return;
     setState(() { _summaries = summaries; _loading = false; });
   }
@@ -392,8 +393,8 @@ class _AttendanceTrendTabState extends State<_AttendanceTrendTab>
     setState(() => _loading = true);
     final now = DateTime.now();
     final results = await Future.wait([
-      _service.loadMonthAttendance(cls, now.year, now.month),
-      _service.getStudentsByClass(cls),
+      _service.loadMonthAttendance(className: cls, year: now.year, month: now.month),
+      _service.getStudentsByClass(className: cls),
     ]);
     if (!mounted) return;
     final monthData = results[0] as Map<int, Map<int, String>>;
@@ -681,8 +682,8 @@ class _AbsenceLeaderboardTabState extends State<_AbsenceLeaderboardTab>
   Future<void> _load(String cls) async {
     setState(() => _loading = true);
     final results = await Future.wait([
-      _service.loadRecentAbsenceDays(cls, days: 30),
-      _service.getStudentsByClass(cls),
+      _service.loadRecentAbsenceDays(className: cls, days: 30),
+      _service.getStudentsByClass(className: cls),
     ]);
     final absMap  = results[0] as Map<int, int>;
     final students = results[1] as List<Student>;
@@ -881,8 +882,8 @@ class _FeeTabState extends State<_FeeTab>
 
     for (final cls in widget.classes) {
       final results = await Future.wait([
-        _feeService.getFeeStructure(cls),
-        _studentService.getStudentsByClass(cls),
+        _feeService.getFeeStructure(className: cls),
+        _studentService.getStudentsByClass(className: cls),
       ]);
       final structure = results[0] as dynamic; // FeeStructure
       final students  = results[1] as List<Student>;
@@ -899,7 +900,7 @@ class _FeeTabState extends State<_FeeTab>
 
       // Load paid per student in parallel
       final paidList = await Future.wait(
-        students.map((s) => _feeService.getTotalPaid(cls, s.roll)),
+        students.map((s) => _feeService.getTotalPaid(className: cls, roll: s.roll)),
       );
       final totalPaid = paidList.fold<double>(0, (a, b) => a + b);
       final totalFee  =

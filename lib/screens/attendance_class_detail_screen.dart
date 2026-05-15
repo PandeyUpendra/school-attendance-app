@@ -36,12 +36,12 @@ class _AttendanceClassDetailScreenState
           t.isClassTeacher &&
           t.classTeacherOf == widget.summary.className,
       orElse: () =>
-          const Teacher(id: '', name: '', subject: '', email: ''),
+          const Teacher(id: '', name: '', subject: '', email: '', schoolId: ''),
     );
 
     // Recent absence days (last 14 days) per student roll
     final absenceDays = await StudentService()
-        .loadRecentAbsenceDays(widget.summary.className, days: 14);
+        .loadRecentAbsenceDays(className: widget.summary.className, days: 14);
 
     if (!mounted) return;
     setState(() {

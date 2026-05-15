@@ -17,6 +17,8 @@ class Student {
   /// Null on legacy records created before this field was introduced.
   final String? teacherId;
   final GuardianStudentDetails? guardianDetails;
+  /// Guardian's Gmail address used for Google Sign-In on the Guardian Portal.
+  final String? guardianEmail;
 
   const Student({
     required this.id,
@@ -33,6 +35,7 @@ class Student {
     this.feeStatus = 'Pending',
     this.teacherId,
     this.guardianDetails,
+    this.guardianEmail,
   });
 
   Map<String, dynamic> toJson() => {
@@ -50,6 +53,7 @@ class Student {
         'feeStatus': feeStatus,
         if (teacherId != null) 'teacherId': teacherId,
         if (guardianDetails != null) 'guardianDetails': guardianDetails!.toJson(),
+        if (guardianEmail != null) 'guardianEmail': guardianEmail,
       };
 
   factory Student.fromJson(Map<String, dynamic> json) => Student(
@@ -70,6 +74,7 @@ class Student {
             ? GuardianStudentDetails.fromJson(
                 Map<String, dynamic>.from(json['guardianDetails']))
             : null,
+        guardianEmail: json['guardianEmail'] as String?,
       );
 
   Student copyWith({
@@ -86,6 +91,7 @@ class Student {
     String? feeStatus,
     String? teacherId,
     GuardianStudentDetails? guardianDetails,
+    String? guardianEmail,
   }) =>
       Student(
         id: id ?? this.id,
@@ -102,5 +108,6 @@ class Student {
         feeStatus: feeStatus ?? this.feeStatus,
         teacherId: teacherId ?? this.teacherId,
         guardianDetails: guardianDetails ?? this.guardianDetails,
+        guardianEmail: guardianEmail ?? this.guardianEmail,
       );
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../models/substitution_record.dart';
+import '../services/base_firestore_service.dart';
 import '../services/timetable_service.dart';
 import '../services/substitution_history_service.dart';
 import '../theme.dart';
@@ -288,7 +289,8 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
     if (confirmed != true) return;
 
     // Save substitution in the daily doc (existing behavior)
-    await _service.setSubstitution(cls, bell, selectedId);
+    await _service.setSubstitution(
+        BaseFirestoreService.currentSchoolId ?? 'default_school', cls, bell, selectedId);
 
     // Also log to history if assigning (not removing)
     // Use a final local so Dart can promote the type (selectedId was in a closure)

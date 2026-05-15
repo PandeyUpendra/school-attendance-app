@@ -35,7 +35,7 @@ class _TaskMarkingScreenState extends State<TaskMarkingScreen> {
 
   Future<void> _loadData() async {
     final students = await StudentService().getStudentsByClass(
-      widget.className,
+      className: widget.className,
       section: widget.section,
     );
     
@@ -76,7 +76,7 @@ class _TaskMarkingScreenState extends State<TaskMarkingScreen> {
         updates[key] = _localStatuses[key] ?? false;
       }
 
-      await TaskService().updateBulkStudentStatuses(widget.task.id, updates);
+      await TaskService().updateBulkStudentStatuses(taskId: widget.task.id, updates: updates);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

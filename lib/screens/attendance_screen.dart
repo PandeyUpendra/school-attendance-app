@@ -211,18 +211,28 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     Map<int, String> saved = {};
 
     if (_isOnline) {
-      students = await _service.getStudentsByClass(schoolId: widget.schoolId, className: _className,
+      // Start both fetches simultaneously — they're independent once we have className/section.
+      final studentsFuture = _service.getStudentsByClass(
+          schoolId: widget.schoolId, className: _className,
           section: _section, teacherId: _teacherId);
-      saved    = widget.date == null 
-          ? await _service.loadTodayAttendance(widget.schoolId, _attendanceKey)
-          : await _service.loadAttendanceByDate(widget.schoolId, _attendanceKey, widget.date!);
+      final savedFuture = widget.date == null
+          ? _service.loadTodayAttendance(schoolId: widget.schoolId, className: _attendanceKey)
+          : _service.loadAttendanceByDate(schoolId: widget.schoolId, className: _attendanceKey, date: widget.date!);
+      try {
+        students = await studentsFuture;
+      } catch (_) {
+        // Composite index may not exist yet — retry without teacherId filter.
+        students = await _service.getStudentsByClass(
+            schoolId: widget.schoolId, className: _className, section: _section);
+      }
+      saved = await savedFuture;
       if (saved.isEmpty && widget.date == null) {
         final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
         if (cached != null) saved = cached;
       }
     } else {
       try {
-        students = await _service.getStudentsByClass(widget.schoolId, _className,
+        students = await _service.getStudentsByClass(className: _className,
                 section: _section, teacherId: _teacherId)
             .timeout(const Duration(seconds: 3));
       } catch (_) {
@@ -235,6 +245,21 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
 
     final pending = await _offlineQueue.pendingCount();
+
+    // Debug: verify section correctness before committing to state
+    debugPrint('Teacher: (id=$_teacherId)');
+    debugPrint('Class: $_className');
+    debugPrint('Section: $_section');
+    debugPrint('Students loaded: ${students.length}');
+    if (students.isNotEmpty) {
+      debugPrint('First student section: ${students.first.section}');
+    }
+    assert(
+      students.every((s) => s.section == _section),
+      'SECTION MISMATCH: Wrong students loaded for section "$_section"! '
+      'Mismatched: ${students.where((s) => s.section != _section).map((s) => '${s.name}(${s.section})').join(', ')}',
+    );
+
     if (!mounted) return;
     setState(() {
       _students     = students;

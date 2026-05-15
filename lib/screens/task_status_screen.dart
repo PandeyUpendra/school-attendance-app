@@ -24,7 +24,7 @@ class TaskStatusScreen extends StatelessWidget {
       body: StreamBuilder<List<Task>>(
         stream: isAdmin
             ? TaskService().getAllTasks()
-            : TaskService().getTasksCreatedBy(createdByEmail),
+            : TaskService().getTasksCreatedBy(email: createdByEmail),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

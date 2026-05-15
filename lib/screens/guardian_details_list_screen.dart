@@ -36,7 +36,7 @@ class _GuardianDetailsListScreenState extends State<GuardianDetailsListScreen> {
     setState(() => _loading = true);
     try {
       final list = await _service.getStudentsByClass(
-        widget.className,
+        className: widget.className,
         section: widget.section,
         teacherId: widget.teacherId,
       );

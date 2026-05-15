@@ -277,7 +277,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                             if (editing == null) {
                               await Future.wait(
                                 selectedClasses.map((cls) =>
-                                  _examService.createExam(Exam(
+                                  _examService.createExam(exam: Exam(
                                     id:        '',
                                     name:      name,
                                     className: cls,
@@ -289,7 +289,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                                 ),
                               );
                             } else {
-                              await _examService.updateExam(Exam(
+                              await _examService.updateExam(exam: Exam(
                                 id:        editing.id,
                                 name:      name,
                                 className: editing.className,
@@ -343,7 +343,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
       ),
     );
     if (ok != true) return;
-    await _examService.deleteExam(exam.id);
+    await _examService.deleteExam(examId: exam.id);
     if (_selectedClass != null) _selectClass(_selectedClass!);
   }
 

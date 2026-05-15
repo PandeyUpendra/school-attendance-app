@@ -121,10 +121,10 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final results = await Future.wait([
-      widget.service.getStudentsByClass(widget.className, section: widget.section),
-      widget.service.loadTodayAttendance(_attendanceKey),
-      widget.service.loadTodayReasons(_attendanceKey),
-      widget.service.loadTodayCalled(_attendanceKey),
+      widget.service.getStudentsByClass(className: widget.className, section: widget.section),
+      widget.service.loadTodayAttendance(className: _attendanceKey),
+      widget.service.loadTodayReasons(className: _attendanceKey),
+      widget.service.loadTodayCalled(className: _attendanceKey),
     ]);
     final students = results[0] as List<Student>;
     assert(students.length == {for (final s in students) s.roll: s}.length,
@@ -269,8 +269,8 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
       if (reason.isNotEmpty) _reasons[s.roll] = reason;
     });
     await Future.wait([
-      widget.service.saveReasons(_attendanceKey, _reasons),
-      widget.service.saveCalled(_attendanceKey, _called),
+      widget.service.saveReasons(className: _attendanceKey, reasons: _reasons),
+      widget.service.saveCalled(className: _attendanceKey, called: _called),
     ]);
   }
 
@@ -782,7 +782,7 @@ class _HistoryTabState extends State<_HistoryTab> {
     // Skip today (index 0), show past 14 days
     final futures = List.generate(_historyDays, (i) {
       final date = now.subtract(Duration(days: i + 1));
-      return widget.service.loadAttendanceForDate(_attendanceKey, date)
+      return widget.service.loadAttendanceForDate(className: _attendanceKey, date: date)
           .then((data) => _DayRecord(date: date, data: data));
     });
     final records = await Future.wait(futures);

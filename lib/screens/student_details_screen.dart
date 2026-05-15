@@ -55,7 +55,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
     final counts = <String, int>{};
     await Future.wait(classTeachers.map((t) async {
       final students = await StudentService().getStudentsByClass(
-        t.classTeacherOf!,
+        className: t.classTeacherOf!,
         section:   t.section,
         teacherId: t.id,
       );

@@ -23,6 +23,7 @@ import 'tasks/staff_task_management_screen.dart';
 import 'tasks/staff_task_analytics_view.dart';
 import 'create_task_screen.dart';
 import 'task_status_screen.dart';
+import 'create_account_sheet.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
 
@@ -38,6 +39,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   bool _loading = true;
 
   List<ClassSummary>         _summaries      = [];
+  List<String>               _availableClasses = [];
   int  _pendingLeaveCount    = 0;
   int  _teachersAbsent       = 0;
   int  _unassignedBells      = 0;
@@ -88,6 +90,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
     final settings   = await TimetableService().getSettings(schoolId: schoolId);
     final allClasses = List<String>.from(settings['classes'] as List);
+    _availableClasses = allClasses;
 
     // Filter to assigned classes; fall back to all.
     final assignedRaw = session?['assignedClasses'];
@@ -101,10 +104,19 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     final notifFuture      = NotificationService().unreadCount(schoolId: schoolId, role: 'principal', userEmail: email);
     final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo(schoolId);
 
-    final summaries  = await summariesFuture;
-    final pending    = await leavesFuture;
-    final notifCount = await notifFuture;
-    final absentInfo = await absentInfoFuture;
+    List<ClassSummary> summaries = [];
+    List<Map<String, dynamic>> pending = [];
+    int notifCount = 0;
+    Map<String, int> absentInfo = {};
+
+    try {
+      summaries  = await summariesFuture;
+      pending    = await leavesFuture;
+      notifCount = await notifFuture;
+      absentInfo = await absentInfoFuture;
+    } catch (e) {
+      debugPrint('PrincipalDashboard _loadAll error: $e');
+    }
 
     if (!mounted) return;
     setState(() {
@@ -303,6 +315,31 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 title: 'School Calendar',
                 subtitle: 'National, state holidays and school events',
                 onTap: () => _navigate(const CalendarScreen(userRole: 'principal')),
+              ),
+
+              // ── ACCOUNT MANAGEMENT ─────────────────────────────────────
+              const _SectionHeader('ACCOUNT MANAGEMENT'),
+              _FeatureTile(
+                icon: Icons.manage_accounts_outlined,
+                color: AppTheme.primary,
+                title: 'Create Coordinator Account',
+                subtitle: 'Add a new coordinator login for this school',
+                onTap: () async {
+                  final created = await showCreateAccountSheet(
+                    context,
+                    targetRole: 'coordinator',
+                    schoolId: _schoolId,
+                    availableClasses: _availableClasses,
+                  );
+                  if (created && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Coordinator account created successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                },
               ),
 
               // ── SETTINGS ───────────────────────────────────────────────

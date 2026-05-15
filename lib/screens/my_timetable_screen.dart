@@ -91,7 +91,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
   String _teacherName(TimetableEntry? e) {
     if (e == null || e.isEmpty) return '—';
     final t = _teachers.firstWhere((t) => t.id == e.teacherId,
-        orElse: () => Teacher(id: '', name: '—', subject: '', email: ''));
+        orElse: () => Teacher(id: '', name: '—', subject: '', email: '', schoolId: ''));
     return t.name;
   }
 
@@ -99,7 +99,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
     if (e == null || e.isEmpty) return '';
     if (e.subject?.isNotEmpty == true) return e.subject!;
     final t = _teachers.firstWhere((t) => t.id == e.teacherId,
-        orElse: () => Teacher(id: '', name: '', subject: '', email: ''));
+        orElse: () => Teacher(id: '', name: '', subject: '', email: '', schoolId: ''));
     return t.subject;
   }
 

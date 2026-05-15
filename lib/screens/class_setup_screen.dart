@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/base_firestore_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
 
@@ -129,7 +130,8 @@ class _ClassSetupScreenState extends State<ClassSetupScreen> {
 
     final settings = await _service.getSettings();
     settings['classes'] = result;
-    await _service.saveSettings(settings);
+    await _service.saveSettings(
+        BaseFirestoreService.currentSchoolId ?? 'default_school', settings);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

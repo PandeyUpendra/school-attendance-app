@@ -38,8 +38,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     setState(() => _loading = true);
     final exam = widget.exam;
     final results = await Future.wait([
-      _studentService.getStudentsByClass(exam.className, section: widget.section),
-      _examService.getResults(exam.id),
+      _studentService.getStudentsByClass(className: exam.className, section: widget.section),
+      _examService.getResults(examId: exam.id),
     ]);
     final students    = results[0] as List<Student>;
     final examResults = results[1] as List<ExamResult>;
@@ -114,7 +114,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
         maxMarks:    exam.maxMarks,
         enteredBy:   '',
       );
-      futures.add(_examService.saveResult(exam.id, result));
+      futures.add(_examService.saveResult(examId: exam.id, result: result));
     }
     await Future.wait(futures);
     if (!mounted) return;

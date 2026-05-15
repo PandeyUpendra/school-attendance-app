@@ -26,6 +26,8 @@ import 'calendar_screen.dart';
 import 'attendance_certificate_screen.dart';
 import 'student_remarks_screen.dart';
 import 'guardian_student_details_screen.dart';
+import '../models/leaderboard_entry.dart';
+import '../services/leaderboard_service.dart';
 
 /// The Guardian Portal — shows a single student's attendance to their parent.
 /// Guardian is linked to {studentClass, studentRoll} in allowed_users.
@@ -83,6 +85,11 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   String _dressPhotoUrl = '';
   List<String> _rules = [];
 
+  // Class Rankings
+  final _lbSvc = LeaderboardService();
+  Map<String, int>               _myRanks   = {};  // category → this student's rank
+  Map<String, List<LeaderboardEntry>> _top5 = {};  // category → top-5 entries
+
   // Other students for this guardian
   List<String> _allStudentLinks = [];
 
@@ -91,6 +98,33 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     super.initState();
     _loadAll();
     _loadOtherStudents();
+    _loadRankings();
+  }
+
+  Future<void> _loadRankings() async {
+    final categories = [
+      LeaderboardService.catAcademics,
+      LeaderboardService.catAttendance,
+      LeaderboardService.catDiscipline,
+      LeaderboardService.catMostImproved,
+    ];
+    final classId = widget.studentClass;
+    final myRanks = <String, int>{};
+    final top5    = <String, List<LeaderboardEntry>>{};
+
+    await Future.wait(categories.map((cat) async {
+      try {
+        final lbId    = '${classId.replaceAll(' ', '_')}_$cat';
+        final entries = await _lbSvc.fetchLeaderboard(lbId, schoolId: widget.schoolId);
+        if (entries.isEmpty) return;
+        top5[cat] = entries.take(5).toList();
+        final mine = entries.where((e) => e.roll == widget.studentRoll).firstOrNull;
+        if (mine != null) myRanks[cat] = mine.rank;
+      } catch (_) {}
+    }));
+
+    if (!mounted) return;
+    setState(() { _myRanks = myRanks; _top5 = top5; });
   }
 
   Future<void> _loadOtherStudents() async {
@@ -343,6 +377,18 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       )),
     ),
 
+    // ── CLASS RANKINGS ────────────────────────────────────────────
+    if (_myRanks.isNotEmpty || _top5.isNotEmpty) ...[
+      const _SectionHeader('CLASS RANKINGS'),
+      _ClassRankingsSection(
+        studentName:  _student?.name ?? 'Your child',
+        studentClass: widget.studentClass,
+        studentRoll:  widget.studentRoll,
+        myRanks:      _myRanks,
+        top5:         _top5,
+      ),
+    ],
+
     // ── PROGRESS & RECORDS ────────────────────────────────────────
     const _SectionHeader('PROGRESS & RECORDS'),
     _FeatureTile(
@@ -580,6 +626,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                 loading:          _loading,
                 unreadNotifCount: _unreadNotifCount,
                 allStudentLinks:  _allStudentLinks,
+                schoolId: widget.schoolId,
                 onNotifTap: () async {
                   await Navigator.push(
                     context,
@@ -633,6 +680,7 @@ class _GuardianHeroCard extends StatelessWidget {
   final List<String> allStudentLinks;
   final VoidCallback onNotifTap;
   final VoidCallback onLogout;
+  final String  schoolId;
 
   const _GuardianHeroCard({
     required this.studentName,
@@ -644,6 +692,7 @@ class _GuardianHeroCard extends StatelessWidget {
     required this.allStudentLinks,
     required this.onNotifTap,
     required this.onLogout,
+    required this.schoolId,
   });
 
   Color _statusColor(String? s) {
@@ -696,7 +745,7 @@ class _GuardianHeroCard extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => GuardianDashboard(
-                            schoolId: widget.schoolId,
+                            schoolId: schoolId,
                             studentClass: sClass,
                             studentRoll: sRoll,
                           ),
@@ -2224,6 +2273,164 @@ class _SchoolPolicyCard extends StatelessWidget {
 }
 
 // ── Shared widgets ────────────────────────────────────────────────────────────
+
+// ─── Class Rankings section ───────────────────────────────────────────────────
+
+class _ClassRankingsSection extends StatelessWidget {
+  final String studentName;
+  final String studentClass;
+  final int    studentRoll;
+  final Map<String, int>                myRanks;
+  final Map<String, List<LeaderboardEntry>> top5;
+
+  const _ClassRankingsSection({
+    required this.studentName,
+    required this.studentClass,
+    required this.studentRoll,
+    required this.myRanks,
+    required this.top5,
+  });
+
+  static const _cats = [
+    _CatMeta(key: LeaderboardService.catAcademics,    label: 'Academics',     icon: Icons.school_outlined),
+    _CatMeta(key: LeaderboardService.catAttendance,   label: 'Attendance',    icon: Icons.calendar_today_outlined),
+    _CatMeta(key: LeaderboardService.catDiscipline,   label: 'Discipline',    icon: Icons.verified_outlined),
+    _CatMeta(key: LeaderboardService.catMostImproved, label: 'Most Improved', icon: Icons.trending_up_outlined),
+  ];
+
+  String _firstName() {
+    final parts = studentName.trim().split(' ');
+    return parts.isNotEmpty ? parts.first : studentName;
+  }
+
+  Color _rankColor(int rank) {
+    if (rank == 1) return const Color(0xFFFFD700);
+    if (rank == 2) return const Color(0xFFC0C0C0);
+    if (rank == 3) return const Color(0xFFCD7F32);
+    return AppTheme.primary;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activeCats = _cats.where((c) => myRanks.containsKey(c.key) || top5.containsKey(c.key)).toList();
+    if (activeCats.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // My child's ranks summary
+        if (myRanks.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: Text(
+              "${_firstName()}'s Rankings in $studentClass:",
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: activeCats
+                .where((c) => myRanks.containsKey(c.key))
+                .map((c) {
+              final rank = myRanks[c.key]!;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _rankColor(rank).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _rankColor(rank).withOpacity(0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(c.icon, size: 14, color: _rankColor(rank)),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${c.label}: Rank $rank',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _rankColor(rank),
+                      ),
+                    ),
+                    if (rank <= 3) ...[
+                      const SizedBox(width: 4),
+                      Icon(Icons.emoji_events, size: 12, color: _rankColor(rank)),
+                    ],
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+        ],
+
+        // Top 5 per category
+        ...activeCats.where((c) => top5.containsKey(c.key)).map((c) {
+          final entries = top5[c.key]!;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(c.icon, size: 15, color: AppTheme.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      c.label,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ...entries.map((e) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 22,
+                        child: e.badge != 'none'
+                            ? Icon(Icons.emoji_events,
+                                size: 14, color: _rankColor(e.rank))
+                            : Text(
+                                '${e.rank}.',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600]),
+                              ),
+                      ),
+                      Text(
+                        e.studentName,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: e.roll == studentRoll
+                                ? FontWeight.w700
+                                : FontWeight.normal,
+                            color: e.roll == studentRoll
+                                ? AppTheme.primary
+                                : null),
+                      ),
+                    ],
+                  ),
+                )),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+class _CatMeta {
+  final String   key;
+  final String   label;
+  final IconData icon;
+  const _CatMeta({required this.key, required this.label, required this.icon});
+}
 
 class _SectionHeader extends StatelessWidget {
   final String title;

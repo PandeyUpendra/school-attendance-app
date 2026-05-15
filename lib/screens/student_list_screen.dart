@@ -8,6 +8,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
+import '../services/timetable_service.dart';
+import '../services/base_firestore_service.dart';
 import '../theme.dart';
 import 'add_student_screen.dart';
 import 'attendance_certificate_screen.dart';
@@ -49,7 +51,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
   void initState() {
     super.initState();
     _studentSub = _service
-        .watchStudentsByClass(widget.className,
+        .watchStudentsByClass(className: widget.className,
             section: widget.section, teacherId: widget.teacherId)
         .listen((list) {
       if (!mounted) return;
@@ -128,7 +130,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
         _students.where((s) => _selectedRolls.contains(s.roll)).toList();
     for (final s in toDelete) {
       await StudentService()
-          .removeStudent(s.roll, s.className, section: s.section);
+          .removeStudent(roll: s.roll, className: s.className, section: s.section);
     }
     if (!mounted) return;
     setState(() { _selectMode = false; _selectedRolls = {}; });
@@ -278,7 +280,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
     int added = 0, skipped = 0;
     for (final s in students) {
-      final err = await _service.addStudent(s);
+      final err = await _service.addStudent(student: s);
       if (err == null) added++; else skipped++;
     }
     if (!mounted) return;
@@ -473,7 +475,7 @@ class _StudentCard extends StatelessWidget {
                   )
                 else
                   Hero(
-                    tag: 'student_photo_${student.id}',
+                    tag: 'student_photo_${student.className}_${student.section}_${student.roll}',
                     child: Container(
                       width: 54, height: 54,
                       decoration: BoxDecoration(
@@ -599,7 +601,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     );
     if (ok != true || !mounted) return;
     await StudentService()
-        .removeStudent(_student.roll, _student.className, section: _student.section);
+        .removeStudent(roll: _student.roll, className: _student.className, section: _student.section);
     if (mounted) Navigator.pop(context);
   }
 
@@ -614,6 +616,119 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     final digits = _student.phone.replaceAll(RegExp(r'\D'), '');
     final uri = Uri.parse('https://wa.me/$digits');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _setGuardianEmail() async {
+    final emailCtrl = TextEditingController(text: _student.guardianEmail ?? '');
+    bool saving = false;
+    String? savedEmail;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(children: [
+            const Icon(Icons.family_restroom_outlined, color: AppTheme.primary, size: 22),
+            const SizedBox(width: 8),
+            const Expanded(child: Text('Set Guardian Email', style: TextStyle(fontSize: 15))),
+          ]),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Enter the guardian\'s Gmail address for ${_student.name}. '
+                'They will sign in with Google — no password needed.',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: emailCtrl,
+                autofocus: true,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: 'Guardian Email',
+                  prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final email = emailCtrl.text.trim().toLowerCase();
+                      if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          const SnackBar(content: Text('Enter a valid email address')),
+                        );
+                        return;
+                      }
+                      setS(() => saving = true);
+                      try {
+                        final schoolId = BaseFirestoreService.currentSchoolId ?? 'default_school';
+                        final oldEmail = _student.guardianEmail?.toLowerCase().trim() ?? '';
+                        if (oldEmail.isNotEmpty && oldEmail != email) {
+                          await TimetableService().removeGuardianLink(
+                            email: oldEmail,
+                            studentClass: _student.className,
+                            studentRoll: _student.roll,
+                          );
+                        }
+                        await TimetableService().linkGuardianEmail(
+                          email: email,
+                          studentClass: _student.className,
+                          studentRoll: _student.roll,
+                          studentName: _student.name,
+                          schoolId: schoolId,
+                        );
+                        savedEmail = email;
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      } catch (_) {
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(content: Text('Failed to save. Please try again.')),
+                          );
+                          setS(() => saving = false);
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: saving
+                  ? const SizedBox(width: 16, height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (savedEmail != null && mounted) {
+      final updatedStudent = _student.copyWith(guardianEmail: savedEmail);
+      await StudentService().updateStudent(updated: updatedStudent);
+      if (!mounted) return;
+      setState(() => _student = updatedStudent);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Guardian access set for ${_student.name}.'),
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+    }
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -812,6 +927,26 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 ),
               ),
             ),
+
+            if (widget.canEdit)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.family_restroom_outlined),
+                    label: const Text('Set Guardian Email (Google Login)'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primary,
+                      side: BorderSide(color: AppTheme.primary.withOpacity(0.5)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: _setGuardianEmail,
+                  ),
+                ),
+              ),
             
             if (_student.guardianDetails?.lastUpdated != null)
               Padding(

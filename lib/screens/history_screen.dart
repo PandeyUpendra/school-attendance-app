@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../data/student_data.dart';
 import '../models/attendance_status.dart';
-import '../services/attendance_service.dart';
 import '../services/firestore_service.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -39,9 +38,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       dates = await FirestoreService.getAttendanceDates(
           schoolId: widget.schoolId, classId: widget.className);
     }
-    if (dates.isEmpty) {
-      dates = await AttendanceService.getSavedDates(widget.className);
-    }
+    // No local fallback — Firestore is the source of truth.
     setState(() {
       _dates = dates.reversed.toList();
       _dateSet = Set.from(dates);
@@ -72,8 +69,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           classId: widget.className,
           date: dateStr);
     }
-    summary ??= await AttendanceService.loadAttendanceSummary(
-        className: widget.className, dateStr: dateStr);
+    // No local fallback — Firestore is the source of truth.
 
     if (summary == null || !mounted) return;
 

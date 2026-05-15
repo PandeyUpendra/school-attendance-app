@@ -242,7 +242,7 @@ class _CoordCheckDetailScreenState extends State<_CoordCheckDetailScreen>
   Future<void> _load() async {
     setState(() => _loading = true);
     final results = await Future.wait([
-      _studentService.getStudentsByClass(widget.check.className,
+      _studentService.getStudentsByClass(className: widget.check.className,
           section: widget.check.section),
       _service.getStatuses(widget.check.id),
     ]);

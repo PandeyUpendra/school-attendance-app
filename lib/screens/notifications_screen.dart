@@ -50,7 +50,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final id = n['id'] as String?;
     if (id == null) return;
     setState(() => _items.remove(n));
-    await _service.deleteNotification(id);
+    await _service.deleteNotification(id: id);
   }
 
   Future<void> _clearAll() async {
@@ -78,7 +78,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         .whereType<String>()
         .toList();
     setState(() => _items.clear());
-    await _service.deleteAll(ids);
+    for (final id in ids) {
+      await _service.deleteNotification(id: id);
+    }
   }
 
   Future<void> _load() async {
@@ -170,7 +172,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               )));
         } else if (widget.role == 'teacher') {
           if (widget.teacherId != null) {
-            final t = await TimetableService().getTeacherById(widget.teacherId!);
+            final t = await TimetableService().getTeacherById(id: widget.teacherId!);
             if (t != null && t.classTeacherOf != null && mounted) {
               Navigator.push(context, MaterialPageRoute(builder: (_) =>
                   TeacherTasksScreen(
@@ -199,7 +201,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
       case 'absent':
         if (widget.role == 'teacher' && widget.teacherId != null) {
-          final t = await TimetableService().getTeacherById(widget.teacherId!);
+          final t = await TimetableService().getTeacherById(id: widget.teacherId!);
           if (t != null && t.isClassTeacher && mounted) {
             Navigator.push(context, MaterialPageRoute(builder: (_) =>
                 DailyCallsScreen(teacher: t)));
@@ -209,7 +211,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
       case 'leave_resolved':
         if (widget.role == 'teacher' && widget.teacherId != null) {
-          final t = await TimetableService().getTeacherById(widget.teacherId!);
+          final t = await TimetableService().getTeacherById(id: widget.teacherId!);
           if (t != null && mounted) {
             Navigator.push(context, MaterialPageRoute(builder: (_) =>
                 LeaveApplicationScreen(teacher: t)));

@@ -104,15 +104,8 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
     setState(() => _isSaving = true);
 
     try {
-      String? photoUrl = widget.student.photoUrl;
-      if (_imageFile != null) {
-        photoUrl = await _service.uploadStudentPhoto(
-          _imageFile!,
-          widget.student.roll,
-          widget.student.className,
-          section: widget.student.section,
-        );
-      }
+      // Photo upload not yet supported via StudentService — keep existing photoUrl
+      final String? photoUrl = widget.student.photoUrl;
 
       final newDetails = GuardianStudentDetails(
         dob: _dobController.text.trim(),
@@ -137,7 +130,7 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
         photoUrl: photoUrl,
       );
 
-      await _service.updateStudent(updatedStudent);
+      await _service.updateStudent(updated: updatedStudent);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

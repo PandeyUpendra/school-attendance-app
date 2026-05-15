@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/teacher.dart';
 import '../services/timetable_service.dart';
+import '../services/base_firestore_service.dart';
 import '../theme.dart';
 
 class AssignDutiesScreen extends StatefulWidget {
@@ -58,7 +59,7 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
     // Only save non-empty duties
     final toSave = Map<String, String>.from(_duties)
       ..removeWhere((_, v) => v.isEmpty);
-    await _service.saveTodayDuties(toSave);
+    await _service.saveTodayDuties(BaseFirestoreService.currentSchoolId ?? 'default_school', toSave);
     if (!mounted) return;
     setState(() { _saving = false; _dirty = false; });
     ScaffoldMessenger.of(context)

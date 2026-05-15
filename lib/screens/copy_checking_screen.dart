@@ -284,7 +284,6 @@ class _CascadingSessionDialogState extends State<_CascadingSessionDialog> {
 
   bool get _canProceed =>
       _selectedClass != null &&
-      _selectedSection != null &&
       (_isCustomSubject
           ? _customSubjectCtrl.text.trim().isNotEmpty
           : _selectedSubject != null);
@@ -293,8 +292,6 @@ class _CascadingSessionDialogState extends State<_CascadingSessionDialog> {
     String message = 'Please fill out all details.';
     if (_selectedClass == null) {
       message = 'Please select a class.';
-    } else if (_selectedSection == null) {
-      message = 'Please select a section.';
     } else if (_isCustomSubject && _customSubjectCtrl.text.trim().isEmpty) {
       message = 'Please enter a custom subject name.';
     } else if (_selectedSubject == null && !_isCustomSubject) {
@@ -385,41 +382,17 @@ class _CascadingSessionDialogState extends State<_CascadingSessionDialog> {
             ),
             const SizedBox(height: 16),
 
-            // Section Dropdown
-            _label('Select Section'),
-            DropdownButtonFormField<String>(
-              value: _selectedSection,
-              isExpanded: true,
-              decoration: _inputDeco(enabled: _selectedClass != null),
-              items: _sections.map((s) => DropdownMenuItem(
-                value: s, 
-                child: Text(s.isEmpty ? 'General' : 'Section $s')
-              )).toList(),
-              onChanged: _selectedClass == null
-                  ? null
-                  : (val) {
-                      setState(() {
-                        _selectedSection = val;
-                        _selectedSubject = null;
-                        _isCustomSubject = false;
-                        final subjs = _subjects;
-                        if (subjs.isNotEmpty) _selectedSubject = subjs.first;
-                      });
-                    },
-            ),
-            const SizedBox(height: 16),
-
             // Subject Dropdown
             _label('Select Subject'),
             DropdownButtonFormField<String>(
               value: _isCustomSubject ? 'OTHER' : _selectedSubject,
               isExpanded: true,
-              decoration: _inputDeco(enabled: _selectedSection != null),
+              decoration: _inputDeco(enabled: _selectedClass != null),
               items: [
                 ..._subjects.map((s) => DropdownMenuItem(value: s, child: Text(s))),
                 const DropdownMenuItem(value: 'OTHER', child: Text('Type custom subject...')),
               ],
-              onChanged: _selectedSection == null ? null : (val) {
+              onChanged: _selectedClass == null ? null : (val) {
                 setState(() {
                   if (val == 'OTHER') {
                     _isCustomSubject = true;
@@ -617,7 +590,7 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
   Future<void> _load() async {
     setState(() => _loading = true);
     final results = await Future.wait([
-      _studentService.getStudentsByClass(widget.check.className,
+      _studentService.getStudentsByClass(className: widget.check.className,
           section: widget.check.section),
       _service.getStatuses(widget.check.id),
     ]);

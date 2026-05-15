@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../models/attendance_status.dart';
 import '../models/student.dart';
 import '../data/student_data.dart';
-import '../services/attendance_service.dart';
 import '../services/firestore_service.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -45,8 +44,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             .toList();
       }
     }
-    students ??= await AttendanceService.loadStudents(widget.className) ??
-        (classStudents[widget.className] ?? []);
+    students ??= classStudents[widget.className] ?? [];
 
     // Load attendance stats
     Map<int, Map<String, int>> stats = {};
@@ -59,27 +57,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           schoolId: widget.schoolId, classId: widget.className);
     }
 
-    // Fall back to local if no Firestore data
-    if (stats.isEmpty) {
-      dates = await AttendanceService.getSavedDates(widget.className);
-      for (final dateStr in dates) {
-        final summary = await AttendanceService.loadAttendanceSummary(
-            className: widget.className, dateStr: dateStr);
-        if (summary == null) continue;
-        final att = summary['attendance'] as Map<int, AttendanceStatus>;
-        for (final e in att.entries) {
-          stats[e.key] ??= {'present': 0, 'absent': 0, 'leave': 0, 'total': 0};
-          if (e.value.isPresent) {
-            stats[e.key]!['present'] = (stats[e.key]!['present'] ?? 0) + 1;
-          } else if (e.value.isLeave) {
-            stats[e.key]!['leave'] = (stats[e.key]!['leave'] ?? 0) + 1;
-          } else {
-            stats[e.key]!['absent'] = (stats[e.key]!['absent'] ?? 0) + 1;
-          }
-          stats[e.key]!['total'] = dates.length;
-        }
-      }
-    }
+    // No local fallback — Firestore is the source of truth.
 
     setState(() {
       _students = students!;

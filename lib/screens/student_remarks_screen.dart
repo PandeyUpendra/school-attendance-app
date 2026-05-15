@@ -3,9 +3,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/student.dart';
 import '../models/student_remark.dart';
+import '../models/teacher.dart';
 import '../services/auth_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
+import '../services/base_firestore_service.dart';
 import '../theme.dart';
 
 // ── Common predefined remark options ─────────────────────────────────────────
@@ -116,7 +118,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
         taught.add(combo);
       }
       if (_myTeacherId != null) {
-        final fromTT = await _ttService.getClassesTaughtByTeacher(_myTeacherId!);
+        final fromTT = await _ttService.getClassesTaughtByTeacher(BaseFirestoreService.currentSchoolId ?? 'default_school', _myTeacherId!);
         taught.addAll(fromTT);
       }
 
@@ -155,9 +157,31 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
         }
       }
     } else if (widget.role != 'guardian') {
-      final settings = await _ttService.getSettings();
+      final results = await Future.wait([
+        _ttService.getSettings(),
+        _ttService.getTeachers(),
+      ]);
+      final settings = results[0] as Map<String, dynamic>;
+      final teachers = results[1] as List<Teacher>;
       final classes  = List<String>.from(settings['classes'] as List? ?? []);
-      if (mounted) setState(() => _classes = classes);
+
+      // Build class→sections from class-teacher assignments so coordinator
+      // gets the same section picker that teachers have.
+      final map = <String, List<String>>{};
+      for (final t in teachers) {
+        if (t.isClassTeacher &&
+            t.classTeacherOf != null &&
+            classes.contains(t.classTeacherOf)) {
+          map.putIfAbsent(t.classTeacherOf!, () => []);
+          final sec = t.section.trim();
+          if (sec.isNotEmpty && !map[t.classTeacherOf!]!.contains(sec)) {
+            map[t.classTeacherOf!]!.add(sec);
+          }
+        }
+      }
+      for (final list in map.values) list.sort();
+
+      if (mounted) setState(() { _classes = classes; _classToSections = map; });
     }
   }
 
@@ -174,7 +198,18 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
     });
 
     if (widget.role != 'teacher') {
-      _loadStudents(cls, '');
+      // For coordinator/principal: respect sections if they exist.
+      // Only auto-load if there is at most one (or no) section defined.
+      final secs = _classToSections[cls] ?? [];
+      if (secs.isEmpty || (secs.length == 1 && secs.first.isEmpty)) {
+        final sec = secs.isNotEmpty ? secs.first : '';
+        setState(() { _selectedSection = sec; _sections = secs; });
+        _loadStudents(cls, sec);
+      } else {
+        // Multiple sections: show section picker, auto-select first.
+        setState(() { _sections = secs; _selectedSection = secs.first; });
+        _loadStudents(cls, secs.first);
+      }
       return;
     }
 
@@ -200,7 +235,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
 
   Future<void> _loadStudents(String cls, String sec) async {
     setState(() => _loadingStudents = true);
-    final list = await _studentService.getStudentsByClass(cls, section: sec);
+    final list = await _studentService.getStudentsByClass(className: cls, section: sec);
     if (!mounted) return;
     setState(() { _classStudents = list; _loadingStudents = false; });
   }
@@ -216,7 +251,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
   Future<void> _loadRemarks(Student s) async {
     setState(() => _loadingRemarks = true);
     final list = await _studentService.getStudentRemarks(
-      s.className, s.roll, section: s.section);
+      className: s.className, roll: s.roll, section: s.section);
     if (!mounted) return;
     setState(() { _remarks = list; _loadingRemarks = false; });
   }
@@ -239,9 +274,13 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
     setState(() => _saving = true);
     try {
       await _studentService.addStudentRemark(
-        s.className, s.roll, _myEmail, _myRole, text,
-        section:   s.section,
-        teacherId: _myTeacherId,
+        className:      s.className,
+        roll:           s.roll,
+        createdByEmail: _myEmail,
+        role:           _myRole,
+        remark:         text,
+        section:        s.section,
+        teacherId:      _myTeacherId,
       );
       if (!mounted) return;
       setState(() { _saving = false; _resetInput(); });
@@ -291,7 +330,11 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
     if (ok != true || !mounted) return;
     try {
       await _studentService.deleteStudentRemark(
-          s.className, s.roll, r.id, _myEmail, section: s.section);
+          className: s.className,
+          roll: s.roll,
+          remarkId: r.id,
+          currentUserEmail: _myEmail,
+          section: s.section);
       _loadRemarks(s);
     } catch (e) {
       if (!mounted) return;

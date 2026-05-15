@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
+import '../services/base_firestore_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
 
@@ -175,6 +176,7 @@ class _TimetableEditorScreenState extends State<TimetableEditorScreen> {
     if (result == null || !mounted) return;
 
     final error = await _service.assignTeacher(
+      schoolId: BaseFirestoreService.currentSchoolId ?? 'default_school',
       className: className,
       days: [_selectedDay],
       bell: bell,

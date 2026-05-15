@@ -342,8 +342,90 @@ class TimetableService extends BaseFirestoreService {
     return rawLinks.map((l) => Map<String, dynamic>.from(l as Map)).toList();
   }
 
+  /// Links a guardian email to a student (OAuth-only — no password stored).
+  /// Creates the allowed_users doc if it doesn't exist, or appends the
+  /// student link if the guardian is already registered.
+  Future<void> linkGuardianEmail({
+    required String email,
+    required String studentClass,
+    required int studentRoll,
+    required String studentName,
+    required String schoolId,
+  }) async {
+    final key = email.toLowerCase().trim();
+    final docRef = _allowedUsers.doc(key);
+    final doc = await docRef.get();
+
+    final newLink = <String, dynamic>{
+      'studentClass': studentClass,
+      'studentRoll': studentRoll,
+      'studentName': studentName,
+    };
+
+    if (doc.exists && doc.data() != null && doc.data()!['role'] == 'guardian') {
+      final existing = (doc.data()!['studentLinks'] as List? ?? [])
+          .map((l) => Map<String, dynamic>.from(l as Map))
+          .toList();
+      final alreadyLinked = existing.any(
+        (l) => l['studentClass'] == studentClass && l['studentRoll'] == studentRoll,
+      );
+      if (alreadyLinked) {
+        // Update name in case it changed
+        for (final l in existing) {
+          if (l['studentClass'] == studentClass && l['studentRoll'] == studentRoll) {
+            l['studentName'] = studentName;
+          }
+        }
+        await docRef.update({'studentLinks': existing, 'schoolId': schoolId});
+      } else {
+        existing.add(newLink);
+        await docRef.update({'studentLinks': existing, 'schoolId': schoolId});
+      }
+    } else {
+      await docRef.set({
+        'role': 'guardian',
+        'email': key,
+        'schoolId': schoolId,
+        'studentLinks': [newLink],
+      }, SetOptions(merge: false));
+    }
+  }
+
+  /// Removes a specific student link from a guardian's allowed_users doc.
+  /// Deletes the doc entirely if no student links remain.
+  Future<void> removeGuardianLink({
+    required String email,
+    required String studentClass,
+    required int studentRoll,
+  }) async {
+    final key = email.toLowerCase().trim();
+    final docRef = _allowedUsers.doc(key);
+    final doc = await docRef.get();
+    if (!doc.exists || doc.data() == null) return;
+    final data = doc.data()!;
+    if (data['role'] != 'guardian') return;
+
+    final links = (data['studentLinks'] as List? ?? [])
+        .map((l) => Map<String, dynamic>.from(l as Map))
+        .toList();
+    links.removeWhere(
+      (l) => l['studentClass'] == studentClass && l['studentRoll'] == studentRoll,
+    );
+
+    if (links.isEmpty) {
+      await docRef.delete();
+    } else {
+      await docRef.update({'studentLinks': links});
+    }
+  }
+
   Future<void> removeAllowedUser(String email) async {
     await _allowedUsers.doc(email.toLowerCase().trim()).delete();
+  }
+
+  Future<bool> userExists(String email) async {
+    final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
+    return doc.exists;
   }
 
   Future<String?> getAllowedRole(String email) async {
@@ -352,10 +434,18 @@ class TimetableService extends BaseFirestoreService {
     return doc.data()!['role'] as String?;
   }
 
-  Future<String?> validateLogin(String email, [String? password]) async {
+  Future<Map<String, dynamic>?> getAllowedUserDoc(String email) async {
+    final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
+    if (!doc.exists || doc.data() == null) return null;
+    return Map<String, dynamic>.from(doc.data()!);
+  }
+
+  Future<String?> validateLogin(String email, String password) async {
     final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
     if (!doc.exists || doc.data() == null) return null;
     final data = doc.data()!;
+    final stored = data['password'] as String?;
+    if (stored == null || stored != password) return null;
     return data['role'] as String?;
   }
 
@@ -434,12 +524,10 @@ class TimetableService extends BaseFirestoreService {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    // Optimize: only fetch approved leaves that could possibly be for today.
-    // Fetching leaves from the last 30 days is a reasonable heuristic if we don't have better indexing.
-    final thirtyDaysAgo = today.subtract(const Duration(days: 30));
+    // Fetch all approved leaves and filter by date in-memory.
+    // Avoids the composite (status + startDate) index requirement.
     final leavesSnap = await _leaveApps(schoolId)
         .where('status', isEqualTo: 'approved')
-        .where('startDate', isGreaterThanOrEqualTo: thirtyDaysAgo.toIso8601String().substring(0, 10))
         .get();
 
     final timetableFuture  = getTimetable(schoolId: schoolId);

@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'timetable_service.dart';
 
 /// Manages authentication and session persistence.
 /// Uses Firebase Auth for secure login and SharedPreferences for local metadata.
@@ -104,6 +104,26 @@ class AuthService {
 
   Future<void> clearSession() async {
     await signOut();
+  }
+
+  /// Signs in a guardian via Google OAuth.
+  /// Returns the authenticated user's email and display name, or null if cancelled.
+  Future<Map<String, String?>?> signInWithGoogle() async {
+    final googleSignIn = GoogleSignIn();
+    await googleSignIn.signOut(); // force account picker every time
+    final account = await googleSignIn.signIn();
+    if (account == null) return null;
+
+    final googleAuth = await account.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    final userCred = await _auth.signInWithCredential(credential);
+    return {
+      'email': userCred.user?.email,
+      'name': userCred.user?.displayName,
+    };
   }
 
   /// Legacy stub for backward compatibility with AuthProvider.
