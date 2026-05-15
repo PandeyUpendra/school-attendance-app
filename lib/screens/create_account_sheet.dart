@@ -249,12 +249,11 @@ class _CreateAccountSheetState extends State<_CreateAccountSheet> {
                 ),
               ),
 
-              // ── Coordinator: optional assigned classes ─────────────────
-              if (widget.targetRole == 'coordinator' &&
-                  widget.availableClasses.isNotEmpty) ...[
+              // ── Coordinator: assigned classes dropdown ─────────────────
+              if (widget.targetRole == 'coordinator') ...[
                 const SizedBox(height: 16),
                 Text(
-                  'ASSIGNED CLASSES (optional)',
+                  'RESPONSIBLE FOR (CLASSES)',
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -262,42 +261,30 @@ class _CreateAccountSheetState extends State<_CreateAccountSheet> {
                       letterSpacing: 0.8),
                 ),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: widget.availableClasses.map((cls) {
-                    final sel = _selectedClasses.contains(cls);
-                    return GestureDetector(
-                      onTap: () => setState(() => sel
-                          ? _selectedClasses.remove(cls)
-                          : _selectedClasses.add(cls)),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: sel
-                              ? AppTheme.primary.withOpacity(0.12)
-                              : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                              color: sel
-                                  ? AppTheme.primary
-                                  : Colors.grey.shade300),
-                        ),
-                        child: Text(cls,
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: sel
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: sel
-                                    ? AppTheme.primary
-                                    : Colors.grey.shade600)),
-                      ),
-                    );
-                  }).toList(),
-                ),
+                if (widget.availableClasses.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 14),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.class_outlined,
+                          color: Colors.grey.shade400, size: 20),
+                      const SizedBox(width: 10),
+                      Text('No classes configured yet',
+                          style: TextStyle(
+                              color: Colors.grey.shade400, fontSize: 14)),
+                    ]),
+                  )
+                else
+                  _ClassDropdownField(
+                    availableClasses: widget.availableClasses,
+                    selectedClasses: _selectedClasses,
+                    onChanged: (updated) =>
+                        setState(() => _selectedClasses = updated),
+                  ),
               ],
 
               // ── Guardian: student class + roll ─────────────────────────
@@ -395,6 +382,191 @@ class _CreateAccountSheetState extends State<_CreateAccountSheet> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ClassDropdownField extends StatefulWidget {
+  final List<String> availableClasses;
+  final List<String> selectedClasses;
+  final ValueChanged<List<String>> onChanged;
+
+  const _ClassDropdownField({
+    required this.availableClasses,
+    required this.selectedClasses,
+    required this.onChanged,
+  });
+
+  @override
+  State<_ClassDropdownField> createState() => _ClassDropdownFieldState();
+}
+
+class _ClassDropdownFieldState extends State<_ClassDropdownField> {
+  Future<void> _openPicker() async {
+    // Work on a local copy so Cancel discards changes.
+    final temp = List<String>.from(widget.selectedClasses);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          contentPadding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+          title: Row(children: [
+            const Icon(Icons.class_outlined,
+                color: AppTheme.primary, size: 20),
+            const SizedBox(width: 8),
+            const Text('Select Classes',
+                style:
+                    TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Spacer(),
+            TextButton(
+              onPressed: () {
+                setLocal(() {
+                  if (temp.length == widget.availableClasses.length) {
+                    temp.clear();
+                  } else {
+                    temp
+                      ..clear()
+                      ..addAll(widget.availableClasses);
+                  }
+                });
+              },
+              child: Text(
+                temp.length == widget.availableClasses.length
+                    ? 'None'
+                    : 'All',
+                style: const TextStyle(
+                    color: AppTheme.primary, fontSize: 13),
+              ),
+            ),
+          ]),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: widget.availableClasses.length,
+              itemBuilder: (_, i) {
+                final cls = widget.availableClasses[i];
+                final checked = temp.contains(cls);
+                return CheckboxListTile(
+                  value: checked,
+                  title: Text(cls,
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: checked
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                          color: checked
+                              ? AppTheme.primary
+                              : Colors.black87)),
+                  activeColor: AppTheme.primary,
+                  checkboxShape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4)),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  dense: true,
+                  onChanged: (_) => setLocal(() => checked
+                      ? temp.remove(cls)
+                      : temp.add(cls)),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true) {
+      widget.onChanged(temp);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sel = widget.selectedClasses;
+    final label = sel.isEmpty
+        ? 'Tap to select classes…'
+        : sel.length == 1
+            ? sel.first
+            : '${sel.length} classes selected';
+
+    return InkWell(
+      onTap: _openPicker,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: sel.isEmpty
+                ? Colors.grey.shade400
+                : AppTheme.primary,
+            width: sel.isEmpty ? 1.0 : 1.5,
+          ),
+          borderRadius: BorderRadius.circular(10),
+          color: sel.isEmpty
+              ? Colors.transparent
+              : AppTheme.primary.withOpacity(0.04),
+        ),
+        child: Row(children: [
+          Icon(Icons.class_outlined,
+              color: sel.isEmpty
+                  ? Colors.grey.shade500
+                  : AppTheme.primary,
+              size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                  fontSize: 14,
+                  color: sel.isEmpty
+                      ? Colors.grey.shade500
+                      : AppTheme.primary,
+                  fontWeight: sel.isEmpty
+                      ? FontWeight.normal
+                      : FontWeight.w600),
+            ),
+          ),
+          if (sel.isNotEmpty)
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.primary,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text('${sel.length}',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold)),
+            ),
+          const SizedBox(width: 6),
+          Icon(Icons.arrow_drop_down,
+              color: sel.isEmpty
+                  ? Colors.grey.shade500
+                  : AppTheme.primary),
+        ]),
       ),
     );
   }

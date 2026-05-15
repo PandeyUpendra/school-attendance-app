@@ -5,6 +5,7 @@ import '../../services/auth_service.dart';
 import '../../theme.dart';
 import 'create_staff_task_screen.dart';
 import 'staff_task_detail_screen.dart';
+import 'staff_task_analytics_view.dart';
 
 class StaffTaskManagementScreen extends StatefulWidget {
   const StaffTaskManagementScreen({super.key});
@@ -44,7 +45,8 @@ class _StaffTaskManagementScreenState extends State<StaffTaskManagementScreen> {
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    int tabCount = _userRole == 'principal' ? 4 : (_userRole == 'coordinator' ? 4 : 3);
+    final bool hasAnalytics = _userRole == 'principal' || _userRole == 'coordinator';
+    int tabCount = hasAnalytics ? 5 : 3;
 
     return DefaultTabController(
       length: tabCount,
@@ -82,24 +84,26 @@ class _StaffTaskManagementScreenState extends State<StaffTaskManagementScreen> {
 
   List<Widget> _buildTabs() {
     if (_userRole == 'principal') {
-      return [
-        const Tab(text: 'Assigned by Me'),
-        const Tab(text: 'Personal'),
-        const Tab(text: 'Completed'),
-        const Tab(text: 'Overdue'),
+      return const [
+        Tab(text: 'Assigned by Me'),
+        Tab(text: 'Personal'),
+        Tab(text: 'Completed'),
+        Tab(text: 'Overdue'),
+        Tab(icon: Icon(Icons.bar_chart_outlined, size: 18), text: 'Analytics'),
       ];
     } else if (_userRole == 'coordinator') {
-      return [
-        const Tab(text: 'Assigned to Me'),
-        const Tab(text: 'Assigned by Me'),
-        const Tab(text: 'Personal'),
-        const Tab(text: 'Completed & Overdue'),
+      return const [
+        Tab(text: 'Assigned to Me'),
+        Tab(text: 'Assigned by Me'),
+        Tab(text: 'Personal'),
+        Tab(text: 'Done & Overdue'),
+        Tab(icon: Icon(Icons.bar_chart_outlined, size: 18), text: 'Analytics'),
       ];
     } else {
-      return [
-        const Tab(text: 'Assigned to Me'),
-        const Tab(text: 'Personal'),
-        const Tab(text: 'Completed & Overdue'),
+      return const [
+        Tab(text: 'Assigned to Me'),
+        Tab(text: 'Personal'),
+        Tab(text: 'Done & Overdue'),
       ];
     }
   }
@@ -111,6 +115,7 @@ class _StaffTaskManagementScreenState extends State<StaffTaskManagementScreen> {
         _TaskList(stream: StaffTaskService().getPersonalTasks(_schoolId, _userEmail), schoolId: _schoolId),
         _TaskList(stream: StaffTaskService().getTasksCreatedBy(_schoolId, _userEmail), schoolId: _schoolId, filter: (t) => t.status == TaskStatus.completed),
         _TaskList(stream: StaffTaskService().getTasksCreatedBy(_schoolId, _userEmail), schoolId: _schoolId, filter: (t) => t.status == TaskStatus.overdue),
+        _AnalyticsTab(schoolId: _schoolId),
       ];
     } else if (_userRole == 'coordinator') {
       return [
@@ -118,6 +123,7 @@ class _StaffTaskManagementScreenState extends State<StaffTaskManagementScreen> {
         _TaskList(stream: StaffTaskService().getTasksCreatedBy(_schoolId, _userEmail), schoolId: _schoolId, filter: (t) => (t.assignedToIds.any((id) => id != _userEmail) || t.assignedToRoles.any((r) => r != _userRole)) && t.status != TaskStatus.completed),
         _TaskList(stream: StaffTaskService().getPersonalTasks(_schoolId, _userEmail), schoolId: _schoolId),
         _TaskList(stream: StaffTaskService().getTasksAssignedTo(_schoolId, _userEmail, _userRole), schoolId: _schoolId, filter: (t) => t.status == TaskStatus.completed || t.status == TaskStatus.overdue),
+        _AnalyticsTab(schoolId: _schoolId),
       ];
     } else {
       return [
@@ -293,6 +299,19 @@ class _StaffTaskTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AnalyticsTab extends StatelessWidget {
+  final String schoolId;
+  const _AnalyticsTab({required this.schoolId});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: StaffTaskAnalyticsView(schoolId: schoolId),
     );
   }
 }
