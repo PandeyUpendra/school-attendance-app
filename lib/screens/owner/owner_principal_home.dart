@@ -270,17 +270,25 @@ class _OPDashPageState extends State<_OPDashPage> {
       final spots = <FlSpot>[];
       final labels = <String>[];
       final db = FirebaseFirestore.instance;
-      for (int d = 6; d >= 0; d--) {
-        final day = DateTime.now().subtract(Duration(days: d));
-        int dP = 0, dT = 0;
+      final days = List.generate(7, (i) => DateTime.now().subtract(Duration(days: 6 - i)));
+      final futures = <Future<DocumentSnapshot<Map<String, dynamic>>>>[];
+      for (final day in days) {
         for (final cls in classes) {
-          final doc = await db.collection('attendance').doc('${cls.replaceAll(' ', '_')}_${day.year}-${day.month}-${day.day}').get();
+          futures.add(db.collection('attendance').doc('${cls.replaceAll(' ', '_')}_${day.year}-${day.month}-${day.day}').get());
+        }
+      }
+      final results = await Future.wait(futures);
+      for (int d = 0; d < 7; d++) {
+        final day = days[d];
+        int dP = 0, dT = 0;
+        for (int c = 0; c < classes.length; c++) {
+          final doc = results[d * classes.length + c];
           if (doc.exists && doc.data() != null) {
             dP += (Map<String, dynamic>.from((doc.data()!['rolls'] as Map?) ?? {})).values.where((v) => v == 'Present').length;
           }
-          dT += byClass[cls] ?? 0;
+          dT += byClass[classes[c]] ?? 0;
         }
-        spots.add(FlSpot((6 - d).toDouble(), dT > 0 ? dP / dT * 100 : 0.0));
+        spots.add(FlSpot(d.toDouble(), dT > 0 ? dP / dT * 100 : 0.0));
         labels.add('${day.day}/${day.month}');
       }
       if (!mounted) return;

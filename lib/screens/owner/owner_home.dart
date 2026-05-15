@@ -292,19 +292,27 @@ class _DashPageState extends State<_DashPage> {
       final spots = <FlSpot>[];
       final labels = <String>[];
       final db = FirebaseFirestore.instance;
-      for (int d = 6; d >= 0; d--) {
-        final day = DateTime.now().subtract(Duration(days: d));
-        int dPresent = 0, dTotal = 0;
+      final days = List.generate(7, (i) => DateTime.now().subtract(Duration(days: 6 - i)));
+      final futures = <Future<DocumentSnapshot<Map<String, dynamic>>>>[];
+      for (final day in days) {
         for (final cls in classes) {
           final key = '${cls.replaceAll(' ', '_')}_${day.year}-${day.month}-${day.day}';
-          final doc = await db.collection('attendance').doc(key).get();
+          futures.add(db.collection('attendance').doc(key).get());
+        }
+      }
+      final results = await Future.wait(futures);
+      for (int d = 0; d < 7; d++) {
+        final day = days[d];
+        int dPresent = 0, dTotal = 0;
+        for (int c = 0; c < classes.length; c++) {
+          final doc = results[d * classes.length + c];
           if (doc.exists && doc.data() != null) {
             final rolls = Map<String, dynamic>.from((doc.data()!['rolls'] as Map?) ?? {});
             dPresent += rolls.values.where((v) => v == 'Present').length;
           }
-          dTotal += studentsByClass[cls] ?? 0;
+          dTotal += studentsByClass[classes[c]] ?? 0;
         }
-        spots.add(FlSpot((6 - d).toDouble(), dTotal > 0 ? dPresent / dTotal * 100 : 0.0));
+        spots.add(FlSpot(d.toDouble(), dTotal > 0 ? dPresent / dTotal * 100 : 0.0));
         labels.add('${day.day}/${day.month}');
       }
 

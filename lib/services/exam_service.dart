@@ -44,8 +44,18 @@ class ExamService {
   }
 
   Future<void> deleteExam({String? schoolId, required String examId}) async {
-    // Delete exam doc — results sub-collection is left (cheap orphan)
-    await _exams.doc(examId).delete();
+    final resultsSnap = await _db
+        .collection('exam_results')
+        .doc(examId)
+        .collection('students')
+        .get();
+    final batch = _db.batch();
+    for (final doc in resultsSnap.docs) {
+      batch.delete(doc.reference);
+    }
+    batch.delete(_db.collection('exam_results').doc(examId));
+    batch.delete(_exams.doc(examId));
+    await batch.commit();
   }
 
   // ── Results ────────────────────────────────────────────────────────────────
