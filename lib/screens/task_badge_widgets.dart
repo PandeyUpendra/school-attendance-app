@@ -48,6 +48,7 @@ class TaskStatusChip extends StatelessWidget {
       case TaskStatus.completed:  color = AppTheme.success; break;
       case TaskStatus.inProgress: color = AppTheme.warning; break;
       case TaskStatus.pending:    color = Colors.grey;      break;
+      case TaskStatus.overdue:    color = Colors.red;       break;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

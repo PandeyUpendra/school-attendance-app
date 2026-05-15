@@ -486,7 +486,7 @@ class _AllTasksTabState extends State<_AllTasksTab> {
         ],
       ),
     );
-    if (ok == true) await StaffTaskService().deleteTask(task.id);
+    if (ok == true) await StaffTaskService().deleteTaskById(task.id);
   }
 }
 

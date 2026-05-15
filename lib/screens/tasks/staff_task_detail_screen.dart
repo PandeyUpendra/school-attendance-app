@@ -55,10 +55,10 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
           return const Scaffold(body: Center(child: Text('Task not found')));
         }
 
-        final task = StaffTask.fromFirestore(snapshot.data!.data() as Map<String, dynamic>, snapshot.data!.id);
+        final task = StaffTask.fromJson(snapshot.data!.data() as Map<String, dynamic>, snapshot.data!.id);
         final isCreator = task.createdBy == _userEmail;
         final isAssigned = task.assignedToIds.contains(_userEmail);
-        final isOverdue = task.status == TaskStatus.overdue || (task.status != TaskStatus.completed && task.dueDate.isBefore(DateTime.now()));
+        final isOverdue = task.status == TaskStatus.overdue || (task.status != TaskStatus.completed && (task.dueDate?.isBefore(DateTime.now()) ?? false));
 
         return Scaffold(
           appBar: AppBar(
@@ -146,7 +146,7 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
       decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
-          _infoRow(Icons.calendar_today, 'Due Date', '${task.dueDate.day}/${task.dueDate.month}/${task.dueDate.year}'),
+          _infoRow(Icons.calendar_today, 'Due Date', task.dueDate != null ? '${task.dueDate!.day}/${task.dueDate!.month}/${task.dueDate!.year}' : 'No due date'),
           const Divider(),
           _infoRow(Icons.people, 'Assigned To', task.assignedToNames.join(", ")),
           if (task.targetClasses.isNotEmpty) ...[
@@ -231,16 +231,19 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: task.progressUpdates.map((update) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.arrow_right, size: 18, color: AppTheme.primary),
-            Expanded(child: Text(update, style: const TextStyle(fontSize: 13))),
-          ],
-        ),
-      )).toList(),
+      children: task.progressUpdates.map((update) {
+        final text = update['text'] as String? ?? update.toString();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.arrow_right, size: 18, color: AppTheme.primary),
+              Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -277,9 +280,9 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
     if (_updateCtrl.text.trim().isEmpty) return;
     final now = DateTime.now();
     final timestamp = '${now.day}/${now.month} ${now.hour}:${now.minute}';
-    final newUpdate = '[$timestamp] ${_updateCtrl.text.trim()}';
+    final newUpdate = {'text': '[$timestamp] ${_updateCtrl.text.trim()}'};
 
-    List<String> updates = List.from(task.progressUpdates);
+    final updates = List<Map<String, dynamic>>.from(task.progressUpdates);
     updates.add(newUpdate);
 
     StaffTaskService().updateTask(task.copyWith(progressUpdates: updates), _userEmail, _userName, _userRole);

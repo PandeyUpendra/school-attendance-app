@@ -36,8 +36,8 @@ class StudentService {
   /// Note: if you add a teacherId filter alongside className+section, Firestore
   /// may require a composite index — the console error will include a direct link
   /// to create it.
-  Future<List<Student>> getStudentsByClass(String className,
-      {String section = '', String? teacherId}) async {
+  Future<List<Student>> getStudentsByClass({required String className,
+      String section = '', String? teacherId, String? schoolId}) async {
     Query<Map<String, dynamic>> q =
         _students.where('className', isEqualTo: className);
     if (section.trim().isNotEmpty) {
@@ -57,8 +57,8 @@ class StudentService {
   /// Real-time stream of students for a class/section.
   /// Emits a new sorted list on every Firestore change (add / update / delete).
   /// Pass [teacherId] to scope the stream to one class teacher's students only.
-  Stream<List<Student>> watchStudentsByClass(String className,
-      {String section = '', String? teacherId}) {
+  Stream<List<Student>> watchStudentsByClass({required String className,
+      String section = '', String? teacherId, String? schoolId}) {
     Query<Map<String, dynamic>> q =
         _students.where('className', isEqualTo: className);
     if (section.trim().isNotEmpty) {
@@ -78,7 +78,7 @@ class StudentService {
 
   /// Real-time stream of ALL students across every class.
   /// Used by coordinator/principal dashboards to detect roster changes.
-  Stream<List<Student>> watchStudents() {
+  Stream<List<Student>> watchStudents({String? schoolId}) {
     return _students.snapshots().map((snap) {
       final list = snap.docs
           .map((d) => Student.fromJson(Map<String, dynamic>.from(d.data())))
@@ -108,7 +108,7 @@ class StudentService {
   }
 
   /// Returns null on success, error string on duplicate roll.
-  Future<String?> addStudent(Student student) async {
+  Future<String?> addStudent({required Student student}) async {
     final id  = _sid(student.roll, student.className, student.section);
     final doc = await _students.doc(id).get();
     if (doc.exists) {
@@ -119,14 +119,14 @@ class StudentService {
     return null;
   }
 
-  Future<void> updateStudent(Student updated) async {
+  Future<void> updateStudent({required Student updated}) async {
     await _students
         .doc(_sid(updated.roll, updated.className, updated.section))
         .set(updated.toJson());
   }
 
-  Future<void> removeStudent(int roll, String className,
-      {String section = ''}) async {
+  Future<void> removeStudent({required int roll, required String className,
+      String section = ''}) async {
     await _students.doc(_sid(roll, className, section)).delete();
     await _cascadeDeleteAttendance(roll, className, section: section);
   }
@@ -170,7 +170,7 @@ class StudentService {
 
   /// Returns 'Present' | 'Absent' | 'Leave' per roll number.
   /// Backward-compatible: old bool values are migrated automatically.
-  Future<Map<int, String>> loadTodayAttendance(String className) async {
+  Future<Map<int, String>> loadTodayAttendance({required String className}) async {
     final doc = await _attendance.doc(_todayKey(className)).get();
     if (!doc.exists || doc.data() == null) return {};
     final rolls = Map<String, dynamic>.from(
@@ -181,8 +181,8 @@ class StudentService {
     });
   }
 
-  Future<void> saveAttendance(
-      String className, Map<int, String> attendance) async {
+  Future<void> saveAttendance({
+      required String className, required Map<int, String> attendance}) async {
     final rolls = attendance.map((k, v) => MapEntry(k.toString(), v));
     await _attendance
         .doc(_todayKey(className))
@@ -191,8 +191,8 @@ class StudentService {
   }
 
   /// Save attendance for a specific date (used by offline sync).
-  Future<void> saveAttendanceForDate(
-      String className, Map<int, String> attendance, DateTime date) async {
+  Future<void> saveAttendanceForDate({
+      required String className, required Map<int, String> attendance, required DateTime date}) async {
     final prefix = className.replaceAll(' ', '_');
     final key    = '${prefix}_${date.year}-${date.month}-${date.day}';
     final rolls  = attendance.map((k, v) => MapEntry(k.toString(), v));
@@ -204,7 +204,7 @@ class StudentService {
 
   // ── Reasons (call notes after follow-up) ──────────────────────────────────
 
-  Future<void> saveReasons(String className, Map<int, String> reasons) async {
+  Future<void> saveReasons({required String className, required Map<int, String> reasons}) async {
     if (reasons.isEmpty) return;
     final raw = reasons.map((k, v) => MapEntry(k.toString(), v));
     await _attendance.doc(_todayKey(className)).set(
@@ -213,7 +213,7 @@ class StudentService {
     );
   }
 
-  Future<Map<int, String>> loadTodayReasons(String className) async {
+  Future<Map<int, String>> loadTodayReasons({required String className}) async {
     final doc = await _attendance.doc(_todayKey(className)).get();
     if (!doc.exists || doc.data() == null) return {};
     final raw = Map<String, dynamic>.from(
@@ -230,8 +230,7 @@ class StudentService {
   ///   • with section → "ClassName_Section_YYYY-M-D"
   /// Sections are derived from student records so coordinator/principal always
   /// read from the same keys the teacher wrote.
-  Future<List<ClassSummary>> loadTodayFullSummary(
-      List<String> classes) async {
+  Future<List<ClassSummary>> loadTodayFullSummary({required List<String> classes, String? schoolId}) async {
     if (classes.isEmpty) return [];
 
     // 1. Fetch all students — needed to derive which sections each class has.
@@ -333,8 +332,7 @@ class StudentService {
 
   /// Returns roll → absent+leave count over the last [days] days (default 14).
   /// Parallel Firestore reads — all days fetched simultaneously.
-  Future<Map<int, int>> loadRecentAbsenceDays(
-      String className, {int days = 14}) async {
+  Future<Map<int, int>> loadRecentAbsenceDays({required String className, int days = 14}) async {
     final now    = DateTime.now();
     final prefix = className.replaceAll(' ', '_');
 
@@ -365,7 +363,7 @@ class StudentService {
   // ── Call tracking ──────────────────────────────────────────────────────────
 
   /// Save which students have been called (roll → true/false).
-  Future<void> saveCalled(String className, Map<int, bool> called) async {
+  Future<void> saveCalled({required String className, required Map<int, bool> called}) async {
     if (called.isEmpty) return;
     final raw = called.map((k, v) => MapEntry(k.toString(), v));
     await _attendance.doc(_todayKey(className)).set(
@@ -374,7 +372,7 @@ class StudentService {
     );
   }
 
-  Future<Map<int, bool>> loadTodayCalled(String className) async {
+  Future<Map<int, bool>> loadTodayCalled({required String className}) async {
     final doc = await _attendance.doc(_todayKey(className)).get();
     if (!doc.exists || doc.data() == null) return {};
     final raw = Map<String, dynamic>.from(
@@ -386,8 +384,9 @@ class StudentService {
   /// Returns: { day → { roll → 'Present'|'Absent'|'Leave' } }
   /// Only days that have any records are included (i.e. days school was open).
   /// All day-reads are fired in parallel — max 31 Firestore reads.
-  Future<Map<int, Map<int, String>>> loadMonthAttendance(
-      String className, int year, int month) async {
+  Future<Map<int, Map<int, String>>> loadMonthAttendance({
+      required String className, required int year, required int month,
+      String? schoolId}) async {
     final prefix     = className.replaceAll(' ', '_');
     final daysInMonth = DateTime(year, month + 1, 0).day;
 
@@ -460,8 +459,8 @@ class StudentService {
       _students.doc(_sid(roll, className, section)).collection('remarks');
 
   /// Returns all remarks for a student, newest first.
-  Future<List<StudentRemark>> getStudentRemarks(
-      String className, int roll, {String section = ''}) async {
+  Future<List<StudentRemark>> getStudentRemarks({
+      required String className, required int roll, String section = ''}) async {
     final snap = await _remarksRef(roll, className, section)
         .orderBy('timestamp', descending: true)
         .get();
@@ -472,12 +471,12 @@ class StudentService {
   }
 
   /// Adds a remark. Throws [ArgumentError] if remark is empty or > 200 chars.
-  Future<void> addStudentRemark(
-    String className,
-    int roll,
-    String createdByEmail,
-    String role,
-    String remark, {
+  Future<void> addStudentRemark({
+    required String className,
+    required int roll,
+    required String createdByEmail,
+    required String role,
+    required String remark,
     String  section   = '',
     String? teacherId,
   }) async {
@@ -495,11 +494,11 @@ class StudentService {
   }
 
   /// Deletes a remark. Throws [StateError] if caller is not the author.
-  Future<void> deleteStudentRemark(
-    String className,
-    int roll,
-    String remarkId,
-    String currentUserEmail, {
+  Future<void> deleteStudentRemark({
+    required String className,
+    required int roll,
+    required String remarkId,
+    required String currentUserEmail,
     String section = '',
   }) async {
     final ref = _remarksRef(roll, className, section).doc(remarkId);
@@ -513,8 +512,8 @@ class StudentService {
   }
 
   /// Load attendance doc for a specific date (for history).
-  Future<Map<String, dynamic>?> loadAttendanceForDate(
-      String className, DateTime date) async {
+  Future<Map<String, dynamic>?> loadAttendanceForDate({
+      required String className, required DateTime date}) async {
     final key =
         '${className.replaceAll(' ', '_')}_${date.year}-${date.month}-${date.day}';
     final doc = await _attendance.doc(key).get();
@@ -540,6 +539,8 @@ class ClassSummary {
     required this.marked,
     required this.absentLeave,
   });
+
+  String get displayName => className;
 }
 
 class StudentNote {

@@ -249,7 +249,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               color: _cPurple,
               title: 'Manage Teachers',
               subtitle: 'Add or remove teachers from the school',
-              onTap: () => _navigate(TeacherManagementScreen(schoolId: BaseFirestoreService.currentSchoolId ?? 'default_school')),
+              onTap: () => _navigate(const TeacherManagementScreen()),
             ),
             const _Divider(),
             _FeatureTile(

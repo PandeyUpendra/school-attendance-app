@@ -39,7 +39,7 @@ class ExamService {
     return ref.id;
   }
 
-  Future<void> updateExam(Exam exam) async {
+  Future<void> updateExam({required Exam exam}) async {
     await _exams.doc(exam.id).set(exam.toJson());
   }
 

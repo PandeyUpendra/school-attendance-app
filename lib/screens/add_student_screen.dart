@@ -111,10 +111,10 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
 
     final service = StudentService();
     if (_isEdit) {
-      await service.updateStudent(student);
+      await service.updateStudent(updated: student);
       if (mounted) Navigator.pop(context, student);
     } else {
-      final error = await service.addStudent(student);
+      final error = await service.addStudent(student: student);
       if (!mounted) return;
       if (error != null) {
         ScaffoldMessenger.of(context).showSnackBar(

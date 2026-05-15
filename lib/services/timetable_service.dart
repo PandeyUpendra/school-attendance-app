@@ -29,7 +29,12 @@ class TimetableService {
 
   // ── Teachers ──────────────────────────────────────────────────────────────
 
-  Future<Teacher?> getTeacherById(String id) async {
+  Future<Teacher?> getTeacherById({String? id, String? teacherId}) async {
+    final resolvedId = id ?? teacherId ?? '';
+    return _getTeacherByIdInternal(resolvedId);
+  }
+
+  Future<Teacher?> _getTeacherByIdInternal(String id) async {
     final doc = await _teachers.doc(id).get();
     if (!doc.exists || doc.data() == null) return null;
     return Teacher.fromJson(Map<String, dynamic>.from(doc.data()!));
@@ -80,7 +85,7 @@ class TimetableService {
 
   // ── Settings ──────────────────────────────────────────────────────────────
 
-  Future<Map<String, dynamic>> getSettings() async {
+  Future<Map<String, dynamic>> getSettings({String? schoolId}) async {
     // Return cached copy if available — avoids a Firestore round-trip every
     // time the coordinator dashboard (or any other screen) calls this.
     if (_settingsCache != null) return _settingsCache!;
@@ -262,6 +267,8 @@ class TimetableService {
     String email,
     String password,
     String role, {
+    String?       name,
+    String?       schoolId,
     String?       studentClass,
     int?          studentRoll,
     List<String>? assignedClasses,
@@ -273,6 +280,8 @@ class TimetableService {
       'email':    email.toLowerCase().trim(),
       'password': _hashPassword(password),
       'createdAt': FieldValue.serverTimestamp(),
+      if (name           != null && name.isNotEmpty)  'name':          name,
+      if (schoolId       != null && schoolId.isNotEmpty) 'schoolId':   schoolId,
       if (createdByEmail != null) 'createdByEmail': createdByEmail,
       if (createdByRole  != null) 'createdByRole':  createdByRole,
     };
@@ -347,6 +356,7 @@ class TimetableService {
   // ── Leave Applications ────────────────────────────────────────────────────────
 
   Future<void> submitLeaveApplication({
+    String? schoolId,
     required String teacherId,
     required String teacherName,
     required String teacherEmail,
@@ -375,7 +385,7 @@ class TimetableService {
   /// requiring a Firestore composite index (status + createdAt).  Results are
   /// sorted in-memory instead — negligible cost for the small number of leave
   /// apps a school typically has.
-  Future<List<Map<String, dynamic>>> getLeaveApplications({String? status}) async {
+  Future<List<Map<String, dynamic>>> getLeaveApplications({String? status, String? schoolId}) async {
     QuerySnapshot snap;
     if (status != null) {
       // No orderBy here — composite index not guaranteed to exist on all
@@ -411,58 +421,6 @@ class TimetableService {
     final update = <String, dynamic>{'status': status};
     if (note != null && note.isNotEmpty) update['coordinatorNote'] = note;
     await _leaveApps.doc(id).update(update);
-  }
-
-  // ── Absent-teacher info for dashboard ────────────────────────────────────
-
-  /// Returns how many teachers are on approved leave today and how many of
-  /// their timetable bells haven't been covered by a substitution yet.
-  Future<Map<String, int>> getTodayAbsentTeachersInfo() async {
-    final now = DateTime.now();
-
-    final allLeavesFuture  = getLeaveApplications();
-    final timetableFuture  = getTimetable();
-    final subsFuture       = getTodaySubstitutions();
-
-    final allLeaves = await allLeavesFuture;
-    final timetable = await timetableFuture;
-    final subs      = await subsFuture;
-
-    // Collect teacher IDs whose approved leave covers today.
-    final absentIds = <String>{};
-    for (final app in allLeaves) {
-      if (app['status'] != 'approved') continue;
-      final startStr = app['startDate'] as String?;
-      if (startStr == null) continue;
-      final start = DateTime.tryParse(startStr);
-      if (start == null) continue;
-      final days = (app['numberOfDays'] as num?)?.toInt() ?? 1;
-      final end  = start.add(Duration(days: days - 1));
-      final today = DateTime(now.year, now.month, now.day);
-      if (!today.isBefore(DateTime(start.year, start.month, start.day)) &&
-          !today.isAfter(DateTime(end.year, end.month, end.day))) {
-        final tid = app['teacherId'] as String?;
-        if (tid != null && tid.isNotEmpty) absentIds.add(tid);
-      }
-    }
-
-    // Count timetable bells for today assigned to absent teachers with no sub.
-    const dayNames = [
-      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
-    ];
-    final todayName = dayNames[(now.weekday - 1).clamp(0, 5)];
-    var unassigned = 0;
-    timetable.forEach((className, dayMap) {
-      final bellMap = dayMap[todayName] ?? {};
-      bellMap.forEach((bell, entry) {
-        if (entry.teacherId != null && absentIds.contains(entry.teacherId)) {
-          final key = '${className}_$bell';
-          if (!subs.containsKey(key)) unassigned++;
-        }
-      });
-    });
-
-    return {'absentCount': absentIds.length, 'unassignedBells': unassigned};
   }
 
   // ── Substitutions ─────────────────────────────────────────────────────────
@@ -511,6 +469,7 @@ class TimetableService {
     required int bell,
     required String? teacherId,
     String? subject,
+    String? schoolId,
   }) async {
     if (teacherId != null) {
       for (final day in days) {
@@ -530,5 +489,168 @@ class TimetableService {
     }
     await _saveTimetable(tt);
     return null;
+  }
+
+  // ── User existence & coordinator helpers ───────────────────────────────────
+
+  /// Returns the raw allowed_user document data for an email, or null.
+  Future<Map<String, dynamic>?> getAllowedUserDoc(String email) async {
+    final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
+    if (!doc.exists || doc.data() == null) return null;
+    return Map<String, dynamic>.from(doc.data()!);
+  }
+
+  /// Returns guardian links (list of student references) for a guardian email.
+  Future<List<Map<String, dynamic>>?> getGuardianLinks(String email) async {
+    final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
+    if (!doc.exists || doc.data() == null) return null;
+    final data = doc.data()!;
+    if (data['role'] != 'guardian') return null;
+    // Support both old single-link and new multi-link format
+    final links = data['studentLinks'];
+    if (links is List) {
+      return links.whereType<Map<String, dynamic>>().toList();
+    }
+    // Fall back to single link format
+    final cls  = data['studentClass'] as String?;
+    final roll = data['studentRoll'];
+    if (cls == null || roll == null) return null;
+    return [{'studentClass': cls, 'studentRoll': roll, 'studentName': ''}];
+  }
+
+  /// Returns true if the given email exists in the allowed_users collection.
+  Future<bool> userExists(String email) async {
+    final snap = await _allowedUsers
+        .doc(email.toLowerCase().trim())
+        .get();
+    return snap.exists;
+  }
+
+  /// Links a guardian email to a student in the allowed_users collection.
+  Future<void> linkGuardianEmail({
+    required String email,
+    required String studentClass,
+    required int    studentRoll,
+    String?         studentName,
+    String?         schoolId,
+  }) async {
+    final docRef = _allowedUsers.doc(email.toLowerCase().trim());
+    final doc    = await docRef.get();
+    final data   = doc.exists && doc.data() != null
+        ? Map<String, dynamic>.from(doc.data()!)
+        : <String, dynamic>{};
+
+    final links = List<Map<String, dynamic>>.from(
+        (data['studentLinks'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? []);
+
+    final exists = links.any((l) =>
+        l['studentClass'] == studentClass && l['studentRoll'] == studentRoll);
+    if (!exists) {
+      links.add({
+        'studentClass': studentClass,
+        'studentRoll':  studentRoll,
+        if (studentName != null) 'studentName': studentName,
+      });
+    }
+
+    await docRef.set({
+      'role':         data['role'] ?? 'guardian',
+      'email':        email.toLowerCase().trim(),
+      'studentLinks': links,
+      'studentClass': studentClass,  // legacy compat
+      'studentRoll':  studentRoll,   // legacy compat
+      if (schoolId != null) 'schoolId': schoolId,
+    }, SetOptions(merge: true));
+  }
+
+  /// Removes a student link from a guardian's allowed_users document.
+  Future<void> removeGuardianLink({
+    required String email,
+    required String studentClass,
+    required int    studentRoll,
+  }) async {
+    final docRef = _allowedUsers.doc(email.toLowerCase().trim());
+    final doc    = await docRef.get();
+    if (!doc.exists || doc.data() == null) return;
+
+    final data  = Map<String, dynamic>.from(doc.data()!);
+    final links = List<Map<String, dynamic>>.from(
+        (data['studentLinks'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? []);
+    links.removeWhere((l) =>
+        l['studentClass'] == studentClass && l['studentRoll'] == studentRoll);
+
+    await docRef.update({'studentLinks': links});
+  }
+
+  /// Returns all coordinators, optionally filtered by schoolId field.
+  Future<List<Map<String, dynamic>>> getCoordinators(String schoolId) async {
+    final snap = await _allowedUsers
+        .where('role', isEqualTo: 'coordinator')
+        .get();
+    return snap.docs.map((d) {
+      final data = Map<String, dynamic>.from(d.data());
+      data['email'] = d.id;
+      return data;
+    }).where((u) {
+      // If records have a schoolId field, filter; otherwise include all
+      final sid = u['schoolId'] as String?;
+      return sid == null || sid.isEmpty || sid == schoolId;
+    }).toList();
+  }
+
+  // ── Overloaded getLeaveApplications with schoolId support ─────────────────
+
+  /// [schoolId] is accepted but currently unused (single-school deployment).
+  Future<List<Map<String, dynamic>>> getLeaveApplicationsForSchool({
+    String? schoolId,
+    String? status,
+  }) => getLeaveApplications(status: status);
+
+  // ── getTodayAbsentTeachersInfo with optional positional schoolId ──────────
+
+  Future<Map<String, int>> getTodayAbsentTeachersInfo([String? schoolId]) async {
+    final now = DateTime.now();
+
+    final allLeavesFuture  = getLeaveApplications();
+    final timetableFuture  = getTimetable();
+    final subsFuture       = getTodaySubstitutions();
+
+    final allLeaves = await allLeavesFuture;
+    final timetable = await timetableFuture;
+    final subs      = await subsFuture;
+
+    final absentIds = <String>{};
+    for (final app in allLeaves) {
+      if (app['status'] != 'approved') continue;
+      final startStr = app['startDate'] as String?;
+      if (startStr == null) continue;
+      final start = DateTime.tryParse(startStr);
+      if (start == null) continue;
+      final days = (app['numberOfDays'] as num?)?.toInt() ?? 1;
+      final end  = start.add(Duration(days: days - 1));
+      final today = DateTime(now.year, now.month, now.day);
+      if (!today.isBefore(DateTime(start.year, start.month, start.day)) &&
+          !today.isAfter(DateTime(end.year, end.month, end.day))) {
+        final tid = app['teacherId'] as String?;
+        if (tid != null && tid.isNotEmpty) absentIds.add(tid);
+      }
+    }
+
+    const dayNames = [
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
+    ];
+    final todayName = dayNames[(now.weekday - 1).clamp(0, 5)];
+    var unassigned = 0;
+    timetable.forEach((className, dayMap) {
+      final bellMap = dayMap[todayName] ?? {};
+      bellMap.forEach((bell, entry) {
+        if (entry.teacherId != null && absentIds.contains(entry.teacherId)) {
+          final key = '${className}_$bell';
+          if (!subs.containsKey(key)) unassigned++;
+        }
+      });
+    });
+
+    return {'absentCount': absentIds.length, 'unassignedBells': unassigned};
   }
 }

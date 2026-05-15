@@ -28,12 +28,14 @@ class GuardianDashboard extends StatefulWidget {
   final String studentClass;
   final int    studentRoll;
   final String studentSection;
+  final String? schoolId;
 
   const GuardianDashboard({
     super.key,
     required this.studentClass,
     required this.studentRoll,
     this.studentSection = '',
+    this.schoolId,
   });
 
   @override
@@ -96,8 +98,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       final results = await Future.wait([
         _service.getStudentByRoll(widget.studentClass, widget.studentRoll, section: widget.studentSection),  // 0
         _service.loadMonthAttendance(
-            widget.studentClass, _month.year, _month.month),                  // 1
-        _service.loadTodayAttendance(widget.studentClass),                     // 2
+            className: widget.studentClass, year: _month.year, month: _month.month), // 1
+        _service.loadTodayAttendance(className: widget.studentClass),          // 2
         _feeService.getFeeStructure(className: widget.studentClass),            // 3
         _feeService.getTotalPaid(className: widget.studentClass, roll: widget.studentRoll),  // 4
         NotificationService().unreadCount(
@@ -159,7 +161,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     setState(() { _month = newMonth; _loading = true; _error = null; });
     try {
       final data = await _service.loadMonthAttendance(
-          widget.studentClass, newMonth.year, newMonth.month);
+          className: widget.studentClass, year: newMonth.year, month: newMonth.month);
       if (!mounted) return;
       setState(() { _monthData = data; _loading = false; });
     } catch (e) {

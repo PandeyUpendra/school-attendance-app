@@ -1,7 +1,7 @@
 import 'guardian_student_details.dart';
 
 class Student {
-  final String id; // Unique Student ID (e.g. Admission Number or UUID)
+  final String id; // Unique Student ID (e.g. Admission Number or UUID); may be empty for new records
   final int roll;
   final String name;
   final String className;
@@ -25,7 +25,7 @@ class Student {
   final String? guardianEmail;
 
   const Student({
-    required this.id,
+    this.id = '',
     required this.roll,
     required this.name,
     this.className = '',

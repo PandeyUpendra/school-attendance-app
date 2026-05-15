@@ -50,6 +50,7 @@ class NotificationService {
 
   /// Called when a teacher submits a leave application — notifies recipients.
   Future<void> addLeaveSubmitted({
+    String? schoolId,
     required String teacherName,
     required String toRole, // 'coordinator' | 'principal'
     required int    days,
@@ -161,7 +162,7 @@ class NotificationService {
   // ── Deleters ───────────────────────────────────────────────────────────────
 
   /// Deletes a single notification by its Firestore document ID.
-  Future<void> deleteNotification(String id) async {
+  Future<void> deleteNotification({required String id}) async {
     await _coll.doc(id).delete();
   }
 
@@ -183,6 +184,8 @@ class NotificationService {
     String? teacherId,
     String? studentClass,
     int?    studentRoll,
+    String? userEmail,
+    String? schoolId,
   }) async {
     final snap = await _coll.get();
     final now  = DateTime.now();
@@ -228,6 +231,8 @@ class NotificationService {
     String? teacherId,
     String? studentClass,
     int?    studentRoll,
+    String? schoolId,
+    String? userEmail,
   }) async {
     final items = await getFor(
       role: role,

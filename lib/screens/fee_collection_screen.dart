@@ -48,7 +48,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   Future<void> _selectClass(String cls) async {
     setState(() { _selectedClass = cls; _loading = true; });
     final results = await Future.wait([
-      _studentService.getStudentsByClass(cls),
+      _studentService.getStudentsByClass(className: cls),
       _feeService.getFeeStructure(className: cls),
     ]);
     final students  = results[0] as List<Student>;

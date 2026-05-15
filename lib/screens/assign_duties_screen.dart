@@ -59,7 +59,7 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
     // Only save non-empty duties
     final toSave = Map<String, String>.from(_duties)
       ..removeWhere((_, v) => v.isEmpty);
-    await _service.saveTodayDuties(BaseFirestoreService.currentSchoolId ?? 'default_school', toSave);
+    await _service.saveTodayDuties(toSave);
     if (!mounted) return;
     setState(() { _saving = false; _dirty = false; });
     ScaffoldMessenger.of(context)

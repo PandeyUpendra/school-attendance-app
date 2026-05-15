@@ -65,7 +65,6 @@ class _SchoolRegistrationScreenState extends State<SchoolRegistrationScreen> {
       );
 
       // Login automatically
-      await AuthService().login(_adminEmailCtrl.text.trim(), _adminPasswordCtrl.text.trim());
       await AuthService().saveSession(
         email: _adminEmailCtrl.text.trim(),
         role: 'principal',

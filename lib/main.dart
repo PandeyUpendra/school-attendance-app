@@ -105,7 +105,7 @@ class _SplashGateState extends State<_SplashGate> {
         final teacherId = session['teacherId'] as String?;
         if (teacherId != null) {
           final teacher =
-              await TimetableService().getTeacherById(teacherId);
+              await TimetableService().getTeacherById(id: teacherId);
           if (!mounted) return;
           if (teacher != null) {
             _go(HomeScreen(teacher: teacher));

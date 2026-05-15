@@ -106,7 +106,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
       // Class teacher: load their class directly
       setState(() { _selectedClass = widget.teacherClassName; _loadingStudents = true; });
       final list = await _studentService.getStudentsByClass(
-        widget.teacherClassName!,
+        className: widget.teacherClassName!,
         section:   widget.teacherSection ?? '',
         teacherId: widget.teacherId,
       );
@@ -131,7 +131,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
       _remarks         = [];
       _resetInput();
     });
-    final list = await _studentService.getStudentsByClass(cls);
+    final list = await _studentService.getStudentsByClass(className: cls);
     if (!mounted) return;
     setState(() { _classStudents = list; _loadingStudents = false; });
   }
@@ -147,7 +147,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
   Future<void> _loadRemarks(Student s) async {
     setState(() => _loadingRemarks = true);
     final list = await _studentService.getStudentRemarks(
-      s.className, s.roll, section: s.section);
+      className: s.className, roll: s.roll, section: s.section);
     if (!mounted) return;
     setState(() { _remarks = list; _loadingRemarks = false; });
   }
@@ -170,7 +170,11 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
     setState(() => _saving = true);
     try {
       await _studentService.addStudentRemark(
-        s.className, s.roll, _myEmail, _myRole, text,
+        className: s.className,
+        roll: s.roll,
+        createdByEmail: _myEmail,
+        role: _myRole,
+        remark: text,
         section:   s.section,
         teacherId: _myTeacherId,
       );
@@ -218,7 +222,8 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
     if (ok != true || !mounted) return;
     try {
       await _studentService.deleteStudentRemark(
-          s.className, s.roll, r.id, _myEmail, section: s.section);
+          className: s.className, roll: s.roll, remarkId: r.id,
+          currentUserEmail: _myEmail, section: s.section);
       _loadRemarks(s);
     } catch (e) {
       if (!mounted) return;

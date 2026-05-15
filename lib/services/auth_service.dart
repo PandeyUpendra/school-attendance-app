@@ -12,6 +12,9 @@ class AuthService {
   static const _keyStudentRoll    = 'auth_student_roll';
   static const _keyStudentSection = 'auth_student_section';
   static const _keyAssignedClasses = 'auth_assigned_classes'; // comma-delimited
+  static const _keyName           = 'auth_name';
+  static const _keySchoolId       = 'auth_school_id';
+  static const _keyStudentLinks   = 'auth_student_links'; // pipe-delimited list
 
   static final AuthService _instance = AuthService._();
   AuthService._();
@@ -25,6 +28,9 @@ class AuthService {
     int?          studentRoll,
     String?       studentSection,
     List<String>? assignedClasses,
+    String?       name,
+    String?       schoolId,
+    List<String>? studentLinks,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyEmail, email);
@@ -55,6 +61,22 @@ class AuthService {
     } else {
       await prefs.remove(_keyAssignedClasses);
     }
+
+    if (name != null && name.isNotEmpty) {
+      await prefs.setString(_keyName, name);
+    } else {
+      await prefs.remove(_keyName);
+    }
+    if (schoolId != null && schoolId.isNotEmpty) {
+      await prefs.setString(_keySchoolId, schoolId);
+    } else {
+      await prefs.remove(_keySchoolId);
+    }
+    if (studentLinks != null && studentLinks.isNotEmpty) {
+      await prefs.setString(_keyStudentLinks, studentLinks.join(';;'));
+    } else {
+      await prefs.remove(_keyStudentLinks);
+    }
   }
 
   /// Returns session map with keys: email, role, [teacherId],
@@ -82,6 +104,15 @@ class AuthService {
     if (assignedRaw != null && assignedRaw.isNotEmpty) {
       result['assignedClasses'] = assignedRaw.split(',');
     }
+
+    final nameVal = prefs.getString(_keyName);
+    if (nameVal != null) result['name'] = nameVal;
+    final schoolIdVal = prefs.getString(_keySchoolId);
+    if (schoolIdVal != null) result['schoolId'] = schoolIdVal;
+    final linksRaw = prefs.getString(_keyStudentLinks);
+    if (linksRaw != null && linksRaw.isNotEmpty) {
+      result['studentLinks'] = linksRaw.split(';;');
+    }
     return result;
   }
 
@@ -94,5 +125,12 @@ class AuthService {
     await prefs.remove(_keyStudentRoll);
     await prefs.remove(_keyStudentSection);
     await prefs.remove(_keyAssignedClasses);
+    await prefs.remove(_keyName);
+    await prefs.remove(_keySchoolId);
+    await prefs.remove(_keyStudentLinks);
   }
+
+  /// Stub: Google Sign-In is not implemented in this deployment.
+  /// Returns null to indicate no result (caller should handle gracefully).
+  Future<Map<String, dynamic>?> signInWithGoogle() async => null;
 }

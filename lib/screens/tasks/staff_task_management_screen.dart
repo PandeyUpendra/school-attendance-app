@@ -276,7 +276,7 @@ class _StaffTaskTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Due: ${task.dueDate.day}/${task.dueDate.month}/${task.dueDate.year}',
+                        task.dueDate != null ? 'Due: ${task.dueDate!.day}/${task.dueDate!.month}/${task.dueDate!.year}' : 'No due date',
                         style: TextStyle(fontSize: 12, color: task.status == TaskStatus.overdue ? Colors.red : Colors.grey.shade700, fontWeight: FontWeight.w600),
                       ),
                       if (task.assignedToNames.isNotEmpty)

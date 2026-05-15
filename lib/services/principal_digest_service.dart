@@ -28,7 +28,7 @@ class PrincipalDigestService {
     final schoolName    = (settings['schoolName'] as String?) ?? 'School';
 
     // Fan out everything in parallel.
-    final summariesF    = StudentService().loadTodayFullSummary(classes);
+    final summariesF    = StudentService().loadTodayFullSummary(classes: classes);
     final teachersF     = TimetableService().getTeachers();
     final allLeavesF    = TimetableService().getLeaveApplications();
     final pendingLeavesF= TimetableService().getLeaveApplications(status: 'pending');

@@ -269,7 +269,7 @@ class _StaffTaskManagementScreenState
         ],
       ),
     );
-    if (ok == true) await StaffTaskService().deleteTask(task.id);
+    if (ok == true) await StaffTaskService().deleteTaskById(task.id);
   }
 
   Widget _emptyState(bool noTasksAtAll) => Center(

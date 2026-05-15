@@ -40,7 +40,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     setState(() => _loading = true);
     final exam = widget.exam;
     final results = await Future.wait([
-      _studentService.getStudentsByClass(exam.className, section: widget.section),
+      _studentService.getStudentsByClass(className: exam.className, section: widget.section),
       _examService.getResults(examId: exam.id),
     ]);
     final students    = results[0] as List<Student>;

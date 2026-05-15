@@ -262,7 +262,7 @@ class _DashPageState extends State<_DashPage> {
     try {
       final settings = await _svc.getSettings();
       final classes = List<String>.from(settings['classes'] as List? ?? []);
-      final summaries = await StudentService().loadTodayFullSummary(classes);
+      final summaries = await StudentService().loadTodayFullSummary(classes: classes);
 
       int total = 0, present = 0, absent = 0;
       final classAtt = <Map<String, dynamic>>[];

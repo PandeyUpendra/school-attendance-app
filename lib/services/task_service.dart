@@ -40,7 +40,7 @@ class TaskService {
     );
   }
 
-  Stream<List<Task>> getTasksForTeacher(String className) {
+  Stream<List<Task>> getTasksForTeacher({required String className}) {
     return _tasks
         .where('assignedClasses', arrayContains: className)
         .snapshots()
@@ -77,8 +77,8 @@ class TaskService {
     });
   }
 
-  Future<void> updateBulkStudentStatuses(
-      String taskId, Map<String, bool> updates) async {
+  Future<void> updateBulkStudentStatuses({
+      required String taskId, required Map<String, bool> updates}) async {
     final batchUpdates = <String, dynamic>{};
     updates.forEach((key, value) {
       batchUpdates['studentStatuses.$key'] = value;

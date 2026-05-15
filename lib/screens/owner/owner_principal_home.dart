@@ -251,7 +251,7 @@ class _OPDashPageState extends State<_OPDashPage> {
     try {
       final settings = await _svc.getSettings();
       final classes = List<String>.from(settings['classes'] as List? ?? []);
-      final summaries = await StudentService().loadTodayFullSummary(classes);
+      final summaries = await StudentService().loadTodayFullSummary(classes: classes);
       int tot = 0, pre = 0, abs = 0;
       final classAtt = <Map<String, dynamic>>[];
       for (final s in summaries) {

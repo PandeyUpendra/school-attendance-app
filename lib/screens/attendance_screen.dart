@@ -188,7 +188,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final session   = await AuthService().getSession();
     final teacherId = session?['teacherId'] as String?;
     if (teacherId != null) {
-      final teacher         = await TimetableService().getTeacherById(teacherId);
+      final teacher         = await TimetableService().getTeacherById(id: teacherId);
       final assignedClass   = teacher?.classTeacherOf ?? '';
       final assignedSection = teacher?.section ?? '';
       if (assignedClass.isEmpty || assignedSection.isEmpty) {
@@ -213,19 +213,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (_isOnline) {
       try {
         students = await _service.getStudentsByClass(
-            _className, section: _section, teacherId: _teacherId);
+            className: _className, section: _section, teacherId: _teacherId);
       } catch (_) {
         // Composite index may not exist yet — retry without teacherId filter.
-        students = await _service.getStudentsByClass(_className, section: _section);
+        students = await _service.getStudentsByClass(className: _className, section: _section);
       }
       if (widget.date == null) {
-        saved = await _service.loadTodayAttendance(_attendanceKey);
+        saved = await _service.loadTodayAttendance(className: _attendanceKey);
         if (saved.isEmpty) {
           final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
           if (cached != null) saved = cached;
         }
       } else {
-        final raw = await _service.loadAttendanceForDate(_attendanceKey, widget.date!);
+        final raw = await _service.loadAttendanceForDate(className: _attendanceKey, date: widget.date!);
         if (raw != null) {
           final rolls = Map<String, dynamic>.from((raw['rolls'] as Map?) ?? {});
           rolls.forEach((k, v) {
@@ -236,7 +236,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       }
     } else {
       try {
-        students = await _service.getStudentsByClass(_className,
+        students = await _service.getStudentsByClass(className: _className,
                 section: _section, teacherId: _teacherId)
             .timeout(const Duration(seconds: 3));
       } catch (_) {
@@ -283,7 +283,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Future<void> _loadExtraData() async {
     try {
       final now = DateTime.now();
-      final monthData = await _service.loadMonthAttendance(_attendanceKey, now.year, now.month);
+      final monthData = await _service.loadMonthAttendance(className: _attendanceKey, year: now.year, month: now.month);
       
       final Map<int, String> lw = {};
       final Map<int, String> lm = {};
@@ -318,7 +318,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
       // Remarks - fetch in parallel
       final remarksResults = await Future.wait<List<StudentRemark>>(
-        _students.map((s) => _service.getStudentRemarks(_className, s.roll, section: _section))
+        _students.map((s) => _service.getStudentRemarks(className: _className, roll: s.roll, section: _section))
       );
       final Map<int, List<StudentRemark>> rm = {};
       for (int i=0; i<_students.length; i++) {
@@ -341,7 +341,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     _studentSub?.cancel();
     bool isFirst = true;
     _studentSub = _service
-        .watchStudentsByClass(_className, section: _section, teacherId: _teacherId)
+        .watchStudentsByClass(className: _className, section: _section, teacherId: _teacherId)
         .listen((list) {
       if (isFirst) { isFirst = false; return; }
       if (!mounted) return;
@@ -365,12 +365,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     Map<int, String> saved    = {};
 
     if (online) {
-      students = await _service.getStudentsByClass(_className,
+      students = await _service.getStudentsByClass(className: _className,
           section: _section, teacherId: _teacherId);
       if (widget.date == null) {
-        saved = await _service.loadTodayAttendance(_attendanceKey);
+        saved = await _service.loadTodayAttendance(className: _attendanceKey);
       } else {
-        final raw = await _service.loadAttendanceForDate(_attendanceKey, widget.date!);
+        final raw = await _service.loadAttendanceForDate(className: _attendanceKey, date: widget.date!);
         if (raw != null) {
           final rolls = Map<String, dynamic>.from((raw['rolls'] as Map?) ?? {});
           rolls.forEach((k, v) {
@@ -426,9 +426,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
 
     if (widget.date == null) {
-      await _service.saveAttendance(_attendanceKey, toSave);
+      await _service.saveAttendance(className: _attendanceKey, attendance: toSave);
     } else {
-      await _service.saveAttendanceForDate(_attendanceKey, toSave, widget.date!);
+      await _service.saveAttendanceForDate(className: _attendanceKey, attendance: toSave, date: widget.date!);
     }
     if (mounted) setState(() { _dirty = false; });
   }
@@ -483,9 +483,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _attendance.entries.where((e) => e.value.isNotEmpty));
     
     if (widget.date == null) {
-      await _service.saveAttendance(_attendanceKey, toSave);
+      await _service.saveAttendance(className: _attendanceKey, attendance: toSave);
     } else {
-      await _service.saveAttendanceForDate(_attendanceKey, toSave, widget.date!);
+      await _service.saveAttendanceForDate(className: _attendanceKey, attendance: toSave, date: widget.date!);
     }
 
     for (final s in _students) {
@@ -578,7 +578,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
     );
     if (ok != true) return;
-    await _service.removeStudent(s.roll, _className, section: _section);
+    await _service.removeStudent(roll: s.roll, className: _className, section: _section);
     setState(() { _students.remove(s); _attendance.remove(s.roll); });
   }
 
