@@ -142,7 +142,16 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: Scaffold(
       backgroundColor: AppTheme.background,
       body: RefreshIndicator(
         onRefresh: _loadAll,
@@ -342,6 +351,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
           ],
         ),
       ),
+    ),
     );
   }
 

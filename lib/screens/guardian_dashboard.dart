@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
 import '../models/exam.dart';
@@ -423,7 +424,16 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: Scaffold(
       backgroundColor: AppTheme.background,
       body: RefreshIndicator(
         onRefresh: _loadAll,
@@ -477,6 +487,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
           ],
         ),
       ),
+    ),
     );
   }
 }

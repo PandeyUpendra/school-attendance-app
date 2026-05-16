@@ -152,9 +152,9 @@ class _SplashGateState extends State<_SplashGate> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppTheme.primaryDark, AppTheme.primary, AppTheme.primaryMid],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [AppTheme.primaryDark, AppTheme.primaryMid],
           ),
         ),
         child: const Center(

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme.dart';
 import '../services/base_firestore_service.dart';
 import '../services/student_service.dart';
@@ -155,7 +156,16 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: Scaffold(
       backgroundColor: _cBg,
       body: RefreshIndicator(
         onRefresh: _loadAll,
@@ -418,6 +428,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
           ],
         ),
       ),
+    ),
     );
   }
 
