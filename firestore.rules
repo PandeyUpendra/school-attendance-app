@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // This app uses no Firebase Auth — authentication is handled
+    // in-app via the allowed_users collection + SharedPreferences.
+    // request.auth is always null, so role-based rules are not possible.
+    // All security is enforced at the application layer.
+
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
