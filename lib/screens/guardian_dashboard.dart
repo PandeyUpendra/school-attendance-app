@@ -423,44 +423,41 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: RefreshIndicator(
-        onRefresh: _loadAll,
-        color: AppTheme.primary,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            // ── Wave hero (always visible, covers status bar) ─────────
-            SliverToBoxAdapter(
-              child: _GuardianHeroCard(
-                studentName:      _student?.name ?? '',
-                studentClass:     widget.studentClass,
-                studentRoll:      widget.studentRoll,
-                todayStatus:      _todayStatus,
-                loading:          _loading,
-                unreadNotifCount: _unreadNotifCount,
-                onNotifTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => NotificationsScreen(
-                        role:         'guardian',
-                        studentClass: widget.studentClass,
-                        studentRoll:  widget.studentRoll,
-                      ),
-                    ),
-                  );
-                  _loadAll();
-                },
-                onLogout: _logout,
-              ),
-            ),
+      body: Column(
+        children: [
+          // ── Wave hero (sticky — never scrolls) ───────────────────────
+          _GuardianHeroCard(
+            studentName:      _student?.name ?? '',
+            studentClass:     widget.studentClass,
+            studentRoll:      widget.studentRoll,
+            todayStatus:      _todayStatus,
+            loading:          _loading,
+            unreadNotifCount: _unreadNotifCount,
+            onNotifTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => NotificationsScreen(
+                    role:         'guardian',
+                    studentClass: widget.studentClass,
+                    studentRoll:  widget.studentRoll,
+                  ),
+                ),
+              );
+              _loadAll();
+            },
+            onLogout: _logout,
+          ),
 
-            // ── Content ───────────────────────────────────────────────
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate(
-                  _loading
+          // ── Scrollable content ────────────────────────────────────────
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadAll,
+              color: AppTheme.primary,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: _loading
                     ? [const SizedBox(height: 60),
                        const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
                        const SizedBox(height: 60)]
@@ -469,11 +466,10 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                       : _student == null
                         ? _buildNoStudentChildren()
                         : _buildContentChildren(),
-                ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

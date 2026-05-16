@@ -453,10 +453,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBody(BuildContext context) {
     if (_isClassTeacher) {
-      return ListView(
-        padding: EdgeInsets.zero,
+      return Column(
         children: [
           _buildHero(),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
           const SizedBox(height: 4),
 
           _SectionHeader('ACADEMICS'),
@@ -682,15 +685,21 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           const SizedBox(height: 32),
+              ],
+            ),
+          ),
         ],
       );
     }
 
     // Regular teacher
-    return ListView(
-      padding: EdgeInsets.zero,
+    return Column(
       children: [
         _buildHero(),
+        Expanded(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
         const SizedBox(height: 4),
 
         _SectionHeader('ACADEMICS'),
@@ -878,6 +887,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
 
         const SizedBox(height: 32),
+            ],
+          ),
+        ),
       ],
     );
   }

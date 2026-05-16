@@ -143,26 +143,28 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       ),
       child: Scaffold(
       backgroundColor: AppTheme.background,
-      body: RefreshIndicator(
-        onRefresh: _loadAll,
-        color: AppTheme.primary,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            // ── Wave hero card ────────────────────────────────────────────
-            _PrincipalHeroCard(
-              loading:          _loading,
-              teachersAbsent:   _teachersAbsent,
-              unassignedBells:  _unassignedBells,
-              unreadNotifCount: _unreadNotifCount,
-              onNotifTap: () async {
-                await _navigate(const NotificationsScreen(role: 'principal'));
-                _loadAll();
-              },
-              onLogout: _logout,
-            ),
-
+      body: Column(
+        children: [
+          // ── Wave hero card (sticky — never scrolls) ───────────────────
+          _PrincipalHeroCard(
+            loading:          _loading,
+            teachersAbsent:   _teachersAbsent,
+            unassignedBells:  _unassignedBells,
+            unreadNotifCount: _unreadNotifCount,
+            onNotifTap: () async {
+              await _navigate(const NotificationsScreen(role: 'principal'));
+              _loadAll();
+            },
+            onLogout: _logout,
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadAll,
+              color: AppTheme.primary,
+              child: ListView(
+                padding: EdgeInsets.zero,
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
             if (!_loading) ...[
               // ── Today's Attendance ─────────────────────────────────────
               _SectionHeader("TODAY'S ATTENDANCE"),
@@ -300,8 +302,11 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               const SizedBox(height: 32),
             ],
           ],
+                ),
+              ),
+            ),
+          ],
         ),
-      ),
       ),
     );
   }
