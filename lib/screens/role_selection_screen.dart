@@ -347,6 +347,7 @@ class RoleSelectionScreen extends StatelessWidget {
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
+        extendBody: true,
         body: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
