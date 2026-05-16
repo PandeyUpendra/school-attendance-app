@@ -61,14 +61,9 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   Future<void> _loadAll() async {
     setState(() => _loading = true);
 
-    final session = await AuthService().getSession();
-    final email   = (session?['email'] as String?) ?? '';
-    final schoolId = (session?['schoolId'] as String?) ?? '';
-
-    if (schoolId.isEmpty) {
-      _logout();
-      return;
-    }
+    final session  = await AuthService().getSession();
+    final email    = (session?['email'] as String?) ?? '';
+    final schoolId = (session?['schoolId'] as String?) ?? 'school_1';
 
     _schoolId = schoolId;
     _principalEmail = email;
