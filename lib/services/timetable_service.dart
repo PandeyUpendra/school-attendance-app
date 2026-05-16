@@ -262,6 +262,7 @@ class TimetableService {
     String email,
     String password,
     String role, {
+    String?       name,
     String?       studentClass,
     int?          studentRoll,
     List<String>? assignedClasses,
@@ -273,6 +274,7 @@ class TimetableService {
       'email':    email.toLowerCase().trim(),
       'password': _hashPassword(password),
       'createdAt': FieldValue.serverTimestamp(),
+      if (name           != null) 'name':           name,
       if (createdByEmail != null) 'createdByEmail': createdByEmail,
       if (createdByRole  != null) 'createdByRole':  createdByRole,
     };
