@@ -355,26 +355,29 @@ class RoleSelectionScreen extends StatelessWidget {
               colors: [AppTheme.primaryDark, AppTheme.primary, AppTheme.primaryMid],
             ),
           ),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 48),
-                  const Icon(Icons.school, size: 48, color: Colors.white),
-                  const SizedBox(height: 16),
-                  const Text('School App',
-                      style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white)),
-                  const SizedBox(height: 6),
-                  Text('Who are you?',
-                      style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white.withOpacity(0.7))),
-                  const SizedBox(height: 32),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              24,
+              MediaQuery.paddingOf(context).top + 48,
+              24,
+              MediaQuery.paddingOf(context).bottom + 32,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.school, size: 48, color: Colors.white),
+                const SizedBox(height: 16),
+                const Text('School App',
+                    style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
+                const SizedBox(height: 6),
+                Text('Who are you?',
+                    style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white.withOpacity(0.7))),
+                const SizedBox(height: 32),
 
                   // ── Admin ─────────────────────────────────────────────────
                   _RoleCard(
@@ -438,7 +441,6 @@ class RoleSelectionScreen extends StatelessWidget {
                 ],
               ),
             ),
-          ),
         ),
       ),
     );
