@@ -454,6 +454,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBody(BuildContext context) {
     if (_isClassTeacher) {
       return ListView(
+        padding: EdgeInsets.zero,
         children: [
           _buildHero(),
           const SizedBox(height: 4),
@@ -687,6 +688,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Regular teacher
     return ListView(
+      padding: EdgeInsets.zero,
       children: [
         _buildHero(),
         const SizedBox(height: 4),

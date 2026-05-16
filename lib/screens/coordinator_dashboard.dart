@@ -167,30 +167,34 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
       ),
       child: Scaffold(
       backgroundColor: _cBg,
-      body: RefreshIndicator(
-        onRefresh: _loadAll,
-        color: _cPurple,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            // ── Hero card ──────────────────────────────────────────────────
-            _CoordHeroCard(
-              loading:           _attendanceLoading,
-              teachersAbsent:    _teachersAbsent,
-              unassignedBells:   _unassignedBells,
-              unreadNotifCount:  _unreadNotifCount,
-              onNotifTap: () async {
-                await _navigate(const NotificationsScreen(role: 'coordinator'));
-                _loadAll();
-              },
-              onLogout: () async {
-                await AuthService().clearSession();
-                if (context.mounted) {
-                  Navigator.pushReplacement(context,
-                      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()));
-                }
-              },
-            ),
+      body: Column(
+        children: [
+          // ── Hero card (fixed — does not scroll) ───────────────────────
+          _CoordHeroCard(
+            loading:           _attendanceLoading,
+            teachersAbsent:    _teachersAbsent,
+            unassignedBells:   _unassignedBells,
+            unreadNotifCount:  _unreadNotifCount,
+            onNotifTap: () async {
+              await _navigate(const NotificationsScreen(role: 'coordinator'));
+              _loadAll();
+            },
+            onLogout: () async {
+              await AuthService().clearSession();
+              if (context.mounted) {
+                Navigator.pushReplacement(context,
+                    MaterialPageRoute(builder: (_) => const RoleSelectionScreen()));
+              }
+            },
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadAll,
+              color: _cPurple,
+              child: ListView(
+                padding: EdgeInsets.zero,
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
 
             // ── REPORTS & ANALYTICS ───────────────────────────────────────
             const _SectionHeader('REPORTS & ANALYTICS'),
@@ -425,8 +429,11 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _buildCopyCheckingSection(),
 
             const SizedBox(height: 32),
-          ],
-        ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     ),
     );

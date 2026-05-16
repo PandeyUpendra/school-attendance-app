@@ -157,6 +157,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
         onRefresh: _loadAll,
         color: AppTheme.primary,
         child: ListView(
+          padding: EdgeInsets.zero,
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             // ── Wave hero card ────────────────────────────────────────────
