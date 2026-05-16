@@ -630,7 +630,7 @@ String _fmtStatus(String status, String viewerRole) {
     case 'rejected': return 'Rejected';
     case 'pending':  return 'Pending';
     case 'forwarded_to_principal':
-      return (viewerRole == 'principal' || viewerRole == 'owner' || viewerRole == 'ownerPrincipal')
+      return (viewerRole == 'principal' || viewerRole == 'owner')
           ? 'Forwarded to You' : 'Forwarded to Principal';
     default:
       return status[0].toUpperCase() + status.substring(1);

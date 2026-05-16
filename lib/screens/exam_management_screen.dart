@@ -34,7 +34,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
   String? _selectedClass;
   List<Exam> _exams = [];
 
-  bool get _canManage => widget.role == 'coordinator' || widget.role == 'ownerPrincipal';
+  bool get _canManage => widget.role == 'coordinator';
 
   @override
   void initState() {

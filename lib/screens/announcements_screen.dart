@@ -59,7 +59,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
 
   bool _canManageItem(Announcement a) {
     if (widget.viewerRole == 'principal' || widget.viewerRole == 'coordinator' ||
-        widget.viewerRole == 'owner' || widget.viewerRole == 'ownerPrincipal') {
+        widget.viewerRole == 'owner') {
       return true;
     }
     return a.postedBy == (widget.posterName ?? '__none__');
@@ -440,8 +440,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                     canManage: _canManageItem(_items[i]),
                     canPin: widget.viewerRole == 'principal' ||
                         widget.viewerRole == 'coordinator' ||
-                        widget.viewerRole == 'owner' ||
-                        widget.viewerRole == 'ownerPrincipal',
+                        widget.viewerRole == 'owner',
                     onPin:    () => _togglePin(_items[i]),
                     onEdit:   () => _openComposer(editing: _items[i]),
                     onDelete: () => _confirmDelete(_items[i]),

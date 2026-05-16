@@ -9,7 +9,6 @@ import 'admin_screen.dart';
 import 'principal_dashboard.dart';
 import 'guardian_dashboard.dart';
 import 'owner/owner_home.dart';
-import 'owner/owner_principal_home.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
@@ -175,11 +174,10 @@ class RoleSelectionScreen extends StatelessWidget {
           return;
         }
 
-        // Coordinator / Principal — fetch their assigned classes and schoolId.
+        // Coordinator / Principal / Owner — fetch their assigned classes and schoolId.
         List<String>? assignedClasses;
         String?       schoolId;
-        if (role == 'coordinator' || role == 'principal' ||
-            role == 'owner' || role == 'ownerPrincipal') {
+        if (role == 'coordinator' || role == 'principal' || role == 'owner') {
           final loginData = await TimetableService().getAssignedClasses(email);
           assignedClasses = loginData.assignedClasses;
           schoolId        = loginData.schoolId;
@@ -391,16 +389,6 @@ class RoleSelectionScreen extends StatelessWidget {
                     subtitle: 'Manage principals and school hierarchy',
                     onTap: () => _loginAsRole(
                         context, 'owner', const OwnerHome()),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // ── Owner-Principal ───────────────────────────────────────
-                  _RoleCard(
-                    icon: Icons.manage_accounts_outlined,
-                    title: 'Owner-Principal',
-                    subtitle: 'Manage principals and coordinators',
-                    onTap: () => _loginAsRole(
-                        context, 'ownerPrincipal', const OwnerPrincipalHome()),
                   ),
                   const SizedBox(height: 12),
 

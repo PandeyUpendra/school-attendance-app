@@ -259,8 +259,7 @@ class TimetableService {
       data['studentClass'] = null;
       data['studentRoll']  = null;
     }
-    if (role == 'coordinator' || role == 'principal' ||
-        role == 'owner' || role == 'ownerPrincipal') {
+    if (role == 'coordinator' || role == 'principal' || role == 'owner') {
       data['assignedClasses'] = assignedClasses ?? [];
     } else {
       data['assignedClasses'] = null;
@@ -294,8 +293,7 @@ class TimetableService {
       data['studentClass'] = studentClass;
       data['studentRoll']  = studentRoll;
     }
-    if (role == 'coordinator' || role == 'principal' ||
-        role == 'owner' || role == 'ownerPrincipal') {
+    if (role == 'coordinator' || role == 'principal' || role == 'owner') {
       data['assignedClasses'] = assignedClasses ?? [];
     }
     await _allowedUsers.doc(email.toLowerCase().trim()).set(data);

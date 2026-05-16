@@ -26,18 +26,16 @@ class _AdminScreenState extends State<AdminScreen> {
   // Admin can only create Owner and Owner-Principal. All other roles are
   // created by the appropriate role in their own home screen.
   static const _roles = [
-    {'value': 'owner',          'label': 'Owner',            'icon': Icons.stars_outlined},
-    {'value': 'ownerPrincipal', 'label': 'Owner-Principal',  'icon': Icons.manage_accounts_outlined},
+    {'value': 'owner', 'label': 'Owner', 'icon': Icons.stars_outlined},
   ];
 
   // Role → accent colour (all purple-family now, semantic distinction by shade/hue)
   static const _roleColors = {
-    'teacher':        AppTheme.primary,
-    'coordinator':    AppTheme.primaryMid,
-    'principal':      AppTheme.primaryDark,
-    'guardian':       AppTheme.accent,
-    'owner':          Color(0xFF37474F),
-    'ownerPrincipal': Color(0xFF1B5E20),
+    'teacher':     AppTheme.primary,
+    'coordinator': AppTheme.primaryMid,
+    'principal':   AppTheme.primaryDark,
+    'guardian':    AppTheme.accent,
+    'owner':       Color(0xFF37474F),
   };
 
   @override
@@ -64,10 +62,10 @@ class _AdminScreenState extends State<AdminScreen> {
     if (!mounted) return;
     final allUsers = results[0] as List<Map<String, dynamic>>;
     final settings = results[1] as Map<String, dynamic>;
-    // Admin sees only Owner and Owner-Principal accounts.
+    // Admin sees only Owner accounts.
     final owners = allUsers.where((u) {
       final r = u['role'] as String;
-      return r == 'owner' || r == 'ownerPrincipal';
+      return r == 'owner';
     }).toList();
     setState(() {
       _users            = owners;
@@ -223,7 +221,7 @@ class _AdminScreenState extends State<AdminScreen> {
                               rollCtrl.clear();
                             }
                             if (val != 'coordinator' && val != 'principal' &&
-                                val != 'owner' && val != 'ownerPrincipal') {
+                                val != 'owner') {
                               editAssigned = [];
                             }
                           }),
@@ -268,8 +266,7 @@ class _AdminScreenState extends State<AdminScreen> {
                     // Coordinator / Principal / Owner — assigned classes
                     if (editRole == 'coordinator' ||
                         editRole == 'principal'   ||
-                        editRole == 'owner'       ||
-                        editRole == 'ownerPrincipal') ...[
+                        editRole == 'owner') ...[
                       const SizedBox(height: 16),
                       Text('ASSIGNED CLASSES',
                           style: TextStyle(
@@ -469,8 +466,7 @@ class _AdminScreenState extends State<AdminScreen> {
                             studentRoll:     editRole == 'guardian' ? roll     : null,
                             assignedClasses: (editRole == 'coordinator' ||
                                               editRole == 'principal'   ||
-                                              editRole == 'owner'       ||
-                                              editRole == 'ownerPrincipal')
+                                              editRole == 'owner')
                                 ? editAssigned
                                 : null,
                           );
@@ -540,12 +536,11 @@ class _AdminScreenState extends State<AdminScreen> {
 
   IconData _roleIcon(String role) {
     switch (role) {
-      case 'coordinator':    return Icons.admin_panel_settings_outlined;
-      case 'principal':      return Icons.business_outlined;
-      case 'guardian':       return Icons.family_restroom_outlined;
-      case 'owner':          return Icons.stars_outlined;
-      case 'ownerPrincipal': return Icons.manage_accounts_outlined;
-      default:               return Icons.person_outline;
+      case 'coordinator': return Icons.admin_panel_settings_outlined;
+      case 'principal':   return Icons.business_outlined;
+      case 'guardian':    return Icons.family_restroom_outlined;
+      case 'owner':       return Icons.stars_outlined;
+      default:            return Icons.person_outline;
     }
   }
 
