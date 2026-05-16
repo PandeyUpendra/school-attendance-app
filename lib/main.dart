@@ -19,9 +19,12 @@ void main() async {
   // on every screen. AppBarTheme sets it precisely to AppTheme.primary on
   // screens that have an AppBar.
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: AppTheme.primaryDark,        // #4A148C – gradient start
-    statusBarIconBrightness: Brightness.light,   // white icons on dark bg
-    statusBarBrightness: Brightness.dark,        // iOS: white icons
+    statusBarColor: AppTheme.primary,
+    statusBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
+    systemNavigationBarColor: AppTheme.primary,
+    systemNavigationBarIconBrightness: Brightness.light,
+    systemNavigationBarDividerColor: AppTheme.primary,
   ));
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -34,11 +37,21 @@ class SchoolApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'School App',
-      theme: AppTheme.light,
-      home: const _SplashGate(),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: AppTheme.primary,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: AppTheme.primary,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarDividerColor: AppTheme.primary,
+      ),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'School App',
+        theme: AppTheme.light,
+        home: const _SplashGate(),
+      ),
     );
   }
 }

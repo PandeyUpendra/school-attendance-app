@@ -50,9 +50,12 @@ abstract class AppTheme {
       foregroundColor: Colors.white,
       elevation: 0,
       systemOverlayStyle: SystemUiOverlayStyle(
-        statusBarColor: primary,               // #6A1B9A – matches AppBar bg
+        statusBarColor: primary,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: primary,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarDividerColor: primary,
       ),
     ),
 
