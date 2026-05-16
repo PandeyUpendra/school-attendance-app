@@ -14,7 +14,7 @@ import 'services/timetable_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
@@ -49,6 +49,16 @@ class SchoolApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         title: 'School App',
         theme: AppTheme.light,
+        builder: (context, child) {
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(
+                MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.2),
+              ),
+            ),
+            child: child!,
+          );
+        },
         home: const _SplashGate(),
       ),
     );
