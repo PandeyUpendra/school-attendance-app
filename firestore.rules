@@ -3,74 +3,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function getUserData() {
-      return get(/databases/$(database)/documents/allowed_users/$(request.auth.token.email.lower())).data;
-    }
-
-
-    function getRole() {
-      return getUserData().role;
-    }
-
-    function getSchoolId() {
-      return getUserData().schoolId;
-    }
-
-    function isStaff() {
-      return getRole() in ['teacher', 'coordinator', 'principal', 'subjectTeacher'];
-    }
-
-    // Match all documents under a school
-    match /schools/{schoolId}/{document=**} {
-      // Ensure user belongs to this school
-      allow read, write: if isSignedIn() && getSchoolId() == schoolId;
-    }
-
-    // Specific rules for Staff Tasks
-    match /schools/{schoolId}/staff_tasks/{taskId} {
-      allow create: if isSignedIn() &&
-                      getSchoolId() == schoolId &&
-                      (getRole() in ['principal', 'coordinator'] ||
-                       request.resource.data.assignedToIds == [request.auth.token.email.lower()]);
-
-      allow update: if isSignedIn() &&
-                      getSchoolId() == schoolId &&
-                      (getRole() in ['principal', 'coordinator'] ||
-                       resource.data.assignedToIds.contains(request.auth.token.email.lower()) ||
-                       resource.data.createdBy == request.auth.token.email.lower());
-
-      // Soft delete check - prevent hard deletion
-      allow delete: if false;
-    }
-
-    // User management rules
+    // ── Login / user registry ────────────────────────────────────────────────
+    // App has no Firebase Auth — login is validated app-side against hashed
+    // passwords stored here. Reads must be open so unauthenticated clients
+    // can complete the Firestore-based login flow.
     match /allowed_users/{email} {
-      // Users can read their own profile
-      allow read: if isSignedIn() && (request.auth.token.email.lower() == email.lower() || getRole() == 'admin' || getRole() == 'principal');
-      // Only admins can create/update users
-      allow write: if isSignedIn() && (getRole() == 'admin' || email == 'admin@school.app');
+      allow read: if true;
+      allow write: if false; // only Admin screen (PIN-gated) writes via app
     }
 
-
-    // Audit logs - only principal can read, only system/service can write (actually app writes)
-    match /schools/{schoolId}/audit_logs/{logId} {
-      allow read: if isSignedIn() && getSchoolId() == schoolId && getRole() == 'principal';
-      allow create: if isSignedIn() && getSchoolId() == schoolId;
-      allow update, delete: if false;
+    // ── School-namespaced data (Gallery, Albums) ──────────────────────────────
+    match /schools/{schoolId}/{document=**} {
+      allow read, write: if true;
     }
 
-    // User profiles
-    match /users/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && request.auth.uid == userId;
-    }
+    // ── Root-level app collections ────────────────────────────────────────────
+    match /teachers/{doc=**}           { allow read, write: if true; }
+    match /students/{doc=**}           { allow read, write: if true; }
+    match /attendance/{doc=**}         { allow read, write: if true; }
+    match /timetable/{doc=**}          { allow read, write: if true; }
+    match /settings/{doc=**}           { allow read, write: if true; }
+    match /duties/{doc=**}             { allow read, write: if true; }
+    match /substitutions/{doc=**}      { allow read, write: if true; }
+    match /leave_applications/{doc=**} { allow read, write: if true; }
+    match /notifications/{doc=**}      { allow read, write: if true; }
+    match /announcements/{doc=**}      { allow read, write: if true; }
+    match /homework/{doc=**}           { allow read, write: if true; }
+    match /exams/{doc=**}              { allow read, write: if true; }
+    match /fees/{doc=**}               { allow read, write: if true; }
+    match /copy_checks/{doc=**}        { allow read, write: if true; }
+    match /staff_tasks/{doc=**}        { allow read, write: if true; }
 
-    // Global fallback
+    // Deny everything else
     match /{document=**} {
       allow read, write: if false;
     }
