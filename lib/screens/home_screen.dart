@@ -64,9 +64,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: _buildBody(context),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: Scaffold(
+        backgroundColor: AppTheme.background,
+        body: _buildBody(context),
+      ),
     );
   }
 
@@ -444,6 +454,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBody(BuildContext context) {
     if (_isClassTeacher) {
       return ListView(
+        padding: EdgeInsets.zero,
         children: [
           _buildHero(),
           const SizedBox(height: 4),
@@ -677,6 +688,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Regular teacher
     return ListView(
+      padding: EdgeInsets.zero,
       children: [
         _buildHero(),
         const SizedBox(height: 4),

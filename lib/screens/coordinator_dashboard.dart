@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
@@ -142,33 +143,45 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: Scaffold(
       backgroundColor: _cBg,
-      body: RefreshIndicator(
-        onRefresh: _loadAll,
-        color: _cPurple,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            // ── Hero card ──────────────────────────────────────────────────
-            _CoordHeroCard(
-              loading:           _attendanceLoading,
-              teachersAbsent:    _teachersAbsent,
-              unassignedBells:   _unassignedBells,
-              unreadNotifCount:  _unreadNotifCount,
-              onNotifTap: () async {
-                await _navigate(const NotificationsScreen(role: 'coordinator'));
-                _loadAll();
-              },
-              onLogout: () async {
-                await AuthService().clearSession();
-                if (context.mounted) {
-                  Navigator.pushReplacement(context,
-                      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()));
-                }
-              },
-            ),
-
+      body: Column(
+        children: [
+          // ── Hero card (fixed — does not scroll) ───────────────────────
+          _CoordHeroCard(
+            loading:           _attendanceLoading,
+            teachersAbsent:    _teachersAbsent,
+            unassignedBells:   _unassignedBells,
+            unreadNotifCount:  _unreadNotifCount,
+            onNotifTap: () async {
+              await _navigate(const NotificationsScreen(role: 'coordinator'));
+              _loadAll();
+            },
+            onLogout: () async {
+              await AuthService().clearSession();
+              if (context.mounted) {
+                Navigator.pushReplacement(context,
+                    MaterialPageRoute(builder: (_) => const RoleSelectionScreen()));
+              }
+            },
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadAll,
+              color: _cPurple,
+              child: ListView(
+                padding: EdgeInsets.zero,
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
             const SizedBox(height: 4),
 
             // ── Staff Tasks ───────────────────────────────────────────────
@@ -377,8 +390,12 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _buildAttendanceSection(),
 
             const SizedBox(height: 32),
-          ],
-        ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
       ),
     );
   }

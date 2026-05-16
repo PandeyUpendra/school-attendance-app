@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
 import '../services/student_service.dart';
@@ -131,12 +132,22 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: Scaffold(
       backgroundColor: AppTheme.background,
       body: RefreshIndicator(
         onRefresh: _loadAll,
         color: AppTheme.primary,
         child: ListView(
+          padding: EdgeInsets.zero,
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             // ── Wave hero card ────────────────────────────────────────────
@@ -290,6 +301,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             ],
           ],
         ),
+      ),
       ),
     );
   }
