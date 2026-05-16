@@ -441,7 +441,6 @@ class RoleSelectionScreen extends StatelessWidget {
           ),
         ),
       ),
-    ),
     );
   }
 }
