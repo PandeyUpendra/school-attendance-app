@@ -4,12 +4,10 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ── Login / user registry ────────────────────────────────────────────────
-    // App has no Firebase Auth — login is validated app-side against hashed
-    // passwords stored here. Reads must be open so unauthenticated clients
-    // can complete the Firestore-based login flow.
+    // App has no Firebase Auth — login and account management are handled
+    // app-side (PIN-gated Admin screen). Both reads and writes must be open.
     match /allowed_users/{email} {
-      allow read: if true;
-      allow write: if false; // only Admin screen (PIN-gated) writes via app
+      allow read, write: if true;
     }
 
     // ── School-namespaced data (Gallery, Albums) ──────────────────────────────
