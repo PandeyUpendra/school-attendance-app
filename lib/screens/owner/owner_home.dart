@@ -1071,8 +1071,7 @@ class _ManagePageState extends State<_ManagePage> {
     if (!_perm.canCreate(widget.role, _createRole)) { _snack('No permission to create $_createRole accounts'); return; }
     setState(() => _saving = true);
     try {
-      await _svc.addAllowedUser(email, pass, _createRole, createdByEmail: widget.email, createdByRole: widget.role);
-      await FirebaseFirestore.instance.collection('allowed_users').doc(email).update({'name': name});
+      await _svc.addAllowedUser(email, pass, _createRole, name: name, createdByEmail: widget.email, createdByRole: widget.role);
       _nameCtrl.clear(); _emailCtrl.clear(); _passCtrl.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${RolePermissionService.roleDisplayName(_createRole)} account created'), backgroundColor: AppTheme.success));

@@ -280,8 +280,8 @@ class TimetableService {
       'email':    email.toLowerCase().trim(),
       'password': _hashPassword(password),
       'createdAt': FieldValue.serverTimestamp(),
-      if (name           != null && name.isNotEmpty)  'name':          name,
-      if (schoolId       != null && schoolId.isNotEmpty) 'schoolId':   schoolId,
+      if (name           != null && name.isNotEmpty)  'name':     name,
+      if (schoolId       != null && schoolId.isNotEmpty) 'schoolId': schoolId,
       if (createdByEmail != null) 'createdByEmail': createdByEmail,
       if (createdByRole  != null) 'createdByRole':  createdByRole,
     };
