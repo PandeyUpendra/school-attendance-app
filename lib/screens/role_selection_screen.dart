@@ -341,6 +341,9 @@ class RoleSelectionScreen extends StatelessWidget {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -438,6 +441,7 @@ class RoleSelectionScreen extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

@@ -14,16 +14,15 @@ import 'services/timetable_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Status bar: solid deep-violet so it matches the hero gradient top edge
-  // on every screen. AppBarTheme sets it precisely to AppTheme.primary on
-  // screens that have an AppBar.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: AppTheme.primary,
+    statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
     statusBarBrightness: Brightness.dark,
-    systemNavigationBarColor: AppTheme.primary,
-    systemNavigationBarIconBrightness: Brightness.light,
-    systemNavigationBarDividerColor: AppTheme.primary,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarIconBrightness: Brightness.dark,
+    systemNavigationBarDividerColor: Colors.transparent,
+    systemNavigationBarContrastEnforced: false,
   ));
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -38,12 +37,13 @@ class SchoolApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
-        statusBarColor: AppTheme.primary,
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: AppTheme.primary,
-        systemNavigationBarIconBrightness: Brightness.light,
-        systemNavigationBarDividerColor: AppTheme.primary,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
       ),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
