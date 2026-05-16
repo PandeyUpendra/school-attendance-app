@@ -175,11 +175,14 @@ class RoleSelectionScreen extends StatelessWidget {
           return;
         }
 
-        // Coordinator / Principal — fetch their assigned classes from Firestore.
+        // Coordinator / Principal — fetch their assigned classes and schoolId.
         List<String>? assignedClasses;
+        String?       schoolId;
         if (role == 'coordinator' || role == 'principal' ||
             role == 'owner' || role == 'ownerPrincipal') {
-          assignedClasses = await TimetableService().getAssignedClasses(email);
+          final loginData = await TimetableService().getAssignedClasses(email);
+          assignedClasses = loginData.assignedClasses;
+          schoolId        = loginData.schoolId;
         }
 
         // Teacher / Coordinator / Principal — save session and go to destination.
@@ -187,6 +190,7 @@ class RoleSelectionScreen extends StatelessWidget {
           email: email,
           role:  role,
           assignedClasses: assignedClasses,
+          schoolId: schoolId,
         );
         if (context.mounted) {
           Navigator.pushReplacement(
@@ -334,103 +338,115 @@ class RoleSelectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 48),
-              const Icon(Icons.school, size: 48, color: AppTheme.primary),
-              const SizedBox(height: 16),
-              const Text('School App',
-                  style: TextStyle(
-                      fontSize: 28, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              Text('Who are you?',
-                  style: TextStyle(
-                      fontSize: 16, color: Colors.grey.shade500)),
-              const SizedBox(height: 32),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppTheme.primaryDark, AppTheme.primary, AppTheme.primaryMid],
+            ),
+          ),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 48),
+                  const Icon(Icons.school, size: 48, color: Colors.white),
+                  const SizedBox(height: 16),
+                  const Text('School App',
+                      style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                  const SizedBox(height: 6),
+                  Text('Who are you?',
+                      style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withOpacity(0.7))),
+                  const SizedBox(height: 32),
 
-              // ── Admin ─────────────────────────────────────────────────
-              _RoleCard(
-                icon: Icons.manage_accounts_outlined,
-                title: 'Admin',
-                subtitle: 'Manage registered users & login access',
-                color: AppTheme.primary,
-                onTap: () => _openAdmin(context),
+                  // ── Admin ─────────────────────────────────────────────────
+                  _RoleCard(
+                    icon: Icons.manage_accounts_outlined,
+                    title: 'Admin',
+                    subtitle: 'Manage registered users & login access',
+                    onTap: () => _openAdmin(context),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ── Owner ─────────────────────────────────────────────────
+                  _RoleCard(
+                    icon: Icons.stars_outlined,
+                    title: 'Owner',
+                    subtitle: 'Manage principals and school hierarchy',
+                    onTap: () => _loginAsRole(
+                        context, 'owner', const OwnerHome()),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ── Owner-Principal ───────────────────────────────────────
+                  _RoleCard(
+                    icon: Icons.manage_accounts_outlined,
+                    title: 'Owner-Principal',
+                    subtitle: 'Manage principals and coordinators',
+                    onTap: () => _loginAsRole(
+                        context, 'ownerPrincipal', const OwnerPrincipalHome()),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ── Principal ─────────────────────────────────────────────
+                  _RoleCard(
+                    icon: Icons.business_outlined,
+                    title: 'Principal',
+                    subtitle: 'School overview, attendance & leave approvals',
+                    onTap: () => _loginAsRole(
+                        context, 'principal', const PrincipalDashboard()),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ── Coordinator ───────────────────────────────────────────
+                  _RoleCard(
+                    icon: Icons.admin_panel_settings_outlined,
+                    title: 'Coordinator',
+                    subtitle: 'Manage timetable, teachers, duties & students',
+                    onTap: () => _loginAsRole(
+                        context, 'coordinator', const CoordinatorDashboard()),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ── Teacher ───────────────────────────────────────────────
+                  _RoleCard(
+                    icon: Icons.person_outline,
+                    title: 'Teacher',
+                    subtitle: 'Take attendance, manage your students',
+                    onTap: () => _loginAsRole(
+                        context, 'teacher', const TeacherProfileScreen()),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ── Guardian ──────────────────────────────────────────────
+                  _RoleCard(
+                    icon: Icons.family_restroom_outlined,
+                    title: 'Guardian',
+                    subtitle: "View your child's attendance & progress",
+                    onTap: () => _loginAsRole(
+                        context, 'guardian', const _PlaceholderDestination()),
+                  ),
+
+                  const SizedBox(height: 32),
+                ],
               ),
-              const SizedBox(height: 12),
-
-              // ── Owner ─────────────────────────────────────────────────
-              _RoleCard(
-                icon: Icons.stars_outlined,
-                title: 'Owner',
-                subtitle: 'Manage principals and school hierarchy',
-                color: AppTheme.primary,
-                onTap: () => _loginAsRole(
-                    context, 'owner', const OwnerHome()),
-              ),
-              const SizedBox(height: 12),
-
-              // ── Owner-Principal ───────────────────────────────────────
-              _RoleCard(
-                icon: Icons.manage_accounts_outlined,
-                title: 'Owner-Principal',
-                subtitle: 'Manage principals and coordinators',
-                color: AppTheme.primary,
-                onTap: () => _loginAsRole(
-                    context, 'ownerPrincipal', const OwnerPrincipalHome()),
-              ),
-              const SizedBox(height: 12),
-
-              // ── Principal ─────────────────────────────────────────────
-              _RoleCard(
-                icon: Icons.business_outlined,
-                title: 'Principal',
-                subtitle: 'School overview, attendance & leave approvals',
-                color: AppTheme.primary,
-                onTap: () => _loginAsRole(
-                    context, 'principal', const PrincipalDashboard()),
-              ),
-              const SizedBox(height: 12),
-
-              // ── Coordinator ───────────────────────────────────────────
-              _RoleCard(
-                icon: Icons.admin_panel_settings_outlined,
-                title: 'Coordinator',
-                subtitle: 'Manage timetable, teachers, duties & students',
-                color: AppTheme.primary,
-                onTap: () => _loginAsRole(
-                    context, 'coordinator', const CoordinatorDashboard()),
-              ),
-              const SizedBox(height: 12),
-
-              // ── Teacher ───────────────────────────────────────────────
-              _RoleCard(
-                icon: Icons.person_outline,
-                title: 'Teacher',
-                subtitle: 'Take attendance, manage your students',
-                color: AppTheme.primary,
-                onTap: () => _loginAsRole(
-                    context, 'teacher', const TeacherProfileScreen()),
-              ),
-              const SizedBox(height: 12),
-
-              // ── Guardian ──────────────────────────────────────────────
-              _RoleCard(
-                icon: Icons.family_restroom_outlined,
-                title: 'Guardian',
-                subtitle: "View your child's attendance & progress",
-                color: AppTheme.primary,
-                onTap: () => _loginAsRole(
-                    context, 'guardian', const _PlaceholderDestination()),
-              ),
-
-              const SizedBox(height: 32),
-            ],
+            ),
           ),
         ),
       ),
@@ -452,14 +468,12 @@ class _RoleCard extends StatelessWidget {
   final IconData icon;
   final String   title;
   final String   subtitle;
-  final Color    color;
   final VoidCallback onTap;
 
   const _RoleCard({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.color,
     required this.onTap,
   });
 
@@ -468,23 +482,24 @@ class _RoleCard extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
+      splashColor: Colors.white24,
+      highlightColor: Colors.white10,
       child: Container(
         width: double.infinity,
-        padding:
-            const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.05),
+          color: Colors.white.withOpacity(0.13),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: Colors.white.withOpacity(0.25)),
         ),
         child: Row(children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: Colors.white.withOpacity(0.18),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -492,19 +507,20 @@ class _RoleCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title,
-                    style: TextStyle(
+                    style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: color)),
+                        color: Colors.white)),
                 const SizedBox(height: 3),
                 Text(subtitle,
                     style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade600)),
+                        fontSize: 12,
+                        color: Colors.white.withOpacity(0.7))),
               ],
             ),
           ),
           Icon(Icons.arrow_forward_ios,
-              size: 14, color: color.withOpacity(0.4)),
+              size: 14, color: Colors.white.withOpacity(0.5)),
         ]),
       ),
     );

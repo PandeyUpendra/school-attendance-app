@@ -129,16 +129,25 @@ class _SplashGateState extends State<_SplashGate> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.school, size: 56, color: AppTheme.primary),
-            SizedBox(height: 20),
-            CircularProgressIndicator(color: AppTheme.primary),
-          ],
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.primaryDark, AppTheme.primary, AppTheme.primaryMid],
+          ),
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.school, size: 56, color: Colors.white),
+              SizedBox(height: 20),
+              CircularProgressIndicator(color: Colors.white),
+            ],
+          ),
         ),
       ),
     );

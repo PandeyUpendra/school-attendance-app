@@ -225,13 +225,18 @@ class TimetableService {
   }
 
   /// Returns the assigned classes for a coordinator/principal, or null if not set.
-  Future<List<String>?> getAssignedClasses(String email) async {
+  Future<({List<String>? assignedClasses, String? schoolId})> getAssignedClasses(String email) async {
     final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
-    if (!doc.exists || doc.data() == null) return null;
-    final raw = doc.data()!['assignedClasses'];
-    if (raw == null) return null;
-    final list = List<String>.from(raw as List);
-    return list.isEmpty ? null : list;
+    if (!doc.exists || doc.data() == null) return (assignedClasses: null, schoolId: null);
+    final data     = doc.data()!;
+    final raw      = data['assignedClasses'];
+    final schoolId = data['schoolId'] as String?;
+    List<String>? classes;
+    if (raw != null) {
+      final list = List<String>.from(raw as List);
+      classes = list.isEmpty ? null : list;
+    }
+    return (assignedClasses: classes, schoolId: schoolId);
   }
 
   Future<void> updateAllowedUser(
