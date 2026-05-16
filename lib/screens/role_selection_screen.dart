@@ -209,8 +209,19 @@ class RoleSelectionScreen extends StatelessWidget {
           .showSnackBar(const SnackBar(content: Text('Enter your password')));
       return false;
     }
-    final role =
-        await TimetableService().validateLogin(trimmed, password.trim());
+    final String? role;
+    try {
+      role = await TimetableService().validateLogin(trimmed, password.trim());
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text(
+              'Login failed. Check your internet connection and try again.'),
+          backgroundColor: Colors.red.shade700,
+        ));
+      }
+      return false;
+    }
     if (role == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
