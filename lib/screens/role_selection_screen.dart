@@ -137,59 +137,69 @@ class RoleSelectionScreen extends StatelessWidget {
     if (ok == true && context.mounted) {
       final email = emailCtrl.text.trim().toLowerCase();
 
-      // Guardian: fetch the linked student (class + roll) from Firestore,
-      // store it in the session and route to a GuardianDashboard built for
-      // that specific child. If not linked, the admin needs to set it.
-      if (role == 'guardian') {
-        final link = await TimetableService().getGuardianLink(email);
-        if (!context.mounted) return;
-        if (link == null) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Text(
-                'Your guardian account is not linked to a student yet. '
-                'Please ask the admin to set your child class & roll.'),
-            backgroundColor: Colors.orange.shade700,
-            duration: const Duration(seconds: 4),
-          ));
+      try {
+        // Guardian: fetch the linked student (class + roll) from Firestore,
+        // store it in the session and route to a GuardianDashboard built for
+        // that specific child. If not linked, the admin needs to set it.
+        if (role == 'guardian') {
+          final link = await TimetableService().getGuardianLink(email);
+          if (!context.mounted) return;
+          if (link == null) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: const Text(
+                  'Your guardian account is not linked to a student yet. '
+                  'Please ask the admin to set your child class & roll.'),
+              backgroundColor: Colors.orange.shade700,
+              duration: const Duration(seconds: 4),
+            ));
+            return;
+          }
+          final sClass   = link['studentClass']   as String;
+          final sRoll    = link['studentRoll']    as int;
+          final sSection = link['studentSection'] as String? ?? '';
+          await AuthService().saveSession(
+            email: email,
+            role: role,
+            studentClass: sClass,
+            studentRoll:  sRoll,
+            studentSection: sSection,
+          );
+          if (!context.mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => GuardianDashboard(
+                  studentClass: sClass, studentRoll: sRoll, studentSection: sSection),
+            ),
+          );
           return;
         }
-        final sClass   = link['studentClass']   as String;
-        final sRoll    = link['studentRoll']    as int;
-        final sSection = link['studentSection'] as String? ?? '';
+
+        // Coordinator / Principal — fetch their assigned classes from Firestore.
+        List<String>? assignedClasses;
+        if (role == 'coordinator' || role == 'principal' ||
+            role == 'owner' || role == 'ownerPrincipal') {
+          assignedClasses = await TimetableService().getAssignedClasses(email);
+        }
+
+        // Teacher / Coordinator / Principal — save session and go to destination.
         await AuthService().saveSession(
           email: email,
-          role: role,
-          studentClass: sClass,
-          studentRoll:  sRoll,
-          studentSection: sSection,
+          role:  role,
+          assignedClasses: assignedClasses,
         );
-        if (!context.mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => GuardianDashboard(
-                studentClass: sClass, studentRoll: sRoll, studentSection: sSection),
-          ),
-        );
-        return;
-      }
-
-      // Coordinator / Principal — fetch their assigned classes from Firestore.
-      List<String>? assignedClasses;
-      if (role == 'coordinator' || role == 'principal' ||
-          role == 'owner' || role == 'ownerPrincipal') {
-        assignedClasses = await TimetableService().getAssignedClasses(email);
-      }
-
-      // Teacher / Coordinator / Principal — save session and go to destination.
-      await AuthService().saveSession(
-        email: email,
-        role:  role,
-        assignedClasses: assignedClasses,
-      );
-      if (context.mounted) {
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => destination));
+        if (context.mounted) {
+          Navigator.pushReplacement(
+              context, MaterialPageRoute(builder: (_) => destination));
+        }
+      } catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: const Text(
+                'Login failed. Check your internet connection and try again.'),
+            backgroundColor: Colors.red.shade700,
+          ));
+        }
       }
     }
   }
