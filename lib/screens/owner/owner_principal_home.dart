@@ -15,7 +15,7 @@ import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
 import '../../utils/role_guard.dart';
-import '../principal_home.dart';
+import '../principal_dashboard.dart';
 import '../role_selection_screen.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -143,12 +143,9 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
             icon: Icons.admin_panel_settings_outlined,
             color: AppTheme.primary,
             title: 'Principal Dashboard',
-            subtitle: 'Digest, leave requests, staff tasks & analytics',
+            subtitle: 'Attendance, tasks, digest, leave requests, analytics & more',
             onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => Scaffold(
-                backgroundColor: AppTheme.background,
-                body: Navigator(onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => const PrincipalHome())),
-              ),
+              builder: (_) => const PrincipalDashboard(),
             )),
           ),
 
