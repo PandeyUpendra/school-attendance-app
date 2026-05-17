@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -231,22 +230,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     setState(() => _generatingPdf = true);
     try {
       final pdfBytes = await _buildPdf(m);
-
-      // Upload to Firebase Storage.
-      final ref = FirebaseStorage.instance
-          .ref('schools/school_1/meetingPDFs/${m.id}.pdf');
-      final task = ref.putData(
-        pdfBytes,
-        SettableMetadata(contentType: 'application/pdf'),
-      );
-      await task;
-      final url = await ref.getDownloadURL();
-      await _svc.updatePdfUrl(m.id, url);
-
       if (!mounted) return;
-      _snack('PDF saved');
-
-      // Show PDF to user.
       await Printing.layoutPdf(
         onLayout: (_) async => pdfBytes,
         name:     '${m.title.replaceAll(' ', '_')}.pdf',

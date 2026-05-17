@@ -2,14 +2,22 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/teacher.dart';
 import '../services/notification_service.dart';
 import '../theme.dart';
+import 'announcements_screen.dart';
+import 'leave_application_screen.dart';
+import 'leave_requests_screen.dart';
+import 'staff_tasks_screen.dart';
+import 'substitution_history_screen.dart';
+import 'meeting/teacher_meeting_tasks_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
-  final String  role;
-  final String? teacherId;
-  final String? studentClass;
-  final int?    studentRoll;
+  final String   role;
+  final String?  teacherId;
+  final String?  studentClass;
+  final int?     studentRoll;
+  final Teacher? teacher;
 
   const NotificationsScreen({
     super.key,
@@ -17,6 +25,7 @@ class NotificationsScreen extends StatefulWidget {
     this.teacherId,
     this.studentClass,
     this.studentRoll,
+    this.teacher,
   });
 
   @override
@@ -118,27 +127,123 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     setState(() => _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0);
   }
 
-  IconData _iconFor(String type) {
+  // ── Navigation ────────────────────────────────────────────────────────────
+
+  bool _hasRoute(String type) {
     switch (type) {
-      case 'absent':           return Icons.cancel_outlined;
-      case 'leave_submitted':  return Icons.event_busy_outlined;
-      case 'leave_resolved':   return Icons.task_alt_outlined;
-      case 'announcement':     return Icons.campaign_outlined;
-      case 'staff_task':       return Icons.assignment_outlined;
-      case 'substitution_assigned': return Icons.swap_horiz_outlined;
-      default:                 return Icons.notifications_outlined;
+      case 'leave_submitted':
+        return widget.role == 'coordinator' || widget.role == 'principal';
+      case 'leave_resolved':
+        return widget.teacher != null;
+      case 'announcement':
+        return true;
+      case 'staff_task':
+      case 'task':
+        return widget.teacherId != null;
+      case 'substitution_assigned':
+      case 'meeting_task':
+        return widget.role == 'teacher';
+      default:
+        return false;
     }
   }
 
-  Color _colorFor(String type) {
+  Future<void> _handleTap(Map<String, dynamic> n) async {
+    if (!mounted) return;
+    final type = (n['type'] as String?) ?? '';
+
     switch (type) {
-      case 'absent':           return Colors.red;
-      case 'leave_submitted':  return Colors.orange;
-      case 'leave_resolved':   return Colors.green;
-      case 'announcement':     return Colors.deepOrange;
-      case 'staff_task':       return AppTheme.primary;
+      case 'leave_submitted':
+        if (widget.role == 'coordinator' || widget.role == 'principal') {
+          await Navigator.push(context, MaterialPageRoute(
+            builder: (_) => LeaveRequestsScreen(viewerRole: widget.role),
+          ));
+        }
+        break;
+
+      case 'leave_resolved':
+        final t = widget.teacher;
+        if (t != null) {
+          await Navigator.push(context, MaterialPageRoute(
+            builder: (_) => LeaveApplicationScreen(teacher: t),
+          ));
+        }
+        break;
+
+      case 'announcement':
+        await Navigator.push(context, MaterialPageRoute(
+          builder: (_) => AnnouncementsScreen(
+            viewerRole: widget.role,
+            posterName: widget.teacher?.email,
+          ),
+        ));
+        break;
+
+      case 'staff_task':
+      case 'task':
+        if (widget.teacherId != null) {
+          await Navigator.push(context, MaterialPageRoute(
+            builder: (_) => StaffTasksScreen(teacherId: widget.teacherId),
+          ));
+        }
+        break;
+
+      case 'substitution_assigned':
+        await Navigator.push(context, MaterialPageRoute(
+          builder: (_) => SubstitutionHistoryScreen(
+            teacherId:   widget.teacherId,
+            teacherName: widget.teacher?.name,
+          ),
+        ));
+        break;
+
+      case 'meeting_task':
+        final tid = widget.teacherId;
+        if (tid != null && tid.isNotEmpty) {
+          await Navigator.push(context, MaterialPageRoute(
+            builder: (_) => TeacherMeetingTasksScreen(
+              teacherId:   tid,
+              teacherName: widget.teacher?.name ?? '',
+            ),
+          ));
+        }
+        break;
+    }
+  }
+
+  // ── Display helpers ───────────────────────────────────────────────────────
+
+  IconData _iconFor(Map<String, dynamic> n) {
+    final type   = (n['type'] as String?) ?? '';
+    final status = (n['status'] as String?) ?? '';
+    switch (type) {
+      case 'absent':                return Icons.cancel_outlined;
+      case 'leave_submitted':       return Icons.event_busy_outlined;
+      case 'leave_resolved':
+        return status == 'rejected'
+            ? Icons.cancel_outlined
+            : Icons.task_alt_outlined;
+      case 'announcement':          return Icons.campaign_outlined;
+      case 'staff_task':            return Icons.assignment_outlined;
+      case 'substitution_assigned': return Icons.swap_horiz_outlined;
+      case 'meeting_task':          return Icons.groups_outlined;
+      default:                      return Icons.notifications_outlined;
+    }
+  }
+
+  Color _colorFor(Map<String, dynamic> n) {
+    final type   = (n['type'] as String?) ?? '';
+    final status = (n['status'] as String?) ?? '';
+    switch (type) {
+      case 'absent':                return Colors.red;
+      case 'leave_submitted':       return Colors.orange;
+      case 'leave_resolved':
+        return status == 'rejected' ? Colors.red : Colors.green;
+      case 'announcement':          return Colors.deepOrange;
+      case 'staff_task':            return AppTheme.primary;
       case 'substitution_assigned': return AppTheme.primaryMid;
-      default:                 return AppTheme.primary;
+      case 'meeting_task':          return const Color(0xFF1565C0);
+      default:                      return AppTheme.primary;
     }
   }
 
@@ -199,11 +304,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   itemBuilder: (_, i) {
                     final n      = _items[i];
                     final type   = (n['type'] as String?) ?? '';
-                    final color  = _colorFor(type);
+                    final color  = _colorFor(n);
                     final unread = _isUnread(n);
+                    final routed = _hasRoute(type);
 
-                    final card = Container(
-                      padding: const EdgeInsets.all(14),
+                    final card = Ink(
                       decoration: BoxDecoration(
                         color: unread
                             ? AppTheme.primary.withOpacity(0.05)
@@ -221,59 +326,71 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           bottom: BorderSide(color: Colors.grey.shade200),
                         ),
                       ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 40, height: 40,
-                            decoration: BoxDecoration(
-                              color: color.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(_iconFor(type),
-                                color: color, size: 22),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(children: [
-                                  Expanded(
-                                    child: Text(
-                                      (n['title'] as String?) ?? '',
-                                      style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: unread
-                                              ? FontWeight.w700
-                                              : FontWeight.w600),
-                                    ),
-                                  ),
-                                  if (unread)
-                                    Container(
-                                      width: 8, height: 8,
-                                      decoration: const BoxDecoration(
-                                        color: AppTheme.accent,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                ]),
-                                const SizedBox(height: 3),
-                                Text(
-                                  (n['body'] as String?) ?? '',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade700),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: routed ? () => _handleTap(n) : null,
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 40, height: 40,
+                                decoration: BoxDecoration(
+                                  color: color.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                                const SizedBox(height: 6),
-                                Text(_when(n['createdAt']),
-                                    style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.grey.shade500)),
+                                child: Icon(_iconFor(n),
+                                    color: color, size: 22),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(children: [
+                                      Expanded(
+                                        child: Text(
+                                          (n['title'] as String?) ?? '',
+                                          style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: unread
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w600),
+                                        ),
+                                      ),
+                                      if (unread)
+                                        Container(
+                                          width: 8, height: 8,
+                                          decoration: const BoxDecoration(
+                                            color: AppTheme.accent,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                    ]),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      (n['body'] as String?) ?? '',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade700),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(_when(n['createdAt']),
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.grey.shade500)),
+                                  ],
+                                ),
+                              ),
+                              if (routed) ...[
+                                const SizedBox(width: 4),
+                                Icon(Icons.chevron_right,
+                                    color: Colors.grey.shade300, size: 20),
                               ],
-                            ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     );
 

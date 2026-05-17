@@ -74,6 +74,7 @@ class NotificationService {
   }) async {
     await _coll.add({
       'type':      'leave_resolved',
+      'status':    status,
       'title':     'Leave $status',
       'body':      'Your leave application has been $status.',
       'audience':  'teacher:$teacherId',

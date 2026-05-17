@@ -384,10 +384,25 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
 
   Future<void> _showMarkAbsentSheet() async {
     Teacher? selected;
-    final reasonCtrl = TextEditingController();
+    String?  selectedReason;   // null = not chosen yet; _kCustomReason = custom
+    final customCtrl = TextEditingController();
     final remaining  = _allTeachers
         .where((t) => !_allAbsentIds.contains(t.id))
         .toList();
+
+    const _kCustomReason = '__custom__';
+    const _kReasonOptions = [
+      'Sick / Unwell',
+      'Personal Emergency',
+      'Family Function',
+      'Medical Appointment',
+      'Bereavement / Death in Family',
+      'Festival / Religious Occasion',
+      'Official Duty / Training',
+      'Weather / Travel Issue',
+      'Without Information',
+      'Custom…',
+    ];
 
     await showModalBottomSheet(
       context: context,
@@ -395,92 +410,130 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => Padding(
-          padding: EdgeInsets.only(
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Mark Teacher Absent',
-                    style: TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
+        builder: (ctx, setLocal) {
+          final isCustom = selectedReason == _kCustomReason;
+          final effectiveReason = isCustom
+              ? customCtrl.text.trim()
+              : (selectedReason ?? '');
 
-                DropdownButtonFormField<Teacher>(
-                  value: selected,
-                  decoration: InputDecoration(
-                    labelText: 'Select Teacher',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    prefixIcon: const Icon(Icons.person_outlined),
-                  ),
-                  items: remaining
-                      .map((t) => DropdownMenuItem(
-                          value: t, child: Text(t.name)))
-                      .toList(),
-                  onChanged: (v) => setLocal(() => selected = v),
-                ),
-                const SizedBox(height: 12),
+          return Padding(
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Mark Teacher Absent',
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
 
-                TextField(
-                  controller: reasonCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Reason (optional)',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    prefixIcon: const Icon(Icons.notes_outlined),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: selected == null
-                        ? null
-                        : () async {
-                            final t      = selected!;
-                            final reason = reasonCtrl.text.trim();
-                            Navigator.pop(ctx);
-                            await FirebaseFirestore.instance
-                                .collection('teacher_attendance')
-                                .doc(_todayKey)
-                                .set(
-                              {
-                                'teachers': {
-                                  t.id: {
-                                    'status':      'Absent',
-                                    'reason':      reason,
-                                    'teacherName': t.name,
-                                    'markedBy':    _coordEmail,
-                                    'markedAt':    FieldValue.serverTimestamp(),
-                                  }
-                                }
-                              },
-                              SetOptions(merge: true),
-                            );
-                            _load();
-                          },
-                    icon: const Icon(Icons.person_off_outlined),
-                    label: const Text('Mark Absent'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.danger,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
+                  DropdownButtonFormField<Teacher>(
+                    value: selected,
+                    decoration: InputDecoration(
+                      labelText: 'Select Teacher',
+                      border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),
+                      prefixIcon: const Icon(Icons.person_outlined),
+                    ),
+                    items: remaining
+                        .map((t) => DropdownMenuItem(
+                            value: t, child: Text(t.name)))
+                        .toList(),
+                    onChanged: (v) => setLocal(() => selected = v),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Reason dropdown
+                  DropdownButtonFormField<String>(
+                    value: selectedReason,
+                    decoration: InputDecoration(
+                      labelText: 'Reason (optional)',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      prefixIcon: const Icon(Icons.notes_outlined),
+                    ),
+                    hint: const Text('Select a reason'),
+                    items: _kReasonOptions.map((r) {
+                      final value = r == 'Custom…' ? _kCustomReason : r;
+                      return DropdownMenuItem(
+                        value: value,
+                        child: Text(r),
+                      );
+                    }).toList(),
+                    onChanged: (v) => setLocal(() {
+                      selectedReason = v;
+                      if (v != _kCustomReason) customCtrl.clear();
+                    }),
+                  ),
+
+                  // Custom text field shown only when "Custom…" is selected
+                  if (isCustom) ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: customCtrl,
+                      autofocus: true,
+                      onChanged: (_) => setLocal(() {}),
+                      decoration: InputDecoration(
+                        labelText: 'Enter custom reason',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        prefixIcon: const Icon(Icons.edit_outlined),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 20),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: selected == null
+                          ? null
+                          : () async {
+                              final t      = selected!;
+                              final reason = effectiveReason;
+                              Navigator.pop(ctx);
+                              await FirebaseFirestore.instance
+                                  .collection('teacher_attendance')
+                                  .doc(_todayKey)
+                                  .set(
+                                {
+                                  'teachers': {
+                                    t.id: {
+                                      'status':      'Absent',
+                                      'reason':      reason,
+                                      'teacherName': t.name,
+                                      'markedBy':    _coordEmail,
+                                      'markedAt':    FieldValue.serverTimestamp(),
+                                    }
+                                  }
+                                },
+                                SetOptions(merge: true),
+                              );
+                              _load();
+                            },
+                      icon: const Icon(Icons.person_off_outlined),
+                      label: const Text('Mark Absent'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.danger,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
+    customCtrl.dispose();
   }
 
   Future<void> _exportPdf() async {

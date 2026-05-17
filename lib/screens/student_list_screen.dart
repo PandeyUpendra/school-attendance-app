@@ -130,7 +130,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
         _students.where((s) => _selectedRolls.contains(s.roll)).toList();
     for (final s in toDelete) {
       await StudentService()
-          .removeStudent(roll: s.roll, className: s.className, section: s.section);
+          .removeStudent(s.roll, s.className, section: s.section);
     }
     if (!mounted) return;
     setState(() { _selectMode = false; _selectedRolls = {}; });
@@ -601,7 +601,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     );
     if (ok != true || !mounted) return;
     await StudentService()
-        .removeStudent(roll: _student.roll, className: _student.className, section: _student.section);
+        .removeStudent(_student.roll, _student.className, section: _student.section);
     if (mounted) Navigator.pop(context);
   }
 
@@ -618,120 +618,60 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  Future<void> _setGuardianEmail() async {
-    final emailCtrl = TextEditingController(text: _student.guardianEmail ?? '');
-    bool saving = false;
-    String? savedEmail;
+  // ── Helpers ─────────────────────────────────────────────────────────────────
 
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(children: [
-            const Icon(Icons.family_restroom_outlined, color: AppTheme.primary, size: 22),
-            const SizedBox(width: 8),
-            const Expanded(child: Text('Set Guardian Email', style: TextStyle(fontSize: 15))),
-          ]),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Enter the guardian\'s Gmail address for ${_student.name}. '
-                'They will sign in with Google — no password needed.',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600, height: 1.4),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: emailCtrl,
-                autofocus: true,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  labelText: 'Guardian Email',
-                  prefixIcon: const Icon(Icons.email_outlined, size: 20),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: saving ? null : () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: saving
-                  ? null
-                  : () async {
-                      final email = emailCtrl.text.trim().toLowerCase();
-                      if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
-                        ScaffoldMessenger.of(ctx).showSnackBar(
-                          const SnackBar(content: Text('Enter a valid email address')),
-                        );
-                        return;
-                      }
-                      setS(() => saving = true);
-                      try {
-                        final schoolId = BaseFirestoreService.currentSchoolId ?? 'default_school';
-                        final oldEmail = _student.guardianEmail?.toLowerCase().trim() ?? '';
-                        if (oldEmail.isNotEmpty && oldEmail != email) {
-                          await TimetableService().removeGuardianLink(
-                            email: oldEmail,
-                            studentClass: _student.className,
-                            studentRoll: _student.roll,
-                          );
-                        }
-                        await TimetableService().linkGuardianEmail(
-                          email: email,
-                          studentClass: _student.className,
-                          studentRoll: _student.roll,
-                          studentName: _student.name,
-                          schoolId: schoolId,
-                        );
-                        savedEmail = email;
-                        if (ctx.mounted) Navigator.pop(ctx);
-                      } catch (_) {
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(content: Text('Failed to save. Please try again.')),
-                          );
-                          setS(() => saving = false);
-                        }
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: saving
-                  ? const SizedBox(width: 16, height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Save'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (savedEmail != null && mounted) {
-      final updatedStudent = _student.copyWith(guardianEmail: savedEmail);
-      await StudentService().updateStudent(updated: updatedStudent);
-      if (!mounted) return;
-      setState(() => _student = updatedStudent);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Guardian access set for ${_student.name}.'),
-          backgroundColor: Colors.green.shade700,
-        ),
-      );
-    }
+  String _fmtDob(DateTime d) {
+    const mo = ['Jan','Feb','Mar','Apr','May','Jun',
+                 'Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${d.day.toString().padLeft(2,'0')} ${mo[d.month-1]} ${d.year}';
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
+  Future<void> _setGuardianEmail(BuildContext ctx) async {
+    final ctrl = TextEditingController();
+    await showDialog<void>(
+      context: ctx,
+      builder: (dCtx) => AlertDialog(
+        title: const Text('Set Guardian Email'),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.emailAddress,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Guardian Gmail address',
+            prefixIcon: Icon(Icons.email_outlined),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = ctrl.text.trim();
+              if (email.isEmpty) return;
+              await StudentService().setGuardianEmail(
+                _student.className, _student.roll, email,
+                section: _student.section,
+              );
+              if (dCtx.mounted) Navigator.pop(dCtx);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Guardian email saved'),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+  }
 
   Color get _feeColor {
     switch (_student.feeStatus) {
@@ -838,27 +778,35 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
 
             const SizedBox(height: 8),
 
-            // ── STUDENT PROFILE ─────────────────────────────────────────────
+            // ── Basic Info ───────────────────────────────────────────────────
+            _SectionHeader('BASIC INFO'),
             _InfoRow(Icons.person_outline, 'Name', _student.name),
             _InfoRow(Icons.cake_outlined, 'Date of Birth',
-                _student.guardianDetails?.dob ?? '—'),
-            _InfoRow(Icons.people_outline, 'Gender',
-                _student.guardianDetails?.gender ?? '—'),
+                _student.dateOfBirth != null
+                    ? _fmtDob(_student.dateOfBirth!.toDate())
+                    : '—'),
+            _InfoRow(Icons.wc_outlined, 'Gender',
+                _student.gender?.isNotEmpty == true ? _student.gender! : '—'),
             _InfoRow(Icons.school_outlined, 'Class / Section',
-                '${_student.className} ${_student.section}'),
-            _InfoRow(Icons.tag, 'Roll Number', _student.roll.toString()),
+                '${_student.className} ${_student.section}'.trim()),
+            _InfoRow(Icons.tag, 'Roll Number', '${_student.roll}'),
             const Divider(height: 1),
 
-            // ── PARENT DETAILS ─────────────────────────────────────────────
-            _InfoRow(Icons.man_outlined, "Father's Name", _student.fatherName),
-            _InfoRow(Icons.woman_outlined, "Mother's Name", _student.motherName ?? '—'),
-            _InfoRow(Icons.phone_outlined, 'Primary Contact', _student.phone),
-            _InfoRow(Icons.phone_android_outlined, 'Secondary Contact', _student.parentPhone ?? '—'),
-            _InfoRow(Icons.home_outlined, 'Address', _student.guardianDetails?.address ?? '—'),
-            
+            // ── Family ──────────────────────────────────────────────────────
+            _SectionHeader('FAMILY'),
+            _InfoRow(Icons.man_outlined, "Father's Name",
+                _student.fatherName.isNotEmpty ? _student.fatherName : '—'),
+            _InfoRow(Icons.woman_outlined, "Mother's Name",
+                _student.motherName?.isNotEmpty == true ? _student.motherName! : '—'),
+            const Divider(height: 1),
+
+            // ── Contact ─────────────────────────────────────────────────────
+            _SectionHeader('CONTACT'),
+            _InfoRow(Icons.phone_outlined, 'Primary Contact',
+                _student.phone.isEmpty ? '—' : _student.phone),
             if (_student.phone.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                 child: Row(children: [
                   Expanded(
                     child: _ActionBtn(
@@ -874,7 +822,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                       iconWidget: const FaIcon(
                         FontAwesomeIcons.whatsapp,
                         color: Color(0xFF25D366),
-                        size: 26,
+                        size: 24,
                       ),
                       label: 'WhatsApp',
                       color: const Color(0xFF25D366),
@@ -883,28 +831,60 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                   ),
                 ]),
               ),
-            const Divider(height: 1),
-
-            // ── ACADEMIC INFO ─────────────────────────────────────────────
-            _InfoRow(Icons.history_edu_outlined, 'Previous School',
-                _student.guardianDetails?.previousSchool ?? '—'),
-            const Divider(height: 1),
-
-            // ── MEDICAL INFO ─────────────────────────────────────────────
-            _InfoRow(Icons.contact_phone_outlined, 'Emergency Contact',
-                _student.guardianDetails != null && _student.guardianDetails!.emergencyContactName.isNotEmpty
-                    ? '${_student.guardianDetails!.emergencyContactName} (${_student.guardianDetails!.emergencyContactPhone})'
+            _InfoRow(Icons.phone_android_outlined, 'Secondary Contact',
+                _student.parentPhone?.isNotEmpty == true ? _student.parentPhone! : '—'),
+            _InfoRow(Icons.home_outlined, 'Address',
+                _student.address?.isNotEmpty == true ? _student.address! : '—'),
+            _InfoRow(Icons.contact_emergency_outlined, 'Emergency Contact',
+                _student.emergencyContact?.isNotEmpty == true
+                    ? _student.emergencyContact!
                     : '—'),
-            _InfoRow(Icons.bloodtype_outlined, 'Blood Group', _student.guardianDetails?.bloodGroup ?? '—'),
-            _InfoRow(Icons.medical_services_outlined, 'Allergies / Conditions', _student.guardianDetails?.allergies ?? '—'),
             const Divider(height: 1),
 
-            // ── DOCUMENTS / OTHERS ──────────────────────────────────────────
-            _InfoRow(Icons.directions_bus_outlined, 'Transport Mode', _student.guardianDetails?.transportMode ?? '—'),
-            _InfoRow(Icons.image_outlined, 'Photo Status', (_student.photoUrl != null || _student.photoPath != null) ? 'Uploaded' : 'Not Uploaded'),
-            
+            // ── Academic & Medical ───────────────────────────────────────────
+            _SectionHeader('ACADEMIC & MEDICAL'),
+            _InfoRow(Icons.account_balance_outlined, 'Previous School',
+                _student.previousSchool?.isNotEmpty == true ? _student.previousSchool! : '—'),
+            _InfoRow(Icons.bloodtype_outlined, 'Blood Group',
+                _student.bloodGroup?.isNotEmpty == true ? _student.bloodGroup! : '—'),
+            _InfoRow(Icons.medical_information_outlined, 'Allergies / Conditions',
+                _student.allergies?.isNotEmpty == true ? _student.allergies! : '—'),
+            _InfoRow(Icons.directions_bus_outlined, 'Transport Mode',
+                _student.transportMode?.isNotEmpty == true ? _student.transportMode! : '—'),
+            _InfoRow(Icons.photo_outlined, 'Photo Status',
+                (_student.photoPath != null && _student.photoPath!.isNotEmpty) ||
+                    (_student.photoUrl != null && _student.photoUrl!.isNotEmpty)
+                    ? 'Uploaded'
+                    : 'Not Uploaded'),
+            const Divider(height: 1),
+
+            // ── Fee Status ────────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _feeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: _feeColor.withOpacity(0.4)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(_feeIcon, color: _feeColor, size: 18),
+                  const SizedBox(width: 6),
+                  Text(_student.feeStatus,
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: _feeColor,
+                          fontSize: 14)),
+                ]),
+              ),
+            ),
+            const Divider(height: 1),
+
+            // ── Documents ────────────────────────────────────────────────────
+            _SectionHeader('DOCUMENTS'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -920,8 +900,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => AttendanceCertificateScreen(
-                          student: _student),
+                      builder: (_) => AttendanceCertificateScreen(student: _student),
                     ),
                   ),
                 ),
@@ -930,30 +909,21 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
 
             if (widget.canEdit)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                 child: SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    icon: const Icon(Icons.family_restroom_outlined),
+                    icon: const Icon(Icons.people_outlined),
                     label: const Text('Set Guardian Email (Google Login)'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.primary,
-                      side: BorderSide(color: AppTheme.primary.withOpacity(0.5)),
+                      side: const BorderSide(color: AppTheme.primary),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10)),
                     ),
-                    onPressed: _setGuardianEmail,
+                    onPressed: () => _setGuardianEmail(context),
                   ),
-                ),
-              ),
-            
-            if (_student.guardianDetails?.lastUpdated != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                child: Text(
-                  'Last updated by guardian: ${_student.guardianDetails!.lastUpdated!.split('T')[0]}',
-                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
                 ),
               ),
             const SizedBox(height: 24),
