@@ -72,7 +72,6 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
           context,
           MaterialPageRoute(
             builder: (_) => GuardianDashboard(
-              schoolId: schoolId,
               studentClass: parts[0],
               studentRoll: int.parse(parts[1]),
             ),

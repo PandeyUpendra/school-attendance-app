@@ -66,7 +66,6 @@ class StudentSelectionScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => GuardianDashboard(
-                            schoolId: schoolId,
                             studentClass: sClass,
                             studentRoll: int.parse(sRoll),
                           ),

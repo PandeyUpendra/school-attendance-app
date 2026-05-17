@@ -318,7 +318,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
       // Remarks - fetch in parallel
       final remarksResults = await Future.wait<List<StudentRemark>>(
-        _students.map((s) => _service.getStudentRemarks(className: _className, roll: s.roll, section: _section))
+        _students.map((s) => _service.getStudentRemarks(_className, s.roll, section: _section))
       );
       final Map<int, List<StudentRemark>> rm = {};
       for (int i=0; i<_students.length; i++) {
@@ -578,7 +578,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
     );
     if (ok != true) return;
-    await _service.removeStudent(roll: s.roll, className: _className, section: _section);
+    await _service.removeStudent(s.roll, _className, section: _section);
     setState(() { _students.remove(s); _attendance.remove(s.roll); });
   }
 
