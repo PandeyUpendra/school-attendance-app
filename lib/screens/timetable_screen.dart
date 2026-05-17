@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/school_settings_provider.dart';
 import '../services/firestore_service.dart';
 
 class TimetableScreen extends StatefulWidget {
@@ -19,9 +21,14 @@ class TimetableScreen extends StatefulWidget {
 }
 
 class _TimetableScreenState extends State<TimetableScreen> {
-  static const List<String> _days = [
-    'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
-  ];
+  List<String> get _days {
+    try {
+      final settings = context.read<SchoolSettingsProvider>();
+      return settings.workingDaysList;
+    } catch (_) {
+      return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    }
+  }
 
   static const List<String> _subjects = [
     'Math', 'English', 'Science', 'Hindi', 'Social Studies',
@@ -32,15 +39,18 @@ class _TimetableScreenState extends State<TimetableScreen> {
   Map<String, List<String>> _timetable = {};
   bool _loading = true;
   bool _saving = false;
-  int _periods = 6;
+  int _periods = 8;
 
   @override
   void initState() {
     super.initState();
-    _loadTimetable();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadTimetable());
   }
 
   Future<void> _loadTimetable() async {
+    final defaultPeriods = context.read<SchoolSettingsProvider>().periodsPerDay;
+    final days = _days;
+
     Map<String, List<String>>? loaded;
     if (widget.schoolId.isNotEmpty) {
       loaded = await FirestoreService.loadTimetable(
@@ -49,7 +59,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
     if (loaded != null && loaded.isNotEmpty) {
       _periods =
           loaded.values.map((v) => v.length).fold(0, (a, b) => a > b ? a : b);
-      if (_periods < 1) _periods = 6;
+      if (_periods < 1) _periods = defaultPeriods;
       setState(() {
         _timetable = loaded!;
         _loading = false;
@@ -57,8 +67,9 @@ class _TimetableScreenState extends State<TimetableScreen> {
     } else {
       // Default empty timetable
       setState(() {
+        _periods = defaultPeriods;
         _timetable = {
-          for (final day in _days) day: List.filled(_periods, 'Free Period'),
+          for (final day in days) day: List.filled(_periods, 'Free Period'),
         };
         _loading = false;
       });

@@ -2,21 +2,26 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/announcement.dart';
 import '../../models/exam.dart';
 import '../../models/student.dart';
+import '../../providers/school_settings_provider.dart';
 import '../../services/announcement_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/exam_service.dart';
 import '../../services/role_permission_service.dart';
+import '../../services/school_settings_service.dart';
 import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
 import '../../utils/role_guard.dart';
+import '../onboarding/school_onboarding_screen.dart';
 import '../principal_dashboard.dart';
 import '../role_selection_screen.dart';
+import 'edit_school_settings_screen.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Owner-Principal Home — menu-list entry point
@@ -49,6 +54,19 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
     if (!mounted) return;
     final email = session?['email'] as String? ?? '';
     final role = session?['role'] as String? ?? 'ownerPrincipal';
+
+    // Check onboarding completion
+    try {
+      final onboarding = await SchoolSettingsService().getOnboardingStatus();
+      final isCompleted = onboarding['isCompleted'] as bool? ?? false;
+      if (!isCompleted && mounted) {
+        Navigator.pushReplacement(context, MaterialPageRoute(
+          builder: (_) => SchoolOnboardingScreen(destination: const OwnerPrincipalHome()),
+        ));
+        return;
+      }
+    } catch (_) {}
+
     String schoolName = '';
     try {
       final settings = await TimetableService().getSettings();
@@ -157,6 +175,15 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
             subtitle: 'Accounts, school settings & announcements',
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _OPManagePage(email: _myEmail, role: _myRole))),
           ),
+          _FeatureTile(
+            icon: Icons.tune_outlined,
+            color: AppTheme.primaryMid,
+            title: 'School Settings',
+            subtitle: 'Edit basic info, academic, fees & communication',
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const EditSchoolSettingsScreen(),
+            )),
+          ),
 
           const SizedBox(height: 32),
         ],
@@ -169,6 +196,9 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
     const wdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final dateStr = '${wdays[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}';
+    final settingsProvider = context.watch<SchoolSettingsProvider>();
+    final displayName = settingsProvider.schoolName;
+    final logoUrl = settingsProvider.schoolLogo;
 
     return ClipPath(
       clipper: _OPWaveClipper(),
@@ -203,10 +233,29 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
                   ),
                 ]),
                 const SizedBox(height: 6),
-                Text(
-                  _schoolName.isNotEmpty ? _schoolName : 'Owner-Principal Panel',
-                  style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold, height: 1.1),
-                ),
+                Row(children: [
+                  if (logoUrl.isNotEmpty) ...[
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundImage: NetworkImage(logoUrl),
+                      backgroundColor: Colors.white24,
+                    ),
+                    const SizedBox(width: 10),
+                  ] else ...[
+                    const CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Colors.white24,
+                      child: Icon(Icons.school, color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Expanded(
+                    child: Text(
+                      displayName,
+                      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, height: 1.1),
+                    ),
+                  ),
+                ]),
                 const SizedBox(height: 3),
                 Text(_myEmail, style: const TextStyle(color: Colors.white70, fontSize: 13)),
               ],

@@ -1,14 +1,17 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
+import 'providers/school_settings_provider.dart';
 import 'screens/role_selection_screen.dart';
 import 'screens/coordinator_dashboard.dart';
 import 'screens/home_screen.dart';
 import 'screens/principal_dashboard.dart';
 import 'screens/guardian_dashboard.dart';
 import 'screens/owner/owner_home.dart';
+import 'screens/owner/owner_principal_home.dart';
 import 'services/auth_service.dart';
 import 'services/timetable_service.dart';
 
@@ -35,38 +38,41 @@ class SchoolApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarIconBrightness: Brightness.light,
-        systemNavigationBarDividerColor: Colors.transparent,
-        systemNavigationBarContrastEnforced: false,
-      ),
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'School App',
-        theme: AppTheme.light,
-        builder: (context, child) {
-          return MediaQuery(
-            data: MediaQuery.of(context).copyWith(
-              textScaler: TextScaler.linear(
-                MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.2),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => SchoolSettingsProvider()),
+      ],
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarIconBrightness: Brightness.light,
+          systemNavigationBarDividerColor: Colors.transparent,
+          systemNavigationBarContrastEnforced: false,
+        ),
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'School App',
+          theme: AppTheme.light,
+          builder: (context, child) {
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: TextScaler.linear(
+                  MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.2),
+                ),
               ),
-            ),
-            child: child!,
-          );
-        },
-        home: const _SplashGate(),
+              child: child!,
+            );
+          },
+          home: const _SplashGate(),
+        ),
       ),
     );
   }
 }
 
-/// Checks for a saved session and redirects to the appropriate screen.
-/// Shows a spinner while loading.
 class _SplashGate extends StatefulWidget {
   const _SplashGate();
 
@@ -106,6 +112,10 @@ class _SplashGateState extends State<_SplashGate> {
         _go(const OwnerHome());
         return;
 
+      case 'ownerPrincipal':
+        _go(const OwnerPrincipalHome());
+        return;
+
       case 'guardian':
         final sClass   = session['studentClass']   as String?;
         final sRoll    = session['studentRoll']    as int?;
@@ -115,7 +125,6 @@ class _SplashGateState extends State<_SplashGate> {
               studentClass: sClass, studentRoll: sRoll, studentSection: sSection));
           return;
         }
-        // Guardian session missing student link → re-login
         _go(const RoleSelectionScreen());
         return;
 
@@ -130,7 +139,6 @@ class _SplashGateState extends State<_SplashGate> {
             return;
           }
         }
-        // Teacher session exists but no valid teacherId → re-login
         _go(const RoleSelectionScreen());
         return;
 
