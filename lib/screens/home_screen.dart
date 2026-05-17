@@ -497,6 +497,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: EdgeInsets.zero,
               children: [
           const SizedBox(height: 4),
+          _buildSubDutyCard(),
 
           _SectionHeader('ACADEMICS'),
           _FeatureTile(
@@ -737,6 +738,7 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: EdgeInsets.zero,
             children: [
         const SizedBox(height: 4),
+        _buildSubDutyCard(),
 
         _SectionHeader('ACADEMICS'),
         _FeatureTile(
@@ -929,6 +931,111 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
+
+  // ── Substitute duty card ──────────────────────────────────────────────────
+
+  Widget _buildSubDutyCard() {
+    final tid = widget.teacher?.id ?? '';
+    if (tid.isEmpty) return const SizedBox.shrink();
+
+    final now      = DateTime.now();
+    final todayKey = '${now.year}-${now.month}-${now.day}';
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('substitutions')
+          .doc(todayKey)
+          .snapshots(),
+      builder: (context, snap) {
+        if (!snap.hasData || !snap.data!.exists) return const SizedBox.shrink();
+
+        final data = snap.data!.data() as Map<String, dynamic>;
+        final duties = <_SubDutyItem>[];
+
+        data.forEach((key, value) {
+          if (value != tid) return;
+          final lastUs = key.lastIndexOf('_');
+          if (lastUs <= 0) return;
+          final className = key.substring(0, lastUs);
+          final bell = int.tryParse(key.substring(lastUs + 1));
+          if (bell != null) duties.add(_SubDutyItem(className, bell));
+        });
+
+        if (duties.isEmpty) return const SizedBox.shrink();
+        duties.sort((a, b) => a.bell.compareTo(b.bell));
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SectionHeader('SUBSTITUTE DUTY TODAY'),
+            Container(
+              margin: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                    color: AppTheme.warning, width: 1.5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    const Icon(Icons.swap_horiz_outlined,
+                        color: AppTheme.warning, size: 20),
+                    const SizedBox(width: 8),
+                    const Text('Substitute Duty Today',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14)),
+                  ]),
+                  const SizedBox(height: 10),
+                  for (final duty in duties)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.warning.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(children: [
+                        Container(
+                          width: 28, height: 28,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppTheme.warning,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text('${duty.bell}',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12)),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(duty.className,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13)),
+                      ]),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ── Substitute duty item ──────────────────────────────────────────────────────
+
+class _SubDutyItem {
+  final String className;
+  final int    bell;
+  _SubDutyItem(this.className, this.bell);
 }
 
 // ── Wave clipper ──────────────────────────────────────────────────────────────

@@ -23,6 +23,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
   String _reason = 'Medical / Health Issue';
   final _customReasonCtrl = TextEditingController();
   bool _submitting = false;
+  bool _overlapping = false;
   int _historyLimit = 20;
 
   static const _reasonOptions = [
@@ -40,6 +41,40 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
     super.dispose();
   }
 
+  Future<bool> _hasOverlappingLeave() async {
+    final end = _startDate.add(Duration(days: _numberOfDays - 1));
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('leave_applications')
+          .where('teacherId', isEqualTo: widget.teacher.id)
+          .get();
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final status = (data['status'] as String?) ?? '';
+        if (status != 'pending' && status != 'approved') continue;
+        final startStr = data['startDate'] as String?;
+        if (startStr == null) continue;
+        final parts = startStr.split('-');
+        if (parts.length != 3) continue;
+        final eStart = DateTime(
+            int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+        final eDays = (data['numberOfDays'] as int?) ?? 1;
+        final eEnd = eStart.add(Duration(days: eDays - 1));
+        if (_startDate.isBefore(eEnd.add(const Duration(days: 1))) &&
+            end.isAfter(eStart.subtract(const Duration(days: 1)))) {
+          return true;
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  Future<void> _updateOverlapState() async {
+    final overlap = await _hasOverlappingLeave();
+    if (!mounted) return;
+    setState(() => _overlapping = overlap);
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -48,7 +83,10 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
       helpText: 'Select Leave Start Date',
     );
-    if (picked != null) setState(() => _startDate = picked);
+    if (picked != null) {
+      setState(() => _startDate = picked);
+      _updateOverlapState();
+    }
   }
 
   Future<void> _submit() async {
@@ -68,6 +106,33 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
     }
 
     setState(() => _submitting = true);
+
+    final overlap = await _hasOverlappingLeave();
+    if (overlap) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Row(children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFF57F17)),
+            SizedBox(width: 8),
+            Text('Leave Already Applied'),
+          ]),
+          content: const Text(
+            'You already have a Pending or Approved leave on these dates.\n\n'
+            'Please check your leave history or choose different dates.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK',
+                  style: TextStyle(color: Color(0xFF6A1B9A))),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
 
     final dateStr =
         '${_startDate.year}-${_startDate.month.toString().padLeft(2, '0')}-${_startDate.day.toString().padLeft(2, '0')}';
@@ -235,7 +300,10 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
                 _stepperBtn(
                   icon: Icons.remove,
                   onTap: _numberOfDays > 1
-                      ? () => setState(() => _numberOfDays--)
+                      ? () {
+                          setState(() => _numberOfDays--);
+                          _updateOverlapState();
+                        }
                       : null,
                 ),
                 Padding(
@@ -247,7 +315,10 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
                 _stepperBtn(
                   icon: Icons.add,
                   onTap: _numberOfDays < 30
-                      ? () => setState(() => _numberOfDays++)
+                      ? () {
+                          setState(() => _numberOfDays++);
+                          _updateOverlapState();
+                        }
                       : null,
                 ),
               ]),
@@ -307,6 +378,30 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
             ]),
           ),
           const SizedBox(height: 24),
+
+          // ── Overlap warning banner ────────────────────────────────────
+          if (_overlapping) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3E0),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFF57F17)),
+              ),
+              child: const Row(children: [
+                Icon(Icons.info_outline, color: Color(0xFFF57F17)),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'You already have leave on overlapping dates. '
+                    'Check history below.',
+                    style: TextStyle(color: Color(0xFFE65100), fontSize: 13),
+                  ),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           // ── Submit ────────────────────────────────────────────────────
           ElevatedButton.icon(

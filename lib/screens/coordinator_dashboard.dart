@@ -29,6 +29,7 @@ import 'homework_overview_screen.dart';
 import 'analytics_screen.dart';
 import 'student_remarks_screen.dart';
 import 'coordinator_staff_tasks_screen.dart';
+import 'coordinator/absent_teachers_screen.dart';
 import '../services/staff_task_service.dart';
 import '../utils/role_guard.dart';
 
@@ -366,6 +367,17 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
 
             // ── Free Bells & Substitution ──────────────────────────────────
             _SectionHeader('FREE BELLS & SUBSTITUTION'),
+            _FeatureTile(
+              icon: Icons.person_off_outlined,
+              color: AppTheme.danger,
+              title: 'Absent Teachers Today',
+              subtitle: _teachersAbsent > 0
+                  ? '$_teachersAbsent absent · $_unassignedBells uncovered'
+                  : 'All teachers present today',
+              badge: _teachersAbsent > 0 ? '$_teachersAbsent' : null,
+              onTap: () => _navigate(const AbsentTeachersScreen()),
+            ),
+            const _Divider(),
             _FeatureTile(
               icon: Icons.swap_horiz_outlined,
               color: AppTheme.warning,
