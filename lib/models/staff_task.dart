@@ -87,6 +87,8 @@ class StaffTask {
   final TaskPriority priority;
   final String       classId;
   final DateTime     createdAt;
+  final bool         isGroupTask;
+  final String       groupTaskId;
 
   // Rich task features
   final List<Checkpoint>            checkpoints;
@@ -118,6 +120,8 @@ class StaffTask {
     required this.priority,
     this.classId = '',
     required this.createdAt,
+    this.isGroupTask = false,
+    this.groupTaskId = '',
     List<Checkpoint>? checkpoints,
     List<Map<String, dynamic>>? progressUpdates,
   })  : createdBy      = createdBy ?? assignedBy ?? '',
@@ -140,11 +144,11 @@ class StaffTask {
       isOverdue ? DateTime.now().difference(dueDate!).inDays : 0;
 
   factory StaffTask.fromJson(Map<String, dynamic> json, String docId) {
-    final createdByVal  = (json['createdBy']     as String?) ??
-                          (json['assignedBy']    as String?) ?? '';
-    final creatorRoleVal = (json['creatorRole']   as String?) ??
+    final createdByVal   = (json['createdBy']      as String?) ??
+                           (json['assignedBy']     as String?) ?? '';
+    final creatorRoleVal = (json['creatorRole']    as String?) ??
                            (json['assignedByRole'] as String?) ?? '';
-    final creatorNameVal = (json['creatorName']   as String?) ?? '';
+    final creatorNameVal = (json['creatorName']    as String?) ?? '';
     return StaffTask(
       id:             docId,
       schoolId:       json['schoolId']       as String? ?? '',
@@ -169,6 +173,8 @@ class StaffTask {
       classId:        json['classId']        as String? ?? '',
       createdAt:      (json['createdAt'] as Timestamp?)?.toDate() ??
                       DateTime.now(),
+      isGroupTask:    json['isGroupTask']    as bool?   ?? false,
+      groupTaskId:    json['groupTaskId']    as String? ?? '',
       checkpoints:    _parseCheckpoints(json['checkpoints']),
       progressUpdates: _parseProgressUpdates(json['progressUpdates']),
     );
@@ -228,14 +234,16 @@ class StaffTask {
     'priority':       priority.name,
     'classId':        classId,
     'createdAt':      FieldValue.serverTimestamp(),
+    'isGroupTask':    isGroupTask,
+    if (groupTaskId.isNotEmpty) 'groupTaskId': groupTaskId,
     'checkpoints':    checkpoints.map((c) => c.toJson()).toList(),
     'progressUpdates': progressUpdates,
   };
 
   StaffTask copyWith({
-    TaskStatus?          status,
-    List<Checkpoint>?    checkpoints,
-    List<Map<String, dynamic>>? progressUpdates,
+    TaskStatus?                  status,
+    List<Checkpoint>?            checkpoints,
+    List<Map<String, dynamic>>?  progressUpdates,
   }) => StaffTask(
     id:             id,
     schoolId:       schoolId,
@@ -259,6 +267,8 @@ class StaffTask {
     priority:       priority,
     classId:        classId,
     createdAt:      createdAt,
+    isGroupTask:    isGroupTask,
+    groupTaskId:    groupTaskId,
     checkpoints:    checkpoints ?? this.checkpoints,
     progressUpdates: progressUpdates ?? this.progressUpdates,
   );
