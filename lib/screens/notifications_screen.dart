@@ -118,11 +118,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     setState(() => _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0);
   }
 
-  IconData _iconFor(String type) {
+  IconData _iconFor(Map<String, dynamic> n) {
+    final type   = (n['type'] as String?) ?? '';
+    final status = (n['status'] as String?) ?? '';
     switch (type) {
       case 'absent':           return Icons.cancel_outlined;
       case 'leave_submitted':  return Icons.event_busy_outlined;
-      case 'leave_resolved':   return Icons.task_alt_outlined;
+      case 'leave_resolved':
+        return status == 'rejected'
+            ? Icons.cancel_outlined
+            : Icons.task_alt_outlined;
       case 'announcement':     return Icons.campaign_outlined;
       case 'staff_task':       return Icons.assignment_outlined;
       case 'substitution_assigned': return Icons.swap_horiz_outlined;
@@ -130,11 +135,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  Color _colorFor(String type) {
+  Color _colorFor(Map<String, dynamic> n) {
+    final type   = (n['type'] as String?) ?? '';
+    final status = (n['status'] as String?) ?? '';
     switch (type) {
       case 'absent':           return Colors.red;
       case 'leave_submitted':  return Colors.orange;
-      case 'leave_resolved':   return Colors.green;
+      case 'leave_resolved':
+        return status == 'rejected' ? Colors.red : Colors.green;
       case 'announcement':     return Colors.deepOrange;
       case 'staff_task':       return AppTheme.primary;
       case 'substitution_assigned': return AppTheme.primaryMid;
@@ -199,7 +207,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   itemBuilder: (_, i) {
                     final n      = _items[i];
                     final type   = (n['type'] as String?) ?? '';
-                    final color  = _colorFor(type);
+                    final color  = _colorFor(n);
                     final unread = _isUnread(n);
 
                     final card = Container(
@@ -230,7 +238,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               color: color.withOpacity(0.12),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Icon(_iconFor(type),
+                            child: Icon(_iconFor(n),
                                 color: color, size: 22),
                           ),
                           const SizedBox(width: 12),

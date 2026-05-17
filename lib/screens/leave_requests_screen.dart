@@ -214,7 +214,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
           onTap: () => _showDetail(apps[i]),
           onAccept: showActions ? () => _act(apps[i], 'approved')  : null,
           onReject: showActions ? () => _act(apps[i], 'rejected')  : null,
-          onForward: showActions
+          onForward: showActions && widget.viewerRole == 'coordinator'
               ? () => _act(apps[i], 'forwarded_to_principal')
               : null,
         ),
@@ -343,16 +343,18 @@ class _LeaveCard extends StatelessWidget {
                   onPressed: onReject,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: _ActionButton(
-                  label: 'Forward to Principal',
-                  icon: Icons.forward_to_inbox_outlined,
-                  color: Colors.indigo,
-                  onPressed: onForward,
+              if (onForward != null) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: _ActionButton(
+                    label: 'Forward to Principal',
+                    icon: Icons.forward_to_inbox_outlined,
+                    color: Colors.indigo,
+                    onPressed: onForward,
+                  ),
                 ),
-              ),
+              ],
             ]),
           ],
         ]),
