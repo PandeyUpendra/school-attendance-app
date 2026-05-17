@@ -242,7 +242,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'announcement':          return Colors.deepOrange;
       case 'staff_task':            return AppTheme.primary;
       case 'substitution_assigned': return AppTheme.primaryMid;
-      case 'meeting_task':          return const Color(0xFF1565C0);
+      case 'meeting_task':          return AppTheme.primary;
       default:                      return AppTheme.primary;
     }
   }

@@ -463,7 +463,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
             _FeatureTile(
               icon: Icons.cake_outlined,
-              color: const Color(0xFFD81B60),
+              color: AppTheme.accent,
               title: 'Birthdays',
               subtitle: 'Staff and student birthday wishes',
               onTap: () => _navigate(const BirthdaysScreen(
@@ -806,7 +806,7 @@ class _CoordHeroCard extends StatelessWidget {
       child: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF4A148C), Color(0xFF880E4F)],
+            colors: [AppTheme.primaryDark, AppTheme.primaryMid],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

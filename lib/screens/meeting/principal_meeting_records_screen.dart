@@ -286,7 +286,7 @@ class _MonthlySummaryCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [AppTheme.primaryDark, Color(0xFF880E4F)],
+            colors: [AppTheme.primaryDark, AppTheme.primaryMid],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

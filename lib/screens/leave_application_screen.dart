@@ -126,7 +126,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('OK',
-                  style: TextStyle(color: Color(0xFF6A1B9A))),
+                  style: TextStyle(color: AppTheme.primary)),
             ),
           ],
         ),

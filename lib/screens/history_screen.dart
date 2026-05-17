@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import '../theme.dart';
 import '../data/student_data.dart';
 import '../models/attendance_status.dart';
 import '../services/firestore_service.dart';
@@ -185,12 +186,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
               _dateSet.contains(_dayKey(day)) ? [true] : [],
           calendarStyle: CalendarStyle(
             markerDecoration: const BoxDecoration(
-                color: Color(0xFF1565C0), shape: BoxShape.circle),
+                color: AppTheme.primary, shape: BoxShape.circle),
             selectedDecoration: BoxDecoration(
-                color: const Color(0xFF1565C0),
+                color: const AppTheme.primary,
                 shape: BoxShape.circle),
             todayDecoration: BoxDecoration(
-                color: const Color(0xFF1565C0).withOpacity(0.3),
+                color: const AppTheme.primary.withOpacity(0.3),
                 shape: BoxShape.circle),
           ),
           headerStyle: const HeaderStyle(
@@ -278,11 +279,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             leading: Container(
                               width: 44, height: 44,
                               decoration: BoxDecoration(
-                                  color: const Color(0xFF1565C0)
+                                  color: const AppTheme.primary
                                       .withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(10)),
                               child: const Icon(Icons.calendar_month_outlined,
-                                  color: Color(0xFF1565C0), size: 22),
+                                  color: AppTheme.primary, size: 22),
                             ),
                             title: Text(_formatDate(dateStr),
                                 style: const TextStyle(

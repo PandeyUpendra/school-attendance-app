@@ -37,8 +37,8 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
 
   static const List<Color> _palette = [
     Color(0xFF009688), Color(0xFF3F51B5), Color(0xFFFF9800), Color(0xFFE91E63),
-    Color(0xFF9C27B0), Color(0xFF4CAF50), Color(0xFFF44336), Color(0xFF795548),
-    Color(0xFF00BCD4), Color(0xFF673AB7),
+    AppTheme.primary, Color(0xFF4CAF50), Color(0xFFF44336), Color(0xFF795548),
+    Color(0xFF00BCD4), AppTheme.primaryDark,
   ];
 
   bool get _isPersonal => widget.teacher != null;

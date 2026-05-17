@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../theme.dart';
 import '../models/student.dart';
 import '../models/student_profile_data.dart';
 import '../services/firestore_service.dart';
@@ -175,7 +176,7 @@ class _TestMarkingScreenState extends State<TestMarkingScreen> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(44),
           child: Container(
-            color: const Color(0xFF1565C0),
+            color: const AppTheme.primary,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: Row(children: [
               _Chip(widget.subject, Icons.menu_book_outlined),
@@ -404,7 +405,7 @@ class _ResultRow extends StatelessWidget {
                     : FontWeight.w500,
                 fontSize: highlight ? 15 : 13,
                 color: highlight
-                    ? const Color(0xFF1565C0)
+                    ? const AppTheme.primary
                     : null)),
       ]),
     );

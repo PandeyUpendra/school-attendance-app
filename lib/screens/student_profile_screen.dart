@@ -423,7 +423,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.calendar_today_outlined,
-                      color: Color(0xFF1565C0), size: 20),
+                      color: AppTheme.primary, size: 20),
                   title: Text(_fmtDate(selDate),
                       style: const TextStyle(
                           fontWeight: FontWeight.w600)),
@@ -550,10 +550,10 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                   leading: Container(
                     width: 42, height: 42,
                     decoration: BoxDecoration(
-                        color: const Color(0xFF1565C0).withOpacity(0.1),
+                        color: const AppTheme.primary.withOpacity(0.1),
                         shape: BoxShape.circle),
                     child: const Icon(Icons.phone_outlined,
-                        color: Color(0xFF1565C0), size: 20),
+                        color: AppTheme.primary, size: 20),
                   ),
                   title: Text(widget.student.parentPhone!,
                       style: const TextStyle(
@@ -771,7 +771,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF1565C0), Color(0xFF1E88E5)],
+                colors: [AppTheme.primary, AppTheme.primaryMid],
               ),
             ),
             child: Column(children: [
@@ -833,7 +833,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                 formatButtonVisible: false, titleCentered: true),
             calendarStyle: CalendarStyle(
               todayDecoration: BoxDecoration(
-                color: const Color(0xFF1565C0).withOpacity(0.25),
+                color: const AppTheme.primary.withOpacity(0.25),
                 shape: BoxShape.circle,
               ),
             ),
@@ -1075,7 +1075,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
             expandedHeight: 220,
             pinned: true,
             forceElevated: innerScrolled,
-            backgroundColor: const Color(0xFF1565C0),
+            backgroundColor: const AppTheme.primary,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () => Navigator.pop(context),
@@ -1086,7 +1086,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Color(0xFF1565C0), Color(0xFF1E88E5)],
+                    colors: [AppTheme.primary, AppTheme.primaryMid],
                   ),
                 ),
                 child: SafeArea(
@@ -1182,13 +1182,13 @@ class _SectionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(icon, size: 16, color: const Color(0xFF1565C0)),
+            Icon(icon, size: 16, color: const AppTheme.primary),
             const SizedBox(width: 8),
             Text(title,
                 style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
-                    color: Color(0xFF1565C0))),
+                    color: AppTheme.primary)),
           ]),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 10),
@@ -1254,13 +1254,13 @@ class _SubjectChip extends StatelessWidget {
       padding:
           const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: const Color(0xFF1565C0).withOpacity(0.1),
+        color: const AppTheme.primary.withOpacity(0.1),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(subject,
           style: const TextStyle(
               fontSize: 11,
-              color: Color(0xFF1565C0),
+              color: AppTheme.primary,
               fontWeight: FontWeight.w500)),
     );
   }

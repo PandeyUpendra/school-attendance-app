@@ -688,7 +688,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
 
 (Color, String) _roleInfo(String role) {
   switch (role) {
-    case 'principal':     return (Colors.deepPurple, 'Principal');
+    case 'principal':     return (AppTheme.primary, 'Principal');
     case 'coordinator':   return (Colors.blue.shade700, 'Coordinator');
     case 'class_teacher': return (Colors.green.shade700, 'Class Teacher');
     case 'teacher':       return (Colors.teal.shade700, 'Teacher');
@@ -721,7 +721,7 @@ String _fmtDateFull(DateTime? d) {
 Color _audienceColor(String a) {
   switch (a) {
     case 'teachers':  return Colors.red;
-    case 'guardians': return Colors.purple;
+    case 'guardians': return AppTheme.primaryMid;
     default:          return AppTheme.primary;
   }
 }

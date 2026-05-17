@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/school_settings_provider.dart';
 import '../services/firestore_service.dart';
+import '../theme.dart';
 
 class TimetableScreen extends StatefulWidget {
   final String className;
@@ -88,7 +89,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Timetable saved!'),
-        backgroundColor: Color(0xFF1565C0),
+        backgroundColor: AppTheme.primary,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -143,11 +144,11 @@ class _TimetableScreenState extends State<TimetableScreen> {
     const colors = {
       'Math': Color(0xFF1565C0),
       'English': Color(0xFF00897B),
-      'Science': Color(0xFF6A1B9A),
+      'Science': AppTheme.primary,
       'Hindi': Color(0xFFE65100),
       'Social Studies': Color(0xFF283593),
       'Computer': Color(0xFF00838F),
-      'Art': Color(0xFFAD1457),
+      'Art': AppTheme.accent,
       'PE': Color(0xFF2E7D32),
       'Music': Color(0xFF6D4C41),
       'Free Period': Color(0xFF757575),
@@ -185,7 +186,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
               children: [
                 // Period header row
                 Container(
-                  color: const Color(0xFF1565C0),
+                  color: AppTheme.primaryDark,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                   child: Row(
@@ -235,7 +236,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                               padding:
                                   const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1565C0).withOpacity(0.1),
+                                color: AppTheme.primary.withOpacity(0.1),
                                 borderRadius: const BorderRadius.only(
                                   topLeft: Radius.circular(12),
                                   bottomLeft: Radius.circular(12),
@@ -247,7 +248,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
-                                    color: Color(0xFF1565C0),
+                                    color: AppTheme.primary,
                                   ),
                                 ),
                               ),

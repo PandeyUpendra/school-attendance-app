@@ -617,7 +617,7 @@ class _RemarkCard extends StatelessWidget {
 
   Color _roleColor(String role) {
     switch (role) {
-      case 'principal':   return const Color(0xFF6A1B9A);
+      case 'principal':   return AppTheme.primary;
       case 'coordinator': return const Color(0xFF1565C0);
       case 'guardian':    return const Color(0xFF2E7D32);
       default:            return const Color(0xFF37474F);

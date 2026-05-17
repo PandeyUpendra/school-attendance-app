@@ -155,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [AppTheme.primaryDark, Color(0xFF880E4F)],
+            colors: [AppTheme.primaryDark, AppTheme.primaryMid],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -769,7 +769,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           _FeatureTile(
             icon: Icons.cake_outlined,
-            color: const Color(0xFFD81B60),
+            color: AppTheme.accent,
             title: 'Birthdays',
             subtitle: 'Staff and student birthday wishes',
             onTap: () => Navigator.push(
@@ -1020,7 +1020,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         _FeatureTile(
           icon: Icons.cake_outlined,
-          color: const Color(0xFFD81B60),
+          color: AppTheme.accent,
           title: 'Birthdays',
           subtitle: 'Staff and student birthday wishes',
           onTap: () => Navigator.push(

@@ -519,7 +519,7 @@ class _AttendanceCertificateScreenState
                                 MainAxisAlignment.spaceBetween,
                             children: [
                               _StatCell('Working\nDays', '$_workingDays',
-                                  Colors.indigo),
+                                  AppTheme.primary),
                               _StatCell('Present', '$_presentDays',
                                   Colors.green),
                               _StatCell('Absent', '$_absentDays',
@@ -570,13 +570,13 @@ class _AttendanceCertificateScreenState
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.indigo.shade200, width: 1.5),
+                border: Border.all(color: AppTheme.primaryLight, width: 1.5),
               ),
               child: Column(
                 children: [
                   Row(children: [
                     Icon(Icons.workspace_premium_outlined,
-                        color: Colors.indigo.shade400),
+                        color: AppTheme.primary),
                     const SizedBox(width: 8),
                     const Text('Certificate Preview',
                         style: TextStyle(
@@ -681,7 +681,7 @@ class _DateButton extends StatelessWidget {
             ),
             const Spacer(),
             Icon(Icons.calendar_today_outlined,
-                size: 16, color: Colors.indigo.shade400),
+                size: 16, color: AppTheme.primary),
           ]),
         ),
       );

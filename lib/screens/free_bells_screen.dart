@@ -317,7 +317,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
             decoration: InputDecoration(
               labelText: 'Select Teacher',
               labelStyle:
-                  const TextStyle(fontSize: 11, color: Color(0xFF1565C0)),
+                  const TextStyle(fontSize: 11, color: AppTheme.primary),
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8)),
               enabledBorder: OutlineInputBorder(
@@ -325,12 +325,12 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
                 borderSide: BorderSide(
                     color: isSub
                         ? Colors.orange.shade400
-                        : const Color(0xFF1565C0).withOpacity(0.6)),
+                        : const AppTheme.primary.withOpacity(0.6)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide:
-                    const BorderSide(color: Color(0xFF1565C0), width: 2),
+                    const BorderSide(color: AppTheme.primary, width: 2),
               ),
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

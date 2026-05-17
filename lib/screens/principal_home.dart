@@ -22,7 +22,7 @@ class PrincipalHome extends StatefulWidget {
 }
 
 class _PrincipalHomeState extends State<PrincipalHome> {
-  static const Color _accent = Color(0xFF1565C0);
+  static const Color _accent = AppTheme.primary;
   static const _categories = ['Academic', 'Sports', 'Cultural', 'Other'];
   static const _statuses = ['All', 'Open', 'In Progress', 'Resolved'];
 
@@ -952,7 +952,7 @@ class _PrincipalHomeState extends State<PrincipalHome> {
                 style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1565C0))),
+                    color: AppTheme.primary)),
             const Spacer(),
             if (trailing != null) trailing,
           ],
@@ -1490,7 +1490,7 @@ class _PrincipalHomeState extends State<PrincipalHome> {
         icon: Icons.people_outline,
         label: 'Active Teachers',
         value: '$_totalTeachers',
-        color: const Color(0xFF6A1B9A),
+        color: AppTheme.primary,
         sub: 'Across all classes',
       ),
       _OverviewCard(
@@ -1937,7 +1937,7 @@ class _PrincipalHomeState extends State<PrincipalHome> {
                     ),
                     Text('$score pts',
                         style: const TextStyle(
-                            color: Color(0xFF1565C0),
+                            color: AppTheme.primary,
                             fontWeight: FontWeight.bold,
                             fontSize: 15)),
                     const SizedBox(width: 4),
@@ -2304,7 +2304,7 @@ class _BirthdayTile extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFFD81B60).withOpacity(0.1),
+              color: AppTheme.accent.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: const Center(

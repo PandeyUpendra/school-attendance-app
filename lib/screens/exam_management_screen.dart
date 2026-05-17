@@ -189,10 +189,10 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                         return FilterChip(
                           label: Text(cls),
                           selected: sel,
-                          selectedColor: Colors.deepPurple.withOpacity(0.15),
-                          checkmarkColor: Colors.deepPurple,
+                          selectedColor: AppTheme.primary.withOpacity(0.15),
+                          checkmarkColor: AppTheme.primary,
                           labelStyle: TextStyle(
-                            color: sel ? Colors.deepPurple : null,
+                            color: sel ? AppTheme.primary : null,
                             fontWeight: sel
                                 ? FontWeight.bold
                                 : FontWeight.normal,
@@ -224,7 +224,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                       icon: const Icon(Icons.add, size: 16),
                       label: const Text('Add'),
                       style: TextButton.styleFrom(
-                          foregroundColor: Colors.deepPurple),
+                          foregroundColor: AppTheme.primary),
                     ),
                   ],
                 ),
@@ -405,7 +405,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                               child: ChoiceChip(
                                 label: Text(cls),
                                 selected: selected,
-                                selectedColor: Colors.deepPurple,
+                                selectedColor: AppTheme.primary,
                                 labelStyle: TextStyle(
                                   color: selected ? Colors.white : null,
                                   fontWeight: selected
@@ -445,7 +445,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                           : RefreshIndicator(
                               onRefresh: () =>
                                   _selectClass(_selectedClass!),
-                              color: Colors.deepPurple,
+                              color: AppTheme.primary,
                               child: ListView.separated(
                                 physics:
                                     const AlwaysScrollableScrollPhysics(),
@@ -526,11 +526,11 @@ class _ExamCard extends StatelessWidget {
             Container(
               width: 40, height: 40,
               decoration: BoxDecoration(
-                color: Colors.deepPurple.withOpacity(0.1),
+                color: AppTheme.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.quiz_outlined,
-                  color: Colors.deepPurple, size: 22),
+                  color: AppTheme.primary, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -576,13 +576,13 @@ class _ExamCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.deepPurple.withOpacity(0.08),
+                        color: AppTheme.primary.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(s,
                           style: const TextStyle(
                               fontSize: 11,
-                              color: Colors.deepPurple)),
+                              color: AppTheme.primary)),
                     ))
                 .toList(),
           ),
@@ -594,9 +594,9 @@ class _ExamCard extends StatelessWidget {
                 icon: const Icon(Icons.edit_note_outlined, size: 16),
                 label: const Text('Enter Marks'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.deepPurple,
+                  foregroundColor: AppTheme.primary,
                   side:
-                      const BorderSide(color: Colors.deepPurple),
+                      const BorderSide(color: AppTheme.primary),
                   padding:
                       const EdgeInsets.symmetric(vertical: 8),
                 ),

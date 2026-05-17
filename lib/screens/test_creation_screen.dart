@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:flutter/services.dart';
 import '../models/student.dart';
 import '../services/firestore_service.dart';
@@ -120,20 +121,20 @@ class _TestCreationScreenState extends State<TestCreationScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF1565C0).withOpacity(0.07),
+                color: const AppTheme.primary.withOpacity(0.07),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                    color: const Color(0xFF1565C0).withOpacity(0.2)),
+                    color: const AppTheme.primary.withOpacity(0.2)),
               ),
               child: Row(children: [
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1565C0).withOpacity(0.12),
+                    color: const AppTheme.primary.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.quiz_outlined,
-                      color: Color(0xFF1565C0), size: 22),
+                      color: AppTheme.primary, size: 22),
                 ),
                 const SizedBox(width: 12),
                 Column(

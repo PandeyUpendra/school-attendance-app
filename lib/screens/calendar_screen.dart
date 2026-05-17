@@ -247,7 +247,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         children: [
           _legendItem(Colors.red, 'Govt Holiday'),
           _legendItem(Colors.grey, 'Govt Holiday (Open)'),
-          _legendItem(Colors.deepPurple, 'School Holiday'),
+          _legendItem(AppTheme.primary, 'School Holiday'),
           _legendItem(Colors.green, 'Event'),
           _legendItem(Colors.orange, 'Festival'),
           _legendItem(Colors.blue, 'Exam'),
@@ -390,7 +390,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return event.isObserved ? Colors.red : Colors.grey;
     }
     switch (event.type) {
-      case CalendarEventType.holiday: return Colors.deepPurple;
+      case CalendarEventType.holiday: return AppTheme.primary;
       case CalendarEventType.festival: return Colors.orange;
       case CalendarEventType.vacation: return Colors.teal;
       case CalendarEventType.exam: return Colors.blue;

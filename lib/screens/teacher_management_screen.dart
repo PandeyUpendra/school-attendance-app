@@ -32,8 +32,8 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
 
   static const _colors = [
     AppTheme.primary, AppTheme.primaryDark, AppTheme.primaryMid, AppTheme.accent,
-    Colors.purple, Colors.green, Colors.red, Colors.brown,
-    Colors.cyan, Colors.deepPurple,
+    AppTheme.primaryLight, Colors.green, Colors.red, Colors.brown,
+    Colors.cyan, AppTheme.primaryDark,
   ];
 
   @override

@@ -20,8 +20,8 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
 
   static const _colors = [
     AppTheme.primary, AppTheme.primaryDark, AppTheme.primaryMid, AppTheme.primaryLight,
-    Color(0xFF6A1B9A), Color(0xFF7B1FA2), Color(0xFF8E24AA), Color(0xFF9C27B0),
-    Color(0xFFAB47BC), Color(0xFF4A148C),
+    AppTheme.accent, AppTheme.primary, AppTheme.primaryMid, AppTheme.primaryDark,
+    AppTheme.primaryLight, AppTheme.accent,
   ];
 
   @override

@@ -357,18 +357,18 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
                     decoration: InputDecoration(
                       labelText: 'Select Substitute Teacher',
                       labelStyle: const TextStyle(
-                          fontSize: 11, color: Color(0xFF1565C0)),
+                          fontSize: 11, color: AppTheme.primary),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8)),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide:
-                            const BorderSide(color: Color(0xFF1565C0)),
+                            const BorderSide(color: AppTheme.primary),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide: const BorderSide(
-                            color: Color(0xFF1565C0), width: 2),
+                            color: AppTheme.primary, width: 2),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 8),

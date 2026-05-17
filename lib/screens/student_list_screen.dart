@@ -726,7 +726,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppTheme.primaryDark, Color(0xFF880E4F)],
+                  colors: [AppTheme.primaryDark, AppTheme.primaryMid],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),

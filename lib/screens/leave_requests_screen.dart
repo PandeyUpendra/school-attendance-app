@@ -104,7 +104,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
     } else if (status == 'forwarded_to_principal') {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Leave request forwarded to Principal.'),
-        backgroundColor: Colors.indigo,
+        backgroundColor: AppTheme.primary,
         duration: Duration(seconds: 3),
       ));
     }
@@ -266,11 +266,11 @@ class _LeaveCard extends StatelessWidget {
           Row(children: [
             CircleAvatar(
               radius: 20,
-              backgroundColor: Colors.deepPurple.shade50,
+              backgroundColor: AppTheme.primary.withOpacity(0.1),
               child: Text(
                 (app['teacherName'] as String? ?? 'T')[0].toUpperCase(),
                 style: TextStyle(
-                    color: Colors.deepPurple.shade700,
+                    color: AppTheme.primary,
                     fontWeight: FontWeight.bold,
                     fontSize: 16),
               ),
@@ -315,7 +315,7 @@ class _LeaveCard extends StatelessWidget {
             const SizedBox(width: 8),
             _chip(Icons.send_outlined,
                 'To: ${(app['toRole'] as String? ?? '').capitalize()}',
-                Colors.purple),
+                AppTheme.primaryMid),
           ]),
           const SizedBox(height: 8),
           Text('Reason: ${app['reason'] ?? '—'}',
@@ -350,7 +350,7 @@ class _LeaveCard extends StatelessWidget {
                   child: _ActionButton(
                     label: 'Forward to Principal',
                     icon: Icons.forward_to_inbox_outlined,
-                    color: Colors.indigo,
+                    color: AppTheme.primaryDark,
                     onPressed: onForward,
                   ),
                 ),

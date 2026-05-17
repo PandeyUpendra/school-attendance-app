@@ -161,7 +161,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF6A1B9A), Color(0xFF4A148C)],
+          colors: [AppTheme.primary, AppTheme.primaryDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -221,7 +221,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
 
   Widget _buildFilterBar() {
     return Container(
-      color: const Color(0xFF4A148C),
+      color: AppTheme.primaryDark,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
       child: Container(
         decoration: BoxDecoration(
@@ -347,8 +347,8 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isToday
-              ? [const Color(0xFF7B1FA2), const Color(0xFFAD1457)]
-              : [const Color(0xFF6A1B9A), const Color(0xFF512DA8)],
+              ? [AppTheme.primaryMid, AppTheme.accent]
+              : [AppTheme.primary, AppTheme.primaryDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -588,7 +588,7 @@ class _BirthdayCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFD81B60), Color(0xFFC2185B)],
+                  colors: [AppTheme.accent, AppTheme.accent],
                 ),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
               ),
@@ -694,7 +694,7 @@ class _BirthdayCard extends StatelessWidget {
                     _ActionBtn(
                       icon: Icons.phone_outlined,
                       label: 'Call',
-                      color: const Color(0xFF1565C0),
+                      color: AppTheme.primary,
                       enabled: _hasPhone,
                       onTap: _hasPhone ? onCall : null,
                     ),
