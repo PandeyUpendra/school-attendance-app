@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'guardian_student_details.dart';
 
 class Student {
@@ -23,6 +24,7 @@ class Student {
   final GuardianStudentDetails? guardianDetails;
   /// Guardian's Gmail address used for Google Sign-In on the Guardian Portal.
   final String? guardianEmail;
+  final Timestamp? dateOfBirth;
 
   const Student({
     this.id = '',
@@ -42,6 +44,7 @@ class Student {
     this.teacherId,
     this.guardianDetails,
     this.guardianEmail,
+    this.dateOfBirth,
   });
 
   Map<String, dynamic> toJson() => {
@@ -62,6 +65,7 @@ class Student {
         if (teacherId != null) 'teacherId': teacherId,
         if (guardianDetails != null) 'guardianDetails': guardianDetails!.toJson(),
         if (guardianEmail != null) 'guardianEmail': guardianEmail,
+        if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
       };
 
   factory Student.fromJson(Map<String, dynamic> json) => Student(
@@ -85,6 +89,7 @@ class Student {
                 Map<String, dynamic>.from(json['guardianDetails']))
             : null,
         guardianEmail: json['guardianEmail'] as String?,
+        dateOfBirth: json['dateOfBirth'] as Timestamp?,
       );
 
   Student copyWith({
@@ -104,6 +109,7 @@ class Student {
     String? teacherId,
     GuardianStudentDetails? guardianDetails,
     String? guardianEmail,
+    Timestamp? dateOfBirth,
   }) =>
       Student(
         id: id ?? this.id,
@@ -123,5 +129,6 @@ class Student {
         teacherId: teacherId ?? this.teacherId,
         guardianDetails: guardianDetails ?? this.guardianDetails,
         guardianEmail: guardianEmail ?? this.guardianEmail,
+        dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       );
 }

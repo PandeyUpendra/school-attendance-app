@@ -12,6 +12,7 @@ import '../services/firestore_service.dart';
 import '../services/role_permission_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
+import 'birthdays/birthdays_screen.dart';
 
 class PrincipalHome extends StatefulWidget {
   const PrincipalHome({super.key});
@@ -1350,6 +1351,33 @@ class _PrincipalHomeState extends State<PrincipalHome> {
           slivers: [
             SliverToBoxAdapter(child: _buildAttendanceCard()),
 
+            // ── Birthday banner + tile ─────────────────────────────────────
+            SliverToBoxAdapter(
+              child: BirthdayBanner(
+                role: 'principal',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const BirthdaysScreen(role: 'principal'),
+                  ),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: _BirthdayTile(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          const BirthdaysScreen(role: 'principal'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
             SliverToBoxAdapter(
                 child: _sectionHeader('School Overview')),
             SliverToBoxAdapter(child: _buildOverviewSection()),
@@ -2244,6 +2272,66 @@ class _ShimmerList extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── Birthday tile for principal home ─────────────────────────────────────────
+
+class _BirthdayTile extends StatelessWidget {
+  final VoidCallback onTap;
+  const _BirthdayTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2))
+          ],
+        ),
+        child: Row(children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFD81B60).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Center(
+              child: Text('🎂', style: TextStyle(fontSize: 20)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Birthdays',
+                  style: TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Staff and student birthday wishes & calendar',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right,
+              color: Colors.grey, size: 20),
+        ]),
       ),
     );
   }
