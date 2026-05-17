@@ -173,9 +173,12 @@ class MeetingService {
   Stream<List<Meeting>> streamMeetingsByCreator(String createdBy) =>
       _meetings
           .where('createdBy', isEqualTo: createdBy)
-          .orderBy('createdAt', descending: true)
           .snapshots()
-          .map((s) => s.docs.map((d) => Meeting.fromJson(d.data(), d.id)).toList());
+          .map((s) {
+            final list = s.docs.map((d) => Meeting.fromJson(d.data(), d.id)).toList();
+            list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            return list;
+          });
 
   Stream<Meeting?> streamMeeting(String meetingId) =>
       _meetings.doc(meetingId).snapshots().map((s) {
@@ -186,9 +189,12 @@ class MeetingService {
   Stream<List<MeetingTask>> streamTasksForTeacher(String teacherId) =>
       _meetingTasks
           .where('assignedTo', isEqualTo: teacherId)
-          .orderBy('createdAt', descending: true)
           .snapshots()
-          .map((s) => s.docs.map((d) => MeetingTask.fromJson(d.data(), d.id)).toList());
+          .map((s) {
+            final list = s.docs.map((d) => MeetingTask.fromJson(d.data(), d.id)).toList();
+            list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            return list;
+          });
 
   Stream<int> streamPendingTaskCountForTeacher(String teacherId) =>
       streamTasksForTeacher(teacherId)
