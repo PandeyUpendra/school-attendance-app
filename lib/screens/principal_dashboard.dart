@@ -25,6 +25,7 @@ import 'coordinator_dashboard.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
 import '../utils/role_guard.dart';
+import 'meeting/principal_meeting_records_screen.dart';
 
 /// The Principal Portal — school-wide overview dashboard.
 class PrincipalDashboard extends StatefulWidget {
@@ -230,6 +231,17 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
               // ── Tools ─────────────────────────────────────────────────
               _SectionHeader('TOOLS'),
+              _FeatureTile(
+                icon: Icons.history_edu_outlined,
+                color: AppTheme.primary,
+                title: 'Meeting Records',
+                subtitle: 'View all meeting records, tasks and PDFs',
+                onTap: () => _navigate(PrincipalMeetingRecordsScreen(
+                  principalEmail: _principalEmail,
+                  principalName:  _principalEmail,
+                )),
+              ),
+              const Divider(height: 1, indent: 72),
               _FeatureTile(
                 icon: Icons.task_outlined,
                 color: AppTheme.primary,

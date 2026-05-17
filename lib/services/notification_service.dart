@@ -158,6 +158,24 @@ class NotificationService {
     });
   }
 
+  /// Called when a meeting task is assigned to a teacher.
+  Future<void> addMeetingTaskNotification({
+    required String teacherId,
+    required String meetingTitle,
+    required String pointText,
+  }) async {
+    final body = pointText.length > 100
+        ? '${pointText.substring(0, 97)}…'
+        : pointText;
+    await _coll.add({
+      'type':      'meeting_task',
+      'title':     'New Meeting Task: $meetingTitle',
+      'body':      body,
+      'audience':  'teacher:$teacherId',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   // ── Deleters ───────────────────────────────────────────────────────────────
 
   /// Deletes a single notification by its Firestore document ID.
