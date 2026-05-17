@@ -200,9 +200,7 @@ class _CoordinatorMeetingRecordsScreenState
                                   ),
                                 ),
                               ),
-                              onDownloadPdf: m.pdfUrl.isNotEmpty
-                                  ? () => _openPdf(m.pdfUrl)
-                                  : null,
+                              onDownloadPdf: () => _sharePdf(m),
                               onSendReminder: m.tasksCreated > 0 && !m.isCompleted
                                   ? () => _sendReminder(m)
                                   : null,
@@ -233,10 +231,16 @@ class _CoordinatorMeetingRecordsScreenState
     );
   }
 
-  void _openPdf(String url) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('PDF URL: $url')),
-    );
+  Future<void> _sharePdf(Meeting m) async {
+    try {
+      await shareMeetingPdf(m);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF error: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildShimmer() => Shimmer.fromColors(
@@ -428,16 +432,11 @@ class _CoordMeetingCardState extends State<_CoordMeetingCard> {
             const SizedBox(width: 6),
             Expanded(
               child: OutlinedButton.icon(
-                icon: const Icon(Icons.picture_as_pdf_outlined, size: 15),
-                label: const Text('PDF', style: TextStyle(fontSize: 12)),
+                icon: const Icon(Icons.share_outlined, size: 15),
+                label: const Text('Share PDF', style: TextStyle(fontSize: 12)),
                 style: OutlinedButton.styleFrom(
-                    foregroundColor: widget.onDownloadPdf != null
-                        ? AppTheme.danger
-                        : Colors.grey.shade400,
-                    side: BorderSide(
-                        color: widget.onDownloadPdf != null
-                            ? AppTheme.danger
-                            : Colors.grey.shade300),
+                    foregroundColor: AppTheme.danger,
+                    side: const BorderSide(color: AppTheme.danger),
                     padding: const EdgeInsets.symmetric(vertical: 6)),
                 onPressed: widget.onDownloadPdf,
               ),

@@ -7,10 +7,9 @@ import 'copy_check_service.dart';
 /// Aggregates one day's school-wide signals into a single `DigestSnapshot`
 /// for the Principal EOD Digest screen.
 ///
-/// All sub-queries fan out in parallel.  Two `collectionGroup` queries
-/// (`remarks`, `payments`) are filtered by today's start so they don't
-/// scan history — both will require Firestore composite indexes the first
-/// time the digest runs (Firestore prints a console link to create each).
+/// All sub-queries fan out in parallel.  CollectionGroup queries for
+/// `remarks` and `payments` fetch all documents and filter client-side
+/// to avoid requiring Firestore Collection Group composite indexes.
 class PrincipalDigestService {
   static final _db = FirebaseFirestore.instance;
 
@@ -21,7 +20,6 @@ class PrincipalDigestService {
   Future<DigestSnapshot> buildTodayDigest() async {
     final now           = DateTime.now();
     final dayStart      = DateTime(now.year, now.month, now.day);
-    final dayStartTs    = Timestamp.fromDate(dayStart);
 
     final settings      = await TimetableService().getSettings();
     final classes       = List<String>.from(settings['classes'] as List);
@@ -32,12 +30,8 @@ class PrincipalDigestService {
     final teachersF     = TimetableService().getTeachers();
     final allLeavesF    = TimetableService().getLeaveApplications();
     final pendingLeavesF= TimetableService().getLeaveApplications(status: 'pending');
-    final remarksTodayF = _db.collectionGroup('remarks')
-                            .where('timestamp', isGreaterThanOrEqualTo: dayStartTs)
-                            .get();
-    final paymentsTodayF= _db.collectionGroup('payments')
-                            .where('paidOn', isGreaterThanOrEqualTo: dayStartTs)
-                            .get();
+    final remarksTodayF = _db.collectionGroup('remarks').get();
+    final paymentsTodayF= _db.collectionGroup('payments').get();
     final copyChecksF   = CopyCheckService().getAllChecks();
 
     final summaries     = await summariesF;
@@ -97,29 +91,34 @@ class PrincipalDigestService {
       }
     }
 
-    // ── Remarks today ───────────────────────────────────────────────────────
+    // ── Remarks today (client-side date filter) ─────────────────────────────
     final remarks = <RemarkItem>[];
     for (final doc in remarksSnap.docs) {
       final data = doc.data();
+      final ts = data['timestamp'];
+      if (ts is! Timestamp) continue;
+      final dt = ts.toDate();
+      if (dt.isBefore(dayStart)) continue; // skip older remarks
       // Doc path: students/{studentId}/remarks/{id}
       final studentId = doc.reference.parent.parent?.id ?? '';
-      final ts = data['timestamp'];
       remarks.add(RemarkItem(
         studentId:  studentId,
         remark:     (data['remark']    as String?) ?? '',
         role:       (data['role']      as String?) ?? '',
         createdBy:  (data['createdBy'] as String?) ?? '',
-        timestamp:  ts is Timestamp ? ts.toDate() : DateTime.now(),
+        timestamp:  dt,
       ));
     }
     remarks.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-    // ── Fees collected today ────────────────────────────────────────────────
+    // ── Fees collected today (client-side date filter) ──────────────────────
     double feesTotal = 0;
     int    paymentsCount = 0;
     final feesByMode = <String, double>{};
     for (final doc in paymentsSnap.docs) {
       final data = doc.data();
+      final paidOn = data['paidOn'];
+      if (paidOn is Timestamp && paidOn.toDate().isBefore(dayStart)) continue;
       final amt  = (data['amount'] as num?)?.toDouble() ?? 0;
       final mode = (data['mode']   as String?) ?? 'Cash';
       feesTotal += amt;
