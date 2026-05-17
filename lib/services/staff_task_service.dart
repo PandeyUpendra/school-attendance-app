@@ -16,6 +16,17 @@ class StaffTaskService {
     await ref.set(task.toJson());
   }
 
+  Future<void> createTasksBatch(List<StaffTask> tasks) async {
+    for (int i = 0; i < tasks.length; i += 500) {
+      final batch = _db.batch();
+      final end   = (i + 500 < tasks.length) ? i + 500 : tasks.length;
+      for (int j = i; j < end; j++) {
+        batch.set(_tasks.doc(), tasks[j].toJson());
+      }
+      await batch.commit();
+    }
+  }
+
   Future<void> updateTaskStatus(String taskId, TaskStatus status) =>
       _tasks.doc(taskId).update({'status': status.name});
 

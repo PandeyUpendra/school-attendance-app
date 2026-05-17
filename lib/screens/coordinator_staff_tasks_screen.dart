@@ -7,6 +7,56 @@ import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import 'task_badge_widgets.dart';
 
+const String _kAllTeachers = 'ALL_TEACHERS';
+
+const Map<String, String> _kTemplates = {
+  "PTM Preparation":
+      "Please prepare a detailed student-wise "
+      "summary including attendance percentage, "
+      "latest test marks, and behavior notes "
+      "for the upcoming Parent-Teacher Meeting.",
+  "Check and Return Copies":
+      "Please collect, check, and return all "
+      "student copies/notebooks for your subject. "
+      "Ensure feedback is written on each copy "
+      "before returning.",
+  "Submit Marks":
+      "Please submit the marks for the recent "
+      "exam/test in the app under your class "
+      "and subject by the due date.",
+  "Prepare Question Paper":
+      "Please prepare a question paper for the "
+      "upcoming exam. Include MCQ, short answer, "
+      "and long answer sections as per the "
+      "standard pattern.",
+  "Update Syllabus":
+      "Please update the syllabus completion "
+      "status in the app for all chapters "
+      "covered so far this month.",
+  "Duty Assignment":
+      "You have been assigned duty for the "
+      "upcoming school event/exam. Please "
+      "report to your assigned location on "
+      "time in proper uniform.",
+  "Parent Call":
+      "Please call the parents of the students "
+      "listed and update the call status and "
+      "reason in the Daily Calls section.",
+  "Prepare Notes":
+      "Please prepare chapter-wise notes for "
+      "your subject and upload them to the "
+      "study material section for students.",
+  "Attendance Report":
+      "Please review and verify the attendance "
+      "records for your class for this month "
+      "and report any discrepancies.",
+  "Meeting Attendance":
+      "Your presence is required at the staff "
+      "meeting. Please ensure you attend on "
+      "time and bring any relevant documents.",
+  "Custom Task": "",
+};
+
 /// Coordinator's staff-task management screen.
 /// Tab 1 — Assign Task (create form).
 /// Tab 2 — All Tasks (created by this coordinator).
@@ -61,16 +111,17 @@ class _AssignTab extends StatefulWidget {
 }
 
 class _AssignTabState extends State<_AssignTab> {
-  final _titleCtrl = TextEditingController();
-  final _descCtrl  = TextEditingController();
+  final _descCtrl        = TextEditingController();
+  final _customTitleCtrl = TextEditingController();
 
-  List<Teacher>  _teachers      = [];
-  String?        _selectedTeacherId;
-  String         _selectedTeacherName = '';
-  TaskPriority   _priority      = TaskPriority.medium;
-  DateTime?      _dueDate;
-  bool           _loadingPeople = true;
-  bool           _saving        = false;
+  String?      _selectedTaskTitle;
+  List<Teacher> _teachers         = [];
+  String?      _selectedTeacherId;
+  String       _selectedTeacherName = '';
+  TaskPriority _priority            = TaskPriority.medium;
+  DateTime?    _dueDate;
+  bool         _loadingPeople       = true;
+  bool         _saving              = false;
 
   @override
   void initState() {
@@ -80,8 +131,8 @@ class _AssignTabState extends State<_AssignTab> {
 
   @override
   void dispose() {
-    _titleCtrl.dispose();
     _descCtrl.dispose();
+    _customTitleCtrl.dispose();
     super.dispose();
   }
 
@@ -89,7 +140,7 @@ class _AssignTabState extends State<_AssignTab> {
     final teachers = await TimetableService().getTeachers();
     if (!mounted) return;
     setState(() {
-      _teachers     = teachers..sort((a, b) => a.name.compareTo(b.name));
+      _teachers      = teachers..sort((a, b) => a.name.compareTo(b.name));
       _loadingPeople = false;
     });
   }
@@ -111,10 +162,21 @@ class _AssignTabState extends State<_AssignTab> {
     if (picked != null) setState(() => _dueDate = picked);
   }
 
+  String get _actualTitle {
+    if (_selectedTaskTitle == 'Custom Task') {
+      return _customTitleCtrl.text.trim();
+    }
+    return _selectedTaskTitle ?? '';
+  }
+
   Future<void> _submit() async {
-    final title = _titleCtrl.text.trim();
-    if (title.isEmpty) {
-      _snack('Please enter a task title');
+    if (_selectedTaskTitle == null) {
+      _snack('Please select a task title');
+      return;
+    }
+    if (_selectedTaskTitle == 'Custom Task' &&
+        _customTitleCtrl.text.trim().isEmpty) {
+      _snack('Please enter a custom task title');
       return;
     }
     if (_selectedTeacherId == null) {
@@ -122,8 +184,14 @@ class _AssignTabState extends State<_AssignTab> {
       return;
     }
 
+    if (_selectedTeacherId == _kAllTeachers) {
+      await _submitToAllTeachers();
+      return;
+    }
+
     setState(() => _saving = true);
 
+    final title = _actualTitle;
     final task = StaffTask(
       id:             '',
       title:          title,
@@ -140,7 +208,6 @@ class _AssignTabState extends State<_AssignTab> {
 
     await StaffTaskService().createTask(task);
 
-    // Notify the assigned teacher.
     await NotificationService().addStaffTaskNotice(
       taskTitle:         title,
       assignedTeacherId: _selectedTeacherId!,
@@ -151,15 +218,92 @@ class _AssignTabState extends State<_AssignTab> {
 
     if (!mounted) return;
     setState(() => _saving = false);
-    _titleCtrl.clear();
+    _resetForm();
+    _snack('Task assigned successfully');
+  }
+
+  Future<void> _submitToAllTeachers() async {
+    final count = _teachers.length;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Assign to All Teachers?'),
+        content: Text(
+            'This will create $count individual tasks, '
+            'one for each teacher.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true || !mounted) return;
+
+    setState(() => _saving = true);
+
+    final title       = _actualTitle;
+    final description = _descCtrl.text.trim();
+    final groupId     = DateTime.now().millisecondsSinceEpoch.toString();
+    final now         = DateTime.now();
+
+    final tasks = _teachers
+        .map((t) => StaffTask(
+              id:             '',
+              title:          title,
+              description:    description,
+              assignedTo:     t.id,
+              assignedToName: t.name,
+              assignedBy:     widget.coordinatorEmail,
+              assignedByRole: 'coordinator',
+              dueDate:        _dueDate,
+              status:         TaskStatus.pending,
+              priority:       _priority,
+              createdAt:      now,
+              isGroupTask:    true,
+              groupTaskId:    groupId,
+            ))
+        .toList();
+
+    await StaffTaskService().createTasksBatch(tasks);
+
+    for (final t in _teachers) {
+      await NotificationService().addStaffTaskNotice(
+        taskTitle:         title,
+        assignedTeacherId: t.id,
+        assignedByName:    widget.coordinatorEmail,
+        dueDateStr:        _dueDate != null ? _fmtDate(_dueDate!) : null,
+        priority:          _priority.label,
+      );
+    }
+
+    if (!mounted) return;
+    setState(() => _saving = false);
+    _resetForm();
+    _snack('Task assigned to all $count teachers');
+  }
+
+  void _resetForm() {
     _descCtrl.clear();
+    _customTitleCtrl.clear();
     setState(() {
+      _selectedTaskTitle   = null;
       _selectedTeacherId   = null;
       _selectedTeacherName = '';
       _priority            = TaskPriority.medium;
       _dueDate             = null;
     });
-    _snack('Task assigned successfully');
   }
 
   void _snack(String msg) {
@@ -175,28 +319,75 @@ class _AssignTabState extends State<_AssignTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Title ──────────────────────────────────────────────────────
+          // ── Task Title Dropdown ────────────────────────────────────────────
           _Label('Task Title'),
-          TextField(
-            controller: _titleCtrl,
-            decoration: _inputDec(hint: 'e.g. PTM Preparation'),
-            textCapitalization: TextCapitalization.sentences,
+          DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 12),
+              filled: true,
+              fillColor: AppTheme.background,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+              prefixIcon: const Icon(Icons.task_alt,
+                  color: AppTheme.primary, size: 20),
+            ),
+            isExpanded: true,
+            value: _selectedTaskTitle,
+            hint: const Text('Select or choose custom'),
+            items: _kTemplates.keys
+                .map((title) => DropdownMenuItem<String>(
+                      value: title,
+                      child: Text(title,
+                          overflow: TextOverflow.ellipsis),
+                    ))
+                .toList(),
+            onChanged: (selected) {
+              setState(() {
+                _selectedTaskTitle = selected;
+                if (selected != null && selected != 'Custom Task') {
+                  _descCtrl.text = _kTemplates[selected] ?? '';
+                } else {
+                  _descCtrl.text = '';
+                }
+              });
+            },
           ),
+
+          // ── Custom Task Title field ────────────────────────────────────────
+          if (_selectedTaskTitle == 'Custom Task') ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: _customTitleCtrl,
+              decoration: _inputDec(hint: 'e.g. Prepare Annual Report').copyWith(
+                labelText: 'Enter Custom Task Title',
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+              ),
+              textCapitalization: TextCapitalization.sentences,
+            ),
+          ],
 
           const SizedBox(height: 14),
 
-          // ── Description ────────────────────────────────────────────────
-          _Label('Description'),
+          // ── Description ────────────────────────────────────────────────────
+          _Label('Description (auto-filled, editable)'),
           TextField(
             controller: _descCtrl,
             maxLines: 4,
             decoration: _inputDec(hint: 'Describe what needs to be done'),
             textCapitalization: TextCapitalization.sentences,
           ),
+          const SizedBox(height: 4),
+          Text(
+            'You can edit this message',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+          ),
 
           const SizedBox(height: 14),
 
-          // ── Assign To ──────────────────────────────────────────────────
+          // ── Assign To ──────────────────────────────────────────────────────
           _Label('Assign To'),
           _loadingPeople
               ? const Center(
@@ -207,27 +398,74 @@ class _AssignTabState extends State<_AssignTab> {
                   hint: const Text('Select a teacher'),
                   isExpanded: true,
                   decoration: _inputDec(),
-                  items: _teachers.map((t) {
-                    return DropdownMenuItem(
-                      value: t.id,
-                      child: Text(t.name,
-                          overflow: TextOverflow.ellipsis),
-                    );
-                  }).toList(),
+                  items: [
+                    // ── All Teachers option at top ──
+                    DropdownMenuItem<String>(
+                      value: _kAllTeachers,
+                      child: Row(children: [
+                        const Icon(Icons.groups,
+                            color: AppTheme.primary, size: 18),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'All Teachers',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                      ]),
+                    ),
+                    // ── Individual teachers ──
+                    ..._teachers.map((t) => DropdownMenuItem<String>(
+                          value: t.id,
+                          child: Text(t.name,
+                              overflow: TextOverflow.ellipsis),
+                        )),
+                  ],
                   onChanged: (v) {
                     if (v == null) return;
-                    final teacher =
-                        _teachers.firstWhere((t) => t.id == v);
                     setState(() {
                       _selectedTeacherId   = v;
-                      _selectedTeacherName = teacher.name;
+                      _selectedTeacherName = v == _kAllTeachers
+                          ? 'All Teachers'
+                          : _teachers.firstWhere((t) => t.id == v).name;
                     });
                   },
                 ),
 
+          // ── All Teachers confirmation banner ───────────────────────────────
+          if (_selectedTeacherId == _kAllTeachers) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: AppTheme.primary.withOpacity(0.2)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.groups,
+                    color: AppTheme.primary, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Task will be assigned to all '
+                    '${_teachers.length} teachers in the school',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ]),
+            ),
+          ],
+
           const SizedBox(height: 14),
 
-          // ── Priority ───────────────────────────────────────────────────
+          // ── Priority ───────────────────────────────────────────────────────
           _Label('Priority'),
           Row(children: [
             for (final p in TaskPriority.values)
@@ -258,7 +496,7 @@ class _AssignTabState extends State<_AssignTab> {
 
           const SizedBox(height: 14),
 
-          // ── Due Date ───────────────────────────────────────────────────
+          // ── Due Date ───────────────────────────────────────────────────────
           _Label('Due Date'),
           GestureDetector(
             onTap: _pickDueDate,
@@ -296,7 +534,7 @@ class _AssignTabState extends State<_AssignTab> {
 
           const SizedBox(height: 28),
 
-          // ── Submit ─────────────────────────────────────────────────────
+          // ── Submit ─────────────────────────────────────────────────────────
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -367,8 +605,8 @@ class _AllTasksTab extends StatefulWidget {
 }
 
 class _AllTasksTabState extends State<_AllTasksTab> {
-  int         _refreshTick   = 0;
-  TaskStatus? _filterStatus;   // null = All
+  int         _refreshTick  = 0;
+  TaskStatus? _filterStatus; // null = All
   String?     _filterTeacher; // null = All teachers
 
   @override
@@ -414,7 +652,6 @@ class _AllTasksTabState extends State<_AllTasksTab> {
               }
               var tasks = snap.data ?? [];
 
-              // Apply filters
               if (_filterStatus != null) {
                 tasks = tasks
                     .where((t) => t.status == _filterStatus)
@@ -570,6 +807,29 @@ class _CoordTaskCard extends StatelessWidget {
                   ),
                 ),
               ]),
+            ],
+            if (task.isGroupTask) ...[
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: AppTheme.primary.withOpacity(0.3)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.groups,
+                      size: 12, color: AppTheme.primary),
+                  const SizedBox(width: 4),
+                  const Text('Group Task',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primary)),
+                ]),
+              ),
             ],
           ],
         ),

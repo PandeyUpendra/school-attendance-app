@@ -54,6 +54,8 @@ class StaffTask {
   final TaskPriority priority;
   final String       classId;          // optional class context
   final DateTime     createdAt;
+  final bool         isGroupTask;
+  final String       groupTaskId;
 
   const StaffTask({
     required this.id,
@@ -68,6 +70,8 @@ class StaffTask {
     required this.priority,
     this.classId = '',
     required this.createdAt,
+    this.isGroupTask = false,
+    this.groupTaskId = '',
   });
 
   bool get isOverdue =>
@@ -95,6 +99,8 @@ class StaffTask {
         classId:        json['classId']        as String? ?? '',
         createdAt:      (json['createdAt'] as Timestamp?)?.toDate() ??
                         DateTime.now(),
+        isGroupTask:    json['isGroupTask']    as bool?   ?? false,
+        groupTaskId:    json['groupTaskId']    as String? ?? '',
       );
 
   Map<String, dynamic> toJson() => {
@@ -109,6 +115,8 @@ class StaffTask {
     'priority':       priority.name,
     'classId':        classId,
     'createdAt':      FieldValue.serverTimestamp(),
+    'isGroupTask':    isGroupTask,
+    if (groupTaskId.isNotEmpty) 'groupTaskId': groupTaskId,
   };
 
   StaffTask copyWith({TaskStatus? status}) => StaffTask(
@@ -124,5 +132,7 @@ class StaffTask {
     priority:       priority,
     classId:        classId,
     createdAt:      createdAt,
+    isGroupTask:    isGroupTask,
+    groupTaskId:    groupTaskId,
   );
 }
