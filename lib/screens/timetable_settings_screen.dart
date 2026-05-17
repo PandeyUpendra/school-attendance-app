@@ -54,8 +54,6 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   bool _loading = true;
   bool _settingsEditing = false;
   bool _timetableEditing = false;
-  String? _legendTeacherId;
-
   static const _days = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
   ];
@@ -880,7 +878,6 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     }
     return Stack(children: [
       Column(children: [
-        _buildLegend(),
         const Divider(height: 1),
         Expanded(child: _buildGrid()),
         const SizedBox(height: 72),
@@ -937,53 +934,6 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
         const SizedBox(height: 4),
         Text(sub,
             style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
-      ]),
-    );
-  }
-
-  Widget _buildLegend() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-      color: Colors.grey.shade50,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Teachers',
-            style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
-        DropdownButtonFormField<String>(
-          value: _legendTeacherId,
-          isExpanded: true,
-          decoration: InputDecoration(
-            labelText: 'Select Teacher',
-            prefixIcon: const Icon(Icons.person_outline, size: 20),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10)),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFF1565C0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: Color(0xFF1565C0), width: 2),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          ),
-          hint: const Text('Select Teacher'),
-          items: _teachers.map((t) {
-            return DropdownMenuItem<String>(
-              value: t.id,
-              child: Text('${t.name}  ·  ${t.subject}',
-                  style: const TextStyle(fontSize: 13),
-                  overflow: TextOverflow.ellipsis),
-            );
-          }).toList(),
-          onChanged: (val) => setState(() => _legendTeacherId = val),
-        ),
       ]),
     );
   }
