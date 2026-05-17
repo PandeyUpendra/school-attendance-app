@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -920,9 +921,11 @@ class _TeacherDialogState extends State<_TeacherDialog> {
   late final TextEditingController _subjectCtrl;
   late final TextEditingController _emailCtrl;
   late final TextEditingController _sectionCtrl;
+  late final TextEditingController _phoneCtrl;
   final TextEditingController _newClassCtrl = TextEditingController();
   late bool _isClassTeacher;
   String? _classTeacherOf;
+  DateTime? _dateOfBirth;
   List<String> _classes = [];
   bool _loadingClasses = true;
   bool _showAddClass   = false;
@@ -937,8 +940,10 @@ class _TeacherDialogState extends State<_TeacherDialog> {
     _subjectCtrl    = TextEditingController(text: t?.subject ?? '');
     _emailCtrl      = TextEditingController(text: t?.email ?? '');
     _sectionCtrl    = TextEditingController(text: t?.section ?? '');
+    _phoneCtrl      = TextEditingController(text: t?.phone ?? '');
     _isClassTeacher = t?.isClassTeacher ?? false;
     _classTeacherOf = t?.classTeacherOf;
+    _dateOfBirth    = t?.dateOfBirth?.toDate();
     _loadClasses();
   }
 
@@ -986,8 +991,20 @@ class _TeacherDialogState extends State<_TeacherDialog> {
     _subjectCtrl.dispose();
     _emailCtrl.dispose();
     _sectionCtrl.dispose();
+    _phoneCtrl.dispose();
     _newClassCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickDOB() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dateOfBirth ?? DateTime(1985, 6, 15),
+      firstDate: DateTime(1940),
+      lastDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
+      helpText: 'Select Date of Birth',
+    );
+    if (picked != null) setState(() => _dateOfBirth = picked);
   }
 
   @override
@@ -1043,6 +1060,56 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _phoneCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Phone Number',
+                    prefixIcon: Icon(Icons.phone_outlined)),
+                keyboardType: TextInputType.phone,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                maxLength: 10,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return null; // optional
+                  if (v.trim().length != 10) return 'Must be 10 digits';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 8),
+              // Date of Birth picker
+              GestureDetector(
+                onTap: _pickDOB,
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Date of Birth',
+                    prefixIcon: const Icon(Icons.cake_outlined),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                    suffixIcon: _dateOfBirth != null
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () =>
+                                setState(() => _dateOfBirth = null),
+                          )
+                        : null,
+                  ),
+                  child: Text(
+                    _dateOfBirth != null
+                        ? '${_dateOfBirth!.day.toString().padLeft(2,'0')} / '
+                          '${_dateOfBirth!.month.toString().padLeft(2,'0')} / '
+                          '${_dateOfBirth!.year}'
+                        : 'Tap to select',
+                    style: TextStyle(
+                        fontSize: 15,
+                        color: _dateOfBirth != null
+                            ? Colors.black87
+                            : Colors.grey.shade500),
+                  ),
+                ),
               ),
               const SizedBox(height: 8),
 
@@ -1248,6 +1315,12 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                 classTeacherOf:
                     _isClassTeacher ? _classTeacherOf : null,
                 schoolId: BaseFirestoreService.currentSchoolId ?? 'default_school',
+                phone: _phoneCtrl.text.trim().isEmpty
+                    ? null
+                    : _phoneCtrl.text.trim(),
+                dateOfBirth: _dateOfBirth != null
+                    ? Timestamp.fromDate(_dateOfBirth!)
+                    : null,
               );
               Navigator.pop(context, teacher);
             }

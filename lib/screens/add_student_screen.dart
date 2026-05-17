@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -31,6 +32,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
   String? _feeDueDate;
   final _feeAmountCtrl = TextEditingController();
   String? _photoPath;
+  DateTime? _dateOfBirth;
   bool _saving = false;
 
   bool get _isEdit => widget.existing != null;
@@ -49,6 +51,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       _feeDueDate = s.feeDueDate;
       _feeAmountCtrl.text = s.feeAmount?.toStringAsFixed(0) ?? '';
       _photoPath = s.photoPath;
+      _dateOfBirth = s.dateOfBirth?.toDate();
     }
   }
 
@@ -107,6 +110,9 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       feeAmount: double.tryParse(_feeAmountCtrl.text.trim()),
       // Preserve existing teacherId on edits; stamp it on new records.
       teacherId: widget.teacherId ?? widget.existing?.teacherId,
+      dateOfBirth: _dateOfBirth != null
+          ? Timestamp.fromDate(_dateOfBirth!)
+          : null,
     );
 
     final service = StudentService();
@@ -275,6 +281,50 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                 if (v.trim().length != 10) return 'Must be exactly 10 digits';
                 return null;
               },
+            ),
+            const SizedBox(height: 14),
+            // Student Date of Birth
+            GestureDetector(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _dateOfBirth ??
+                      DateTime.now().subtract(const Duration(days: 365 * 10)),
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime.now(),
+                  helpText: 'Student Date of Birth',
+                );
+                if (picked != null) setState(() => _dateOfBirth = picked);
+              },
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  labelText: 'Student Date of Birth',
+                  prefixIcon: const Icon(Icons.cake_outlined),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 14),
+                  suffixIcon: _dateOfBirth != null
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () =>
+                              setState(() => _dateOfBirth = null),
+                        )
+                      : null,
+                ),
+                child: Text(
+                  _dateOfBirth != null
+                      ? '${_dateOfBirth!.day.toString().padLeft(2,'0')} / '
+                        '${_dateOfBirth!.month.toString().padLeft(2,'0')} / '
+                        '${_dateOfBirth!.year}'
+                      : 'Tap to select',
+                  style: TextStyle(
+                      fontSize: 15,
+                      color: _dateOfBirth != null
+                          ? Colors.black87
+                          : Colors.grey.shade500),
+                ),
+              ),
             ),
             const SizedBox(height: 14),
             DropdownButtonFormField<String>(

@@ -33,6 +33,7 @@ import 'coordinator/absent_teachers_screen.dart';
 import '../services/staff_task_service.dart';
 import '../utils/role_guard.dart';
 import 'meeting/coordinator_meeting_records_screen.dart';
+import 'birthdays/birthdays_screen.dart';
 
 const _cPurple    = AppTheme.primary;
 const _cPurpleMid = AppTheme.primaryMid;
@@ -450,6 +451,24 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
                   );
                 }
               },
+            ),
+
+            // ── Birthdays ──────────────────────────────────────────────────
+            _SectionHeader('BIRTHDAYS'),
+            BirthdayBanner(
+              role: 'coordinator',
+              onTap: () => _navigate(const BirthdaysScreen(
+                role: 'coordinator',
+              )),
+            ),
+            _FeatureTile(
+              icon: Icons.cake_outlined,
+              color: const Color(0xFFD81B60),
+              title: 'Birthdays',
+              subtitle: 'Staff and student birthday wishes',
+              onTap: () => _navigate(const BirthdaysScreen(
+                role: 'coordinator',
+              )),
             ),
 
             // ── Today's Attendance ─────────────────────────────────────────

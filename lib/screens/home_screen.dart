@@ -27,6 +27,7 @@ import 'student_remarks_screen.dart';
 import 'staff_tasks_screen.dart';
 import 'meeting/teacher_meeting_tasks_screen.dart';
 import '../services/meeting_service.dart';
+import 'birthdays/birthdays_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -749,6 +750,39 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () => _showAddGuardianSheet(context),
           ),
 
+          _SectionHeader('BIRTHDAYS'),
+          BirthdayBanner(
+            role: 'class_teacher',
+            className: teacher?.classTeacherOf,
+            section: teacher?.section,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BirthdaysScreen(
+                  role: 'class_teacher',
+                  className: teacher?.classTeacherOf,
+                  section: teacher?.section,
+                ),
+              ),
+            ),
+          ),
+          _FeatureTile(
+            icon: Icons.cake_outlined,
+            color: const Color(0xFFD81B60),
+            title: 'Birthdays',
+            subtitle: 'Staff and student birthday wishes',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BirthdaysScreen(
+                  role: 'class_teacher',
+                  className: teacher?.classTeacherOf,
+                  section: teacher?.section,
+                ),
+              ),
+            ),
+          ),
+
           const SizedBox(height: 32),
               ],
             ),
@@ -967,6 +1001,36 @@ class _HomeScreenState extends State<HomeScreen> {
           title: 'Add Guardian',
           subtitle: 'Create a guardian login linked to a student',
           onTap: () => _showAddGuardianSheet(context),
+        ),
+
+        _SectionHeader('BIRTHDAYS'),
+        BirthdayBanner(
+          role: 'subject_teacher',
+          assignedClasses: teacher?.assignedClasses,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BirthdaysScreen(
+                role: 'subject_teacher',
+                assignedClasses: teacher?.assignedClasses,
+              ),
+            ),
+          ),
+        ),
+        _FeatureTile(
+          icon: Icons.cake_outlined,
+          color: const Color(0xFFD81B60),
+          title: 'Birthdays',
+          subtitle: 'Staff and student birthday wishes',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BirthdaysScreen(
+                role: 'subject_teacher',
+                assignedClasses: teacher?.assignedClasses,
+              ),
+            ),
+          ),
         ),
 
         const SizedBox(height: 32),

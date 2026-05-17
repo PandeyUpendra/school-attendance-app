@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Student {
   final int roll;
   final String name;
@@ -17,6 +19,7 @@ class Student {
   /// ID of the class teacher who owns this student record.
   /// Null on legacy records created before this field was introduced.
   final String? teacherId;
+  final Timestamp? dateOfBirth;
 
   const Student({
     required this.roll,
@@ -33,6 +36,7 @@ class Student {
     this.feeDueDate,
     this.feeAmount,
     this.teacherId,
+    this.dateOfBirth,
   });
 
   Map<String, dynamic> toJson() => {
@@ -50,6 +54,7 @@ class Student {
         if (feeDueDate != null) 'feeDueDate': feeDueDate,
         if (feeAmount != null) 'feeAmount': feeAmount,
         if (teacherId != null) 'teacherId': teacherId,
+        if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
       };
 
   factory Student.fromJson(Map<String, dynamic> json) => Student(
@@ -67,6 +72,7 @@ class Student {
         feeDueDate: json['feeDueDate'] as String?,
         feeAmount: (json['feeAmount'] as num?)?.toDouble(),
         teacherId: json['teacherId'] as String?,
+        dateOfBirth: json['dateOfBirth'] as Timestamp?,
       );
 
   Student copyWith({
@@ -83,6 +89,7 @@ class Student {
     String? feeDueDate,
     double? feeAmount,
     String? teacherId,
+    Timestamp? dateOfBirth,
   }) =>
       Student(
         roll: roll,
@@ -99,5 +106,6 @@ class Student {
         feeDueDate: feeDueDate ?? this.feeDueDate,
         feeAmount: feeAmount ?? this.feeAmount,
         teacherId: teacherId ?? this.teacherId,
+        dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       );
 }

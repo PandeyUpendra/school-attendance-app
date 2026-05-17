@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Teacher {
   final String id;
   final String name;
@@ -8,6 +10,8 @@ class Teacher {
   final String? classTeacherOf; // the class this teacher is class teacher of
   final String schoolId;
   final List<String> assignedClasses; // classes a subject teacher is allowed to access
+  final String? phone;
+  final Timestamp? dateOfBirth;
 
   const Teacher({
     required this.id,
@@ -19,6 +23,8 @@ class Teacher {
     this.classTeacherOf,
     this.schoolId = 'default_school',
     this.assignedClasses = const [],
+    this.phone,
+    this.dateOfBirth,
   });
 
   Map<String, dynamic> toJson() => {
@@ -31,6 +37,8 @@ class Teacher {
         'classTeacherOf': classTeacherOf,
         'schoolId': schoolId,
         'assignedClasses': assignedClasses,
+        if (phone != null) 'phone': phone,
+        if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
       };
 
   factory Teacher.fromJson(Map<String, dynamic> json) => Teacher(
@@ -46,6 +54,8 @@ class Teacher {
                 ?.map((e) => e as String)
                 .toList() ??
             [],
+        phone: json['phone'] as String?,
+        dateOfBirth: json['dateOfBirth'] as Timestamp?,
       );
 
   Teacher copyWith({
@@ -57,6 +67,8 @@ class Teacher {
     String? classTeacherOf,
     String? schoolId,
     List<String>? assignedClasses,
+    String? phone,
+    Timestamp? dateOfBirth,
   }) =>
       Teacher(
         id: id,
@@ -68,5 +80,7 @@ class Teacher {
         classTeacherOf: classTeacherOf ?? this.classTeacherOf,
         schoolId: schoolId ?? this.schoolId,
         assignedClasses: assignedClasses ?? this.assignedClasses,
+        phone: phone ?? this.phone,
+        dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       );
 }
