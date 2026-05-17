@@ -79,7 +79,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _deleteOne(Map<String, dynamic> n) async {
     final id = n['id'] as String?;
     if (id == null) return;
-    await _service.deleteNotification(id);
+    await _service.deleteNotification(id: id);
     // Stream auto-updates _items.
   }
 

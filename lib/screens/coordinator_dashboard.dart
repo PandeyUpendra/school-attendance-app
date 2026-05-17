@@ -154,7 +154,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
         : allClasses;
 
     // Fire attendance-related reads in parallel (badges handled by streams).
-    final summariesFuture  = StudentService().loadTodayFullSummary(classes);
+    final summariesFuture  = StudentService().loadTodayFullSummary(classes: classes);
     final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo();
 
     final summaries  = await summariesFuture;
