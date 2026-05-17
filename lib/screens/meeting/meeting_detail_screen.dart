@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../models/meeting.dart';
 import '../../models/teacher.dart';
 import '../../services/meeting_service.dart';
@@ -33,7 +35,7 @@ class MeetingDetailScreen extends StatefulWidget {
 
 class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   final _svc         = MeetingService();
-  final _titleCtrl   = TextEditingController();
+  final _titleCtrl   = TextEditingController(); // used only for "Custom..." title
   final _pointCtrl   = TextEditingController();
   final _formKey     = GlobalKey<FormState>();
 
@@ -45,6 +47,26 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   String?           _meetingId;
   Meeting?          _meeting;
   bool              _generatingPdf = false;
+  String?           _selectedTitle; // dropdown selection
+
+  static const _meetingTitleOptions = [
+    'Staff Meeting',
+    'Parent-Teacher Meeting (PTM)',
+    'Academic Review Meeting',
+    'Examination Committee Meeting',
+    'Annual Planning Meeting',
+    'Disciplinary Committee Meeting',
+    'Department Meeting',
+    'Management Committee Meeting',
+    'Budget Planning Meeting',
+    'Cultural Committee Meeting',
+    'Sports Committee Meeting',
+    'Infrastructure & Maintenance Meeting',
+    'Admission Committee Meeting',
+    'Health & Safety Meeting',
+    'Emergency Meeting',
+    'Custom...',
+  ];
 
   @override
   void initState() {
@@ -77,10 +99,13 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   Future<void> _createMeeting() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
+    final resolvedTitle = _selectedTitle == 'Custom...'
+        ? _titleCtrl.text.trim()
+        : (_selectedTitle ?? '');
     try {
       final meeting = Meeting(
         id:                   '',
-        title:                _titleCtrl.text.trim(),
+        title:                resolvedTitle,
         date:                 _meetingDate,
         createdBy:            widget.createdBy,
         createdByName:        widget.createdByName,
@@ -229,12 +254,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   Future<void> _generatePdf(Meeting m) async {
     setState(() => _generatingPdf = true);
     try {
-      final pdfBytes = await _buildPdf(m);
-      if (!mounted) return;
-      await Printing.layoutPdf(
-        onLayout: (_) async => pdfBytes,
-        name:     '${m.title.replaceAll(' ', '_')}.pdf',
-      );
+      await shareMeetingPdf(m);
     } catch (e) {
       if (mounted) _snack('PDF error: $e');
     } finally {
@@ -242,7 +262,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     }
   }
 
-  Future<Uint8List> _buildPdf(Meeting m) async {
+  Future<Uint8List> buildMeetingPdf(Meeting m) async {
     final doc = pw.Document();
     const purple = PdfColor.fromInt(0xFF6A1B9A);
 
@@ -433,16 +453,53 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Title
-            TextFormField(
-              controller: _titleCtrl,
+            // ── Title dropdown ────────────────────────────────────────────
+            DropdownButtonFormField<String>(
+              value: _selectedTitle,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Meeting Title',
                 prefixIcon: Icon(Icons.title),
               ),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Enter a title' : null,
+              hint: const Text('Select meeting type'),
+              items: _meetingTitleOptions.map((t) {
+                final isCustom = t == 'Custom...';
+                return DropdownMenuItem<String>(
+                  value: t,
+                  child: Text(
+                    t,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isCustom ? Colors.grey.shade600 : Colors.black87,
+                      fontStyle:
+                          isCustom ? FontStyle.italic : FontStyle.normal,
+                    ),
+                  ),
+                );
+              }).toList(),
+              onChanged: (val) => setState(() {
+                _selectedTitle = val;
+                if (val != 'Custom...') _titleCtrl.clear();
+              }),
+              validator: (_) =>
+                  _selectedTitle == null ? 'Please select a meeting type' : null,
             ),
+
+            // ── Custom title field ────────────────────────────────────────
+            if (_selectedTitle == 'Custom...') ...[
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _titleCtrl,
+                maxLength: 80,
+                decoration: const InputDecoration(
+                  labelText: 'Custom Title',
+                  prefixIcon: Icon(Icons.edit_outlined),
+                  counterText: '',
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Enter a title' : null,
+              ),
+            ],
             const SizedBox(height: 16),
 
             // Date picker
@@ -686,6 +743,135 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           Text(msg, style: TextStyle(color: Colors.grey.shade500)),
         ]),
       );
+}
+
+// ── Top-level PDF helpers (used by list screens) ──────────────────────────────
+
+String _fmtMeetingDate(DateTime d) {
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return '${d.day} ${mo[d.month - 1]} ${d.year}';
+}
+
+Future<void> shareMeetingPdf(Meeting m) async {
+  final doc = pw.Document();
+  const purple = PdfColor.fromInt(0xFF6A1B9A);
+  final dateStr = _fmtMeetingDate(m.date);
+
+  doc.addPage(pw.MultiPage(
+    pageFormat: PdfPageFormat.a4,
+    margin: const pw.EdgeInsets.all(40),
+    header: (_) => pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text('MEETING RECORD',
+            style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: purple)),
+        pw.SizedBox(height: 4),
+        pw.Text(m.title,
+            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+        pw.Text('Date: $dateStr  ·  By: ${m.createdByName} (${m.createdByRole})',
+            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
+        pw.Text('Status: ${m.status.label}',
+            style: pw.TextStyle(fontSize: 10, color: purple)),
+        pw.Divider(),
+      ],
+    ),
+    footer: (ctx) => pw.Text(
+      '${m.title}  ·  $dateStr  ·  Page ${ctx.pageNumber} of ${ctx.pagesCount}',
+      style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey500),
+    ),
+    build: (ctx) => [
+      pw.Text('Discussion Points',
+          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+      pw.SizedBox(height: 8),
+      if (m.points.isEmpty)
+        pw.Text('No agenda points were recorded.',
+            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600))
+      else
+        pw.TableHelper.fromTextArray(
+          headers: ['#', 'Point', 'Status', 'Assigned To'],
+          data: m.points.asMap().entries.map((e) {
+            final p = e.value;
+            final assigned = p.convertedToTask
+                ? (m.assignedTeacherNames.isNotEmpty
+                    ? m.assignedTeacherNames.join(', ')
+                    : 'Teacher')
+                : '-';
+            return ['${e.key + 1}', p.text, p.isChecked ? 'Discussed' : 'Pending', assigned];
+          }).toList(),
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 10),
+          headerDecoration: const pw.BoxDecoration(color: purple),
+          cellStyle: const pw.TextStyle(fontSize: 9),
+          rowDecoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey300, width: 0.5)),
+          oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+        ),
+      pw.SizedBox(height: 20),
+      pw.Container(
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: purple),
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text('Summary', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: purple)),
+            pw.SizedBox(height: 6),
+            pw.Text('Total points: ${m.points.length}'),
+            pw.Text('Discussed:    ${m.discussedCount}'),
+            pw.Text('Tasks created: ${m.tasksCreated}'),
+            if (m.assignedTeacherNames.isNotEmpty)
+              pw.Text('Teachers assigned: ${m.assignedTeacherNames.join(', ')}'),
+          ],
+        ),
+      ),
+    ],
+  ));
+
+  final taskPoints = m.points.where((p) => p.convertedToTask).toList();
+  if (taskPoints.isNotEmpty) {
+    doc.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(40),
+      header: (_) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text('Teacher-wise Tasks — ${m.title}',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: purple)),
+          pw.Text('Meeting date: $dateStr',
+              style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
+          pw.Divider(),
+        ],
+      ),
+      footer: (ctx) => pw.Text(
+        '${m.title}  ·  $dateStr  ·  Page ${ctx.pageNumber} of ${ctx.pagesCount}',
+        style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey500),
+      ),
+      build: (_) => [
+        pw.TableHelper.fromTextArray(
+          headers: ['Teacher', 'Task', 'Status'],
+          data: taskPoints.map((p) => [
+            m.assignedTeacherNames.isNotEmpty ? m.assignedTeacherNames.first : 'Teacher',
+            p.text,
+            p.isChecked ? 'Completed' : 'Pending',
+          ]).toList(),
+          headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 10),
+          headerDecoration: const pw.BoxDecoration(color: purple),
+          cellStyle: const pw.TextStyle(fontSize: 9),
+        ),
+      ],
+    ));
+  }
+
+  final pdfBytes = await doc.save();
+  final safeName = m.title.replaceAll(RegExp(r'[^\w\s-]'), '').replaceAll(' ', '_');
+  final dir  = await getTemporaryDirectory();
+  final file = File('${dir.path}/${safeName}_meeting.pdf');
+  await file.writeAsBytes(pdfBytes);
+  await Share.shareXFiles(
+    [XFile(file.path, mimeType: 'application/pdf')],
+    subject: 'Meeting Record — ${m.title}',
+    text:    'Meeting record for "${m.title}" held on $dateStr.',
+  );
 }
 
 // ── Teacher-select dialog ─────────────────────────────────────────────────────

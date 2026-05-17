@@ -73,22 +73,7 @@ class _PrincipalMeetingRecordsScreenState
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            tooltip: 'New Meeting',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => MeetingDetailScreen(
-                  createdBy:     widget.principalEmail,
-                  createdByName: widget.principalName,
-                  createdByRole: 'principal',
-                ),
-              ),
-            ),
-          ),
-        ],
+        actions: const [],
       ),
       body: Column(
         children: [
@@ -206,9 +191,7 @@ class _PrincipalMeetingRecordsScreenState
                                   ),
                                 ),
                               ),
-                              onDownloadPdf: m.pdfUrl.isNotEmpty
-                                  ? () => _openPdf(m.pdfUrl)
-                                  : null,
+                              onDownloadPdf: () => _sharePdf(m),
                             )),
                     ],
                   ),
@@ -236,15 +219,16 @@ class _PrincipalMeetingRecordsScreenState
     );
   }
 
-  void _openPdf(String url) {
-    // Open in system browser / pdf viewer via url_launcher.
-    // Using Navigator snack as a lightweight fallback.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Opening PDF...'),
-        action: SnackBarAction(label: 'OK', onPressed: () {}),
-      ),
-    );
+  Future<void> _sharePdf(Meeting m) async {
+    try {
+      await shareMeetingPdf(m);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF error: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildShimmer() {
@@ -449,16 +433,11 @@ class _MeetingCard extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: OutlinedButton.icon(
-                icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
-                label: const Text('PDF', style: TextStyle(fontSize: 12)),
+                icon: const Icon(Icons.share_outlined, size: 16),
+                label: const Text('Share PDF', style: TextStyle(fontSize: 12)),
                 style: OutlinedButton.styleFrom(
-                    foregroundColor: onDownloadPdf != null
-                        ? AppTheme.danger
-                        : Colors.grey.shade400,
-                    side: BorderSide(
-                        color: onDownloadPdf != null
-                            ? AppTheme.danger
-                            : Colors.grey.shade300),
+                    foregroundColor: AppTheme.danger,
+                    side: const BorderSide(color: AppTheme.danger),
                     padding: const EdgeInsets.symmetric(vertical: 6)),
                 onPressed: onDownloadPdf,
               ),
