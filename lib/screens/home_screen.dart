@@ -197,6 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               builder: (_) => NotificationsScreen(
                                 role:      'teacher',
                                 teacherId: t?.id,
+                                teacher:   t,
                               ),
                             ),
                           );

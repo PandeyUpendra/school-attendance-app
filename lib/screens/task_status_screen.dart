@@ -52,6 +52,79 @@ class TaskStatusScreen extends StatelessWidget {
   }
 }
 
+class _ClassBreakdownTable extends StatelessWidget {
+  final Map<String, bool> studentStatuses;
+
+  const _ClassBreakdownTable({required this.studentStatuses});
+
+  @override
+  Widget build(BuildContext context) {
+    if (studentStatuses.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: Text('No students assigned yet.', style: TextStyle(color: Colors.grey)),
+      );
+    }
+
+    // Group by class name (key format: "ClassName_roll")
+    final Map<String, List<bool>> byClass = {};
+    for (final entry in studentStatuses.entries) {
+      final lastUnderscore = entry.key.lastIndexOf('_');
+      final className = lastUnderscore > 0 ? entry.key.substring(0, lastUnderscore) : entry.key;
+      byClass.putIfAbsent(className, () => []).add(entry.value);
+    }
+
+    final sortedClasses = byClass.keys.toList()..sort();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(),
+        Row(
+          children: const [
+            Expanded(flex: 3, child: Text('Class', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.grey))),
+            Expanded(flex: 2, child: Text('Total', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.grey), textAlign: TextAlign.center)),
+            Expanded(flex: 2, child: Text('Done', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.grey), textAlign: TextAlign.center)),
+            Expanded(flex: 2, child: Text('Remaining', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.grey), textAlign: TextAlign.center)),
+          ],
+        ),
+        const Divider(height: 8),
+        ...sortedClasses.map((cls) {
+          final statuses = byClass[cls]!;
+          final total = statuses.length;
+          final done = statuses.where((v) => v).length;
+          final remaining = total - done;
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Row(
+              children: [
+                Expanded(flex: 3, child: Text(cls, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13))),
+                Expanded(flex: 2, child: Text('$total', textAlign: TextAlign.center, style: const TextStyle(fontSize: 13))),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    '$done',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: done == total ? AppTheme.success : Colors.black87, fontWeight: done == total ? FontWeight.bold : FontWeight.normal),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    '$remaining',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: remaining > 0 ? AppTheme.accent : AppTheme.success, fontWeight: remaining > 0 ? FontWeight.bold : FontWeight.normal),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
 class _TaskProgressCard extends StatelessWidget {
   final Task task;
 
@@ -77,7 +150,7 @@ class _TaskProgressCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '$doneStudents students completed (out of $totalStudents records)',
+              '$doneStudents / $totalStudents students done  •  ${totalStudents - doneStudents} remaining',
               style: const TextStyle(fontSize: 12),
             ),
             Text(
@@ -88,36 +161,8 @@ class _TaskProgressCard extends StatelessWidget {
         ),
         children: [
           Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Completion Details:', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                if (task.studentStatuses.isEmpty)
-                  const Text('No students marked yet.')
-                else
-                  ...task.studentStatuses.entries.map((e) {
-                    final parts = e.key.split('_');
-                    final className = parts[0];
-                    final roll = parts.length > 1 ? parts[1] : '';
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
-                        children: [
-                          Icon(
-                            e.value ? Icons.check_circle : Icons.radio_button_unchecked,
-                            color: e.value ? AppTheme.success : Colors.grey,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          Text('$className - Roll $roll'),
-                        ],
-                      ),
-                    );
-                  }),
-              ],
-            ),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: _ClassBreakdownTable(studentStatuses: task.studentStatuses),
           ),
         ],
       ),

@@ -23,16 +23,24 @@ class AddStudentScreen extends StatefulWidget {
 
 class _AddStudentScreenState extends State<AddStudentScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _rollCtrl = TextEditingController();
-  final _nameCtrl = TextEditingController();
-  final _fatherCtrl = TextEditingController();
-  final _motherCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  String _feeStatus = 'Pending';
+  final _rollCtrl            = TextEditingController();
+  final _nameCtrl            = TextEditingController();
+  final _fatherCtrl          = TextEditingController();
+  final _motherCtrl          = TextEditingController();
+  final _phoneCtrl           = TextEditingController();
+  final _parentPhoneCtrl     = TextEditingController();
+  final _addressCtrl         = TextEditingController();
+  final _prevSchoolCtrl      = TextEditingController();
+  final _emergencyCtrl       = TextEditingController();
+  final _allergiesCtrl       = TextEditingController();
+  String _feeStatus    = 'Pending';
   String? _feeDueDate;
   final _feeAmountCtrl = TextEditingController();
   String? _photoPath;
   DateTime? _dateOfBirth;
+  String? _gender;
+  String? _bloodGroup;
+  String? _transportMode;
   bool _saving = false;
 
   bool get _isEdit => widget.existing != null;
@@ -42,16 +50,24 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     super.initState();
     if (_isEdit) {
       final s = widget.existing!;
-      _rollCtrl.text = s.roll.toString();
-      _nameCtrl.text = s.name;
-      _fatherCtrl.text = s.fatherName;
-      _motherCtrl.text = s.motherName ?? '';
-      _phoneCtrl.text = s.phone;
-      _feeStatus = s.feeStatus;
-      _feeDueDate = s.feeDueDate;
-      _feeAmountCtrl.text = s.feeAmount?.toStringAsFixed(0) ?? '';
-      _photoPath = s.photoPath;
-      _dateOfBirth = s.dateOfBirth?.toDate();
+      _rollCtrl.text        = s.roll.toString();
+      _nameCtrl.text        = s.name;
+      _fatherCtrl.text      = s.fatherName;
+      _motherCtrl.text      = s.motherName ?? '';
+      _phoneCtrl.text       = s.phone;
+      _parentPhoneCtrl.text = s.parentPhone ?? '';
+      _addressCtrl.text     = s.address ?? '';
+      _prevSchoolCtrl.text  = s.previousSchool ?? '';
+      _emergencyCtrl.text   = s.emergencyContact ?? '';
+      _allergiesCtrl.text   = s.allergies ?? '';
+      _feeStatus            = s.feeStatus;
+      _feeDueDate           = s.feeDueDate;
+      _feeAmountCtrl.text   = s.feeAmount?.toStringAsFixed(0) ?? '';
+      _photoPath            = s.photoPath;
+      _dateOfBirth          = s.dateOfBirth?.toDate();
+      _gender               = s.gender;
+      _bloodGroup           = s.bloodGroup;
+      _transportMode        = s.transportMode;
     }
   }
 
@@ -62,6 +78,11 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     _fatherCtrl.dispose();
     _motherCtrl.dispose();
     _phoneCtrl.dispose();
+    _parentPhoneCtrl.dispose();
+    _addressCtrl.dispose();
+    _prevSchoolCtrl.dispose();
+    _emergencyCtrl.dispose();
+    _allergiesCtrl.dispose();
     _feeAmountCtrl.dispose();
     super.dispose();
   }
@@ -100,19 +121,23 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       className: widget.className,
       section: widget.section,
       fatherName: _fatherCtrl.text.trim(),
-      motherName: _motherCtrl.text.trim().isEmpty
-          ? null
-          : _motherCtrl.text.trim(),
+      motherName: _motherCtrl.text.trim().isEmpty ? null : _motherCtrl.text.trim(),
       phone: _phoneCtrl.text.trim(),
+      parentPhone: _parentPhoneCtrl.text.trim().isEmpty ? null : _parentPhoneCtrl.text.trim(),
+      address: _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
+      previousSchool: _prevSchoolCtrl.text.trim().isEmpty ? null : _prevSchoolCtrl.text.trim(),
+      emergencyContact: _emergencyCtrl.text.trim().isEmpty ? null : _emergencyCtrl.text.trim(),
+      allergies: _allergiesCtrl.text.trim().isEmpty ? null : _allergiesCtrl.text.trim(),
+      gender: _gender,
+      bloodGroup: _bloodGroup,
+      transportMode: _transportMode,
       photoPath: _photoPath,
+      photoUrl: widget.existing?.photoUrl,
       feeStatus: _feeStatus,
       feeDueDate: _feeDueDate,
       feeAmount: double.tryParse(_feeAmountCtrl.text.trim()),
-      // Preserve existing teacherId on edits; stamp it on new records.
       teacherId: widget.teacherId ?? widget.existing?.teacherId,
-      dateOfBirth: _dateOfBirth != null
-          ? Timestamp.fromDate(_dateOfBirth!)
-          : null,
+      dateOfBirth: _dateOfBirth != null ? Timestamp.fromDate(_dateOfBirth!) : null,
     );
 
     final service = StudentService();
@@ -271,7 +296,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
             const SizedBox(height: 14),
             _Field(
               controller: _phoneCtrl,
-              label: 'Phone Number',
+              label: 'Primary Contact (Phone)',
               icon: Icons.phone_outlined,
               keyboard: TextInputType.phone,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -281,6 +306,109 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                 if (v.trim().length != 10) return 'Must be exactly 10 digits';
                 return null;
               },
+            ),
+            const SizedBox(height: 14),
+            _Field(
+              controller: _parentPhoneCtrl,
+              label: 'Secondary Contact (optional)',
+              icon: Icons.phone_android_outlined,
+              keyboard: TextInputType.phone,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              maxLength: 10,
+            ),
+            const SizedBox(height: 14),
+            // Gender dropdown
+            DropdownButtonFormField<String>(
+              value: _gender,
+              decoration: InputDecoration(
+                labelText: 'Gender (optional)',
+                prefixIcon: const Icon(Icons.wc_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              ),
+              hint: const Text('Select gender'),
+              items: const [
+                DropdownMenuItem(value: 'Male',   child: Text('Male')),
+                DropdownMenuItem(value: 'Female', child: Text('Female')),
+                DropdownMenuItem(value: 'Other',  child: Text('Other')),
+              ],
+              onChanged: (v) => setState(() => _gender = v),
+            ),
+            const SizedBox(height: 14),
+            _Field(
+              controller: _addressCtrl,
+              label: 'Address (optional)',
+              icon: Icons.home_outlined,
+              caps: TextCapitalization.sentences,
+              maxLength: 150,
+            ),
+            const SizedBox(height: 14),
+            _Field(
+              controller: _prevSchoolCtrl,
+              label: 'Previous School (optional)',
+              icon: Icons.account_balance_outlined,
+              caps: TextCapitalization.words,
+              maxLength: 80,
+            ),
+            const SizedBox(height: 14),
+            _Field(
+              controller: _emergencyCtrl,
+              label: 'Emergency Contact (optional)',
+              icon: Icons.contact_emergency_outlined,
+              keyboard: TextInputType.phone,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              maxLength: 10,
+            ),
+            const SizedBox(height: 14),
+            // Blood Group dropdown
+            DropdownButtonFormField<String>(
+              value: _bloodGroup,
+              decoration: InputDecoration(
+                labelText: 'Blood Group (optional)',
+                prefixIcon: const Icon(Icons.bloodtype_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              ),
+              hint: const Text('Select blood group'),
+              items: const [
+                DropdownMenuItem(value: 'A+',  child: Text('A+')),
+                DropdownMenuItem(value: 'A-',  child: Text('A-')),
+                DropdownMenuItem(value: 'B+',  child: Text('B+')),
+                DropdownMenuItem(value: 'B-',  child: Text('B-')),
+                DropdownMenuItem(value: 'O+',  child: Text('O+')),
+                DropdownMenuItem(value: 'O-',  child: Text('O-')),
+                DropdownMenuItem(value: 'AB+', child: Text('AB+')),
+                DropdownMenuItem(value: 'AB-', child: Text('AB-')),
+              ],
+              onChanged: (v) => setState(() => _bloodGroup = v),
+            ),
+            const SizedBox(height: 14),
+            _Field(
+              controller: _allergiesCtrl,
+              label: 'Allergies / Conditions (optional)',
+              icon: Icons.medical_information_outlined,
+              caps: TextCapitalization.sentences,
+              maxLength: 150,
+            ),
+            const SizedBox(height: 14),
+            // Transport Mode dropdown
+            DropdownButtonFormField<String>(
+              value: _transportMode,
+              decoration: InputDecoration(
+                labelText: 'Transport Mode (optional)',
+                prefixIcon: const Icon(Icons.directions_bus_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              ),
+              hint: const Text('Select transport mode'),
+              items: const [
+                DropdownMenuItem(value: 'School Bus',       child: Text('School Bus')),
+                DropdownMenuItem(value: 'Walking',          child: Text('Walking')),
+                DropdownMenuItem(value: 'Personal Vehicle', child: Text('Personal Vehicle')),
+                DropdownMenuItem(value: 'Auto / Rickshaw',  child: Text('Auto / Rickshaw')),
+                DropdownMenuItem(value: 'Other',            child: Text('Other')),
+              ],
+              onChanged: (v) => setState(() => _transportMode = v),
             ),
             const SizedBox(height: 14),
             // Student Date of Birth

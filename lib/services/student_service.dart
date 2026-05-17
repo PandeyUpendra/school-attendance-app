@@ -125,6 +125,11 @@ class StudentService {
         .set(updated.toJson());
   }
 
+  Future<void> setGuardianEmail(String className, int roll, String email,
+      {String section = ''}) async {
+    await _students.doc(_sid(roll, className, section)).update({'guardianEmail': email});
+  }
+
   Future<void> removeStudent(int roll, String className,
       {String section = ''}) async {
     await _students.doc(_sid(roll, className, section)).delete();
@@ -478,18 +483,22 @@ class StudentService {
     String createdByEmail,
     String role,
     String remark, {
-    String  section   = '',
+    String  section      = '',
     String? teacherId,
+    String  type         = 'negative',
+    bool    whatsappSent = false,
   }) async {
     final trimmed = remark.trim();
     if (trimmed.isEmpty || trimmed.length > 200) {
       throw ArgumentError('Remark must be 1–200 characters.');
     }
     await _remarksRef(roll, className, section).add({
-      'createdBy': createdByEmail,
-      'role':      role,
-      'remark':    trimmed,
-      'timestamp': FieldValue.serverTimestamp(),
+      'createdBy':    createdByEmail,
+      'role':         role,
+      'remark':       trimmed,
+      'timestamp':    FieldValue.serverTimestamp(),
+      'type':         type,
+      'whatsappSent': whatsappSent,
       if (teacherId != null) 'teacherId': teacherId,
     });
   }

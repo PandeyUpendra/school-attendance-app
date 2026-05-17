@@ -648,6 +648,59 @@ class _StudentDetailPageState extends State<_StudentDetailPage> {
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
+  String _fmtDob(DateTime d) {
+    const mo = ['Jan','Feb','Mar','Apr','May','Jun',
+                 'Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${d.day.toString().padLeft(2,'0')} ${mo[d.month-1]} ${d.year}';
+  }
+
+  Future<void> _setGuardianEmail(BuildContext ctx) async {
+    final ctrl = TextEditingController();
+    await showDialog<void>(
+      context: ctx,
+      builder: (dCtx) => AlertDialog(
+        title: const Text('Set Guardian Email'),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.emailAddress,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Guardian Gmail address',
+            prefixIcon: Icon(Icons.email_outlined),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = ctrl.text.trim();
+              if (email.isEmpty) return;
+              await StudentService().setGuardianEmail(
+                _student.className, _student.roll, email,
+                section: _student.section,
+              );
+              if (dCtx.mounted) Navigator.pop(dCtx);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Guardian email saved'),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+  }
+
   Color get _feeColor {
     switch (_student.feeStatus) {
       case 'Paid':
@@ -751,16 +804,35 @@ class _StudentDetailPageState extends State<_StudentDetailPage> {
 
             const SizedBox(height: 8),
 
+            // ── Basic Info ───────────────────────────────────────────────────
+            _SectionHeader('BASIC INFO'),
+            _InfoRow(Icons.person_outline, 'Name', _student.name),
+            _InfoRow(Icons.cake_outlined, 'Date of Birth',
+                _student.dateOfBirth != null
+                    ? _fmtDob(_student.dateOfBirth!.toDate())
+                    : '—'),
+            _InfoRow(Icons.wc_outlined, 'Gender',
+                _student.gender?.isNotEmpty == true ? _student.gender! : '—'),
+            _InfoRow(Icons.school_outlined, 'Class / Section',
+                '${_student.className} ${_student.section}'.trim()),
+            _InfoRow(Icons.tag, 'Roll Number', '${_student.roll}'),
+            const Divider(height: 1),
+
+            // ── Family ──────────────────────────────────────────────────────
+            _SectionHeader('FAMILY'),
+            _InfoRow(Icons.man_outlined, "Father's Name",
+                _student.fatherName.isNotEmpty ? _student.fatherName : '—'),
+            _InfoRow(Icons.woman_outlined, "Mother's Name",
+                _student.motherName?.isNotEmpty == true ? _student.motherName! : '—'),
+            const Divider(height: 1),
+
             // ── Contact ─────────────────────────────────────────────────────
             _SectionHeader('CONTACT'),
-            _InfoRow(
-                Icons.phone_outlined,
-                'Phone',
+            _InfoRow(Icons.phone_outlined, 'Primary Contact',
                 _student.phone.isEmpty ? '—' : _student.phone),
-            if (_student.phone.isNotEmpty) ...[
+            if (_student.phone.isNotEmpty)
               Padding(
-                padding:
-                    const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                 child: Row(children: [
                   Expanded(
                     child: _ActionBtn(
@@ -776,7 +848,7 @@ class _StudentDetailPageState extends State<_StudentDetailPage> {
                       iconWidget: const FaIcon(
                         FontAwesomeIcons.whatsapp,
                         color: Color(0xFF25D366),
-                        size: 26,
+                        size: 24,
                       ),
                       label: 'WhatsApp',
                       color: const Color(0xFF25D366),
@@ -785,37 +857,43 @@ class _StudentDetailPageState extends State<_StudentDetailPage> {
                   ),
                 ]),
               ),
-            ] else
-              const SizedBox(height: 12),
+            _InfoRow(Icons.phone_android_outlined, 'Secondary Contact',
+                _student.parentPhone?.isNotEmpty == true ? _student.parentPhone! : '—'),
+            _InfoRow(Icons.home_outlined, 'Address',
+                _student.address?.isNotEmpty == true ? _student.address! : '—'),
+            _InfoRow(Icons.contact_emergency_outlined, 'Emergency Contact',
+                _student.emergencyContact?.isNotEmpty == true
+                    ? _student.emergencyContact!
+                    : '—'),
             const Divider(height: 1),
 
-            // ── Family ──────────────────────────────────────────────────────
-            _SectionHeader('FAMILY'),
-            _InfoRow(
-                Icons.man_outlined,
-                "Father's Name",
-                _student.fatherName.isNotEmpty
-                    ? _student.fatherName
-                    : '—'),
-            if (_student.motherName != null &&
-                _student.motherName!.isNotEmpty)
-              _InfoRow(Icons.woman_outlined, "Mother's Name",
-                  _student.motherName!),
+            // ── Academic & Medical ───────────────────────────────────────────
+            _SectionHeader('ACADEMIC & MEDICAL'),
+            _InfoRow(Icons.account_balance_outlined, 'Previous School',
+                _student.previousSchool?.isNotEmpty == true ? _student.previousSchool! : '—'),
+            _InfoRow(Icons.bloodtype_outlined, 'Blood Group',
+                _student.bloodGroup?.isNotEmpty == true ? _student.bloodGroup! : '—'),
+            _InfoRow(Icons.medical_information_outlined, 'Allergies / Conditions',
+                _student.allergies?.isNotEmpty == true ? _student.allergies! : '—'),
+            _InfoRow(Icons.directions_bus_outlined, 'Transport Mode',
+                _student.transportMode?.isNotEmpty == true ? _student.transportMode! : '—'),
+            _InfoRow(Icons.photo_outlined, 'Photo Status',
+                (_student.photoPath != null && _student.photoPath!.isNotEmpty) ||
+                    (_student.photoUrl != null && _student.photoUrl!.isNotEmpty)
+                    ? 'Uploaded'
+                    : 'Not Uploaded'),
             const Divider(height: 1),
 
             // ── Fee ─────────────────────────────────────────────────────────
             _SectionHeader('FEE STATUS'),
             Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(16, 4, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: _feeColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                      color: _feeColor.withOpacity(0.4)),
+                  border: Border.all(color: _feeColor.withOpacity(0.4)),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(_feeIcon, color: _feeColor, size: 18),
@@ -830,10 +908,10 @@ class _StudentDetailPageState extends State<_StudentDetailPage> {
             ),
             const Divider(height: 1),
 
-            // ── Attendance Certificate ───────────────────────────────────
+            // ── Documents ────────────────────────────────────────────────────
             _SectionHeader('DOCUMENTS'),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -849,10 +927,27 @@ class _StudentDetailPageState extends State<_StudentDetailPage> {
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => AttendanceCertificateScreen(
-                          student: _student),
+                      builder: (_) => AttendanceCertificateScreen(student: _student),
                     ),
                   ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.people_outlined),
+                  label: const Text('Set Guardian Email (Google Login)'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primary,
+                    side: const BorderSide(color: AppTheme.primary),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => _setGuardianEmail(context),
                 ),
               ),
             ),

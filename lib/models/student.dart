@@ -20,6 +20,13 @@ class Student {
   /// Null on legacy records created before this field was introduced.
   final String? teacherId;
   final Timestamp? dateOfBirth;
+  final String? gender;
+  final String? address;
+  final String? previousSchool;
+  final String? emergencyContact;
+  final String? bloodGroup;
+  final String? allergies;
+  final String? transportMode;
 
   const Student({
     required this.roll,
@@ -37,6 +44,13 @@ class Student {
     this.feeAmount,
     this.teacherId,
     this.dateOfBirth,
+    this.gender,
+    this.address,
+    this.previousSchool,
+    this.emergencyContact,
+    this.bloodGroup,
+    this.allergies,
+    this.transportMode,
   });
 
   Map<String, dynamic> toJson() => {
@@ -55,6 +69,13 @@ class Student {
         if (feeAmount != null) 'feeAmount': feeAmount,
         if (teacherId != null) 'teacherId': teacherId,
         if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
+        if (gender != null) 'gender': gender,
+        if (address != null) 'address': address,
+        if (previousSchool != null) 'previousSchool': previousSchool,
+        if (emergencyContact != null) 'emergencyContact': emergencyContact,
+        if (bloodGroup != null) 'bloodGroup': bloodGroup,
+        if (allergies != null) 'allergies': allergies,
+        if (transportMode != null) 'transportMode': transportMode,
       };
 
   factory Student.fromJson(Map<String, dynamic> json) => Student(
@@ -73,6 +94,13 @@ class Student {
         feeAmount: (json['feeAmount'] as num?)?.toDouble(),
         teacherId: json['teacherId'] as String?,
         dateOfBirth: json['dateOfBirth'] as Timestamp?,
+        gender: json['gender'] as String?,
+        address: json['address'] as String?,
+        previousSchool: json['previousSchool'] as String?,
+        emergencyContact: json['emergencyContact'] as String?,
+        bloodGroup: json['bloodGroup'] as String?,
+        allergies: json['allergies'] as String?,
+        transportMode: json['transportMode'] as String?,
       );
 
   Student copyWith({
@@ -90,6 +118,13 @@ class Student {
     double? feeAmount,
     String? teacherId,
     Timestamp? dateOfBirth,
+    String? gender,
+    String? address,
+    String? previousSchool,
+    String? emergencyContact,
+    String? bloodGroup,
+    String? allergies,
+    String? transportMode,
   }) =>
       Student(
         roll: roll,
@@ -107,5 +142,12 @@ class Student {
         feeAmount: feeAmount ?? this.feeAmount,
         teacherId: teacherId ?? this.teacherId,
         dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+        gender: gender ?? this.gender,
+        address: address ?? this.address,
+        previousSchool: previousSchool ?? this.previousSchool,
+        emergencyContact: emergencyContact ?? this.emergencyContact,
+        bloodGroup: bloodGroup ?? this.bloodGroup,
+        allergies: allergies ?? this.allergies,
+        transportMode: transportMode ?? this.transportMode,
       );
 }
