@@ -191,7 +191,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 color: const AppTheme.primary,
                 shape: BoxShape.circle),
             todayDecoration: BoxDecoration(
-                color: const AppTheme.primary.withOpacity(0.3),
+                color: AppTheme.primary.withOpacity(0.3),
                 shape: BoxShape.circle),
           ),
           headerStyle: const HeaderStyle(

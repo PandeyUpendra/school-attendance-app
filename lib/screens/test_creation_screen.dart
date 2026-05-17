@@ -121,16 +121,16 @@ class _TestCreationScreenState extends State<TestCreationScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const AppTheme.primary.withOpacity(0.07),
+                color: AppTheme.primary.withOpacity(0.07),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                    color: const AppTheme.primary.withOpacity(0.2)),
+                    color: AppTheme.primary.withOpacity(0.2)),
               ),
               child: Row(children: [
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const AppTheme.primary.withOpacity(0.12),
+                    color: AppTheme.primary.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.quiz_outlined,

@@ -325,7 +325,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
                 borderSide: BorderSide(
                     color: isSub
                         ? Colors.orange.shade400
-                        : const AppTheme.primary.withOpacity(0.6)),
+                        : AppTheme.primary.withOpacity(0.6)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),

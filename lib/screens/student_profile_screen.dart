@@ -550,7 +550,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                   leading: Container(
                     width: 42, height: 42,
                     decoration: BoxDecoration(
-                        color: const AppTheme.primary.withOpacity(0.1),
+                        color: AppTheme.primary.withOpacity(0.1),
                         shape: BoxShape.circle),
                     child: const Icon(Icons.phone_outlined,
                         color: AppTheme.primary, size: 20),
@@ -833,7 +833,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
                 formatButtonVisible: false, titleCentered: true),
             calendarStyle: CalendarStyle(
               todayDecoration: BoxDecoration(
-                color: const AppTheme.primary.withOpacity(0.25),
+                color: AppTheme.primary.withOpacity(0.25),
                 shape: BoxShape.circle,
               ),
             ),
@@ -1254,7 +1254,7 @@ class _SubjectChip extends StatelessWidget {
       padding:
           const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: const AppTheme.primary.withOpacity(0.1),
+        color: AppTheme.primary.withOpacity(0.1),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(subject,
