@@ -25,6 +25,8 @@ import 'homework_screen.dart';
 import 'substitution_history_screen.dart';
 import 'student_remarks_screen.dart';
 import 'staff_tasks_screen.dart';
+import 'meeting/teacher_meeting_tasks_screen.dart';
+import '../services/meeting_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -35,11 +37,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _unreadNotifCount  = 0;
-  int _pendingTaskCount  = 0;
+  int _unreadNotifCount   = 0;
+  int _pendingTaskCount   = 0;
+  int _pendingMeetingTasks = 0;
 
   StreamSubscription? _notifSub;
   StreamSubscription? _taskSub;
+  StreamSubscription? _meetingTaskSub;
   int _lastSeenMs = 0;
   List<Map<String, dynamic>> _latestNotifs = [];
 
@@ -53,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _notifSub?.cancel();
     _taskSub?.cancel();
+    _meetingTaskSub?.cancel();
     super.dispose();
   }
 
@@ -77,6 +82,12 @@ class _HomeScreenState extends State<HomeScreen> {
           .listen((count) {
         if (!mounted) return;
         setState(() => _pendingTaskCount = count);
+      });
+      _meetingTaskSub = MeetingService()
+          .streamPendingTaskCountForTeacher(tid)
+          .listen((count) {
+        if (!mounted) return;
+        setState(() => _pendingMeetingTasks = count);
       });
     }
   }
@@ -696,6 +707,23 @@ class _HomeScreenState extends State<HomeScreen> {
               _loadNotifCount();
             },
           ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.assignment_outlined,
+            color: AppTheme.primary,
+            title: 'Meeting Tasks',
+            subtitle: 'Tasks assigned to you from staff meetings',
+            badge: _pendingMeetingTasks > 0 ? '$_pendingMeetingTasks' : null,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TeacherMeetingTasksScreen(
+                  teacherId:   teacher?.id ?? '',
+                  teacherName: teacher?.name ?? '',
+                ),
+              ),
+            ),
+          ),
 
           _SectionHeader('ANNOUNCEMENTS'),
           _FeatureTile(
@@ -898,6 +926,23 @@ class _HomeScreenState extends State<HomeScreen> {
             );
             _loadNotifCount();
           },
+        ),
+        const _Divider(),
+        _FeatureTile(
+          icon: Icons.assignment_outlined,
+          color: AppTheme.primary,
+          title: 'Meeting Tasks',
+          subtitle: 'Tasks assigned to you from staff meetings',
+          badge: _pendingMeetingTasks > 0 ? '$_pendingMeetingTasks' : null,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TeacherMeetingTasksScreen(
+                teacherId:   teacher?.id ?? '',
+                teacherName: teacher?.name ?? '',
+              ),
+            ),
+          ),
         ),
 
         _SectionHeader('ANNOUNCEMENTS'),

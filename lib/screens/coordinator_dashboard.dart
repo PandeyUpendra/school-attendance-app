@@ -32,6 +32,7 @@ import 'coordinator_staff_tasks_screen.dart';
 import 'coordinator/absent_teachers_screen.dart';
 import '../services/staff_task_service.dart';
 import '../utils/role_guard.dart';
+import 'meeting/coordinator_meeting_records_screen.dart';
 
 const _cPurple    = AppTheme.primary;
 const _cPurpleMid = AppTheme.primaryMid;
@@ -246,6 +247,17 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
                   : null,
               onTap: () => _navigate(CoordinatorStaffTasksScreen(
                 coordinatorEmail: _coordEmail,
+              )),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.history_edu_outlined,
+              color: _cPurple,
+              title: 'Meeting Records',
+              subtitle: 'Manage meetings, agenda points and teacher task assignments',
+              onTap: () => _navigate(CoordinatorMeetingRecordsScreen(
+                coordinatorEmail: _coordEmail,
+                coordinatorName:  _coordEmail,
               )),
             ),
 
