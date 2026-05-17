@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
 import '../services/student_service.dart';
@@ -43,6 +45,12 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   String _principalEmail     = '';
   String _sessionRole        = 'principal';
 
+  // Real-time badge streams
+  StreamSubscription? _notifSub;
+  StreamSubscription? _leaveSub;
+  int _lastSeenMs = 0;
+  List<Map<String, dynamic>> _latestNotifs = [];
+
   StreamSubscription? _studentSub;
   Set<String> _knownStudentIds = {};
 
@@ -53,6 +61,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       RoleGuard.verify(context, ['principal', 'ownerPrincipal']);
     });
     _loadAll();
+    _initBadgeStreams();
     // Re-run summaries whenever the student roster changes (add/delete).
     _studentSub = StudentService().watchStudents().listen((students) {
       final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
@@ -65,8 +74,48 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
   @override
   void dispose() {
+    _notifSub?.cancel();
+    _leaveSub?.cancel();
     _studentSub?.cancel();
     super.dispose();
+  }
+
+  Future<void> _initBadgeStreams() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0;
+
+    _notifSub = NotificationService()
+        .streamFor(role: 'principal')
+        .listen((items) {
+      if (!mounted) return;
+      _latestNotifs = items;
+      _recomputeUnread();
+    });
+
+    _leaveSub = TimetableService()
+        .streamPendingLeaveCount()
+        .listen((count) {
+      if (!mounted) return;
+      setState(() => _pendingLeaveCount = count);
+    });
+  }
+
+  void _recomputeUnread() {
+    final ms = _lastSeenMs;
+    final count = _latestNotifs.where((n) {
+      final ts = n['createdAt'];
+      if (ts is! Timestamp) return false;
+      return ts.toDate().millisecondsSinceEpoch > ms;
+    }).length;
+    if (mounted) setState(() => _unreadNotifCount = count);
+  }
+
+  Future<void> _refreshLastSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0);
+    _recomputeUnread();
   }
 
   Future<void> _loadAll() async {
@@ -85,27 +134,21 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
         ? List<String>.from(assignedRaw).where(allClasses.contains).toList()
         : allClasses;
 
-    // Fire all heavy reads in parallel.
+    // Fire attendance-related reads in parallel (badges handled by streams).
     final summariesFuture  = StudentService().loadTodayFullSummary(classes);
-    final leavesFuture     = TimetableService().getLeaveApplications(status: 'pending');
-    final notifFuture      = NotificationService().unreadCount(role: 'principal');
     final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo();
 
     final summaries  = await summariesFuture;
-    final pending    = await leavesFuture;
-    final notifCount = await notifFuture;
     final absentInfo = await absentInfoFuture;
 
     if (!mounted) return;
     setState(() {
-      _principalEmail      = email;
-      _sessionRole         = role;
-      _summaries           = summaries;
-      _pendingLeaveCount   = pending.length;
-      _teachersAbsent      = absentInfo['absentCount']    ?? 0;
-      _unassignedBells     = absentInfo['unassignedBells'] ?? 0;
-      _unreadNotifCount    = notifCount;
-      _loading             = false;
+      _principalEmail  = email;
+      _sessionRole     = role;
+      _summaries       = summaries;
+      _teachersAbsent  = absentInfo['absentCount']    ?? 0;
+      _unassignedBells = absentInfo['unassignedBells'] ?? 0;
+      _loading         = false;
     });
 
     _maybeAutoPromptDigest();
@@ -153,7 +196,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             unreadNotifCount: _unreadNotifCount,
             onNotifTap: () async {
               await _navigate(const NotificationsScreen(role: 'principal'));
-              _loadAll();
+              _refreshLastSeen();
             },
             onLogout: _logout,
           ),
@@ -242,10 +285,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 title: 'Leave Requests',
                 subtitle: 'Review & approve pending applications from teachers',
                 badge: _pendingLeaveCount > 0 ? '$_pendingLeaveCount' : null,
-                onTap: () async {
-                  await _navigate(const LeaveRequestsScreen(viewerRole: 'principal'));
-                  _loadAll();
-                },
+                onTap: () => _navigate(const LeaveRequestsScreen(viewerRole: 'principal')),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(

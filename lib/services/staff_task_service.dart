@@ -71,6 +71,18 @@ class StaffTaskService {
   Stream<List<StaffTask>> getAllTasksStream() =>
       _tasks.snapshots().map(_sortByCreatedAt);
 
+  /// Real-time incomplete (non-completed) count — for coordinator badge.
+  Stream<int> streamAllIncompleteCount() =>
+      getAllTasksStream().map(
+        (tasks) => tasks.where((t) => t.status != TaskStatus.completed).length,
+      );
+
+  /// Real-time pending count for a single teacher — for teacher home badge.
+  Stream<int> streamPendingCountForTeacher(String teacherId) =>
+      getTasksForTeacherStream(teacherId).map(
+        (tasks) => tasks.where((t) => t.status != TaskStatus.completed).length,
+      );
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   List<StaffTask> _sortByDueDate(

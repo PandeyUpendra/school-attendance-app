@@ -1,4 +1,7 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
 import '../models/exam.dart';
@@ -62,8 +65,11 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   // Homework
   List<Homework> _homeworkList = [];
 
-  // Notifications
+  // Notifications (real-time)
   int _unreadNotifCount = 0;
+  StreamSubscription? _notifSub;
+  int _lastSeenMs = 0;
+  List<Map<String, dynamic>> _latestNotifs = [];
 
   // Exam results — (Exam, ExamResult?) pairs sorted newest first
   List<MapEntry<Exam, ExamResult?>> _examData = [];
@@ -78,6 +84,48 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   void initState() {
     super.initState();
     _loadAll();
+    _initNotifStream();
+  }
+
+  @override
+  void dispose() {
+    _notifSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initNotifStream() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0;
+
+    _notifSub = NotificationService()
+        .streamFor(
+          role:         'guardian',
+          studentClass: widget.studentClass,
+          studentRoll:  widget.studentRoll,
+        )
+        .listen((items) {
+      if (!mounted) return;
+      _latestNotifs = items;
+      _recomputeUnread();
+    });
+  }
+
+  void _recomputeUnread() {
+    final ms = _lastSeenMs;
+    final count = _latestNotifs.where((n) {
+      final ts = n['createdAt'];
+      if (ts is! Timestamp) return false;
+      return ts.toDate().millisecondsSinceEpoch > ms;
+    }).length;
+    if (mounted) setState(() => _unreadNotifCount = count);
+  }
+
+  Future<void> _refreshLastSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0);
+    _recomputeUnread();
   }
 
   /// Loads every exam for the class + this student's result for each.
@@ -100,16 +148,11 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         _service.loadTodayAttendance(widget.studentClass),                     // 2
         _feeService.getFeeStructure(className: widget.studentClass),            // 3
         _feeService.getTotalPaid(className: widget.studentClass, roll: widget.studentRoll),  // 4
-        NotificationService().unreadCount(
-          role:         'guardian',
-          studentClass: widget.studentClass,
-          studentRoll:  widget.studentRoll,
-        ),                                                                     // 5
-        _hwService.getHomeworkForClass(BaseFirestoreService.currentSchoolId ?? 'default_school', widget.studentClass),  // 6
-        _loadExamData(),                                                       // 7
-        _ttService.getTimetable(),                                             // 8
-        _ttService.getSettings(),                                              // 9
-        _ttService.getTeachers(),                                              // 10
+        _hwService.getHomeworkForClass(BaseFirestoreService.currentSchoolId ?? 'default_school', widget.studentClass),  // 5
+        _loadExamData(),                                                       // 6
+        _ttService.getTimetable(),                                             // 7
+        _ttService.getSettings(),                                              // 8
+        _ttService.getTeachers(),                                              // 9
       ]);
       if (!mounted) return;
 
@@ -118,13 +161,12 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       final todayByRoll  = results[2]  as Map<int, String>;
       final feeStructure = results[3]  as FeeStructure;
       final totalPaid    = results[4]  as double;
-      final notifCount   = results[5]  as int;
-      final hwList       = results[6]  as List<Homework>;
-      final examData     = results[7]  as List<MapEntry<Exam, ExamResult?>>;
-      final timetable    = results[8]
+      final hwList       = results[5]  as List<Homework>;
+      final examData     = results[6]  as List<MapEntry<Exam, ExamResult?>>;
+      final timetable    = results[7]
           as Map<String, Map<String, Map<int, TimetableEntry>>>;
-      final ttSettings   = results[9]  as Map<String, dynamic>;
-      final teachers     = results[10] as List<Teacher>;
+      final ttSettings   = results[8]  as Map<String, dynamic>;
+      final teachers     = results[9]  as List<Teacher>;
 
       final bells = List<Map<String, dynamic>>.from(
         ((ttSettings['bells'] as List?) ?? [])
@@ -132,19 +174,18 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       );
 
       setState(() {
-        _student          = student;
-        _monthData        = monthData;
-        _todayStatus      = todayByRoll[widget.studentRoll];
-        _feeStructure     = feeStructure;
-        _totalPaid        = totalPaid;
-        _unreadNotifCount = notifCount;
-        _homeworkList     = hwList;
-        _examData         = examData;
-        _classTimetable   = timetable[widget.studentClass] ?? {};
-        _bellSettings     = bells;
-        _firstBellTime    = ttSettings['firstBellTime'] as String? ?? '08:00';
-        _teacherById      = {for (final t in teachers) t.id: t};
-        _loading          = false;
+        _student        = student;
+        _monthData      = monthData;
+        _todayStatus    = todayByRoll[widget.studentRoll];
+        _feeStructure   = feeStructure;
+        _totalPaid      = totalPaid;
+        _homeworkList   = hwList;
+        _examData       = examData;
+        _classTimetable = timetable[widget.studentClass] ?? {};
+        _bellSettings   = bells;
+        _firstBellTime  = ttSettings['firstBellTime'] as String? ?? '08:00';
+        _teacherById    = {for (final t in teachers) t.id: t};
+        _loading        = false;
       });
     } catch (e) {
       if (!mounted) return;
@@ -444,7 +485,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                   ),
                 ),
               );
-              _loadAll();
+              _refreshLastSeen();
             },
             onLogout: _logout,
           ),

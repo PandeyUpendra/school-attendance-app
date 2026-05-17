@@ -176,6 +176,44 @@ class NotificationService {
 
   // ── Readers ────────────────────────────────────────────────────────────────
 
+  /// Real-time stream of notifications visible to this viewer, newest first,
+  /// capped at 30 days.  Audience filter mirrors [getFor].
+  Stream<List<Map<String, dynamic>>> streamFor({
+    required String role,
+    String? teacherId,
+    String? studentClass,
+    int?    studentRoll,
+  }) {
+    return _coll
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) {
+      final cutoff = DateTime.now().subtract(const Duration(days: 30));
+      return snap.docs
+          .map((d) {
+            final data = Map<String, dynamic>.from(d.data());
+            data['id'] = d.id;
+            return data;
+          })
+          .where((n) {
+            final ts = n['createdAt'];
+            if (ts is Timestamp && ts.toDate().isBefore(cutoff)) return false;
+            final aud = (n['audience'] as String?) ?? '';
+            if (aud == 'all')                                              return true;
+            if (aud == role)                                               return true;
+            if (aud == 'teachers'  && role == 'teacher')                  return true;
+            if (aud == 'guardians' && role == 'guardian')                 return true;
+            if (aud.startsWith('teacher:')  && role == 'teacher'  &&
+                teacherId != null && aud == 'teacher:$teacherId')         return true;
+            if (aud.startsWith('guardian:') && role == 'guardian' &&
+                studentClass != null && studentRoll != null &&
+                aud == 'guardian:$studentClass:$studentRoll')             return true;
+            return false;
+          })
+          .toList();
+    });
+  }
+
   /// Returns all notifications visible to this viewer, newest first.
   /// The audience filter logic matches the writers above.
   Future<List<Map<String, dynamic>>> getFor({

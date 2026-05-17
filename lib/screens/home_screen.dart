@@ -1,5 +1,8 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../models/teacher.dart';
 import '../services/auth_service.dart';
@@ -35,32 +38,65 @@ class _HomeScreenState extends State<HomeScreen> {
   int _unreadNotifCount  = 0;
   int _pendingTaskCount  = 0;
 
+  StreamSubscription? _notifSub;
+  StreamSubscription? _taskSub;
+  int _lastSeenMs = 0;
+  List<Map<String, dynamic>> _latestNotifs = [];
+
   @override
   void initState() {
     super.initState();
-    _loadCounts();
+    _initStreams();
   }
 
-  Future<void> _loadCounts() async {
-    final tid = widget.teacher?.id ?? '';
-    final notifFuture = NotificationService().unreadCount(
-      role:      'teacher',
-      teacherId: tid,
-    );
-    final taskFuture = tid.isNotEmpty
-        ? StaffTaskService().getPendingCountForTeacher(tid)
-        : Future.value(0);
+  @override
+  void dispose() {
+    _notifSub?.cancel();
+    _taskSub?.cancel();
+    super.dispose();
+  }
 
-    final results = await Future.wait([notifFuture, taskFuture]);
-    if (mounted) {
-      setState(() {
-        _unreadNotifCount = results[0];
-        _pendingTaskCount = results[1];
+  Future<void> _initStreams() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0;
+
+    final tid = widget.teacher?.id ?? '';
+
+    _notifSub = NotificationService()
+        .streamFor(role: 'teacher', teacherId: tid)
+        .listen((items) {
+      if (!mounted) return;
+      _latestNotifs = items;
+      _recomputeUnread();
+    });
+
+    if (tid.isNotEmpty) {
+      _taskSub = StaffTaskService()
+          .streamPendingCountForTeacher(tid)
+          .listen((count) {
+        if (!mounted) return;
+        setState(() => _pendingTaskCount = count);
       });
     }
   }
 
-  Future<void> _loadNotifCount() => _loadCounts();
+  void _recomputeUnread() {
+    final ms = _lastSeenMs;
+    final count = _latestNotifs.where((n) {
+      final ts = n['createdAt'];
+      if (ts is! Timestamp) return false;
+      return ts.toDate().millisecondsSinceEpoch > ms;
+    }).length;
+    if (mounted) setState(() => _unreadNotifCount = count);
+  }
+
+  Future<void> _loadNotifCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0);
+    _recomputeUnread();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -656,7 +692,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     builder: (_) =>
                         StaffTasksScreen(teacherId: teacher?.id)),
               );
-              _loadCounts();
+              _loadNotifCount();
             },
           ),
 
@@ -858,7 +894,7 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(
                   builder: (_) => StaffTasksScreen(teacherId: teacher?.id)),
             );
-            _loadCounts();
+            _loadNotifCount();
           },
         ),
 

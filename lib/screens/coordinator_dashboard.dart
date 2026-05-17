@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
@@ -54,6 +56,13 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
   int  _incompleteTaskCount = 0;
   String _coordEmail        = '';
 
+  // Real-time badge streams
+  StreamSubscription? _notifSub;
+  StreamSubscription? _leaveSub;
+  StreamSubscription? _taskSub;
+  int _lastSeenMs = 0;
+  List<Map<String, dynamic>> _latestNotifs = [];
+
   StreamSubscription? _studentSub;
   Set<String> _knownStudentIds = {};
 
@@ -64,6 +73,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
       RoleGuard.verify(context, ['coordinator', 'ownerPrincipal']);
     });
     _loadAll();
+    _initBadgeStreams();
     // Re-run summaries whenever the student roster changes (add/delete).
     _studentSub = StudentService().watchStudents().listen((students) {
       final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
@@ -76,8 +86,56 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
 
   @override
   void dispose() {
+    _notifSub?.cancel();
+    _leaveSub?.cancel();
+    _taskSub?.cancel();
     _studentSub?.cancel();
     super.dispose();
+  }
+
+  Future<void> _initBadgeStreams() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0;
+
+    _notifSub = NotificationService()
+        .streamFor(role: 'coordinator')
+        .listen((items) {
+      if (!mounted) return;
+      _latestNotifs = items;
+      _recomputeUnread();
+    });
+
+    _leaveSub = TimetableService()
+        .streamPendingLeaveCount()
+        .listen((count) {
+      if (!mounted) return;
+      setState(() => _pendingLeaveCount = count);
+    });
+
+    _taskSub = StaffTaskService()
+        .streamAllIncompleteCount()
+        .listen((count) {
+      if (!mounted) return;
+      setState(() => _incompleteTaskCount = count);
+    });
+  }
+
+  void _recomputeUnread() {
+    final ms = _lastSeenMs;
+    final count = _latestNotifs.where((n) {
+      final ts = n['createdAt'];
+      if (ts is! Timestamp) return false;
+      return ts.toDate().millisecondsSinceEpoch > ms;
+    }).length;
+    if (mounted) setState(() => _unreadNotifCount = count);
+  }
+
+  Future<void> _refreshLastSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0);
+    _recomputeUnread();
   }
 
   Future<void> _loadAll() async {
@@ -95,18 +153,12 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
         ? List<String>.from(assignedRaw).where(allClasses.contains).toList()
         : allClasses;
 
-    // Fire everything in parallel.
-    final summariesFuture   = StudentService().loadTodayFullSummary(classes);
-    final leavesFuture      = TimetableService().getLeaveApplications(status: 'pending');
-    final notifFuture       = NotificationService().unreadCount(role: 'coordinator');
-    final absentInfoFuture  = TimetableService().getTodayAbsentTeachersInfo();
-    final taskCountFuture   = StaffTaskService().getAllIncompleteCount();
+    // Fire attendance-related reads in parallel (badges handled by streams).
+    final summariesFuture  = StudentService().loadTodayFullSummary(classes);
+    final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo();
 
-    final summaries     = await summariesFuture;
-    final leaves        = await leavesFuture;
-    final notifCount    = await notifFuture;
-    final absentInfo    = await absentInfoFuture;
-    final incompleteTaskCount = await taskCountFuture;
+    final summaries  = await summariesFuture;
+    final absentInfo = await absentInfoFuture;
 
     // Load consecutive absence streaks for all classes in parallel.
     final streaksList = await Future.wait(
@@ -119,15 +171,12 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
 
     if (!mounted) return;
     setState(() {
-      _coordEmail           = email;
-      _summaries            = summaries;
-      _streaks              = streaks;
-      _pendingLeaveCount    = leaves.length;
-      _unreadNotifCount     = notifCount;
-      _teachersAbsent       = absentInfo['absentCount']    ?? 0;
-      _unassignedBells      = absentInfo['unassignedBells'] ?? 0;
-      _incompleteTaskCount  = incompleteTaskCount;
-      _attendanceLoading    = false;
+      _coordEmail        = email;
+      _summaries         = summaries;
+      _streaks           = streaks;
+      _teachersAbsent    = absentInfo['absentCount']    ?? 0;
+      _unassignedBells   = absentInfo['unassignedBells'] ?? 0;
+      _attendanceLoading = false;
     });
   }
 
@@ -164,7 +213,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             unreadNotifCount:  _unreadNotifCount,
             onNotifTap: () async {
               await _navigate(const NotificationsScreen(role: 'coordinator'));
-              _loadAll();
+              _refreshLastSeen();
             },
             onLogout: () async {
               await AuthService().clearSession();
@@ -194,12 +243,9 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               badge: _incompleteTaskCount > 0
                   ? '$_incompleteTaskCount'
                   : null,
-              onTap: () async {
-                await _navigate(CoordinatorStaffTasksScreen(
-                  coordinatorEmail: _coordEmail,
-                ));
-                _loadAll();
-              },
+              onTap: () => _navigate(CoordinatorStaffTasksScreen(
+                coordinatorEmail: _coordEmail,
+              )),
             ),
 
             // ── Announcements ──────────────────────────────────────────────
@@ -340,10 +386,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _SectionHeader('LEAVE REQUESTS'),
             _LeaveRequestTile(
               pendingCount: _pendingLeaveCount,
-              onTap: () async {
-                await _navigate(const LeaveRequestsScreen(viewerRole: 'coordinator'));
-                _loadAll();
-              },
+              onTap: () => _navigate(const LeaveRequestsScreen(viewerRole: 'coordinator')),
             ),
 
             // ── Analytics ─────────────────────────────────────────────────

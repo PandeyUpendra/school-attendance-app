@@ -408,6 +408,13 @@ class TimetableService {
     return list;
   }
 
+  /// Real-time count of pending leave applications.
+  Stream<int> streamPendingLeaveCount() =>
+      _leaveApps
+          .where('status', isEqualTo: 'pending')
+          .snapshots()
+          .map((snap) => snap.docs.length);
+
   Future<void> updateLeaveApplication(String schoolId, String id, String status,
       {String? note}) async {
     final update = <String, dynamic>{'status': status};
