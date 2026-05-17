@@ -16,16 +16,16 @@ import 'package:flutter/services.dart';
 abstract class AppTheme {
   // ── Brand palette ─────────────────────────────────────────────────────────
 
-  static const Color primary      = Color(0xFF5200A3); // Rich Deep Purple
-  static const Color primaryDark  = Color(0xFF1E0042); // Near-black violet (gradient start)
-  static const Color primaryMid   = Color(0xFF8200D4); // Vibrant violet (gradient end)
-  static const Color primaryLight = Color(0xFFBB86FF); // Soft lavender / chips
+  static const Color primary      = Color(0xFF6A1B9A); // Deep Violet
+  static const Color primaryDark  = Color(0xFF4A148C); // Darker violet (gradient start)
+  static const Color primaryMid   = Color(0xFF8E24AA); // Medium violet (gradient end)
+  static const Color primaryLight = Color(0xFFCE93D8); // Light violet / chips
 
-  /// Magenta-purple — used for pending badges, notification dots, key CTAs
-  static const Color accent       = Color(0xFFCC0099);
+  /// Magenta/pink — used for pending badges, notification dots, key CTAs
+  static const Color accent       = Color(0xFFD81B60);
 
   /// Very light lavender page background
-  static const Color background   = Color(0xFFF2E8FF);
+  static const Color background   = Color(0xFFF8F0FF);
 
   /// Pure-white card / tile surface
   static const Color surface      = Colors.white;
@@ -41,7 +41,7 @@ abstract class AppTheme {
   static ThemeData get light => ThemeData(
     useMaterial3: false,
     primaryColor: primary,
-    primarySwatch: Colors.deepPurple,
+    primarySwatch: Colors.purple,
     scaffoldBackgroundColor: background,
 
     // AppBar: deep violet everywhere, no elevation, white status-bar icons
