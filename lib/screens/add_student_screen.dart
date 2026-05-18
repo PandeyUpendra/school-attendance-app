@@ -29,6 +29,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
   final _motherCtrl          = TextEditingController();
   final _phoneCtrl           = TextEditingController();
   final _parentPhoneCtrl     = TextEditingController();
+  final _guardianEmailCtrl   = TextEditingController();
   final _addressCtrl         = TextEditingController();
   final _prevSchoolCtrl      = TextEditingController();
   final _emergencyCtrl       = TextEditingController();
@@ -55,8 +56,9 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       _fatherCtrl.text      = s.fatherName;
       _motherCtrl.text      = s.motherName ?? '';
       _phoneCtrl.text       = s.phone;
-      _parentPhoneCtrl.text = s.parentPhone ?? '';
-      _addressCtrl.text     = s.address ?? '';
+      _parentPhoneCtrl.text     = s.parentPhone ?? '';
+      _guardianEmailCtrl.text   = s.guardianEmail ?? '';
+      _addressCtrl.text         = s.address ?? '';
       _prevSchoolCtrl.text  = s.previousSchool ?? '';
       _emergencyCtrl.text   = s.emergencyContact ?? '';
       _allergiesCtrl.text   = s.allergies ?? '';
@@ -79,6 +81,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     _motherCtrl.dispose();
     _phoneCtrl.dispose();
     _parentPhoneCtrl.dispose();
+    _guardianEmailCtrl.dispose();
     _addressCtrl.dispose();
     _prevSchoolCtrl.dispose();
     _emergencyCtrl.dispose();
@@ -133,6 +136,9 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       transportMode: _transportMode,
       photoPath: _photoPath,
       photoUrl: widget.existing?.photoUrl,
+      guardianEmail: _guardianEmailCtrl.text.trim().isEmpty
+          ? null
+          : _guardianEmailCtrl.text.trim().toLowerCase(),
       feeStatus: _feeStatus,
       feeDueDate: _feeDueDate,
       feeAmount: double.tryParse(_feeAmountCtrl.text.trim()),
@@ -315,6 +321,20 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               keyboard: TextInputType.phone,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               maxLength: 10,
+            ),
+            const SizedBox(height: 14),
+            _Field(
+              controller: _guardianEmailCtrl,
+              label: 'Guardian Email (for portal login)',
+              icon: Icons.email_outlined,
+              keyboard: TextInputType.emailAddress,
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return null;
+                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(v.trim())) {
+                  return 'Enter a valid email address';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 14),
             // Gender dropdown

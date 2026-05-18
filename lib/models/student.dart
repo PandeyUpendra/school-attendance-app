@@ -22,7 +22,7 @@ class Student {
   /// Null on legacy records created before this field was introduced.
   final String? teacherId;
   final GuardianStudentDetails? guardianDetails;
-  /// Guardian's Gmail address used for Google Sign-In on the Guardian Portal.
+  /// Guardian's Gmail address used for Guardian Portal login.
   final String? guardianEmail;
   final Timestamp? dateOfBirth;
   final String? gender;

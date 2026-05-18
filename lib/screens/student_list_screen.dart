@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -559,11 +560,22 @@ class StudentDetailPage extends StatefulWidget {
 
 class _StudentDetailPageState extends State<StudentDetailPage> {
   late Student _student;
+  String? _guardianPassword;
+  bool    _loadingPassword = false;
 
   @override
   void initState() {
     super.initState();
     _student = widget.student;
+    if (_student.guardianEmail?.isNotEmpty == true) _loadGuardianPassword();
+  }
+
+  Future<void> _loadGuardianPassword() async {
+    if (_student.guardianEmail == null || _student.guardianEmail!.isEmpty) return;
+    setState(() => _loadingPassword = true);
+    final pass = await TimetableService()
+        .getGuardianPlainPassword(_student.guardianEmail!);
+    if (mounted) setState(() { _guardianPassword = pass; _loadingPassword = false; });
   }
 
   // ── Actions ─────────────────────────────────────────────────────────────────
@@ -627,50 +639,130 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
   }
 
   Future<void> _setGuardianEmail(BuildContext ctx) async {
-    final ctrl = TextEditingController();
+    final ctrl = TextEditingController(text: _student.guardianEmail ?? '');
+    String? generatedPass;
+    String? savedEmail;
+
     await showDialog<void>(
       context: ctx,
-      builder: (dCtx) => AlertDialog(
-        title: const Text('Set Guardian Email'),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: TextInputType.emailAddress,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Guardian Gmail address',
-            prefixIcon: Icon(Icons.email_outlined),
+      builder: (dCtx) => StatefulBuilder(
+        builder: (dCtx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Guardian Email'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Enter the guardian\'s email. A login password will be auto-generated.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                keyboardType: TextInputType.emailAddress,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Guardian email address',
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dCtx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final email = ctrl.text.trim();
-              if (email.isEmpty) return;
-              await StudentService().setGuardianEmail(
-                _student.className, _student.roll, email,
-                section: _student.section,
-              );
-              if (dCtx.mounted) Navigator.pop(dCtx);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Guardian email saved'),
-                    backgroundColor: Colors.green,
-                    behavior: SnackBarBehavior.floating,
-                  ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dCtx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary, foregroundColor: Colors.white),
+              onPressed: () async {
+                final email = ctrl.text.trim().toLowerCase();
+                if (email.isEmpty || !email.contains('@')) return;
+                final pass = await StudentService().setGuardianEmail(
+                  _student.className, _student.roll, email,
+                  section: _student.section,
                 );
-              }
-            },
-            child: const Text('Save'),
+                generatedPass = pass;
+                savedEmail    = email;
+                if (dCtx.mounted) Navigator.pop(dCtx);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    ctrl.dispose();
+
+    if (!mounted) return;
+    if (generatedPass != null && savedEmail != null) {
+      setState(() {
+        _student = _student.copyWith(guardianEmail: savedEmail);
+        _guardianPassword = generatedPass;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Guardian account ready. Password: $generatedPass'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+      ));
+    }
+  }
+
+  Future<void> _regenerateGuardianPassword() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Regenerate Password?'),
+        content: const Text(
+            'This will create a new password. The guardian will need the new password to log in.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accent, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Regenerate'),
           ),
         ],
       ),
     );
-    ctrl.dispose();
+    if (ok != true || !mounted) return;
+    final pass = await StudentService().regenerateGuardianPassword(
+      _student.className, _student.roll, section: _student.section);
+    if (!mounted) return;
+    setState(() => _guardianPassword = pass);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('New password: $pass — share with guardian'),
+      backgroundColor: Colors.green,
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 5),
+    ));
+  }
+
+  void _copyToClipboard(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Copied to clipboard'),
+      behavior: SnackBarBehavior.floating,
+      duration: Duration(seconds: 2),
+    ));
+  }
+
+  Future<void> _shareGuardianCredentials() async {
+    final email = _student.guardianEmail ?? '';
+    final pass  = _guardianPassword ?? '';
+    final msg   = Uri.encodeComponent(
+      'Hello! Your child ${_student.name}\'s school portal login:\n'
+      'Email: $email\nPassword: $pass\n'
+      'Open the School App and tap "Guardian" to sign in.',
+    );
+    final uri = Uri.parse('https://wa.me/?text=$msg');
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Color get _feeColor {
@@ -907,22 +999,108 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
               ),
             ),
 
-            if (widget.canEdit)
+            // ── Guardian Portal Access ─────────────────────────────────────
+            _SectionHeader('GUARDIAN PORTAL ACCESS'),
+            if (_student.guardianEmail == null || _student.guardianEmail!.isEmpty)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.people_outlined),
-                    label: const Text('Set Guardian Email (Google Login)'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.primary,
-                      side: const BorderSide(color: AppTheme.primary),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: () => _setGuardianEmail(context),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.people_outlined),
+                  label: const Text('Set Guardian Email & Generate Password'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primary,
+                    side: const BorderSide(color: AppTheme.primary),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => _setGuardianEmail(context),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
+                  ),
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Email row
+                      Row(children: [
+                        const Icon(Icons.email_outlined, size: 16, color: AppTheme.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _student.guardianEmail!,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => _setGuardianEmail(context),
+                          child: const Icon(Icons.edit_outlined,
+                              size: 16, color: AppTheme.primary),
+                        ),
+                      ]),
+                      const SizedBox(height: 10),
+                      // Password row
+                      Row(children: [
+                        const Icon(Icons.lock_outline, size: 16, color: AppTheme.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _loadingPassword
+                              ? const SizedBox(
+                                  height: 16, width: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2))
+                              : Text(
+                                  _guardianPassword ?? '—',
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 2,
+                                      fontFamily: 'monospace'),
+                                ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.copy_outlined, size: 18),
+                          tooltip: 'Copy password',
+                          color: AppTheme.primary,
+                          onPressed: _guardianPassword != null
+                              ? () => _copyToClipboard(_guardianPassword!)
+                              : null,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.refresh_outlined, size: 18),
+                          tooltip: 'Regenerate password',
+                          color: AppTheme.accent,
+                          onPressed: _regenerateGuardianPassword,
+                        ),
+                      ]),
+                      const SizedBox(height: 10),
+                      // Share button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const FaIcon(FontAwesomeIcons.whatsapp,
+                              size: 16, color: Color(0xFF25D366)),
+                          label: const Text('Share via WhatsApp'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF25D366).withOpacity(0.1),
+                            foregroundColor: const Color(0xFF128C7E),
+                            elevation: 0,
+                            side: const BorderSide(color: Color(0xFF25D366)),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: _shareGuardianCredentials,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

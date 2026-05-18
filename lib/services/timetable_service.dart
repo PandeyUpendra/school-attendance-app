@@ -250,7 +250,8 @@ class TimetableService {
     final docRef = _allowedUsers.doc(email.toLowerCase().trim());
     final data   = <String, dynamic>{'role': role};
     if (newPassword != null && newPassword.isNotEmpty) {
-      data['password'] = _hashPassword(newPassword);
+      data['password']      = _hashPassword(newPassword);
+      data['plainPassword'] = newPassword;
     }
     if (role == 'guardian' && studentClass != null && studentRoll != null) {
       data['studentClass'] = studentClass;
@@ -280,10 +281,11 @@ class TimetableService {
     String?       createdByRole,
   }) async {
     final data = <String, dynamic>{
-      'role':     role,
-      'email':    email.toLowerCase().trim(),
-      'password': _hashPassword(password),
-      'createdAt': FieldValue.serverTimestamp(),
+      'role':         role,
+      'email':        email.toLowerCase().trim(),
+      'password':     _hashPassword(password),
+      'plainPassword': password,
+      'createdAt':    FieldValue.serverTimestamp(),
       if (name           != null && name.isNotEmpty)  'name':     name,
       if (schoolId       != null && schoolId.isNotEmpty) 'schoolId': schoolId,
       if (createdByEmail != null) 'createdByEmail': createdByEmail,
@@ -333,6 +335,16 @@ class TimetableService {
     final section = data['studentSection'] as String? ?? '';
     if (cls == null || roll == null) return null;
     return {'studentClass': cls, 'studentRoll': roll, 'studentSection': section};
+  }
+
+  /// Returns the plaintext password for a guardian email (for teacher display).
+  /// Returns null if the account doesn't exist or has no stored plainPassword.
+  Future<String?> getGuardianPlainPassword(String email) async {
+    final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
+    if (!doc.exists || doc.data() == null) return null;
+    final data = doc.data()!;
+    if (data['role'] != 'guardian') return null;
+    return data['plainPassword'] as String?;
   }
 
   Future<void> removeAllowedUser(String email) async {
