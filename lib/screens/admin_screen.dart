@@ -55,23 +55,24 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final results = await Future.wait([
-      _service.getAllowedUsers(),
-      _service.getSettings(),
-    ]);
-    if (!mounted) return;
-    final allUsers = results[0] as List<Map<String, dynamic>>;
-    final settings = results[1] as Map<String, dynamic>;
-    // Admin sees only Owner accounts.
-    final owners = allUsers.where((u) {
-      final r = u['role'] as String;
-      return r == 'owner';
-    }).toList();
-    setState(() {
-      _users            = owners;
-      _availableClasses = List<String>.from(settings['classes'] as List? ?? []);
-      _loading          = false;
-    });
+    try {
+      final results = await Future.wait([
+        _service.getAllowedUsers(),
+        _service.getSettings(),
+      ]);
+      if (!mounted) return;
+      final allUsers = results[0] as List<Map<String, dynamic>>;
+      final settings = results[1] as Map<String, dynamic>;
+      setState(() {
+        _users            = allUsers;
+        _availableClasses = List<String>.from(settings['classes'] as List? ?? []);
+        _loading          = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      _snack('Failed to load users. Check your connection.');
+    }
   }
 
   // ── Add ────────────────────────────────────────────────────────────────────
@@ -99,23 +100,29 @@ class _AdminScreenState extends State<AdminScreen> {
     }
 
     setState(() => _saving = true);
-    await _service.addAllowedUser(
-      email, pass, _selectedRole,
-      assignedClasses: _selectedAssignedClasses,
-    );
-    _emailCtrl.clear();
-    _passCtrl.clear();
-    setState(() {
-      _selectedAssignedClasses = [];
-      _saving                  = false;
-    });
-    await _load();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('$email added as $_selectedRole'),
-        backgroundColor: Colors.green.shade700,
-        duration: const Duration(seconds: 2),
-      ));
+    try {
+      await _service.addAllowedUser(
+        email, pass, _selectedRole,
+        assignedClasses: _selectedAssignedClasses,
+      );
+      _emailCtrl.clear();
+      _passCtrl.clear();
+      setState(() {
+        _selectedAssignedClasses = [];
+        _saving                  = false;
+      });
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('$email added as $_selectedRole'),
+          backgroundColor: Colors.green.shade700,
+          duration: const Duration(seconds: 2),
+        ));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      _snack('Failed to add user: ${e.toString()}');
     }
   }
 
@@ -568,41 +575,22 @@ class _AdminScreenState extends State<AdminScreen> {
           color: AppTheme.primary,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(children: [
-            // Role dropdown
+            // Role label (fixed: Owner only)
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedRole,
-                  isExpanded: true,
-                  dropdownColor: AppTheme.primaryDark,
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 14),
-                  iconEnabledColor: Colors.white70,
-                  items: _roles.map((r) {
-                    return DropdownMenuItem<String>(
-                      value: r['value'] as String,
-                      child: Row(children: [
-                        Icon(r['icon'] as IconData,
-                            color: Colors.white70, size: 18),
-                        const SizedBox(width: 10),
-                        Text(r['label'] as String,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600)),
-                      ]),
-                    );
-                  }).toList(),
-                  onChanged: (v) {
-                    if (v != null) setState(() => _selectedRole = v);
-                  },
-                ),
-              ),
+              child: const Row(children: [
+                Icon(Icons.stars_outlined, color: Colors.white70, size: 18),
+                SizedBox(width: 10),
+                Text('Owner',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14)),
+              ]),
             ),
             const SizedBox(height: 10),
 
@@ -706,8 +694,7 @@ class _AdminScreenState extends State<AdminScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Admin can only create Owner and Owner-Principal accounts. '
-                'Each role creates the roles below them in the hierarchy.',
+                'Add Owner accounts here. Principals and Coordinators are created from their respective dashboards.',
                 style: TextStyle(
                     fontSize: 12, color: Colors.orange.shade800),
               ),
