@@ -20,6 +20,7 @@ import 'analytics_screen.dart';
 import 'principal_digest_screen.dart';
 import 'tasks/unified_staff_task_screen.dart';
 import 'coordinator_dashboard.dart';
+import 'coordinator_management_screen.dart';
 import 'birthdays/birthdays_screen.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
@@ -245,6 +246,16 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
               // ── Tools ─────────────────────────────────────────────────
               _SectionHeader('TOOLS'),
+              _FeatureTile(
+                icon: Icons.manage_accounts_outlined,
+                color: AppTheme.primary,
+                title: 'Manage Coordinators',
+                subtitle: 'Add, edit or remove coordinator accounts & class assignments',
+                onTap: () => _navigate(CoordinatorManagementScreen(
+                  principalEmail: _principalEmail,
+                )),
+              ),
+              const Divider(height: 1, indent: 72),
               _FeatureTile(
                 icon: Icons.history_edu_outlined,
                 color: AppTheme.primary,
