@@ -28,7 +28,7 @@ import 'copy_check_overview_screen.dart';
 import 'homework_overview_screen.dart';
 import 'analytics_screen.dart';
 import 'student_remarks_screen.dart';
-import 'coordinator_staff_tasks_screen.dart';
+import 'tasks/unified_staff_task_screen.dart';
 import 'coordinator/absent_teachers_screen.dart';
 import '../services/staff_task_service.dart';
 import '../utils/role_guard.dart';
@@ -246,8 +246,10 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               badge: _incompleteTaskCount > 0
                   ? '$_incompleteTaskCount'
                   : null,
-              onTap: () => _navigate(CoordinatorStaffTasksScreen(
-                coordinatorEmail: _coordEmail,
+              onTap: () => _navigate(UnifiedStaffTaskScreen(
+                role: 'coordinator',
+                userEmail: _coordEmail,
+                userName: _coordEmail,
               )),
             ),
             const _Divider(),

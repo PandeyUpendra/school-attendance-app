@@ -24,7 +24,7 @@ import 'copy_checking_screen.dart';
 import 'homework_screen.dart';
 import 'substitution_history_screen.dart';
 import 'student_remarks_screen.dart';
-import 'staff_tasks_screen.dart';
+import 'tasks/unified_staff_task_screen.dart';
 import 'meeting/teacher_meeting_tasks_screen.dart';
 import '../services/meeting_service.dart';
 import 'birthdays/birthdays_screen.dart';
@@ -704,7 +704,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(
                     builder: (_) =>
-                        StaffTasksScreen(teacherId: teacher?.id)),
+                        UnifiedStaffTaskScreen(
+                          role: 'teacher',
+                          userEmail: teacher?.email ?? '',
+                          teacherId: teacher?.id,
+                          userName: teacher?.name ?? '',
+                        )),
               );
               _loadNotifCount();
             },
@@ -957,7 +962,12 @@ class _HomeScreenState extends State<HomeScreen> {
             await Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (_) => StaffTasksScreen(teacherId: teacher?.id)),
+                  builder: (_) => UnifiedStaffTaskScreen(
+                          role: 'teacher',
+                          userEmail: teacher?.email ?? '',
+                          teacherId: teacher?.id,
+                          userName: teacher?.name ?? '',
+                        )),
             );
             _loadNotifCount();
           },

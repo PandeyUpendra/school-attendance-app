@@ -18,7 +18,7 @@ import 'announcements_screen.dart';
 import 'notifications_screen.dart';
 import 'analytics_screen.dart';
 import 'principal_digest_screen.dart';
-import 'staff_task_management_screen.dart';
+import 'tasks/unified_staff_task_screen.dart';
 import 'create_task_screen.dart';
 import 'task_status_screen.dart';
 import 'coordinator_dashboard.dart';
@@ -247,7 +247,11 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 color: AppTheme.primary,
                 title: 'Staff Task Management',
                 subtitle: 'Assign tasks to staff, track status and overdue',
-                onTap: () => _navigate(const StaffTaskManagementScreen()),
+                onTap: () => _navigate(UnifiedStaffTaskScreen(
+                  role: 'principal',
+                  userEmail: _principalEmail,
+                  userName: _principalEmail,
+                )),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(
