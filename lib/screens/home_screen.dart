@@ -28,6 +28,8 @@ import 'staff_tasks_screen.dart';
 import 'meeting/teacher_meeting_tasks_screen.dart';
 import '../services/meeting_service.dart';
 import 'birthdays/birthdays_screen.dart';
+import 'todo_list_screen.dart';
+import 'todo_reminder_banner.dart';
 
 class HomeScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -510,6 +512,10 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: EdgeInsets.zero,
               children: [
           const SizedBox(height: 4),
+          TodoReminderBanner(
+            userId: teacher?.id ?? teacher?.email ?? '',
+            role: 'teacher',
+          ),
           _buildSubDutyCard(),
 
           _SectionHeader('ACADEMICS'),
@@ -784,6 +790,23 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          _SectionHeader('MY TO-DO LIST'),
+          _FeatureTile(
+            icon: Icons.checklist_outlined,
+            color: AppTheme.primary,
+            title: 'My To-Do List',
+            subtitle: 'Personal tasks with reminders and due dates',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TodoListScreen(
+                  userId: teacher?.id ?? teacher?.email ?? '',
+                  role: 'teacher',
+                ),
+              ),
+            ),
+          ),
+
           const SizedBox(height: 32),
               ],
             ),
@@ -801,6 +824,10 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: EdgeInsets.zero,
             children: [
         const SizedBox(height: 4),
+        TodoReminderBanner(
+          userId: teacher?.id ?? teacher?.email ?? '',
+          role: 'teacher',
+        ),
         _buildSubDutyCard(),
 
         _SectionHeader('ACADEMICS'),
@@ -1029,6 +1056,23 @@ class _HomeScreenState extends State<HomeScreen> {
               builder: (_) => BirthdaysScreen(
                 role: 'subject_teacher',
                 assignedClasses: teacher?.assignedClasses,
+              ),
+            ),
+          ),
+        ),
+
+        _SectionHeader('MY TO-DO LIST'),
+        _FeatureTile(
+          icon: Icons.checklist_outlined,
+          color: AppTheme.primary,
+          title: 'My To-Do List',
+          subtitle: 'Personal tasks with reminders and due dates',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TodoListScreen(
+                userId: teacher?.id ?? teacher?.email ?? '',
+                role: 'teacher',
               ),
             ),
           ),

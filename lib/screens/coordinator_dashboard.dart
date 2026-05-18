@@ -34,6 +34,8 @@ import '../services/staff_task_service.dart';
 import '../utils/role_guard.dart';
 import 'meeting/coordinator_meeting_records_screen.dart';
 import 'birthdays/birthdays_screen.dart';
+import 'todo_list_screen.dart';
+import 'todo_reminder_banner.dart';
 
 const _cPurple    = AppTheme.primary;
 const _cPurpleMid = AppTheme.primaryMid;
@@ -235,6 +237,10 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
             const SizedBox(height: 4),
+            TodoReminderBanner(
+              userId: _coordEmail,
+              role: 'coordinator',
+            ),
 
             // ── Staff Tasks ───────────────────────────────────────────────
             _SectionHeader('STAFF TASKS'),
@@ -467,6 +473,19 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               title: 'Birthdays',
               subtitle: 'Staff and student birthday wishes',
               onTap: () => _navigate(const BirthdaysScreen(
+                role: 'coordinator',
+              )),
+            ),
+
+            // ── My To-Do List ─────────────────────────────────────────────
+            _SectionHeader('MY TO-DO LIST'),
+            _FeatureTile(
+              icon: Icons.checklist_outlined,
+              color: _cPurple,
+              title: 'My To-Do List',
+              subtitle: 'Personal tasks with reminders and due dates',
+              onTap: () => _navigate(TodoListScreen(
+                userId: _coordEmail,
                 role: 'coordinator',
               )),
             ),
