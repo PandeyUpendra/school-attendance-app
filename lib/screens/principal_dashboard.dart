@@ -19,9 +19,8 @@ import 'notifications_screen.dart';
 import 'analytics_screen.dart';
 import 'principal_digest_screen.dart';
 import 'tasks/unified_staff_task_screen.dart';
-import 'create_task_screen.dart';
-import 'task_status_screen.dart';
 import 'coordinator_dashboard.dart';
+import 'birthdays/birthdays_screen.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
 import '../utils/role_guard.dart';
@@ -218,6 +217,21 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               _SectionHeader('ACTIVE TASKS'),
               _buildTasksSection(),
 
+              // ── Birthdays ─────────────────────────────────────────────
+              _SectionHeader('BIRTHDAYS'),
+              BirthdayBanner(
+                role: 'principal',
+                onTap: () => _navigate(const BirthdaysScreen(role: 'principal')),
+              ),
+              _FeatureTile(
+                icon: Icons.cake_outlined,
+                color: AppTheme.accent,
+                title: 'Birthdays',
+                subtitle: 'Staff and student birthday wishes',
+                onTap: () => _navigate(const BirthdaysScreen(role: 'principal')),
+              ),
+              const Divider(height: 1, indent: 72),
+
               // ── Analytics ─────────────────────────────────────────────
               _SectionHeader('ANALYTICS'),
               _FeatureTile(
@@ -251,28 +265,6 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   role: 'principal',
                   userEmail: _principalEmail,
                   userName: _principalEmail,
-                )),
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.task_alt_outlined,
-                color: AppTheme.primary,
-                title: 'Task Status',
-                subtitle: 'Check completion status of created tasks',
-                onTap: () => _navigate(TaskStatusScreen(
-                  createdByEmail: _principalEmail,
-                  isAdmin: true,
-                )),
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.add_task_outlined,
-                color: AppTheme.primary,
-                title: 'Create Task',
-                subtitle: 'Assign tasks to teachers/classes',
-                onTap: () => _navigate(CreateTaskScreen(
-                  createdBy: _principalEmail,
-                  creatorRole: 'principal',
                 )),
               ),
               const Divider(height: 1, indent: 72),
