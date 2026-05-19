@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
+import '../services/timetable_service.dart';
 import '../theme.dart';
 
 class AddStudentScreen extends StatefulWidget {
@@ -148,7 +149,24 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
 
     final service = StudentService();
     if (_isEdit) {
+      final oldEmail = widget.existing?.guardianEmail?.trim().toLowerCase() ?? '';
+      final newEmail = student.guardianEmail?.trim().toLowerCase() ?? '';
       await service.updateStudent(updated: student);
+      if (!mounted) return;
+      if (newEmail.isNotEmpty && newEmail != oldEmail) {
+        await TimetableService().addAllowedUser(
+          newEmail, 'TmpParent@2024!', 'guardian',
+          name: student.name,
+          studentClass: student.className,
+          studentRoll:  student.roll,
+        );
+        await TimetableService().linkGuardianEmail(
+          email: newEmail,
+          studentClass: student.className,
+          studentRoll:  student.roll,
+          studentName:  student.name,
+        );
+      }
       if (mounted) Navigator.pop(context, student);
     } else {
       final error = await service.addStudent(student: student);

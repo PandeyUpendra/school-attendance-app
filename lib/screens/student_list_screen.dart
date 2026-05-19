@@ -560,22 +560,11 @@ class StudentDetailPage extends StatefulWidget {
 
 class _StudentDetailPageState extends State<StudentDetailPage> {
   late Student _student;
-  String? _guardianPassword;
-  bool    _loadingPassword = false;
 
   @override
   void initState() {
     super.initState();
     _student = widget.student;
-    if (_student.guardianEmail?.isNotEmpty == true) _loadGuardianPassword();
-  }
-
-  Future<void> _loadGuardianPassword() async {
-    if (_student.guardianEmail == null || _student.guardianEmail!.isEmpty) return;
-    setState(() => _loadingPassword = true);
-    final pass = await TimetableService()
-        .getGuardianPlainPassword(_student.guardianEmail!);
-    if (mounted) setState(() { _guardianPassword = pass; _loadingPassword = false; });
   }
 
   // ── Actions ─────────────────────────────────────────────────────────────────
@@ -640,7 +629,6 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
 
   Future<void> _setGuardianEmail(BuildContext ctx) async {
     final ctrl = TextEditingController(text: _student.guardianEmail ?? '');
-    String? generatedPass;
     String? savedEmail;
 
     await showDialog<void>(
@@ -682,12 +670,12 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
               onPressed: () async {
                 final email = ctrl.text.trim().toLowerCase();
                 if (email.isEmpty || !email.contains('@')) return;
-                final pass = await StudentService().setGuardianEmail(
+                await StudentService().setGuardianEmail(
                   _student.className, _student.roll, email,
                   section: _student.section,
+                  studentName: _student.name,
                 );
-                generatedPass = pass;
-                savedEmail    = email;
+                savedEmail = email;
                 if (dCtx.mounted) Navigator.pop(dCtx);
               },
               child: const Text('Save'),
@@ -699,49 +687,38 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     ctrl.dispose();
 
     if (!mounted) return;
-    if (generatedPass != null && savedEmail != null) {
+    if (savedEmail != null) {
       setState(() {
         _student = _student.copyWith(guardianEmail: savedEmail);
-        _guardianPassword = generatedPass;
       });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Guardian account ready. Password: $generatedPass'),
+        content: Text('Invite email sent to $savedEmail'),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 5),
+        duration: const Duration(seconds: 4),
       ));
     }
   }
 
-  Future<void> _regenerateGuardianPassword() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Regenerate Password?'),
-        content: const Text(
-            'This will create a new password. The guardian will need the new password to log in.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.accent, foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Regenerate'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    final pass = await StudentService().regenerateGuardianPassword(
-      _student.className, _student.roll, section: _student.section);
-    if (!mounted) return;
-    setState(() => _guardianPassword = pass);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('New password: $pass — share with guardian'),
-      backgroundColor: Colors.green,
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 5),
-    ));
+  Future<void> _resendInvite() async {
+    final email = _student.guardianEmail ?? '';
+    if (email.isEmpty) return;
+    try {
+      await TimetableService().resendInvitationEmail(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Invite email resent to $email'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Failed to resend invite. Check internet connection.'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   void _copyToClipboard(String text) {
@@ -753,13 +730,12 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     ));
   }
 
-  Future<void> _shareGuardianCredentials() async {
+  Future<void> _shareGuardianAppInfo() async {
     final email = _student.guardianEmail ?? '';
-    final pass  = _guardianPassword ?? '';
     final msg   = Uri.encodeComponent(
-      'Hello! Your child ${_student.name}\'s school portal login:\n'
-      'Email: $email\nPassword: $pass\n'
-      'Open the School App and tap "Guardian" to sign in.',
+      'Hello! Your child ${_student.name}\'s school portal is ready.\n'
+      'Login email: $email\n'
+      'Please check your email for a link to set up your password, then open the School App and sign in.',
     );
     final uri = Uri.parse('https://wa.me/?text=$msg');
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -1006,7 +982,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.people_outlined),
-                  label: const Text('Set Guardian Email & Generate Password'),
+                  label: const Text('Set Guardian Email'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.primary,
                     side: const BorderSide(color: AppTheme.primary),
@@ -1045,61 +1021,56 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                           child: const Icon(Icons.edit_outlined,
                               size: 16, color: AppTheme.primary),
                         ),
+                        GestureDetector(
+                          onTap: () => _copyToClipboard(_student.guardianEmail!),
+                          child: const Padding(
+                            padding: EdgeInsets.only(left: 8),
+                            child: Icon(Icons.copy_outlined,
+                                size: 16, color: AppTheme.primary),
+                          ),
+                        ),
                       ]),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Guardian can sign in with this email. They set their own password via the invite email.',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      ),
                       const SizedBox(height: 10),
-                      // Password row
+                      // Resend invite + WhatsApp row
                       Row(children: [
-                        const Icon(Icons.lock_outline, size: 16, color: AppTheme.primary),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.send_outlined, size: 15),
+                            label: const Text('Resend Invite', style: TextStyle(fontSize: 13)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.primary,
+                              side: const BorderSide(color: AppTheme.primary),
+                              padding: const EdgeInsets.symmetric(vertical: 9),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: _resendInvite,
+                          ),
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: _loadingPassword
-                              ? const SizedBox(
-                                  height: 16, width: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2))
-                              : Text(
-                                  _guardianPassword ?? '—',
-                                  style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 2,
-                                      fontFamily: 'monospace'),
-                                ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.copy_outlined, size: 18),
-                          tooltip: 'Copy password',
-                          color: AppTheme.primary,
-                          onPressed: _guardianPassword != null
-                              ? () => _copyToClipboard(_guardianPassword!)
-                              : null,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.refresh_outlined, size: 18),
-                          tooltip: 'Regenerate password',
-                          color: AppTheme.accent,
-                          onPressed: _regenerateGuardianPassword,
+                          child: ElevatedButton.icon(
+                            icon: const FaIcon(FontAwesomeIcons.whatsapp,
+                                size: 15, color: Color(0xFF25D366)),
+                            label: const Text('WhatsApp', style: TextStyle(fontSize: 13)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF25D366).withOpacity(0.1),
+                              foregroundColor: const Color(0xFF128C7E),
+                              elevation: 0,
+                              side: const BorderSide(color: Color(0xFF25D366)),
+                              padding: const EdgeInsets.symmetric(vertical: 9),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: _shareGuardianAppInfo,
+                          ),
                         ),
                       ]),
-                      const SizedBox(height: 10),
-                      // Share button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          icon: const FaIcon(FontAwesomeIcons.whatsapp,
-                              size: 16, color: Color(0xFF25D366)),
-                          label: const Text('Share via WhatsApp'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF25D366).withOpacity(0.1),
-                            foregroundColor: const Color(0xFF128C7E),
-                            elevation: 0,
-                            side: const BorderSide(color: Color(0xFF25D366)),
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                          ),
-                          onPressed: _shareGuardianCredentials,
-                        ),
-                      ),
                     ],
                   ),
                 ),

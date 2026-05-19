@@ -356,7 +356,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ]),
                 const SizedBox(height: 4),
                 const Text(
-                  'Creates a guardian login linked to a student. Default password: Parent@123',
+                  'Creates a guardian login linked to a student. An invite email will be sent so they can set their own password.',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const SizedBox(height: 16),
@@ -477,7 +477,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ScaffoldMessenger.of(context)
                                     .showSnackBar(SnackBar(
                                   content: Text(
-                                      'Guardian $email added (password: Parent@123)'),
+                                      'Invite email sent to $email'),
                                   backgroundColor: AppTheme.success,
                                   duration: const Duration(seconds: 3),
                                 ));

@@ -145,77 +145,51 @@ class StudentService {
         .set(updated.toJson());
   }
 
-  /// Creates or updates the guardian's allowed_users entry.
-  /// If the guardian already has an account → reuses their existing password.
-  /// If not → generates a new one.
-  /// Returns the plaintext password (new or existing).
-  Future<String> _upsertGuardianAccount({
+  /// Creates Firebase Auth account + allowed_users doc + sends invite email for guardian.
+  /// If the account already exists, EMAIL_EXISTS is silently ignored.
+  Future<void> _upsertGuardianAccount({
     required String email,
     required String className,
     required int    roll,
     String          section = '',
     String?         name,
+    String?         schoolId,
   }) async {
-    final svc       = TimetableService();
-    final existing  = await svc.getGuardianPlainPassword(email);
-    final pass      = existing ?? generateGuardianPassword();
-
-    if (existing == null) {
-      // Brand new guardian account
-      await svc.addAllowedUser(
-        email, pass, 'guardian',
-        studentClass: className,
-        studentRoll:  roll,
-      );
-    }
-    // Always ensure this student is linked (addAllowedUser already sets the link for new accounts)
+    final svc = TimetableService();
+    await svc.addAllowedUser(
+      email, 'TmpParent@2024!', 'guardian',
+      name: name,
+      schoolId: schoolId,
+      studentClass: className,
+      studentRoll:  roll,
+    );
     await svc.linkGuardianEmail(
       email: email,
       studentClass: className,
       studentRoll:  roll,
       studentName:  name,
     );
-    return pass;
   }
 
   /// Sets/updates guardian email for a student.
-  /// Reuses the guardian's existing password if they already have an account.
-  /// Returns the plaintext password so the teacher can share it.
-  Future<String> setGuardianEmail(String className, int roll, String email,
+  /// Creates Firebase Auth account and sends invite email to the guardian.
+  Future<void> setGuardianEmail(String className, int roll, String email,
       {String section = '', String? studentName}) async {
     final sid      = _sid(roll, className, section);
     final doc      = await _students.doc(sid).get();
     final oldEmail = doc.data()?['guardianEmail'] as String?;
 
-    // Remove this student from the old guardian's link list if email changed
     if (oldEmail != null && oldEmail.isNotEmpty && oldEmail != email) {
       await TimetableService().removeGuardianLink(
         email: oldEmail, studentClass: className, studentRoll: roll);
     }
 
-    final pass = await _upsertGuardianAccount(
+    await _upsertGuardianAccount(
       email: email, className: className, roll: roll,
       section: section, name: studentName,
     );
 
     await _students.doc(sid).update({'guardianEmail': email});
-    return pass;
-  }
-
-  /// Resets the guardian's password (affects ALL their linked children since it's email-based).
-  /// Returns the new plaintext password.
-  Future<String> regenerateGuardianPassword(String className, int roll,
-      {String section = ''}) async {
-    final sid   = _sid(roll, className, section);
-    final doc   = await _students.doc(sid).get();
-    final email = doc.data()?['guardianEmail'] as String?;
-    if (email == null || email.isEmpty) throw StateError('No guardian email set for this student.');
-    final pass = generateGuardianPassword();
-    await TimetableService().updateAllowedUser(
-      email, role: 'guardian', newPassword: pass,
-      studentClass: className, studentRoll: roll,
-    );
-    return pass;
   }
 
   Future<void> removeStudent(int roll, String className,
