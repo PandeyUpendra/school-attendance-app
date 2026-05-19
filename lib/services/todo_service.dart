@@ -10,13 +10,18 @@ class TodoService {
   factory TodoService() => _instance;
 
   Stream<List<TodoItem>> streamForUser(String userId) {
+    // No orderBy — avoids the composite index requirement.
+    // Sorting is done in-app after fetching.
     return _col
         .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => TodoItem.fromJson(d.data(), d.id))
-            .toList());
+        .map((snap) {
+          final items = snap.docs
+              .map((d) => TodoItem.fromJson(d.data(), d.id))
+              .toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return items;
+        });
   }
 
   Stream<List<TodoItem>> streamTodayReminders(String userId) {

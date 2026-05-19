@@ -72,13 +72,11 @@ class _TodoListScreenState extends State<TodoListScreen>
                 items: pending,
                 emptyMessage: 'No pending tasks.\nTap + to add one.',
                 svc: _svc,
-                onAdd: () => _showAddSheet(context),
               ),
               _TodoTab(
                 items: completed,
                 emptyMessage: 'No completed tasks yet.',
                 svc: _svc,
-                onAdd: null,
               ),
             ],
           );
@@ -114,13 +112,11 @@ class _TodoTab extends StatelessWidget {
   final List<TodoItem> items;
   final String emptyMessage;
   final TodoService svc;
-  final VoidCallback? onAdd;
 
   const _TodoTab({
     required this.items,
     required this.emptyMessage,
     required this.svc,
-    required this.onAdd,
   });
 
   @override
@@ -138,18 +134,6 @@ class _TodoTab extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
             ),
-            if (onAdd != null) ...[
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: onAdd,
-                icon: const Icon(Icons.add),
-                label: const Text('Add Task'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
           ],
         ),
       );
@@ -506,8 +490,14 @@ class _AddTodoSheetState extends State<_AddTodoSheet> {
         createdAt: DateTime.now(),
       ));
       if (mounted) Navigator.pop(context);
-    } finally {
-      if (mounted) setState(() => _saving = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to save task: $e'),
+          backgroundColor: Colors.red.shade700,
+        ));
+      }
     }
   }
 
