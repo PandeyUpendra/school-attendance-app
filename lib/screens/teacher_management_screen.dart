@@ -161,10 +161,51 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
       }
     }
 
+    final schoolId = BaseFirestoreService.currentSchoolId ?? 'default_school';
+
     if (existing == null) {
-      await _service.addTeacher(BaseFirestoreService.currentSchoolId ?? 'default_school', teacher);
+      await _service.addTeacher(schoolId, teacher);
+      // Create login credentials and send invite email to the new teacher.
+      if (teacher.email.isNotEmpty) {
+        await _service.addAllowedUser(
+          teacher.email,
+          'TmpSchool@2024!',
+          'teacher',
+          name:     teacher.name,
+          schoolId: schoolId,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Invite email sent to ${teacher.email}'),
+            backgroundColor: Colors.green.shade700,
+          ));
+        }
+      }
     } else {
-      await _service.updateTeacher(BaseFirestoreService.currentSchoolId ?? 'default_school', teacher);
+      await _service.updateTeacher(schoolId, teacher);
+      final oldEmail = existing.email.trim().toLowerCase();
+      final newEmail = teacher.email.trim().toLowerCase();
+      // If the email changed, migrate the login credentials to the new address.
+      if (newEmail.isNotEmpty && oldEmail != newEmail) {
+        // Remove old allowed_users entry so the old email can no longer log in.
+        if (oldEmail.isNotEmpty) {
+          await _service.removeAllowedUser(oldEmail);
+        }
+        // Create Firebase Auth account + allowed_users doc + send invite.
+        await _service.addAllowedUser(
+          newEmail,
+          'TmpSchool@2024!',
+          'teacher',
+          name:     teacher.name,
+          schoolId: schoolId,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Email updated — invite sent to $newEmail'),
+            backgroundColor: Colors.green.shade700,
+          ));
+        }
+      }
     }
     _load();
   }
