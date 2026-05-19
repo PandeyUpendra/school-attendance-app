@@ -26,6 +26,8 @@ import '../models/task.dart';
 import '../services/task_service.dart';
 import '../utils/role_guard.dart';
 import 'meeting/principal_meeting_records_screen.dart';
+import 'todo_list_screen.dart';
+import 'todo_reminder_banner.dart';
 
 /// The Principal Portal — school-wide overview dashboard.
 class PrincipalDashboard extends StatefulWidget {
@@ -209,6 +211,10 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 padding: EdgeInsets.zero,
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
+            TodoReminderBanner(
+              userId: _principalEmail,
+              role: _sessionRole,
+            ),
             if (!_loading) ...[
               // ── Today's Attendance ─────────────────────────────────────
               _SectionHeader("TODAY'S ATTENDANCE"),
@@ -357,6 +363,19 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   onTap: () => _navigate(const CoordinatorDashboard()),
                 ),
               ],
+
+              // ── My To-Do List ───────────────────────────────────────────
+              _SectionHeader('MY TO-DO LIST'),
+              _FeatureTile(
+                icon: Icons.checklist_outlined,
+                color: AppTheme.primary,
+                title: 'My To-Do List',
+                subtitle: 'Personal tasks with reminders and due dates',
+                onTap: () => _navigate(TodoListScreen(
+                  userId: _principalEmail,
+                  role: _sessionRole,
+                )),
+              ),
 
               const SizedBox(height: 32),
             ],

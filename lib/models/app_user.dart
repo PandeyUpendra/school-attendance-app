@@ -1,5 +1,7 @@
 enum UserRole { teacher, guardian, coordinator, principal, subjectTeacher, owner }
 
+enum UserStatus { active, pending, suspended }
+
 class AppUser {
   final String uid;
   final String name;
@@ -15,6 +17,10 @@ class AppUser {
   /// Guardian only: the IDs of their children
   final List<String> studentIds;
 
+  final UserStatus status;
+  final String createdBy;
+  final DateTime? createdAt;
+
   const AppUser({
     required this.uid,
     required this.name,
@@ -23,6 +29,9 @@ class AppUser {
     required this.schoolId,
     required this.classIds,
     this.studentIds = const [],
+    this.status = UserStatus.active,
+    this.createdBy = '',
+    this.createdAt,
   });
 
   factory AppUser.fromFirestore(Map<String, dynamic> data, String uid) {
@@ -33,7 +42,12 @@ class AppUser {
       role: _roleFromString(data['role'] as String? ?? ''),
       schoolId: data['schoolId'] as String? ?? '',
       classIds: List<String>.from(data['classIds'] as List? ?? []),
-      studentIds: List<String>.from(data['studentIds'] as List? ?? (data['studentId'] != null ? [data['studentId']] : [])),
+      studentIds: List<String>.from(
+          data['studentIds'] as List? ??
+              (data['studentId'] != null ? [data['studentId']] : [])),
+      status: _statusFromString(data['status'] as String? ?? 'active'),
+      createdBy: data['createdBy'] as String? ?? data['createdByEmail'] as String? ?? '',
+      createdAt: (data['createdAt'] as dynamic)?.toDate() as DateTime?,
     );
   }
 
@@ -44,12 +58,21 @@ class AppUser {
         'schoolId': schoolId,
         'classIds': classIds,
         'studentIds': studentIds,
+        'status': status.name,
+        'createdBy': createdBy,
       };
 
   static UserRole _roleFromString(String value) {
     return UserRole.values.firstWhere(
       (r) => r.name == value,
       orElse: () => UserRole.teacher,
+    );
+  }
+
+  static UserStatus _statusFromString(String value) {
+    return UserStatus.values.firstWhere(
+      (s) => s.name == value,
+      orElse: () => UserStatus.active,
     );
   }
 }

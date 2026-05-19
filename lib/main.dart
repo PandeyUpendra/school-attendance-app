@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
 import 'providers/school_settings_provider.dart';
+import 'screens/login_screen.dart';
 import 'screens/role_selection_screen.dart';
 import 'screens/coordinator_dashboard.dart';
 import 'screens/home_screen.dart';
@@ -93,11 +95,25 @@ class _SplashGateState extends State<_SplashGate> {
     if (!mounted) return;
 
     if (session == null) {
-      _go(const RoleSelectionScreen());
+      _go(const LoginScreen());
       return;
     }
 
     final role = session['role'] as String? ?? '';
+
+    // Guardian uses Google Sign-In (not Firebase Auth) — skip Auth check.
+    final isGuardian = role == 'guardian';
+    if (!isGuardian) {
+      // For staff: verify Firebase Auth is still valid. If the user's password
+      // was changed on another device or the session was revoked, sign them out.
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) {
+        await AuthService().clearSession();
+        if (!mounted) return;
+        _go(const LoginScreen());
+        return;
+      }
+    }
 
     switch (role) {
       case 'coordinator':
@@ -129,6 +145,7 @@ class _SplashGateState extends State<_SplashGate> {
         return;
 
       case 'teacher':
+      case 'subjectTeacher':
         final teacherId = session['teacherId'] as String?;
         if (teacherId != null) {
           final teacher =
@@ -139,11 +156,11 @@ class _SplashGateState extends State<_SplashGate> {
             return;
           }
         }
-        _go(const RoleSelectionScreen());
+        _go(const LoginScreen());
         return;
 
       default:
-        _go(const RoleSelectionScreen());
+        _go(const LoginScreen());
     }
   }
 

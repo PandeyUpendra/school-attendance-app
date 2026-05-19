@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
@@ -268,6 +270,10 @@ class TimetableService {
     await docRef.update(data);
   }
 
+  // Firebase Web API key — used only to create Auth accounts server-side
+  // without displacing the currently signed-in user's session.
+  static const _firebaseApiKey = 'AIzaSyB9dyjWRfwMeq8-J6juhYdizI-584MCkBE';
+
   Future<void> addAllowedUser(
     String email,
     String password,
@@ -280,13 +286,16 @@ class TimetableService {
     String?       createdByEmail,
     String?       createdByRole,
   }) async {
+    final normEmail = email.toLowerCase().trim();
+
+    // 1. Write to allowed_users (existing logic, adds status field).
     final data = <String, dynamic>{
-      'role':         role,
-      'email':        email.toLowerCase().trim(),
-      'password':     _hashPassword(password),
-      'plainPassword': password,
-      'createdAt':    FieldValue.serverTimestamp(),
-      if (name           != null && name.isNotEmpty)  'name':     name,
+      'role':      role,
+      'email':     normEmail,
+      'password':  _hashPassword(password),
+      'status':    'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+      if (name           != null && name.isNotEmpty)     'name':     name,
       if (schoolId       != null && schoolId.isNotEmpty) 'schoolId': schoolId,
       if (createdByEmail != null) 'createdByEmail': createdByEmail,
       if (createdByRole  != null) 'createdByRole':  createdByRole,
@@ -298,7 +307,41 @@ class TimetableService {
     if (role == 'coordinator' || role == 'principal' || role == 'owner') {
       data['assignedClasses'] = assignedClasses ?? [];
     }
-    await _allowedUsers.doc(email.toLowerCase().trim()).set(data);
+    await _allowedUsers.doc(normEmail).set(data);
+
+    // 2. Create Firebase Auth account via REST (doesn't sign out current user).
+    //    If the account already exists, skip silently.
+    try {
+      final res = await http.post(
+        Uri.parse(
+            'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$_firebaseApiKey'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email':            normEmail,
+          'password':         password,
+          'returnSecureToken': false,
+        }),
+      );
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final errCode = (body['error'] as Map?)?['message'] as String? ?? '';
+      // EMAIL_EXISTS is fine — the account was already created before.
+      if (body['localId'] == null && errCode != 'EMAIL_EXISTS') {
+        // Log but don't rethrow — Firestore write succeeded; Auth failure is
+        // non-fatal and the admin can resend the invite.
+        // ignore: avoid_print
+        print('Firebase Auth creation warning for $normEmail: $errCode');
+      }
+    } catch (_) {
+      // Network error — non-fatal; Firestore record is written.
+    }
+
+    // 3. Send invitation / password-setup email via Firebase Auth.
+    //    The user will click the link to set their own password.
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: normEmail);
+    } catch (_) {
+      // Non-fatal; admin can resend from the user management screen.
+    }
   }
 
   /// Returns users created by the given creator email.
@@ -349,6 +392,23 @@ class TimetableService {
 
   Future<void> removeAllowedUser(String email) async {
     await _allowedUsers.doc(email.toLowerCase().trim()).delete();
+  }
+
+  /// Marks an account active after first successful login.
+  Future<void> markUserActive(String email) async {
+    await _allowedUsers
+        .doc(email.toLowerCase().trim())
+        .update({'status': 'active'});
+  }
+
+  /// Resends the invitation / password-setup email for an existing account.
+  Future<void> resendInvitationEmail(String email) async {
+    try {
+      await FirebaseAuth.instance
+          .sendPasswordResetEmail(email: email.toLowerCase().trim());
+    } catch (_) {
+      // Ignored — caller can surface a success message; failure is non-critical.
+    }
   }
 
   /// Returns the role if the email is registered, or null if not found.
