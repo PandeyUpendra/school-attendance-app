@@ -141,32 +141,40 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   Future<void> _loadAll() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final results = await Future.wait([
+      // ── Critical: student identity + attendance ─────────────────────────────
+      // These must succeed; if not, show the error screen.
+      final coreResults = await Future.wait([
         _service.getStudentByRoll(widget.studentClass, widget.studentRoll, section: widget.studentSection),  // 0
         _service.loadMonthAttendance(
             className: widget.studentClass, year: _month.year, month: _month.month),  // 1
-        _service.loadTodayAttendance(className: widget.studentClass),          // 2
-        _feeService.getFeeStructure(className: widget.studentClass),            // 3
-        _feeService.getTotalPaid(className: widget.studentClass, roll: widget.studentRoll),  // 4
-        _hwService.getHomeworkForClass(BaseFirestoreService.currentSchoolId ?? 'default_school', widget.studentClass),  // 5
-        _loadExamData(),                                                       // 6
-        _ttService.getTimetable(),                                             // 7
-        _ttService.getSettings(),                                              // 8
-        _ttService.getTeachers(),                                              // 9
+        _service.loadTodayAttendance(className: widget.studentClass),                 // 2
       ]);
       if (!mounted) return;
 
-      final student      = results[0]  as Student?;
-      final monthData    = results[1]  as Map<int, Map<int, String>>;
-      final todayByRoll  = results[2]  as Map<int, String>;
-      final feeStructure = results[3]  as FeeStructure;
-      final totalPaid    = results[4]  as double;
-      final hwList       = results[5]  as List<Homework>;
-      final examData     = results[6]  as List<MapEntry<Exam, ExamResult?>>;
-      final timetable    = results[7]
-          as Map<String, Map<String, Map<int, TimetableEntry>>>;
-      final ttSettings   = results[8]  as Map<String, dynamic>;
-      final teachers     = results[9]  as List<Teacher>;
+      final student     = coreResults[0] as Student?;
+      final monthData   = coreResults[1] as Map<int, Map<int, String>>;
+      final todayByRoll = coreResults[2] as Map<int, String>;
+
+      // ── Optional: fee / exams / homework / timetable ────────────────────────
+      // Any individual failure just leaves that section empty; no full crash.
+      final optResults = await Future.wait([
+        _feeService.getFeeStructure(className: widget.studentClass).catchError((_) => FeeStructure.empty(widget.studentClass)),          // 0
+        _feeService.getTotalPaid(className: widget.studentClass, roll: widget.studentRoll).catchError((_) => 0.0),                       // 1
+        _hwService.getHomeworkForClass(BaseFirestoreService.currentSchoolId ?? 'default_school', widget.studentClass).catchError((_) => <Homework>[]),  // 2
+        _loadExamData().catchError((_) => <MapEntry<Exam, ExamResult?>>[]),                                                              // 3
+        _ttService.getTimetable().catchError((_) => <String, Map<String, Map<int, TimetableEntry>>>{}),                                  // 4
+        _ttService.getSettings().catchError((_) => <String, dynamic>{}),                                                                 // 5
+        _ttService.getTeachers().catchError((_) => <Teacher>[]),                                                                         // 6
+      ]);
+      if (!mounted) return;
+
+      final feeStructure = optResults[0] as FeeStructure;
+      final totalPaid    = optResults[1] as double;
+      final hwList       = optResults[2] as List<Homework>;
+      final examData     = optResults[3] as List<MapEntry<Exam, ExamResult?>>;
+      final timetable    = optResults[4] as Map<String, Map<String, Map<int, TimetableEntry>>>;
+      final ttSettings   = optResults[5] as Map<String, dynamic>;
+      final teachers     = optResults[6] as List<Teacher>;
 
       final bells = List<Map<String, dynamic>>.from(
         ((ttSettings['bells'] as List?) ?? [])
