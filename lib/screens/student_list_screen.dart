@@ -675,6 +675,16 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                   section: _student.section,
                   studentName: _student.name,
                 );
+                try {
+                  await TimetableService().provisionGuardianLoginAccess(
+                    email:        email,
+                    studentClass: _student.className,
+                    studentRoll:  _student.roll,
+                    studentName:  _student.name,
+                  );
+                } catch (_) {}
+                savedEmail = email;
+                if (dCtx.mounted) Navigator.pop(dCtx);
                 savedEmail = email;
                 if (dCtx.mounted) Navigator.pop(dCtx);
               },

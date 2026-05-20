@@ -53,10 +53,61 @@ class TimetableService {
 
   Future<void> addTeacher(String schoolId, Teacher teacher) async {
     await _teachers.doc(teacher.id).set(teacher.toJson());
+
+    // Only provision auth if the teacher has an email.
+    final normEmail = teacher.email.trim().toLowerCase();
+    if (normEmail.isEmpty || !normEmail.contains('@')) return;
+
+    // Write allowed_users entry so login's role lookup succeeds.
+    await _allowedUsers.doc(normEmail).set({
+      'role':      'teacher',
+      'email':     normEmail,
+      'name':      teacher.name,
+      'schoolId':  schoolId,
+      'status':    'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    // Create Firebase Auth account via REST (does not displace current admin session).
+    final tempPassword = 'Tmp_${DateTime.now().millisecondsSinceEpoch}';
+    try {
+      final res = await http.post(
+        Uri.parse(
+            'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$_firebaseApiKey'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email':             normEmail,
+          'password':          tempPassword,
+          'returnSecureToken': false,
+        }),
+      );
+      final body    = jsonDecode(res.body) as Map<String, dynamic>;
+      final errCode = (body['error'] as Map?)?['message'] as String? ?? '';
+      if (errCode != 'EMAIL_EXISTS' && body['localId'] == null) {
+        // ignore: avoid_print
+        print('Firebase Auth creation warning for $normEmail: $errCode');
+      }
+    } catch (_) {
+      // Network error — non-fatal; Firestore record is written.
+    }
+
+    // Send invitation / password-setup email.
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: normEmail);
+    } catch (_) {
+      // Non-fatal.
+    }
   }
 
   Future<void> updateTeacher(String schoolId, Teacher teacher) async {
     await _teachers.doc(teacher.id).set(teacher.toJson());
+
+    // Keep allowed_users name in sync (email is the doc ID so can't change).
+    final normEmail = teacher.email.trim().toLowerCase();
+    if (normEmail.isEmpty || !normEmail.contains('@')) return;
+    try {
+      await _allowedUsers.doc(normEmail).update({'name': teacher.name});
+    } catch (_) {}
   }
 
   Future<void> removeTeacher(String schoolId, String id) async {
@@ -409,6 +460,93 @@ class TimetableService {
     } catch (_) {
       // Ignored — caller can surface a success message; failure is non-critical.
     }
+  }
+
+  /// Provisions Firebase Auth + allowed_users for a teacher who was added
+  /// before the automatic provisioning was in place, then sends invite email.
+  Future<void> provisionTeacherLoginAccess(Teacher teacher) async {
+    final normEmail = teacher.email.trim().toLowerCase();
+    if (normEmail.isEmpty || !normEmail.contains('@')) return;
+
+    // Ensure allowed_users doc exists with the correct role.
+    await _allowedUsers.doc(normEmail).set({
+      'role':      'teacher',
+      'email':     normEmail,
+      'name':      teacher.name,
+      'status':    'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    // Create Firebase Auth account (no-op if already exists).
+    final tempPassword = 'Tmp_${DateTime.now().millisecondsSinceEpoch}';
+    try {
+      final res = await http.post(
+        Uri.parse(
+            'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$_firebaseApiKey'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email':             normEmail,
+          'password':          tempPassword,
+          'returnSecureToken': false,
+        }),
+      );
+      final body    = jsonDecode(res.body) as Map<String, dynamic>;
+      final errCode = (body['error'] as Map?)?['message'] as String? ?? '';
+      if (errCode != 'EMAIL_EXISTS' && body['localId'] == null) {
+        // ignore: avoid_print
+        print('Firebase Auth creation warning for $normEmail: $errCode');
+      }
+    } catch (_) {}
+
+    // Send invitation / password-setup email.
+    await FirebaseAuth.instance.sendPasswordResetEmail(email: normEmail);
+  }
+
+  /// Provisions Firebase Auth + allowed_users for a guardian email set on a
+  /// student, then sends a password-setup invite. Safe to call multiple times
+  /// (arrayUnion keeps existing student links, EMAIL_EXISTS is silently skipped).
+  Future<void> provisionGuardianLoginAccess({
+    required String email,
+    required String studentClass,
+    required int    studentRoll,
+    required String studentName,
+    String?         schoolId,
+  }) async {
+    final normEmail = email.trim().toLowerCase();
+    if (!normEmail.contains('@')) return;
+
+    // Write/merge allowed_users, preserving existing student links.
+    await linkGuardianEmail(
+      email:        normEmail,
+      studentClass: studentClass,
+      studentRoll:  studentRoll,
+      studentName:  studentName,
+      schoolId:     schoolId,
+    );
+
+    // Create Firebase Auth account via REST (no-op if EMAIL_EXISTS).
+    final tempPassword = 'Tmp_${DateTime.now().millisecondsSinceEpoch}';
+    try {
+      final res = await http.post(
+        Uri.parse(
+            'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$_firebaseApiKey'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email':             normEmail,
+          'password':          tempPassword,
+          'returnSecureToken': false,
+        }),
+      );
+      final body    = jsonDecode(res.body) as Map<String, dynamic>;
+      final errCode = (body['error'] as Map?)?['message'] as String? ?? '';
+      if (errCode != 'EMAIL_EXISTS' && body['localId'] == null) {
+        // ignore: avoid_print
+        print('Firebase Auth creation warning for guardian $normEmail: $errCode');
+      }
+    } catch (_) {}
+
+    // Send invite / password-setup email.
+    await FirebaseAuth.instance.sendPasswordResetEmail(email: normEmail);
   }
 
   /// Returns the role if the email is registered, or null if not found.
