@@ -1,0 +1,25 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "personal_todos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId",          "order": "ASCENDING"  },
+        { "fieldPath": "reminderEnabled", "order": "ASCENDING"  },
+        { "fieldPath": "isCompleted",     "order": "ASCENDING"  },
+        { "fieldPath": "dueDate",         "order": "ASCENDING"  },
+        { "fieldPath": "__name__",        "order": "ASCENDING"  }
+      ]
+    },
+    {
+      "collectionGroup": "personal_todos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId",    "order": "ASCENDING"  },
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__",  "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
