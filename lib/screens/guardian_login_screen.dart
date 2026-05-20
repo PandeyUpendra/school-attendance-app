@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
@@ -5,7 +6,8 @@ import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
 import 'guardian_dashboard.dart';
 import 'student_selection_screen.dart';
-import 'role_selection_screen.dart';
+import 'forgot_password_screen.dart';
+import 'login_screen.dart';
 
 class GuardianLoginScreen extends StatefulWidget {
   const GuardianLoginScreen({super.key});
@@ -15,23 +17,48 @@ class GuardianLoginScreen extends StatefulWidget {
 }
 
 class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
-  bool _loading = false;
+  final _emailCtrl = TextEditingController();
+  final _passCtrl  = TextEditingController();
+  bool _loading    = false;
+  bool _showPass   = false;
   String? _error;
 
-  Future<void> _signInWithGoogle() async {
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _signIn() async {
+    final email    = _emailCtrl.text.trim().toLowerCase();
+    final password = _passCtrl.text;
+
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() => _error = 'Enter a valid email address.');
+      return;
+    }
+    if (password.isEmpty) {
+      setState(() => _error = 'Enter your password.');
+      return;
+    }
+
     setState(() { _loading = true; _error = null; });
 
     try {
-      final result = await AuthService().signInWithGoogle();
-      if (result == null) {
-        // User cancelled the sign-in
-        setState(() => _loading = false);
-        return;
-      }
+      await AuthService().signInWithEmail(email, password);
+      if (!mounted) return;
 
-      final email = result['email'];
-      if (email == null || email.isEmpty) {
-        setState(() { _loading = false; _error = 'Could not retrieve your email from Google.'; });
+      final userData = await TimetableService().getAllowedUserDoc(email);
+      if (!mounted) return;
+
+      if (userData == null || userData['role'] != 'guardian') {
+        await AuthService().signOut();
+        setState(() {
+          _loading = false;
+          _error   = 'This email is not registered as a guardian account. '
+              'Ask your child\'s teacher to add your email in student details.';
+        });
         return;
       }
 
@@ -39,28 +66,31 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
       if (!mounted) return;
 
       if (links == null || links.isEmpty) {
+        await AuthService().signOut();
         setState(() {
           _loading = false;
-          _error = 'Your Google account ($email) is not linked to any student.\n\n'
-              'Ask your child\'s class teacher to set up guardian access.';
+          _error   = 'No student is linked to this email. '
+              'Ask your child\'s teacher to set up guardian access.';
         });
         return;
       }
 
-      final userData = await _fetchUserData(email);
-      final name    = userData?['name'] as String? ?? email.split('@').first;
-      final schoolId = userData?['schoolId'] as String? ?? 'default_school';
-      BaseFirestoreService.currentSchoolId = schoolId;
+      final name     = userData['name']     as String? ?? email.split('@').first;
+      final schoolId = userData['schoolId'] as String? ?? '';
+      if (schoolId.isNotEmpty) {
+        BaseFirestoreService.currentSchoolId = schoolId;
+      }
 
       final sessionLinks = links
-          .map((l) => '${l['studentClass']}|${l['studentRoll']}|${l['studentName'] ?? ''}')
+          .map((l) =>
+              '${l['studentClass']}|${l['studentRoll']}|${l['studentName'] ?? ''}')
           .toList();
 
       await AuthService().saveSession(
-        email: email,
-        role: 'guardian',
-        name: name,
-        schoolId: schoolId,
+        email:        email,
+        role:         'guardian',
+        name:         name,
+        schoolId:     schoolId,
         studentLinks: sessionLinks,
       );
 
@@ -73,7 +103,7 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
           MaterialPageRoute(
             builder: (_) => GuardianDashboard(
               studentClass: parts[0],
-              studentRoll: int.parse(parts[1]),
+              studentRoll:  int.parse(parts[1]),
             ),
           ),
         );
@@ -81,220 +111,232 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => StudentSelectionScreen(schoolId: schoolId, links: sessionLinks),
+            builder: (_) =>
+                StudentSelectionScreen(schoolId: schoolId, links: sessionLinks),
           ),
         );
       }
-    } catch (e) {
+    } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Sign-in failed. Please try again.';
+        _error   = AuthService.friendlyAuthError(e);
       });
-    }
-  }
-
-  Future<Map<String, dynamic>?> _fetchUserData(String email) async {
-    try {
-      final doc = await TimetableService().getAllowedUserDoc(email);
-      return doc;
     } catch (_) {
-      return null;
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error   = 'Login failed. Check your internet connection and try again.';
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: const Text('Guardian Login'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      backgroundColor: AppTheme.primaryMid,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end:   Alignment.bottomCenter,
+            colors: [AppTheme.primaryDark, AppTheme.primaryMid],
           ),
         ),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
-
-              // Icon + title
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.family_restroom_outlined,
-                    size: 44, color: AppTheme.primary),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Guardian Portal',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryDark,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                "Sign in with your Google account to view\nyour child's attendance & progress.",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.5),
-              ),
-
-              const SizedBox(height: 40),
-
-              // Google Sign-In button
-              _loading
-                  ? const CircularProgressIndicator(color: AppTheme.primary)
-                  : _GoogleSignInButton(onPressed: _signInWithGoogle),
-
-              // Error
-              if (_error != null) ...[
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.red.shade200),
+
+                // Header
+                const Icon(Icons.family_restroom_outlined,
+                    size: 56, color: Colors.white),
+                const SizedBox(height: 16),
+                const Text(
+                  'Guardian Portal',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Sign in to view your child\'s progress',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 15, color: Colors.white.withOpacity(0.75)),
+                ),
+                const SizedBox(height: 40),
+
+                // Card
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Icon(Icons.error_outline, color: Colors.red.shade600, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _error!,
-                          style: TextStyle(fontSize: 13, color: Colors.red.shade700, height: 1.4),
+                      // Email
+                      TextField(
+                        controller: _emailCtrl,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        decoration: InputDecoration(
+                          labelText: 'Email Address',
+                          prefixIcon: const Icon(Icons.email_outlined),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Password
+                      TextField(
+                        controller: _passCtrl,
+                        obscureText: !_showPass,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _loading ? null : _signIn(),
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                                _showPass
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                                size: 18),
+                            onPressed: () =>
+                                setState(() => _showPass = !_showPass),
+                          ),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+
+                      // Forgot password
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const ForgotPasswordScreen()),
+                          ),
+                          child: const Text(
+                            'Forgot Password?',
+                            style: TextStyle(color: AppTheme.primary),
+                          ),
+                        ),
+                      ),
+
+                      // Error
+                      if (_error != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Row(children: [
+                            Icon(Icons.error_outline,
+                                color: Colors.red.shade600, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _error!,
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.red.shade700),
+                              ),
+                            ),
+                          ]),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
+                      // Sign In button
+                      SizedBox(
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _loading ? null : _signIn,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                          child: _loading
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Text(
+                                  'Sign In',
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600),
+                                ),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
 
-              const Spacer(flex: 3),
+                const SizedBox(height: 28),
 
-              // Footer hint
-              Padding(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: Text(
-                  'Your email must be registered by your\nchild\'s teacher before you can sign in.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400, height: 1.5),
+                // Back to staff login
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  ),
+                  icon: const Icon(Icons.work_outline, color: Colors.white70),
+                  label: const Text(
+                    'Staff? Sign in here',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.white.withOpacity(0.4)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 24),
+                Center(
+                  child: Text(
+                    'Your email must be registered by your\nchild\'s teacher before you can sign in.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.white.withOpacity(0.45),
+                        height: 1.5),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
-}
-
-class _GoogleSignInButton extends StatelessWidget {
-  final VoidCallback onPressed;
-  const _GoogleSignInButton({required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          side: BorderSide(color: Colors.grey.shade300, width: 1.5),
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 1,
-          shadowColor: Colors.black12,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Google "G" logo rendered with coloured text
-            const _GoogleLogo(),
-            const SizedBox(width: 12),
-            const Text(
-              'Sign in with Google',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Approximates the Google "G" logo using four coloured quadrant arcs.
-class _GoogleLogo extends StatelessWidget {
-  const _GoogleLogo();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 22,
-      height: 22,
-      child: CustomPaint(painter: _GoogleGPainter()),
-    );
-  }
-}
-
-class _GoogleGPainter extends CustomPainter {
-  static const _blue   = Color(0xFF4285F4);
-  static const _red    = Color(0xFFEA4335);
-  static const _yellow = Color(0xFFFBBC05);
-  static const _green  = Color(0xFF34A853);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final s = size.width;
-    final r = s / 2;
-    final center = Offset(r, r);
-    final outerR = r;
-    final innerR = r * 0.6;
-    final arcRect = Rect.fromCircle(center: center, radius: (outerR + innerR) / 2);
-    final strokeW = outerR - innerR;
-
-    Paint arc(Color c) =>
-        Paint()..color = c..style = PaintingStyle.stroke..strokeWidth = strokeW..strokeCap = StrokeCap.butt;
-
-    // Angles in radians: 0 = 3 o'clock, going clockwise
-    // Red: top-right → top (−45° to −135°, i.e. -π/4 to -3π/4)
-    canvas.drawArc(arcRect, -2.356, 1.571, false, arc(_red));
-    // Yellow: bottom-left (135° to 225°, i.e. 3π/4 to 5π/4)
-    canvas.drawArc(arcRect, 2.356, 0.785, false, arc(_yellow));
-    // Green: bottom-right (225° to 315°, i.e. 5π/4 to 7π/4) – actually 270→315
-    canvas.drawArc(arcRect, 3.142, 0.785, false, arc(_green));
-    // Blue: right side (−45° to 45°, top-right to bottom-right)
-    canvas.drawArc(arcRect, -0.785, 1.571, false, arc(_blue));
-
-    // White cutout for the horizontal bar of the G
-    final whitePaint = Paint()..color = Colors.white;
-    canvas.drawRect(
-      Rect.fromLTWH(r, r - strokeW * 0.5, r + strokeW, strokeW),
-      whitePaint,
-    );
-    // White inner circle to complete the donut
-    canvas.drawCircle(center, innerR - 1, whitePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
 }

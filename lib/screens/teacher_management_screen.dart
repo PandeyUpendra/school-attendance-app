@@ -605,6 +605,52 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
     return slots;
   }
 
+  Future<void> _sendLoginInvite(BuildContext ctx) async {
+    final email = widget.teacher.email.trim().toLowerCase();
+    if (email.isEmpty) return;
+
+    final confirm = await showDialog<bool>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Send Login Invite'),
+        content: Text(
+            'This will create a login account for ${widget.teacher.name} '
+            'and send a password-setup link to $email.\n\n'
+            'They can use it to set their password and sign in.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(_, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(_, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white),
+            child: const Text('Send'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    try {
+      await _service.provisionTeacherLoginAccess(widget.teacher);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Invite sent to $email'),
+        backgroundColor: Colors.green,
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to send invite: $e'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = widget.teacher;
@@ -775,6 +821,30 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
                 }),
 
                 const SizedBox(height: 24),
+
+                // ── Send Login Invite ──────────────────────────────────────
+                if (widget.teacher.email.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: OutlinedButton.icon(
+                      onPressed: () => _sendLoginInvite(context),
+                      icon: const Icon(Icons.email_outlined,
+                          color: AppTheme.primary),
+                      label: const Text('Send Login Invite',
+                          style: TextStyle(
+                              color: AppTheme.primary,
+                              fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppTheme.primary),
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
 
                 // ── Delete button ──────────────────────────────────────────
                 Padding(

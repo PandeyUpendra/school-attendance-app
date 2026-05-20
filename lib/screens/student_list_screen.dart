@@ -648,17 +648,26 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
           ),
           ElevatedButton(
             onPressed: () async {
-              final email = ctrl.text.trim();
-              if (email.isEmpty) return;
+              final email = ctrl.text.trim().toLowerCase();
+              if (email.isEmpty || !email.contains('@')) return;
+              Navigator.pop(dCtx);
               await StudentService().setGuardianEmail(
                 _student.className, _student.roll, email,
                 section: _student.section,
               );
-              if (dCtx.mounted) Navigator.pop(dCtx);
+              try {
+                await TimetableService().provisionGuardianLoginAccess(
+                  email:        email,
+                  studentClass: _student.className,
+                  studentRoll:  _student.roll,
+                  studentName:  _student.name,
+                );
+              } catch (_) {}
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Guardian email saved'),
+                    content: Text(
+                        'Guardian email saved — invite sent to set password'),
                     backgroundColor: Colors.green,
                     behavior: SnackBarBehavior.floating,
                   ),

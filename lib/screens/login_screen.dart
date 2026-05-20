@@ -444,7 +444,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     icon: const Icon(Icons.family_restroom_outlined,
                         color: Colors.white70),
                     label: const Text(
-                      'Guardian? Sign in with Google',
+                      'Guardian? Sign in here',
                       style: TextStyle(color: Colors.white70),
                     ),
                     style: OutlinedButton.styleFrom(
