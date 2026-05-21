@@ -18,6 +18,9 @@ class NotificationsScreen extends StatefulWidget {
   final String?  studentClass;
   final int?     studentRoll;
   final Teacher? teacher;
+  /// Pre-loaded notifications from the calling dashboard's badge stream.
+  /// When provided the screen opens instantly — no blank loading state.
+  final List<Map<String, dynamic>> initialItems;
 
   const NotificationsScreen({
     super.key,
@@ -26,6 +29,7 @@ class NotificationsScreen extends StatefulWidget {
     this.studentClass,
     this.studentRoll,
     this.teacher,
+    this.initialItems = const [],
   });
 
   @override
@@ -34,15 +38,21 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final _service = NotificationService();
-  bool _loading = true;
-  List<Map<String, dynamic>> _items = [];
+  late bool _loading;
+  late List<Map<String, dynamic>> _items;
   StreamSubscription? _sub;
   int _lastSeenMs = 0;
 
   @override
   void initState() {
     super.initState();
-    _init();
+    // Seed with pre-loaded data so the screen is never blank on open.
+    _items   = List.of(widget.initialItems);
+    _loading = _items.isEmpty; // only show spinner if truly nothing to show
+    // Start live stream (replaces / refreshes the initial seed).
+    _startStream();
+    // Load last-seen timestamp and mark all seen in the background.
+    _loadPrefsAndMarkSeen();
   }
 
   @override
@@ -51,10 +61,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.dispose();
   }
 
-  Future<void> _init() async {
-    final prefs = await SharedPreferences.getInstance();
-    _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0;
-
+  void _startStream() {
     _sub = _service
         .streamFor(
           role:         widget.role,
@@ -71,7 +78,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }, onError: (_) {
       if (mounted) setState(() => _loading = false);
     });
+  }
 
+  Future<void> _loadPrefsAndMarkSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0);
     // Mark all seen so the badge on the calling screen clears on pop.
     await _service.markAllSeen();
   }

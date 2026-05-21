@@ -197,9 +197,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => NotificationsScreen(
-                                role:      'teacher',
-                                teacherId: t?.id,
-                                teacher:   t,
+                                role:         'teacher',
+                                teacherId:    t?.id,
+                                teacher:      t,
+                                initialItems: _latestNotifs,
                               ),
                             ),
                           );

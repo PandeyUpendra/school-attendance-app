@@ -201,7 +201,8 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             unassignedBells:  _unassignedBells,
             unreadNotifCount: _unreadNotifCount,
             onNotifTap: () async {
-              await _navigate(const NotificationsScreen(role: 'principal'));
+              await _navigate(NotificationsScreen(
+                role: 'principal', initialItems: _latestNotifs));
               _refreshLastSeen();
             },
             onLogout: _logout,

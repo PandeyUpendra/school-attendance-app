@@ -218,7 +218,8 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             unassignedBells:   _unassignedBells,
             unreadNotifCount:  _unreadNotifCount,
             onNotifTap: () async {
-              await _navigate(const NotificationsScreen(role: 'coordinator'));
+              await _navigate(NotificationsScreen(
+                role: 'coordinator', initialItems: _latestNotifs));
               _refreshLastSeen();
             },
             onLogout: () async {

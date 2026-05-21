@@ -192,7 +192,8 @@ class StudentService {
     await _students.doc(sid).update({'guardianEmail': email});
   }
 
-  /// Permanently deletes a student AND revokes their guardian's login access.
+  /// Permanently deletes a student AND all associated data, then revokes
+  /// their guardian's login access.
   /// Called only after principal approval — teachers must use [submitDeletionRequest].
   Future<void> removeStudent(int roll, String className,
       {String section = ''}) async {
@@ -204,11 +205,23 @@ class StudentService {
       guardianEmail = snap.data()!['guardianEmail'] as String?;
     }
 
-    // 2. Delete student document + cascade attendance.
+    // 2. Delete remarks subcollection first (Firestore doesn't cascade).
+    await _cascadeDeleteRemarks(sid);
+
+    // 3. Delete student document + cascade attendance.
     await _students.doc(sid).delete();
     await _cascadeDeleteAttendance(roll, className, section: section);
 
-    // 3. Revoke guardian login: remove the student link; if no links remain,
+    // 4. Delete notifications targeting this student's guardian.
+    await _cascadeDeleteStudentNotifications(className, roll);
+
+    // 5. Delete exam results for this student across all class exams.
+    await _cascadeDeleteExamResults(className, roll);
+
+    // 6. Delete fee payment records for this student.
+    await _cascadeDeleteFeePayments(className, roll);
+
+    // 7. Revoke guardian login: remove the student link; if no links remain,
     //    delete the entire allowed_users entry so the email can no longer sign in.
     if (guardianEmail != null && guardianEmail.trim().isNotEmpty) {
       final svc = TimetableService();
@@ -222,6 +235,79 @@ class StudentService {
         await svc.removeAllowedUser(guardianEmail);
       }
     }
+  }
+
+  /// Deletes all remarks in the student's subcollection.
+  Future<void> _cascadeDeleteRemarks(String sid) async {
+    try {
+      final snap =
+          await _students.doc(sid).collection('remarks').get();
+      if (snap.docs.isEmpty) return;
+      final batch = _db.batch();
+      for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    } catch (_) {}
+  }
+
+  /// Deletes all notifications addressed to the student's guardian.
+  Future<void> _cascadeDeleteStudentNotifications(
+      String className, int roll) async {
+    try {
+      final audience = 'guardian:$className:$roll';
+      final snap = await _db
+          .collection('notifications')
+          .where('audience', isEqualTo: audience)
+          .get();
+      if (snap.docs.isEmpty) return;
+      final batch = _db.batch();
+      for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    } catch (_) {}
+  }
+
+  /// Deletes the student's result document in every exam for their class.
+  Future<void> _cascadeDeleteExamResults(
+      String className, int roll) async {
+    try {
+      final examsSnap = await _db
+          .collection('exams')
+          .where('className', isEqualTo: className)
+          .get();
+      if (examsSnap.docs.isEmpty) return;
+      final batch = _db.batch();
+      for (final examDoc in examsSnap.docs) {
+        batch.delete(_db
+            .collection('exam_results')
+            .doc(examDoc.id)
+            .collection('students')
+            .doc('$roll'));
+      }
+      await batch.commit();
+    } catch (_) {}
+  }
+
+  /// Deletes fee payment records for the student (payments sub-docs + student node).
+  Future<void> _cascadeDeleteFeePayments(
+      String className, int roll) async {
+    try {
+      final studentNode = _db
+          .collection('fee_payments')
+          .doc(className)
+          .collection('students')
+          .doc('$roll');
+      final paymentsSnap =
+          await studentNode.collection('payments').get();
+      final batch = _db.batch();
+      for (final doc in paymentsSnap.docs) {
+        batch.delete(doc.reference);
+      }
+      batch.delete(studentNode); // delete the student node itself
+      await batch.commit();
+    } catch (_) {}
   }
 
   // ── Deletion Requests (teacher → principal approval flow) ─────────────────

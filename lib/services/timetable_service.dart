@@ -111,12 +111,32 @@ class TimetableService {
   }
 
   Future<void> removeTeacher(String schoolId, String id) async {
+    // ── 1. Fetch email before deleting (needed for allowed_users cleanup) ──────
+    String? teacherEmail;
+    try {
+      final doc = await _teachers.doc(id).get();
+      if (doc.exists) {
+        teacherEmail =
+            (doc.data() as Map<String, dynamic>?)?['email'] as String?;
+      }
+    } catch (_) {}
+
+    // ── 2. Delete teacher document ────────────────────────────────────────────
     await _teachers.doc(id).delete();
 
-    // Scrub teacher from every timetable slot
-    final snap = await _tt.get();
-    final batch = _db.batch();
-    for (final doc in snap.docs) {
+    // ── 3. Revoke teacher login (allowed_users entry) ─────────────────────────
+    if (teacherEmail != null && teacherEmail.trim().isNotEmpty) {
+      try {
+        await _allowedUsers
+            .doc(teacherEmail.toLowerCase().trim())
+            .delete();
+      } catch (_) {}
+    }
+
+    // ── 4. Scrub teacher from every timetable slot ────────────────────────────
+    final ttSnap = await _tt.get();
+    final ttBatch = _db.batch();
+    for (final doc in ttSnap.docs) {
       final raw = Map<String, dynamic>.from(
           (doc.data()['data'] as Map?) ?? {});
       var dirty = false;
@@ -131,9 +151,45 @@ class TimetableService {
         });
         raw[day] = bells;
       });
-      if (dirty) batch.set(doc.reference, {'data': raw});
+      if (dirty) ttBatch.set(doc.reference, {'data': raw});
     }
-    await batch.commit();
+    await ttBatch.commit();
+
+    // ── 5. Delete all leave applications for this teacher ─────────────────────
+    await _deleteQueryBatch(
+        _leaveApps.where('teacherId', isEqualTo: id));
+
+    // ── 6. Delete notifications targeting this teacher ────────────────────────
+    await _deleteQueryBatch(
+        _db.collection('notifications')
+            .where('audience', isEqualTo: 'teacher:$id'));
+
+    // ── 7. Delete homework created by this teacher ────────────────────────────
+    await _deleteQueryBatch(
+        _db.collection('homework').where('teacherId', isEqualTo: id));
+
+    // ── 8. Delete staff tasks assigned to this teacher ────────────────────────
+    await _deleteQueryBatch(
+        _db.collection('staff_tasks').where('assignedTo', isEqualTo: id));
+  }
+
+  /// Deletes every document returned by [query] in Firestore batch(es).
+  /// Errors are swallowed so one missing collection never blocks the rest.
+  Future<void> _deleteQueryBatch(Query query) async {
+    try {
+      final snap = await query.get();
+      if (snap.docs.isEmpty) return;
+      // Firestore batch limit = 500 writes
+      const chunkSize = 490;
+      for (var i = 0; i < snap.docs.length; i += chunkSize) {
+        final chunk = snap.docs.skip(i).take(chunkSize);
+        final batch = _db.batch();
+        for (final doc in chunk) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      }
+    } catch (_) {}
   }
 
   // ── Settings ──────────────────────────────────────────────────────────────

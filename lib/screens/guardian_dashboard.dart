@@ -362,94 +362,73 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       classTimetable: _classTimetable,
       teacherById:    _teacherById,
     ),
-    const SizedBox(height: 16),
-    // ── Attendance Certificate ────────────────────────────────────
-    OutlinedButton.icon(
-      onPressed: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (_) =>
-                AttendanceCertificateScreen(student: _student!)),
+    const SizedBox(height: 4),
+    // ── Quick Access ──────────────────────────────────────────────
+    const _GuardianSectionHeader('QUICK ACCESS'),
+    Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
       ),
-      icon: const Icon(Icons.workspace_premium_outlined),
-      label: const Text('Attendance Certificate'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppTheme.primary,
-        side: const BorderSide(color: AppTheme.primary),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
-    ),
-    const SizedBox(height: 12),
-    // ── Event Gallery ─────────────────────────────────────────────
-    OutlinedButton.icon(
-      onPressed: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const GalleryHomeScreen(
-            role:      'guardian',
-            userEmail: '',
+      clipBehavior: Clip.hardEdge,
+      child: Column(
+        children: [
+          _GuardianFeatureTile(
+            icon:     Icons.workspace_premium_outlined,
+            color:    AppTheme.primary,
+            title:    'Attendance Certificate',
+            subtitle: 'Download & share official attendance certificate',
+            onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) =>
+                AttendanceCertificateScreen(student: _student!))),
           ),
-        ),
-      ),
-      icon: const Icon(Icons.photo_library_outlined),
-      label: const Text('Event Gallery'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppTheme.primary,
-        side: const BorderSide(color: AppTheme.primary),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
-    ),
-    const SizedBox(height: 12),
-    // ── Announcements ─────────────────────────────────────────────
-    OutlinedButton.icon(
-      onPressed: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (_) =>
-                const AnnouncementsScreen(viewerRole: 'guardian')),
-      ),
-      icon: const Icon(Icons.campaign_outlined),
-      label: const Text('School Announcements'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppTheme.primary,
-        side: const BorderSide(color: AppTheme.primary),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
-    ),
-    const SizedBox(height: 12),
-    // ── Contact school ────────────────────────────────────────────
-    OutlinedButton.icon(
-      onPressed: _callSchool,
-      icon: const Icon(Icons.call_outlined),
-      label: const Text('Contact School'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppTheme.primary,
-        side: const BorderSide(color: AppTheme.primary),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
-    ),
-    const SizedBox(height: 12),
-    // ── Student Remarks ───────────────────────────────────────────
-    if (_student != null)
-      OutlinedButton.icon(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => StudentRemarksScreen(
-              role:            'guardian',
-              guardianStudent: _student,
+          const Divider(height: 1, indent: 72),
+          _GuardianFeatureTile(
+            icon:     Icons.photo_library_outlined,
+            color:    AppTheme.primary,
+            title:    'Event Gallery',
+            subtitle: 'Browse school event photos and albums',
+            onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) =>
+                const GalleryHomeScreen(role: 'guardian', userEmail: ''))),
+          ),
+          const Divider(height: 1, indent: 72),
+          _GuardianFeatureTile(
+            icon:     Icons.campaign_outlined,
+            color:    AppTheme.primary,
+            title:    'School Announcements',
+            subtitle: 'View notices and announcements from the school',
+            onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) =>
+                const AnnouncementsScreen(viewerRole: 'guardian'))),
+          ),
+          const Divider(height: 1, indent: 72),
+          _GuardianFeatureTile(
+            icon:     Icons.call_outlined,
+            color:    AppTheme.primary,
+            title:    'Contact School',
+            subtitle: 'Call the school or class teacher directly',
+            onTap:    _callSchool,
+          ),
+          if (_student != null) ...[
+            const Divider(height: 1, indent: 72),
+            _GuardianFeatureTile(
+              icon:     Icons.comment_outlined,
+              color:    AppTheme.primary,
+              title:    'Student Remarks',
+              subtitle: 'View remarks and feedback from teachers',
+              onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => StudentRemarksScreen(
+                  role:            'guardian',
+                  guardianStudent: _student,
+                ))),
             ),
-          ),
-        ),
-        icon: const Icon(Icons.comment_outlined),
-        label: const Text('Student Remarks'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppTheme.primary,
-          side: const BorderSide(color: AppTheme.primary),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-        ),
+          ],
+        ],
       ),
-    const SizedBox(height: 16),
+    ),
+    const SizedBox(height: 24),
   ];
 
   Future<void> _callSchool() async {
@@ -490,6 +469,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                     role:         'guardian',
                     studentClass: widget.studentClass,
                     studentRoll:  widget.studentRoll,
+                    initialItems: _latestNotifs,
                   ),
                 ),
               );
@@ -1998,6 +1978,76 @@ class _HomeworkSection extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Section header (matches Principal / Teacher style) ──────────────────────
+
+class _GuardianSectionHeader extends StatelessWidget {
+  final String title;
+  const _GuardianSectionHeader(this.title);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 20, 4, 6),
+        child: Text(title,
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade500,
+                letterSpacing: 0.8)),
+      );
+}
+
+// ─── Feature tile (matches Principal / Teacher style) ────────────────────────
+
+class _GuardianFeatureTile extends StatelessWidget {
+  final IconData     icon;
+  final Color        color;
+  final String       title, subtitle;
+  final VoidCallback onTap;
+
+  const _GuardianFeatureTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade500)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right,
+                color: Colors.grey.shade400, size: 20),
+          ]),
+        ),
+      );
 }
 
 // ─── Legend ──────────────────────────────────────────────────────────────────
