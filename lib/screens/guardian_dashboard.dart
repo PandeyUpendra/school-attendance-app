@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
 import '../models/exam.dart';
+import '../models/guardian_student_details.dart';
 import '../models/student.dart';
 import '../models/fee.dart';
 import '../models/homework.dart';
@@ -22,8 +23,8 @@ import 'role_selection_screen.dart';
 import 'announcements_screen.dart';
 import 'notifications_screen.dart';
 import 'attendance_certificate_screen.dart';
-import 'gallery/gallery_home_screen.dart';
 import 'student_remarks_screen.dart';
+import 'guardian_student_details_screen.dart';
 
 /// The Guardian Portal — shows a single student's attendance to their parent.
 /// Guardian is linked to {studentClass, studentRoll} in allowed_users.
@@ -296,44 +297,12 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
 
   List<Widget> _buildContentChildren() => [
     const SizedBox(height: 16),
-    // ── Child identity card ──────────────────────────────────────
-    _StudentCard(student: _student!, todayStatus: _todayStatus),
+    // ── Child profile card (name / parents / edit) ────────────────
+    _ChildProfileCard(student: _student!, onEditTap: _openChildDetails),
     const SizedBox(height: 16),
     // ── Today's status banner ────────────────────────────────────
     _TodayBanner(status: _todayStatus),
     const SizedBox(height: 16),
-    // ── This month summary card ──────────────────────────────────
-    _MonthSummaryCard(
-      monthLabel: _monthLabel(_month),
-      workingDays: _workingDays,
-      present: _present,
-      absent: _absent,
-      leave: _leave,
-      pct: _pct,
-      isLow: _isLow,
-      isCurrentMonth: _isCurrentMonth,
-      onPrev: () => _changeMonth(DateTime(_month.year, _month.month - 1)),
-      onNext: _isCurrentMonth
-          ? null
-          : () => _changeMonth(DateTime(_month.year, _month.month + 1)),
-    ),
-    const SizedBox(height: 16),
-    // ── Low attendance banner ────────────────────────────────────
-    if (_isLow) ...[
-      _LowAttendanceBanner(pct: _pct),
-      const SizedBox(height: 16),
-    ],
-    // ── Calendar view ────────────────────────────────────────────
-    _CalendarCard(
-      month: _month,
-      monthData: _monthData,
-      roll: widget.studentRoll,
-      statusColor: _statusColor,
-    ),
-    const SizedBox(height: 16),
-    // ── Legend ───────────────────────────────────────────────────
-    _LegendRow(),
-    const SizedBox(height: 20),
     // ── Today's schedule ─────────────────────────────────────────
     _TodayScheduleCard(
       classTimetable: _classTimetable,
@@ -362,8 +331,14 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       classTimetable: _classTimetable,
       teacherById:    _teacherById,
     ),
-    const SizedBox(height: 4),
+    const SizedBox(height: 16),
+    // ── Details provided by guardian (read-only view) ─────────────
+    if (_student!.guardianDetails != null) ...[
+      _GuardianDetailsViewCard(details: _student!.guardianDetails!),
+      const SizedBox(height: 16),
+    ],
     // ── Quick Access ──────────────────────────────────────────────
+    const SizedBox(height: 4),
     const _GuardianSectionHeader('QUICK ACCESS'),
     Container(
       decoration: BoxDecoration(
@@ -382,16 +357,6 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
             onTap: () => Navigator.push(context,
               MaterialPageRoute(builder: (_) =>
                 AttendanceCertificateScreen(student: _student!))),
-          ),
-          const Divider(height: 1, indent: 72),
-          _GuardianFeatureTile(
-            icon:     Icons.photo_library_outlined,
-            color:    AppTheme.primary,
-            title:    'Event Gallery',
-            subtitle: 'Browse school event photos and albums',
-            onTap: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) =>
-                const GalleryHomeScreen(role: 'guardian', userEmail: ''))),
           ),
           const Divider(height: 1, indent: 72),
           _GuardianFeatureTile(
@@ -429,7 +394,52 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       ),
     ),
     const SizedBox(height: 24),
+
+    // ── Attendance — Monthly Summary (moved to bottom) ────────────
+    _MonthSummaryCard(
+      monthLabel: _monthLabel(_month),
+      workingDays: _workingDays,
+      present: _present,
+      absent: _absent,
+      leave: _leave,
+      pct: _pct,
+      isLow: _isLow,
+      isCurrentMonth: _isCurrentMonth,
+      onPrev: () => _changeMonth(DateTime(_month.year, _month.month - 1)),
+      onNext: _isCurrentMonth
+          ? null
+          : () => _changeMonth(DateTime(_month.year, _month.month + 1)),
+    ),
+    const SizedBox(height: 16),
+    // ── Low attendance warning ────────────────────────────────────
+    if (_isLow) ...[
+      _LowAttendanceBanner(pct: _pct),
+      const SizedBox(height: 16),
+    ],
+    // ── Calendar view ────────────────────────────────────────────
+    _CalendarCard(
+      month: _month,
+      monthData: _monthData,
+      roll: widget.studentRoll,
+      statusColor: _statusColor,
+    ),
+    const SizedBox(height: 16),
+    // ── Legend ───────────────────────────────────────────────────
+    _LegendRow(),
+    const SizedBox(height: 20),
   ];
+
+  Future<void> _openChildDetails() async {
+    if (_student == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GuardianStudentDetailsScreen(student: _student!),
+      ),
+    );
+    // Reload to reflect any edits the guardian just saved
+    _loadAll();
+  }
 
   Future<void> _callSchool() async {
     if (_student == null || _student!.phone.isEmpty) return;
@@ -1337,12 +1347,13 @@ class _WaveClipper extends CustomClipper<Path> {
   bool shouldReclip(_WaveClipper old) => false;
 }
 
-// ─── Student identity card ───────────────────────────────────────────────────
+// ─── Child profile card (with edit details button) ──────────────────────────
 
-class _StudentCard extends StatelessWidget {
-  final Student student;
-  final String? todayStatus;
-  const _StudentCard({required this.student, required this.todayStatus});
+class _ChildProfileCard extends StatelessWidget {
+  final Student      student;
+  final VoidCallback onEditTap;
+
+  const _ChildProfileCard({required this.student, required this.onEditTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1353,44 +1364,220 @@ class _StudentCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.grey.shade200),
       ),
-      child: Row(children: [
-        CircleAvatar(
-          radius: 28,
-          backgroundColor: AppTheme.primary.withOpacity(0.12),
-          child: Text(
-            student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
-            style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primary),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(student.name,
-                  style: const TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 3),
-              Text(
-                'Roll ${student.roll}  •  ${student.className}',
-                style:
-                    TextStyle(fontSize: 13, color: Colors.grey.shade600),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            CircleAvatar(
+              radius: 28,
+              backgroundColor: AppTheme.primary.withOpacity(0.12),
+              child: Text(
+                student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
+                style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primary),
               ),
-              if (student.fatherName.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text('Father: ${student.fatherName}',
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(student.name,
+                      style: const TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Roll ${student.roll}  •  ${student.className}',
                     style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade500)),
-              ],
-            ],
+                        fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 4),
+                  if (student.fatherName.isNotEmpty)
+                    _InfoLine(
+                      icon: Icons.man_outlined,
+                      label: 'Father',
+                      value: student.fatherName,
+                    ),
+                  if (student.motherName?.isNotEmpty == true)
+                    _InfoLine(
+                      icon: Icons.woman_outlined,
+                      label: 'Mother',
+                      value: student.motherName!,
+                    ),
+                ],
+              ),
+            ),
+          ]),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onEditTap,
+              icon: const Icon(Icons.edit_outlined, size: 16),
+              label: const Text('View / Edit Student Details'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.primary,
+                side: const BorderSide(color: AppTheme.primary),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
+}
+
+class _InfoLine extends StatelessWidget {
+  final IconData icon;
+  final String   label;
+  final String   value;
+  const _InfoLine(
+      {required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Row(children: [
+          Icon(icon, size: 13, color: Colors.grey.shade400),
+          const SizedBox(width: 4),
+          Text('$label: ',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+          Expanded(
+            child: Text(value,
+                style:
+                    TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                overflow: TextOverflow.ellipsis),
+          ),
+        ]),
+      );
+}
+
+// ─── Guardian details read-only view card ────────────────────────────────────
+
+class _GuardianDetailsViewCard extends StatelessWidget {
+  final GuardianStudentDetails details;
+  const _GuardianDetailsViewCard({required this.details});
+
+  @override
+  Widget build(BuildContext context) {
+    final d = details;
+
+    // Collect only filled fields
+    final rows = <_GDRow>[
+      if (d.dob.isNotEmpty)
+        _GDRow(Icons.cake_outlined, 'Date of Birth', d.dob),
+      if (d.gender.isNotEmpty)
+        _GDRow(Icons.wc_outlined, 'Gender', d.gender),
+      if (d.address.isNotEmpty)
+        _GDRow(Icons.home_outlined, 'Address', d.address),
+      if (d.bloodGroup.isNotEmpty)
+        _GDRow(Icons.bloodtype_outlined, 'Blood Group', d.bloodGroup),
+      if (d.emergencyContactName.isNotEmpty)
+        _GDRow(Icons.contact_phone_outlined, 'Emergency Contact',
+            d.emergencyContactPhone.isNotEmpty
+                ? '${d.emergencyContactName} · ${d.emergencyContactPhone}'
+                : d.emergencyContactName),
+      if (d.allergies.isNotEmpty)
+        _GDRow(Icons.medical_services_outlined, 'Allergies', d.allergies),
+      if (d.transportMode.isNotEmpty)
+        _GDRow(Icons.directions_bus_outlined, 'Transport', d.transportMode),
+      if (d.previousSchool.isNotEmpty)
+        _GDRow(Icons.school_outlined, 'Previous School', d.previousSchool),
+    ];
+
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Row(children: [
+              Container(
+                width: 34, height: 34,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: const Icon(Icons.badge_outlined,
+                    color: AppTheme.primary, size: 19),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Details Provided by Guardian',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.bold)),
+                    if (d.lastUpdated != null)
+                      Text(
+                        'Updated: ${d.lastUpdated!.split('T')[0]}',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade500),
+                      ),
+                  ],
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 10),
+          const Divider(height: 1),
+          ...rows.asMap().entries.map((e) {
+            final r = e.value;
+            return Column(children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(children: [
+                  Icon(r.icon, size: 18, color: Colors.grey.shade400),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(r.label,
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade500)),
+                        const SizedBox(height: 2),
+                        Text(r.value,
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                  ),
+                ]),
+              ),
+              if (e.key < rows.length - 1)
+                const Divider(height: 1, indent: 46),
+            ]);
+          }),
+          const SizedBox(height: 6),
+        ],
+      ),
+    );
+  }
+}
+
+class _GDRow {
+  final IconData icon;
+  final String   label;
+  final String   value;
+  const _GDRow(this.icon, this.label, this.value);
 }
 
 // ─── Today's status banner ───────────────────────────────────────────────────
