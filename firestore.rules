@@ -32,6 +32,10 @@ service cloud.firestore {
     match /copy_checks/{doc=**}        { allow read, write: if true; }
     match /staff_tasks/{doc=**}        { allow read, write: if true; }
     match /tasks/{doc=**}              { allow read, write: if true; }
+    match /personal_todos/{doc=**}     { allow read, write: if true; }
+    match /fee_structures/{doc=**}     { allow read, write: if true; }
+    match /fee_payments/{doc=**}       { allow read, write: if true; }
+    match /exam_results/{doc=**}       { allow read, write: if true; }
 
     // Deny everything else
     match /{document=**} {
