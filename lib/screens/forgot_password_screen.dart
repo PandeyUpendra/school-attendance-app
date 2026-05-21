@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
+import 'role_selection_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -10,16 +12,55 @@ class ForgotPasswordScreen extends StatefulWidget {
   State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
+    with WidgetsBindingObserver {
   final _emailCtrl = TextEditingController();
-  bool   _loading  = false;
-  bool   _sent     = false;
+  bool   _loading     = false;
+  bool   _sent        = false;
+  bool   _gmailOpened = false;
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _emailCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // When user returns from Gmail after opening it, go straight to sign-in.
+    if (state == AppLifecycleState.resumed && _gmailOpened && mounted) {
+      _gmailOpened = false;
+      _goToSignIn();
+    }
+  }
+
+  void _goToSignIn() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      (_) => false,
+    );
+  }
+
+  Future<void> _openGmail() async {
+    // Try the Gmail app deep-link first; fall back to the web Gmail URL.
+    final gmailApp = Uri.parse('googlegmail://');
+    final gmailWeb = Uri.parse('https://mail.google.com/');
+
+    setState(() => _gmailOpened = true);
+
+    if (await canLaunchUrl(gmailApp)) {
+      await launchUrl(gmailApp, mode: LaunchMode.externalApplication);
+    } else {
+      await launchUrl(gmailWeb, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _sendReset() async {
@@ -192,11 +233,53 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                   ]),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+
+                // Open Gmail button
+                SizedBox(
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: _openGmail,
+                    icon: const Icon(Icons.mail_outline_rounded, size: 20),
+                    label: const Text(
+                      'Open Gmail',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEA4335), // Gmail red
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Done — go straight to sign-in
+                SizedBox(
+                  height: 52,
+                  child: OutlinedButton(
+                    onPressed: _goToSignIn,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primary,
+                      side: const BorderSide(color: AppTheme.primary),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text(
+                      'I\'ve Reset My Password — Sign In',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 TextButton(
                   onPressed: () => setState(() {
-                    _sent  = false;
-                    _error = null;
+                    _sent        = false;
+                    _gmailOpened = false;
+                    _error       = null;
                     _emailCtrl.clear();
                   }),
                   child: const Text('Try a different email'),
@@ -206,7 +289,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               const SizedBox(height: 24),
               Center(
                 child: TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _goToSignIn,
                   child: const Text('Back to Sign In',
                       style: TextStyle(color: AppTheme.primary)),
                 ),

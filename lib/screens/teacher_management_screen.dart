@@ -11,6 +11,41 @@ import '../services/base_firestore_service.dart';
 import '../theme.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Predefined subject list for teacher dialog
+// ─────────────────────────────────────────────────────────────────────────────
+
+const List<String> _kSubjects = [
+  'English',
+  'Hindi',
+  'Mathematics',
+  'Science',
+  'Social Science',
+  'Environmental Science (EVS)',
+  'Physics',
+  'Chemistry',
+  'Biology',
+  'History',
+  'Geography',
+  'Civics / Political Science',
+  'Economics',
+  'Computer Science',
+  'Information Technology (IT)',
+  'Physical Education (P.E.)',
+  'Sanskrit',
+  'Urdu',
+  'French',
+  'German',
+  'Accountancy',
+  'Business Studies',
+  'Art & Craft',
+  'Music',
+  'General Knowledge (GK)',
+  'Moral Science / Value Education',
+  'Library',
+  'Other (specify)',
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Teacher Management List
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1027,30 +1062,45 @@ class _TeacherDialog extends StatefulWidget {
 class _TeacherDialogState extends State<_TeacherDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
-  late final TextEditingController _subjectCtrl;
+  late final TextEditingController _subjectCtrl;  // used for "Other" custom input
   late final TextEditingController _emailCtrl;
   late final TextEditingController _phoneCtrl;
   final TextEditingController _newClassCtrl = TextEditingController();
   late bool _isClassTeacher;
   String? _classTeacherOf;
+  String? _selectedSubject;   // selected from dropdown
   DateTime? _dateOfBirth;
   List<String> _classes = [];
   bool _loadingClasses = true;
   bool _showAddClass   = false;
 
   bool get _isEdit => widget.existing != null;
+  bool get _isOtherSubject => _selectedSubject == 'Other (specify)';
 
   @override
   void initState() {
     super.initState();
     final t = widget.existing;
     _nameCtrl       = TextEditingController(text: t?.name ?? '');
-    _subjectCtrl    = TextEditingController(text: t?.subject ?? '');
     _emailCtrl      = TextEditingController(text: t?.email ?? '');
     _phoneCtrl      = TextEditingController(text: t?.phone ?? '');
     _isClassTeacher = t?.isClassTeacher ?? false;
     _classTeacherOf = t?.classTeacherOf;
     _dateOfBirth    = t?.dateOfBirth?.toDate();
+
+    // Pre-select subject from dropdown, or fall back to "Other (specify)"
+    final existingSubject = t?.subject ?? '';
+    if (existingSubject.isEmpty) {
+      _selectedSubject = null;
+      _subjectCtrl = TextEditingController();
+    } else if (_kSubjects.contains(existingSubject)) {
+      _selectedSubject = existingSubject;
+      _subjectCtrl = TextEditingController();
+    } else {
+      _selectedSubject = 'Other (specify)';
+      _subjectCtrl = TextEditingController(text: existingSubject);
+    }
+
     _loadClasses();
   }
 
@@ -1138,20 +1188,45 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                     (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _subjectCtrl,
+              DropdownButtonFormField<String>(
+                value: _selectedSubject,
                 decoration: const InputDecoration(
-                    labelText: 'Subject',
-                    prefixIcon: Icon(Icons.book_outlined)),
-                textCapitalization: TextCapitalization.words,
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z /]')),
-                ],
-                maxLength: 40,
-                maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  labelText: 'Subject',
+                  prefixIcon: Icon(Icons.book_outlined),
+                ),
+                isExpanded: true,
+                hint: const Text('Select a subject'),
+                items: _kSubjects.map((s) => DropdownMenuItem(
+                  value: s,
+                  child: Text(s, overflow: TextOverflow.ellipsis),
+                )).toList(),
+                onChanged: (v) => setState(() {
+                  _selectedSubject = v;
+                  if (v != 'Other (specify)') _subjectCtrl.clear();
+                }),
+                validator: (_) =>
+                    _selectedSubject == null ? 'Please select a subject' : null,
               ),
+              // Custom subject field shown only when "Other (specify)" is chosen
+              if (_isOtherSubject) ...[
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _subjectCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Specify Subject',
+                    prefixIcon: Icon(Icons.edit_outlined),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z /&()]')),
+                  ],
+                  maxLength: 40,
+                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                  autofocus: true,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                ),
+              ],
               const SizedBox(height: 12),
               TextFormField(
                 controller: _emailCtrl,
@@ -1354,21 +1429,6 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                       ),
                   ],
 
-                  if (_classes.isNotEmpty && !_showAddClass)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        onPressed: () =>
-                            setState(() => _showAddClass = true),
-                        icon: const Icon(Icons.add, size: 15),
-                        label: const Text('Add new class',
-                            style: TextStyle(fontSize: 12)),
-                        style: TextButton.styleFrom(
-                            foregroundColor: AppTheme.primary,
-                            padding:
-                                const EdgeInsets.only(top: 4)),
-                      ),
-                    ),
                 ],
 
               ],
@@ -1387,7 +1447,9 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                 id: widget.existing?.id ??
                     DateTime.now().millisecondsSinceEpoch.toString(),
                 name:    _nameCtrl.text.trim(),
-                subject: _subjectCtrl.text.trim(),
+                subject: _isOtherSubject
+                    ? _subjectCtrl.text.trim()
+                    : (_selectedSubject ?? ''),
                 email:
                     _emailCtrl.text.trim().toLowerCase(),
                 section: '',

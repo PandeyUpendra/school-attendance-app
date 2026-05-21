@@ -10,6 +10,7 @@ import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import 'attendance_history_screen.dart';
 import 'class_picker_screen.dart';
+import 'free_bells_screen.dart';
 import 'leave_requests_screen.dart';
 import 'student_deletion_requests_screen.dart';
 import 'my_timetable_screen.dart';
@@ -29,6 +30,7 @@ import '../utils/role_guard.dart';
 import 'meeting/principal_meeting_records_screen.dart';
 import 'todo_list_screen.dart';
 import 'todo_reminder_banner.dart';
+import 'fee_overview_screen.dart';
 
 /// The Principal Portal — school-wide overview dashboard.
 class PrincipalDashboard extends StatefulWidget {
@@ -165,16 +167,6 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       _loading         = false;
     });
 
-    _maybeAutoPromptDigest();
-  }
-
-  /// After 5pm, if today's digest hasn't been opened yet, push the principal
-  /// straight into it.  Runs once per day per device.
-  Future<void> _maybeAutoPromptDigest() async {
-    if (DateTime.now().hour < 17) return;
-    if (await PrincipalDigestScreen.hasViewedToday()) return;
-    if (!mounted) return;
-    await _navigate(const PrincipalDigestScreen());
   }
 
   Future<void> _logout() async {
@@ -213,6 +205,10 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               _refreshLastSeen();
             },
             onLogout: _logout,
+            onTeachersAbsentTap: () => _navigate(
+              const LeaveRequestsScreen(viewerRole: 'principal'),
+            ),
+            onBellsTap: () => _navigate(const FreeBellsScreen()),
           ),
           Expanded(
             child: RefreshIndicator(
@@ -258,6 +254,17 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 title: 'Analytics Dashboard',
                 subtitle: 'Attendance trends, absences, fee progress & charts',
                 onTap: () => _navigate(const AnalyticsScreen()),
+              ),
+              const Divider(height: 1, indent: 72),
+
+              // ── Finance ───────────────────────────────────────────────
+              _SectionHeader('FINANCE'),
+              _FeatureTile(
+                icon: Icons.currency_rupee_outlined,
+                color: AppTheme.success,
+                title: 'Fee Collection',
+                subtitle: 'Class-wise collection, instalments & payment history',
+                onTap: () => _navigate(const FeeOverviewScreen(role: 'principal')),
               ),
               const Divider(height: 1, indent: 72),
 
@@ -597,6 +604,8 @@ class _PrincipalHeroCard extends StatelessWidget {
   final int  unreadNotifCount;
   final VoidCallback onNotifTap;
   final VoidCallback onLogout;
+  final VoidCallback onTeachersAbsentTap;
+  final VoidCallback onBellsTap;
 
   const _PrincipalHeroCard({
     required this.loading,
@@ -605,6 +614,8 @@ class _PrincipalHeroCard extends StatelessWidget {
     required this.unreadNotifCount,
     required this.onNotifTap,
     required this.onLogout,
+    required this.onTeachersAbsentTap,
+    required this.onBellsTap,
   });
 
   @override
@@ -706,6 +717,7 @@ class _PrincipalHeroCard extends StatelessWidget {
                       alertColor: teachersAbsent > 0
                           ? const Color(0xFFEF9A9A)
                           : Colors.white70,
+                      onTap: onTeachersAbsentTap,
                     ),
                     const SizedBox(width: 10),
                     _HeroInfoCard(
@@ -717,6 +729,7 @@ class _PrincipalHeroCard extends StatelessWidget {
                       alertColor: unassignedBells > 0
                           ? const Color(0xFFFFCC80)
                           : Colors.white70,
+                      onTap: onBellsTap,
                     ),
                   ]),
               ],
@@ -729,46 +742,61 @@ class _PrincipalHeroCard extends StatelessWidget {
 }
 
 class _HeroInfoCard extends StatelessWidget {
-  final IconData icon;
-  final String   value, label;
-  final Color    alertColor;
+  final IconData     icon;
+  final String       value, label;
+  final Color        alertColor;
+  final VoidCallback onTap;
+
   const _HeroInfoCard({
     required this.icon,
     required this.value,
     required this.label,
     required this.alertColor,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) => Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(children: [
-            Icon(icon, color: alertColor, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(value,
-                      style: TextStyle(
-                          color: alertColor,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          height: 1.1)),
-                  const SizedBox(height: 1),
-                  Text(label,
-                      style: const TextStyle(
-                          color: Colors.white60, fontSize: 10.5),
-                      maxLines: 2),
-                ],
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            splashColor: Colors.white24,
+            highlightColor: Colors.white10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14),
               ),
+              child: Row(children: [
+                Icon(icon, color: alertColor, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(value,
+                          style: TextStyle(
+                              color: alertColor,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              height: 1.1)),
+                      const SizedBox(height: 1),
+                      Text(label,
+                          style: const TextStyle(
+                              color: Colors.white60, fontSize: 10.5),
+                          maxLines: 2),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right,
+                    color: Colors.white38, size: 16),
+              ]),
             ),
-          ]),
+          ),
         ),
       );
 }

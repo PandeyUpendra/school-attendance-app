@@ -7,8 +7,6 @@ import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import 'task_badge_widgets.dart';
 
-const String _kAllTeachers = 'ALL_TEACHERS';
-
 const Map<String, String> _kTemplates = {
   "PTM Preparation":
       "Please prepare a detailed student-wise "
@@ -102,6 +100,35 @@ class CoordinatorStaffTasksScreen extends StatelessWidget {
 
 // ── Tab 1: Assign Task ────────────────────────────────────────────────────────
 
+/// Groups class names into school-stage buckets.
+/// Only non-empty buckets are shown as chips.
+Map<String, List<String>> _buildClassGroups(List<String> classes) {
+  final groups = <String, List<String>>{
+    'Pre-Primary': [],
+    'Primary':     [],
+    'Middle':      [],
+    'Secondary':   [],
+    'Sr. Secondary': [],
+  };
+  for (final cls in classes) {
+    final s = cls.toLowerCase().replaceAll(' ', '');
+    if (RegExp(r'nursery|lkg|ukg|prep|playgroup|prenursery|^kg\d?$')
+        .hasMatch(s)) {
+      groups['Pre-Primary']!.add(cls);
+    } else if (RegExp(r'^(class|grade|std)?[1-5][a-e]?$').hasMatch(s)) {
+      groups['Primary']!.add(cls);
+    } else if (RegExp(r'^(class|grade|std)?[6-8][a-e]?$').hasMatch(s)) {
+      groups['Middle']!.add(cls);
+    } else if (RegExp(r'^(class|grade|std)?(9|10)[a-e]?$').hasMatch(s)) {
+      groups['Secondary']!.add(cls);
+    } else if (RegExp(r'^(class|grade|std)?(11|12)[a-e]?$').hasMatch(s)) {
+      groups['Sr. Secondary']!.add(cls);
+    }
+  }
+  groups.removeWhere((_, v) => v.isEmpty);
+  return groups;
+}
+
 class _AssignTab extends StatefulWidget {
   final String coordinatorEmail;
   const _AssignTab({required this.coordinatorEmail});
@@ -114,19 +141,20 @@ class _AssignTabState extends State<_AssignTab> {
   final _descCtrl        = TextEditingController();
   final _customTitleCtrl = TextEditingController();
 
-  String?      _selectedTaskTitle;
-  List<Teacher> _teachers         = [];
-  String?      _selectedTeacherId;
-  String       _selectedTeacherName = '';
-  TaskPriority _priority            = TaskPriority.medium;
-  DateTime?    _dueDate;
-  bool         _loadingPeople       = true;
-  bool         _saving              = false;
+  String?       _selectedTaskTitle;
+  List<Teacher> _teachers      = [];
+  Set<String>   _selectedIds   = {}; // teacher IDs selected for assignment
+  Map<String, List<String>> _classGroups = {}; // stage → [className, ...]
+
+  TaskPriority  _priority      = TaskPriority.medium;
+  DateTime?     _dueDate;
+  bool          _loadingPeople = true;
+  bool          _saving        = false;
 
   @override
   void initState() {
     super.initState();
-    _loadTeachers();
+    _loadData();
   }
 
   @override
@@ -136,11 +164,18 @@ class _AssignTabState extends State<_AssignTab> {
     super.dispose();
   }
 
-  Future<void> _loadTeachers() async {
-    final teachers = await TimetableService().getTeachers();
+  Future<void> _loadData() async {
+    final results = await Future.wait([
+      TimetableService().getTeachers(),
+      TimetableService().getSettings(),
+    ]);
+    final teachers = results[0] as List<Teacher>;
+    final settings = results[1] as Map<String, dynamic>;
+    final classes  = List<String>.from(settings['classes'] as List? ?? []);
     if (!mounted) return;
     setState(() {
-      _teachers      = teachers..sort((a, b) => a.name.compareTo(b.name));
+      _teachers    = teachers..sort((a, b) => a.name.compareTo(b.name));
+      _classGroups = _buildClassGroups(classes);
       _loadingPeople = false;
     });
   }
@@ -163,11 +198,53 @@ class _AssignTabState extends State<_AssignTab> {
   }
 
   String get _actualTitle {
-    if (_selectedTaskTitle == 'Custom Task') {
-      return _customTitleCtrl.text.trim();
-    }
+    if (_selectedTaskTitle == 'Custom Task') return _customTitleCtrl.text.trim();
     return _selectedTaskTitle ?? '';
   }
+
+  // ── Group selection helpers ──────────────────────────────────────────────
+
+  /// Teacher IDs whose classTeacherOf or assignedClasses overlap with [groupClasses].
+  Set<String> _teachersForClasses(List<String> groupClasses) {
+    final classSet = groupClasses.toSet();
+    return _teachers.where((t) {
+      if (t.classTeacherOf != null && classSet.contains(t.classTeacherOf)) {
+        return true;
+      }
+      return t.assignedClasses.any(classSet.contains);
+    }).map((t) => t.id).toSet();
+  }
+
+  Set<String> _classTeacherIds() =>
+      _teachers.where((t) => t.isClassTeacher).map((t) => t.id).toSet();
+
+  Set<String> _allTeacherIds() => _teachers.map((t) => t.id).toSet();
+
+  /// Whether all teachers in [ids] are currently selected.
+  bool _groupFullySelected(Set<String> ids) =>
+      ids.isNotEmpty && ids.every(_selectedIds.contains);
+
+  void _toggleGroup(Set<String> ids) {
+    setState(() {
+      if (_groupFullySelected(ids)) {
+        _selectedIds.removeAll(ids);
+      } else {
+        _selectedIds.addAll(ids);
+      }
+    });
+  }
+
+  void _toggleTeacher(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  // ── Submit ───────────────────────────────────────────────────────────────
 
   Future<void> _submit() async {
     if (_selectedTaskTitle == null) {
@@ -179,106 +256,72 @@ class _AssignTabState extends State<_AssignTab> {
       _snack('Please enter a custom task title');
       return;
     }
-    if (_selectedTeacherId == null) {
-      _snack('Please select a teacher');
+    if (_selectedIds.isEmpty) {
+      _snack('Please select at least one person to assign to');
       return;
     }
 
-    if (_selectedTeacherId == _kAllTeachers) {
-      await _submitToAllTeachers();
-      return;
-    }
+    final targets  = _teachers.where((t) => _selectedIds.contains(t.id)).toList();
+    final isMulti  = targets.length > 1;
+    final title    = _actualTitle;
+    final groupId  = DateTime.now().millisecondsSinceEpoch.toString();
 
-    setState(() => _saving = true);
-
-    final title = _actualTitle;
-    final task = StaffTask(
-      id:             '',
-      title:          title,
-      description:    _descCtrl.text.trim(),
-      assignedTo:     _selectedTeacherId!,
-      assignedToName: _selectedTeacherName,
-      assignedBy:     widget.coordinatorEmail,
-      assignedByRole: 'coordinator',
-      dueDate:        _dueDate,
-      status:         TaskStatus.pending,
-      priority:       _priority,
-      createdAt:      DateTime.now(),
-    );
-
-    await StaffTaskService().createTask(task);
-
-    await NotificationService().addStaffTaskNotice(
-      taskTitle:         title,
-      assignedTeacherId: _selectedTeacherId!,
-      assignedByName:    widget.coordinatorEmail,
-      dueDateStr:        _dueDate != null ? _fmtDate(_dueDate!) : null,
-      priority:          _priority.label,
-    );
-
-    if (!mounted) return;
-    setState(() => _saving = false);
-    _resetForm();
-    _snack('Task assigned successfully');
-  }
-
-  Future<void> _submitToAllTeachers() async {
-    final count = _teachers.length;
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Assign to All Teachers?'),
-        content: Text(
-            'This will create $count individual tasks, '
-            'one for each teacher.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+    if (isMulti) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16)),
+          title: const Text('Confirm Assignment'),
+          content: Text(
+            'This will create ${targets.length} tasks, '
+            'one for each selected person.',
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Assign All'),
             ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
-
-    if (ok != true || !mounted) return;
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
 
     setState(() => _saving = true);
 
-    final title       = _actualTitle;
-    final description = _descCtrl.text.trim();
-    final groupId     = DateTime.now().millisecondsSinceEpoch.toString();
-    final now         = DateTime.now();
+    final now    = DateTime.now();
+    final descTx = _descCtrl.text.trim();
 
-    final tasks = _teachers
-        .map((t) => StaffTask(
-              id:             '',
-              title:          title,
-              description:    description,
-              assignedTo:     t.id,
-              assignedToName: t.name,
-              assignedBy:     widget.coordinatorEmail,
-              assignedByRole: 'coordinator',
-              dueDate:        _dueDate,
-              status:         TaskStatus.pending,
-              priority:       _priority,
-              createdAt:      now,
-              isGroupTask:    true,
-              groupTaskId:    groupId,
-            ))
-        .toList();
+    final tasks = targets.map((t) => StaffTask(
+          id:             '',
+          title:          title,
+          description:    descTx,
+          assignedTo:     t.id,
+          assignedToName: t.name,
+          assignedBy:     widget.coordinatorEmail,
+          assignedByRole: 'coordinator',
+          dueDate:        _dueDate,
+          status:         TaskStatus.pending,
+          priority:       _priority,
+          createdAt:      now,
+          isGroupTask:    isMulti,
+          groupTaskId:    isMulti ? groupId : '',
+        )).toList();
 
-    await StaffTaskService().createTasksBatch(tasks);
+    if (tasks.length == 1) {
+      await StaffTaskService().createTask(tasks.first);
+    } else {
+      await StaffTaskService().createTasksBatch(tasks);
+    }
 
-    for (final t in _teachers) {
+    for (final t in targets) {
       await NotificationService().addStaffTaskNotice(
         taskTitle:         title,
         assignedTeacherId: t.id,
@@ -291,18 +334,19 @@ class _AssignTabState extends State<_AssignTab> {
     if (!mounted) return;
     setState(() => _saving = false);
     _resetForm();
-    _snack('Task assigned to all $count teachers');
+    _snack(isMulti
+        ? 'Task assigned to ${targets.length} people'
+        : 'Task assigned to ${targets.first.name}');
   }
 
   void _resetForm() {
     _descCtrl.clear();
     _customTitleCtrl.clear();
     setState(() {
-      _selectedTaskTitle   = null;
-      _selectedTeacherId   = null;
-      _selectedTeacherName = '';
-      _priority            = TaskPriority.medium;
-      _dueDate             = null;
+      _selectedTaskTitle = null;
+      _selectedIds       = {};
+      _priority          = TaskPriority.medium;
+      _dueDate           = null;
     });
   }
 
@@ -312,6 +356,8 @@ class _AssignTabState extends State<_AssignTab> {
         .showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  // ── Build ────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -319,7 +365,7 @@ class _AssignTabState extends State<_AssignTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Task Title Dropdown ────────────────────────────────────────────
+          // ── Task Title ─────────────────────────────────────────────────────
           _Label('Task Title'),
           DropdownButtonFormField<String>(
             decoration: InputDecoration(
@@ -328,9 +374,8 @@ class _AssignTabState extends State<_AssignTab> {
               filled: true,
               fillColor: AppTheme.background,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide.none,
-              ),
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none),
               prefixIcon: const Icon(Icons.task_alt,
                   color: AppTheme.primary, size: 20),
             ),
@@ -338,31 +383,25 @@ class _AssignTabState extends State<_AssignTab> {
             value: _selectedTaskTitle,
             hint: const Text('Select or choose custom'),
             items: _kTemplates.keys
-                .map((title) => DropdownMenuItem<String>(
-                      value: title,
-                      child: Text(title,
-                          overflow: TextOverflow.ellipsis),
+                .map((t) => DropdownMenuItem<String>(
+                      value: t,
+                      child: Text(t, overflow: TextOverflow.ellipsis),
                     ))
                 .toList(),
-            onChanged: (selected) {
-              setState(() {
-                _selectedTaskTitle = selected;
-                if (selected != null && selected != 'Custom Task') {
-                  _descCtrl.text = _kTemplates[selected] ?? '';
-                } else {
-                  _descCtrl.text = '';
-                }
-              });
-            },
+            onChanged: (v) => setState(() {
+              _selectedTaskTitle = v;
+              _descCtrl.text =
+                  (v != null && v != 'Custom Task') ? _kTemplates[v]! : '';
+            }),
           ),
 
-          // ── Custom Task Title field ────────────────────────────────────────
           if (_selectedTaskTitle == 'Custom Task') ...[
             const SizedBox(height: 10),
             TextField(
               controller: _customTitleCtrl,
-              decoration: _inputDec(hint: 'e.g. Prepare Annual Report').copyWith(
-                labelText: 'Enter Custom Task Title',
+              decoration: _inputDec(hint: 'e.g. Prepare Annual Report')
+                  .copyWith(
+                labelText: 'Custom Task Title',
                 floatingLabelBehavior: FloatingLabelBehavior.always,
               ),
               textCapitalization: TextCapitalization.sentences,
@@ -380,12 +419,10 @@ class _AssignTabState extends State<_AssignTab> {
             textCapitalization: TextCapitalization.sentences,
           ),
           const SizedBox(height: 4),
-          Text(
-            'You can edit this message',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-          ),
+          Text('You can edit this message',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 20),
 
           // ── Assign To ──────────────────────────────────────────────────────
           _Label('Assign To'),
@@ -393,77 +430,9 @@ class _AssignTabState extends State<_AssignTab> {
               ? const Center(
                   child: CircularProgressIndicator(
                       color: AppTheme.primary, strokeWidth: 2))
-              : DropdownButtonFormField<String>(
-                  value: _selectedTeacherId,
-                  hint: const Text('Select a teacher'),
-                  isExpanded: true,
-                  decoration: _inputDec(),
-                  items: [
-                    // ── All Teachers option at top ──
-                    DropdownMenuItem<String>(
-                      value: _kAllTeachers,
-                      child: Row(children: [
-                        const Icon(Icons.groups,
-                            color: AppTheme.primary, size: 18),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'All Teachers',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primary,
-                          ),
-                        ),
-                      ]),
-                    ),
-                    // ── Individual teachers ──
-                    ..._teachers.map((t) => DropdownMenuItem<String>(
-                          value: t.id,
-                          child: Text(t.name,
-                              overflow: TextOverflow.ellipsis),
-                        )),
-                  ],
-                  onChanged: (v) {
-                    if (v == null) return;
-                    setState(() {
-                      _selectedTeacherId   = v;
-                      _selectedTeacherName = v == _kAllTeachers
-                          ? 'All Teachers'
-                          : _teachers.firstWhere((t) => t.id == v).name;
-                    });
-                  },
-                ),
+              : _buildAssignSection(),
 
-          // ── All Teachers confirmation banner ───────────────────────────────
-          if (_selectedTeacherId == _kAllTeachers) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                    color: AppTheme.primary.withOpacity(0.2)),
-              ),
-              child: Row(children: [
-                const Icon(Icons.groups,
-                    color: AppTheme.primary, size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Task will be assigned to all '
-                    '${_teachers.length} teachers in the school',
-                    style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.primary,
-                        fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ]),
-            ),
-          ],
-
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           // ── Priority ───────────────────────────────────────────────────────
           _Label('Priority'),
@@ -474,7 +443,7 @@ class _AssignTabState extends State<_AssignTab> {
                 child: ChoiceChip(
                   label: Text(p.label),
                   selected: _priority == p,
-                  selectedColor: _priorityColor(p).withOpacity(0.15),
+                  selectedColor: _priorityColor(p).withAlpha(38),
                   labelStyle: TextStyle(
                     color: _priority == p
                         ? _priorityColor(p)
@@ -488,8 +457,7 @@ class _AssignTabState extends State<_AssignTab> {
                         ? _priorityColor(p)
                         : Colors.grey.shade300,
                   ),
-                  onSelected: (_) =>
-                      setState(() => _priority = p),
+                  onSelected: (_) => setState(() => _priority = p),
                 ),
               ),
           ]),
@@ -542,7 +510,8 @@ class _AssignTabState extends State<_AssignTab> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
@@ -552,9 +521,13 @@ class _AssignTabState extends State<_AssignTab> {
                       width: 18,
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2))
-                  : const Text('Assign Task',
-                      style: TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w600)),
+                  : Text(
+                      _selectedIds.isEmpty
+                          ? 'Assign Task'
+                          : 'Assign Task  (${_selectedIds.length} selected)',
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
             ),
           ),
 
@@ -562,6 +535,191 @@ class _AssignTabState extends State<_AssignTab> {
         ],
       ),
     );
+  }
+
+  // ── Assign section ────────────────────────────────────────────────────────
+
+  Widget _buildAssignSection() {
+    final allIds         = _allTeacherIds();
+    final classTeachIds  = _classTeacherIds();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Quick-select group chips ────────────────────────────────
+        Text('Quick Select',
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey.shade500,
+                letterSpacing: 0.5)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            // All Staff
+            _GroupChip(
+              label: 'All Staff',
+              icon: Icons.groups_outlined,
+              ids: allIds,
+              selectedIds: _selectedIds,
+              onTap: () => _toggleGroup(allIds),
+            ),
+            // Class Teachers only
+            if (classTeachIds.isNotEmpty)
+              _GroupChip(
+                label: 'Class Teachers',
+                icon: Icons.co_present_outlined,
+                ids: classTeachIds,
+                selectedIds: _selectedIds,
+                onTap: () => _toggleGroup(classTeachIds),
+              ),
+            // Stage groups from class list
+            for (final entry in _classGroups.entries)
+              _GroupChip(
+                label: entry.key,
+                icon: _stageIcon(entry.key),
+                ids: _teachersForClasses(entry.value),
+                selectedIds: _selectedIds,
+                onTap: () =>
+                    _toggleGroup(_teachersForClasses(entry.value)),
+                subtitle: entry.value.length > 1
+                    ? '${entry.value.first}–${entry.value.last}'
+                    : entry.value.first,
+              ),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+
+        // ── Individual teacher chips ────────────────────────────────
+        Text('Individual Teachers',
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey.shade500,
+                letterSpacing: 0.5)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _teachers.map((t) {
+            final selected = _selectedIds.contains(t.id);
+            return GestureDetector(
+              onTap: () => _toggleTeacher(t.id),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? AppTheme.primary
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: selected
+                        ? AppTheme.primary
+                        : Colors.grey.shade300,
+                  ),
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: AppTheme.primary.withAlpha(50),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          )
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (selected) ...[
+                      const Icon(Icons.check,
+                          size: 13, color: Colors.white),
+                      const SizedBox(width: 4),
+                    ],
+                    Text(
+                      t.name,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                        color: selected
+                            ? Colors.white
+                            : Colors.grey.shade800,
+                      ),
+                    ),
+                    if (t.isClassTeacher &&
+                        t.classTeacherOf != null) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        '(${t.classTeacherOf})',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: selected
+                              ? Colors.white70
+                              : Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+
+        // ── Selection summary ───────────────────────────────────────
+        if (_selectedIds.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withAlpha(15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: AppTheme.primary.withAlpha(50)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.people_alt_outlined,
+                  color: AppTheme.primary, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _selectedIds.length == 1
+                      ? 'Assigning to: ${_teachers.firstWhere((t) => t.id == _selectedIds.first).name}'
+                      : '${_selectedIds.length} people selected',
+                  style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
+              GestureDetector(
+                onTap: () => setState(() => _selectedIds.clear()),
+                child: const Icon(Icons.clear,
+                    size: 15, color: AppTheme.primary),
+              ),
+            ]),
+          ),
+        ],
+      ],
+    );
+  }
+
+  IconData _stageIcon(String stage) {
+    switch (stage) {
+      case 'Pre-Primary':    return Icons.child_care_outlined;
+      case 'Primary':        return Icons.menu_book_outlined;
+      case 'Middle':         return Icons.school_outlined;
+      case 'Secondary':      return Icons.science_outlined;
+      case 'Sr. Secondary':  return Icons.biotech_outlined;
+      default:               return Icons.class_outlined;
+    }
   }
 
   Color _priorityColor(TaskPriority p) {
@@ -587,10 +745,115 @@ class _AssignTabState extends State<_AssignTab> {
 
   String _fmtDate(DateTime dt) {
     const mo = [
-      'Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec'
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${dt.day} ${mo[dt.month - 1]} ${dt.year}';
+  }
+}
+
+// ── Group chip widget ─────────────────────────────────────────────────────────
+
+class _GroupChip extends StatelessWidget {
+  final String       label;
+  final IconData     icon;
+  final Set<String>  ids;
+  final Set<String>  selectedIds;
+  final VoidCallback onTap;
+  final String?      subtitle;
+
+  const _GroupChip({
+    required this.label,
+    required this.icon,
+    required this.ids,
+    required this.selectedIds,
+    required this.onTap,
+    this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final full    = ids.isNotEmpty && ids.every(selectedIds.contains);
+    final partial = !full && ids.any(selectedIds.contains);
+    final empty   = ids.isEmpty;
+
+    Color bg, border, fg;
+    if (empty) {
+      bg = Colors.grey.shade100;
+      border = Colors.grey.shade200;
+      fg = Colors.grey.shade400;
+    } else if (full) {
+      bg = AppTheme.primary;
+      border = AppTheme.primary;
+      fg = Colors.white;
+    } else if (partial) {
+      bg = AppTheme.primary.withAlpha(20);
+      border = AppTheme.primary.withAlpha(120);
+      fg = AppTheme.primary;
+    } else {
+      bg = Colors.white;
+      border = Colors.grey.shade300;
+      fg = Colors.grey.shade700;
+    }
+
+    return GestureDetector(
+      onTap: empty ? null : onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(
+            horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: fg),
+            const SizedBox(width: 6),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: full || partial
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: fg)),
+                if (subtitle != null)
+                  Text(subtitle!,
+                      style: TextStyle(
+                          fontSize: 9,
+                          color: full ? Colors.white70 : Colors.grey.shade400)),
+              ],
+            ),
+            if (!empty && ids.isNotEmpty) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: full
+                      ? Colors.white.withAlpha(50)
+                      : AppTheme.primary.withAlpha(25),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${ids.length}',
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: full ? Colors.white : AppTheme.primary),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
 
