@@ -15,6 +15,8 @@ class _RemarkPreset {
   _RemarkPreset(this.label, this.messageTemplate);
 }
 
+// ── Teacher → Parent presets ──────────────────────────────────────────────────
+
 final _kNegativePresets = [
   _RemarkPreset('Not completing homework',
       'Dear Parent, we want to inform you that {name} has not been completing homework regularly. Please encourage regular practice at home.'),
@@ -47,6 +49,40 @@ final _kPositivePresets = [
       'Dear Parent, {name} has been very helpful and respectful towards classmates and teachers. A great role model!'),
   _RemarkPreset('Excellent test performance',
       'Dear Parent, {name} has performed excellently in recent tests. All your efforts at home are clearly paying off!'),
+];
+
+// ── Guardian → School presets ─────────────────────────────────────────────────
+
+final _kGuardianConcernPresets = [
+  _RemarkPreset('Child is unwell today',
+      'Dear Teacher, I want to inform you that {name} is not feeling well today and may need extra attention or rest.'),
+  _RemarkPreset('Will be absent tomorrow',
+      'Dear Teacher, I wish to inform you that {name} will be absent tomorrow due to personal reasons. Kindly note the absence.'),
+  _RemarkPreset('Struggling with homework',
+      'Dear Teacher, {name} has been finding the homework difficult lately. Could you please provide some extra guidance or simplified notes?'),
+  _RemarkPreset('Requesting parent meeting',
+      'Dear Teacher, I would like to schedule a meeting to discuss {name}\'s progress. Please let me know a convenient time.'),
+  _RemarkPreset('Family emergency',
+      'Dear Teacher, due to a family emergency, {name} may miss school for a few days. I will keep you updated. Please help with any missed work.'),
+  _RemarkPreset('Late arrival today',
+      'Dear Teacher, {name} will be arriving late today. I apologise for the inconvenience.'),
+  _RemarkPreset('Please send study material',
+      'Dear Teacher, could you please share any study material or notes for {name} that can help with exam preparation? Thank you.'),
+  _RemarkPreset('Medical condition update',
+      'Dear Teacher, I wanted to inform you about a recent medical condition of {name} that may affect attendance or performance in class.'),
+];
+
+final _kGuardianPraisePresets = [
+  _RemarkPreset('Thank you for your support',
+      'Dear Teacher, I want to sincerely thank you for the wonderful support and guidance you have been providing to {name}. We truly appreciate it.'),
+  _RemarkPreset('Child enjoying school',
+      'Dear Teacher, {name} has been very excited about school lately and speaks highly of your teaching. Thank you for making learning enjoyable!'),
+  _RemarkPreset('Improvement noticed at home',
+      'Dear Teacher, we have noticed a great improvement in {name}\'s studies and attitude at home. Your efforts are clearly making a difference.'),
+  _RemarkPreset('Excellent exam preparation',
+      'Dear Teacher, thank you for the thorough exam preparation provided to {name}. The extra effort from your side is greatly appreciated.'),
+  _RemarkPreset('Great class environment',
+      'Dear Teacher, {name} loves the class environment you have created. It is encouraging and motivating for the children. Keep up the great work!'),
 ];
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -277,13 +313,17 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
       appBar: AppBar(
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Student Remarks',
+            const Text('Student Remarks',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('Send observations to parents',
-                style: TextStyle(fontSize: 11, color: Colors.white60)),
+            Text(
+              widget.role == 'guardian'
+                  ? 'Send a message to the school'
+                  : 'Send observations to parents',
+              style: const TextStyle(fontSize: 11, color: Colors.white60),
+            ),
           ],
         ),
       ),
@@ -331,6 +371,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
           if (_selectedStudent != null) ...[
             _sectionLabel('Add Remark'),
             _AddRemarkPanel(
+              role:           widget.role,
               student:        _selectedStudent!,
               selectedPreset: _selectedPreset,
               selectedType:   _selectedType,
@@ -401,6 +442,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
 // ── Add remark panel ──────────────────────────────────────────────────────────
 
 class _AddRemarkPanel extends StatelessWidget {
+  final String           role;
   final Student          student;
   final _RemarkPreset?   selectedPreset;
   final String           selectedType;
@@ -412,6 +454,7 @@ class _AddRemarkPanel extends StatelessWidget {
   final VoidCallback     onSubmitWhatsApp;
 
   const _AddRemarkPanel({
+    required this.role,
     required this.student,
     required this.selectedPreset,
     required this.selectedType,
@@ -423,8 +466,15 @@ class _AddRemarkPanel extends StatelessWidget {
     required this.onSubmitWhatsApp,
   });
 
+  bool get _isGuardian => role == 'guardian';
+
   @override
   Widget build(BuildContext context) {
+    final concernPresets = _isGuardian ? _kGuardianConcernPresets : _kNegativePresets;
+    final praisePresets  = _isGuardian ? _kGuardianPraisePresets  : _kPositivePresets;
+    final concernLabel   = _isGuardian ? 'Concern / Information'  : 'Concern / Negative';
+    final praiseLabel    = _isGuardian ? 'Praise / Appreciation'  : 'Praise / Positive';
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -438,24 +488,24 @@ class _AddRemarkPanel extends StatelessWidget {
         ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // ── Negative section ──────────────────────────────────────────────
+        // ── Concern section ───────────────────────────────────────────────
         _ChipSection(
-          label:    'Concern / Negative',
+          label:    concernLabel,
           icon:     Icons.warning_amber_rounded,
           color:    Colors.red.shade600,
-          presets:  _kNegativePresets,
+          presets:  concernPresets,
           type:     'negative',
           selected: selectedType == 'negative' ? selectedPreset : null,
           onTap:    (p) => onPresetSelected(p, 'negative'),
         ),
         const SizedBox(height: 12),
 
-        // ── Positive section ──────────────────────────────────────────────
+        // ── Praise section ────────────────────────────────────────────────
         _ChipSection(
-          label:    'Praise / Positive',
+          label:    praiseLabel,
           icon:     Icons.star_rounded,
           color:    Colors.green.shade600,
-          presets:  _kPositivePresets,
+          presets:  praisePresets,
           type:     'positive',
           selected: selectedType == 'positive' ? selectedPreset : null,
           onTap:    (p) => onPresetSelected(p, 'positive'),
@@ -470,7 +520,9 @@ class _AddRemarkPanel extends StatelessWidget {
             maxLines:   4,
             onChanged:  (_) => setInner(() {}),
             decoration: InputDecoration(
-              hintText: 'Tap a quick remark above or type a custom message…',
+              hintText: _isGuardian
+                  ? 'Tap a quick message above or type your own…'
+                  : 'Tap a quick remark above or type a custom message…',
               hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
               counterStyle: TextStyle(color: Colors.grey.shade400, fontSize: 11),
               filled: true,
@@ -491,45 +543,67 @@ class _AddRemarkPanel extends StatelessWidget {
         const SizedBox(height: 12),
 
         // ── Action buttons ────────────────────────────────────────────────
-        Row(children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: (canSubmit && !saving) ? onSubmitSave : null,
-              icon: saving
-                  ? const SizedBox(
-                      width: 16, height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.save_alt_rounded, size: 17),
-              label: const Text('Save', style: TextStyle(fontWeight: FontWeight.w600)),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.primary,
-                side: const BorderSide(color: AppTheme.primary),
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            flex: 2,
+        if (_isGuardian)
+          // Guardian: single Save button (no WhatsApp — message goes to school)
+          SizedBox(
+            width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: (canSubmit && !saving) ? onSubmitWhatsApp : null,
+              onPressed: (canSubmit && !saving) ? onSubmitSave : null,
               icon: saving
                   ? const SizedBox(
                       width: 16, height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.send_rounded, size: 17),
-              label: const Text('Save & Send WhatsApp',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              label: const Text('Send to School',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF25D366),
+                backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
-          ),
-        ]),
+          )
+        else
+          Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: (canSubmit && !saving) ? onSubmitSave : null,
+                icon: saving
+                    ? const SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.save_alt_rounded, size: 17),
+                label: const Text('Save', style: TextStyle(fontWeight: FontWeight.w600)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.primary,
+                  side: const BorderSide(color: AppTheme.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton.icon(
+                onPressed: (canSubmit && !saving) ? onSubmitWhatsApp : null,
+                icon: saving
+                    ? const SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.send_rounded, size: 17),
+                label: const Text('Save & Send WhatsApp',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ]),
       ]),
     );
   }

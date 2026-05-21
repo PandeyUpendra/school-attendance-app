@@ -664,7 +664,9 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
   }
 
   Widget _buildContent(Map<String, String> subs) {
-    final absentIds = _allAbsentIds;
+    // Only include IDs that belong to existing teachers — orphaned IDs from
+    // deleted teachers would inflate the count without producing any cards.
+    final absentIds = _allAbsentIds.where(_teacherMap.containsKey).toSet();
 
     if (absentIds.isEmpty) {
       return ListView(

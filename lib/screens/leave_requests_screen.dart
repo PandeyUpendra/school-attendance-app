@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/teacher.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import '../services/base_firestore_service.dart';
@@ -42,11 +43,24 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final all = await _service.getLeaveApplications();
+    final results = await Future.wait([
+      _service.getLeaveApplications(),
+      _service.getTeachers(),
+    ]);
+
+    final all      = results[0] as List<Map<String, dynamic>>;
+    final teachers = results[1] as List<Teacher>;
+    // Build a set of currently-existing teacher IDs so we can filter out
+    // orphaned applications from teachers whose accounts have been deleted.
+    final validIds = {for (final t in teachers) t.id};
+
     if (!mounted) return;
     setState(() {
-      _pending  = all.where((a) => a['status'] == 'pending').toList();
-      _resolved = all.where((a) => a['status'] != 'pending').toList();
+      final valid   = all.where(
+        (a) => validIds.contains(a['teacherId'] as String? ?? ''),
+      ).toList();
+      _pending  = valid.where((a) => a['status'] == 'pending').toList();
+      _resolved = valid.where((a) => a['status'] != 'pending').toList();
       _loading  = false;
     });
   }
