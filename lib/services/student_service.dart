@@ -192,10 +192,114 @@ class StudentService {
     await _students.doc(sid).update({'guardianEmail': email});
   }
 
+  /// Permanently deletes a student AND revokes their guardian's login access.
+  /// Called only after principal approval — teachers must use [submitDeletionRequest].
   Future<void> removeStudent(int roll, String className,
       {String section = ''}) async {
-    await _students.doc(_sid(roll, className, section)).delete();
+    // 1. Read guardian email before deleting so we can revoke access.
+    final sid = _sid(roll, className, section);
+    final snap = await _students.doc(sid).get();
+    String? guardianEmail;
+    if (snap.exists && snap.data() != null) {
+      guardianEmail = snap.data()!['guardianEmail'] as String?;
+    }
+
+    // 2. Delete student document + cascade attendance.
+    await _students.doc(sid).delete();
     await _cascadeDeleteAttendance(roll, className, section: section);
+
+    // 3. Revoke guardian login: remove the student link; if no links remain,
+    //    delete the entire allowed_users entry so the email can no longer sign in.
+    if (guardianEmail != null && guardianEmail.trim().isNotEmpty) {
+      final svc = TimetableService();
+      await svc.removeGuardianLink(
+        email: guardianEmail,
+        studentClass: className,
+        studentRoll: roll,
+      );
+      final remaining = await svc.getGuardianLinks(guardianEmail);
+      if (remaining == null || remaining.isEmpty) {
+        await svc.removeAllowedUser(guardianEmail);
+      }
+    }
+  }
+
+  // ── Deletion Requests (teacher → principal approval flow) ─────────────────
+
+  static final _deletionRequests =
+      FirebaseFirestore.instance.collection('student_deletion_requests');
+
+  /// Teacher submits a request to delete one or more students.
+  /// [students] is a list of maps: {roll, name, className, section, guardianEmail?}.
+  Future<void> submitDeletionRequest({
+    required String teacherId,
+    required String teacherName,
+    required String teacherEmail,
+    required List<Map<String, dynamic>> students,
+    String reason = '',
+  }) async {
+    await _deletionRequests.add({
+      'teacherId':    teacherId,
+      'teacherName':  teacherName,
+      'teacherEmail': teacherEmail,
+      'students':     students,
+      'reason':       reason.trim(),
+      'status':       'pending',
+      'requestedAt':  FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Real-time stream of pending deletion request count — used for the
+  /// principal dashboard badge.
+  Stream<int> streamPendingDeletionCount() =>
+      _deletionRequests
+          .where('status', isEqualTo: 'pending')
+          .snapshots()
+          .map((s) => s.docs.length);
+
+  /// Returns all pending deletion requests, newest first.
+  Future<List<Map<String, dynamic>>> getPendingDeletionRequests() async {
+    final snap = await _deletionRequests
+        .where('status', isEqualTo: 'pending')
+        .orderBy('requestedAt', descending: true)
+        .get();
+    return snap.docs.map((d) {
+      final data = Map<String, dynamic>.from(d.data());
+      data['id'] = d.id;
+      return data;
+    }).toList();
+  }
+
+  /// Principal approves a deletion request: deletes each student and their
+  /// guardian access, then marks the request as approved.
+  Future<void> approveDeletionRequest(String requestId) async {
+    final doc = await _deletionRequests.doc(requestId).get();
+    if (!doc.exists || doc.data() == null) return;
+    final data = Map<String, dynamic>.from(doc.data()!);
+    final list =
+        (data['students'] as List?)?.whereType<Map<String, dynamic>>() ?? [];
+    for (final s in list) {
+      final roll      = (s['roll'] as num?)?.toInt() ?? 0;
+      final className = (s['className'] as String?) ?? '';
+      final section   = (s['section'] as String?) ?? '';
+      if (roll > 0 && className.isNotEmpty) {
+        await removeStudent(roll, className, section: section);
+      }
+    }
+    await _deletionRequests.doc(requestId).update({
+      'status':     'approved',
+      'resolvedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Principal rejects a deletion request.
+  Future<void> rejectDeletionRequest(String requestId,
+      {String rejectionNote = ''}) async {
+    await _deletionRequests.doc(requestId).update({
+      'status':        'rejected',
+      'rejectionNote': rejectionNote.trim(),
+      'resolvedAt':    FieldValue.serverTimestamp(),
+    });
   }
 
   /// Removes a student's roll number from every attendance document in their

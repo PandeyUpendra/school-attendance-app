@@ -117,15 +117,13 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     );
     if (teacher == null) return;
 
-    // Duplicate class-teacher check
+    // Duplicate class-teacher check (same class, regardless of section)
     if (teacher.isClassTeacher && teacher.classTeacherOf != null) {
       final duplicate = _teachers.firstWhere(
         (t) =>
             t.id != teacher.id &&
             t.isClassTeacher &&
-            t.classTeacherOf == teacher.classTeacherOf &&
-            t.section.trim().toLowerCase() ==
-                teacher.section.trim().toLowerCase(),
+            t.classTeacherOf == teacher.classTeacherOf,
         orElse: () =>
             const Teacher(id: '', name: '', subject: '', email: '', schoolId: 'default_school'),
       );
@@ -1031,7 +1029,6 @@ class _TeacherDialogState extends State<_TeacherDialog> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _subjectCtrl;
   late final TextEditingController _emailCtrl;
-  late final TextEditingController _sectionCtrl;
   late final TextEditingController _phoneCtrl;
   final TextEditingController _newClassCtrl = TextEditingController();
   late bool _isClassTeacher;
@@ -1050,7 +1047,6 @@ class _TeacherDialogState extends State<_TeacherDialog> {
     _nameCtrl       = TextEditingController(text: t?.name ?? '');
     _subjectCtrl    = TextEditingController(text: t?.subject ?? '');
     _emailCtrl      = TextEditingController(text: t?.email ?? '');
-    _sectionCtrl    = TextEditingController(text: t?.section ?? '');
     _phoneCtrl      = TextEditingController(text: t?.phone ?? '');
     _isClassTeacher = t?.isClassTeacher ?? false;
     _classTeacherOf = t?.classTeacherOf;
@@ -1101,7 +1097,6 @@ class _TeacherDialogState extends State<_TeacherDialog> {
     _nameCtrl.dispose();
     _subjectCtrl.dispose();
     _emailCtrl.dispose();
-    _sectionCtrl.dispose();
     _phoneCtrl.dispose();
     _newClassCtrl.dispose();
     super.dispose();
@@ -1241,10 +1236,7 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                   value: _isClassTeacher,
                   onChanged: (v) => setState(() {
                     _isClassTeacher = v;
-                    if (!v) {
-                      _classTeacherOf = null;
-                      _sectionCtrl.clear();
-                    }
+                    if (!v) _classTeacherOf = null;
                   }),
                   activeColor: AppTheme.primary,
                   title: Text(
@@ -1379,29 +1371,6 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                     ),
                 ],
 
-                // Section BELOW class selector
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _sectionCtrl,
-                  decoration: const InputDecoration(
-                      labelText: 'Section',
-                      prefixIcon: Icon(Icons.group_work_outlined),
-                      hintText: 'e.g. A, B, C'),
-                  textCapitalization: TextCapitalization.characters,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z]')),
-                    LengthLimitingTextInputFormatter(1),
-                  ],
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Section is required for class teachers';
-                    }
-                    if (!RegExp(r'^[A-Za-z]$').hasMatch(v.trim())) {
-                      return 'Must be a single letter A–Z';
-                    }
-                    return null;
-                  },
-                ),
               ],
             ],
           ),
@@ -1421,7 +1390,7 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                 subject: _subjectCtrl.text.trim(),
                 email:
                     _emailCtrl.text.trim().toLowerCase(),
-                section: _sectionCtrl.text.trim(),
+                section: '',
                 isClassTeacher: _isClassTeacher,
                 classTeacherOf:
                     _isClassTeacher ? _classTeacherOf : null,

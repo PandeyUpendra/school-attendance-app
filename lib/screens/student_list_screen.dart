@@ -22,12 +22,18 @@ class StudentListScreen extends StatefulWidget {
   /// When set, student queries are filtered to this teacher's records only.
   /// Pass the logged-in class teacher's ID; omit for coordinator/principal views.
   final String? teacherId;
+  /// Teacher's display name — shown in the deletion request sent to the principal.
+  final String teacherName;
+  /// Teacher's email — used to identify the requestor in deletion requests.
+  final String teacherEmail;
   const StudentListScreen({
     super.key,
     required this.className,
     this.section = '',
     this.isClassTeacher = false,
     this.teacherId,
+    this.teacherName = '',
+    this.teacherEmail = '',
   });
 
   @override
@@ -106,39 +112,120 @@ class _StudentListScreenState extends State<StudentListScreen> {
     });
   }
 
+  /// Instead of deleting directly, teachers must submit a deletion request
+  /// that the principal must approve. Actual deletion happens on approval.
   Future<void> _deleteSelected() async {
-    final count = _selectedRolls.length;
+    final count    = _selectedRolls.length;
+    final toDelete = _students
+        .where((s) => _selectedRolls.contains(s.roll))
+        .toList();
+
+    final reasonCtrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Students'),
-        content: Text(
-            'Remove $count student${count == 1 ? '' : 's'}? This cannot be undone.'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(children: [
+          const Icon(Icons.pending_actions_outlined, color: AppTheme.warning),
+          const SizedBox(width: 8),
+          const Text('Request Deletion', style: TextStyle(fontSize: 17)),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'You are requesting to delete $count '
+              'student${count == 1 ? '' : 's'}. The principal must '
+              'approve before records are permanently removed.',
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            ...toDelete.map((s) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(children: [
+                    Container(
+                      width: 26, height: 26,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text('${s.roll}',
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.primary,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(s.name,
+                        style: const TextStyle(fontSize: 13)),
+                  ]),
+                )),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonCtrl,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'Reason (optional)',
+                hintText: 'e.g. Student transferred to another school',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.all(10),
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(_, false),
               child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.send_outlined, size: 16,
+                color: Colors.white),
+            label: const Text('Send Request',
+                style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10))),
+            onPressed: () => Navigator.pop(_, true),
           ),
         ],
       ),
     );
     if (ok != true || !mounted) return;
-    final toDelete =
-        _students.where((s) => _selectedRolls.contains(s.roll)).toList();
-    for (final s in toDelete) {
-      await StudentService()
-          .removeStudent(s.roll, s.className, section: s.section);
-    }
+
+    final reason = reasonCtrl.text.trim();
+    reasonCtrl.dispose();
+
+    await StudentService().submitDeletionRequest(
+      teacherId:    widget.teacherId ?? '',
+      teacherName:  widget.teacherName,
+      teacherEmail: widget.teacherEmail,
+      students: toDelete
+          .map((s) => {
+                'roll':          s.roll,
+                'name':          s.name,
+                'className':     s.className,
+                'section':       s.section,
+                'guardianEmail': s.guardianEmail ?? '',
+              })
+          .toList(),
+      reason: reason,
+    );
+
     if (!mounted) return;
     setState(() { _selectMode = false; _selectedRolls = {}; });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(
-              '$count student${count == 1 ? '' : 's'} removed')),
+        content: Text(
+            'Deletion request sent for $count '
+            'student${count == 1 ? '' : 's'}. Awaiting principal approval.'),
+        backgroundColor: AppTheme.primary,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
     );
   }
 
@@ -297,8 +384,11 @@ class _StudentListScreenState extends State<StudentListScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => StudentDetailPage(
-          student: student,
-          canEdit: widget.isClassTeacher,
+          student:      student,
+          canEdit:      widget.isClassTeacher,
+          teacherName:  widget.teacherName,
+          teacherEmail: widget.teacherEmail,
+          teacherId:    widget.teacherId,
         ),
       ),
     );
@@ -551,8 +641,16 @@ class _StudentCard extends StatelessWidget {
 class StudentDetailPage extends StatefulWidget {
   final Student student;
   final bool canEdit;
-  const StudentDetailPage(
-      {required this.student, this.canEdit = false});
+  final String teacherName;
+  final String teacherEmail;
+  final String? teacherId;
+  const StudentDetailPage({
+    required this.student,
+    this.canEdit = false,
+    this.teacherName = '',
+    this.teacherEmail = '',
+    this.teacherId,
+  });
 
   @override
   State<StudentDetailPage> createState() => _StudentDetailPageState();
@@ -582,28 +680,88 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     if (updated != null) setState(() => _student = updated);
   }
 
+  /// Submits a principal-approval request instead of deleting immediately.
   Future<void> _delete() async {
+    final reasonCtrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove Student'),
-        content:
-            Text('Remove ${_student.name} from ${_student.className}?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(children: [
+          const Icon(Icons.pending_actions_outlined, color: AppTheme.warning),
+          const SizedBox(width: 8),
+          const Text('Request Deletion', style: TextStyle(fontSize: 17)),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Removing ${_student.name} requires principal approval. '
+              'A request will be sent and the record deleted once approved.',
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonCtrl,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'Reason (optional)',
+                hintText: 'e.g. Student transferred to another school',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.all(10),
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Remove')),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.send_outlined, size: 16,
+                color: Colors.white),
+            label: const Text('Send Request',
+                style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10))),
+            onPressed: () => Navigator.pop(ctx, true),
+          ),
         ],
       ),
     );
     if (ok != true || !mounted) return;
-    await StudentService()
-        .removeStudent(_student.roll, _student.className, section: _student.section);
-    if (mounted) Navigator.pop(context);
+    final reason = reasonCtrl.text.trim();
+    reasonCtrl.dispose();
+
+    await StudentService().submitDeletionRequest(
+      teacherId:    widget.teacherId ?? '',
+      teacherName:  widget.teacherName,
+      teacherEmail: widget.teacherEmail,
+      students: [
+        {
+          'roll':          _student.roll,
+          'name':          _student.name,
+          'className':     _student.className,
+          'section':       _student.section,
+          'guardianEmail': _student.guardianEmail ?? '',
+        }
+      ],
+      reason: reason,
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text(
+          'Deletion request sent. Awaiting principal approval.'),
+      backgroundColor: AppTheme.primary,
+      behavior: SnackBarBehavior.floating,
+      duration: Duration(seconds: 4),
+    ));
+    Navigator.pop(context);
   }
 
   Future<void> _call() async {

@@ -11,6 +11,7 @@ import '../services/notification_service.dart';
 import 'attendance_history_screen.dart';
 import 'class_picker_screen.dart';
 import 'leave_requests_screen.dart';
+import 'student_deletion_requests_screen.dart';
 import 'my_timetable_screen.dart';
 import 'student_details_screen.dart';
 import 'role_selection_screen.dart';
@@ -41,16 +42,18 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   bool _loading = true;
 
   List<ClassSummary>         _summaries      = [];
-  int  _pendingLeaveCount    = 0;
-  int  _teachersAbsent       = 0;
-  int  _unassignedBells      = 0;
-  int  _unreadNotifCount     = 0;
-  String _principalEmail     = '';
-  String _sessionRole        = 'principal';
+  int  _pendingLeaveCount       = 0;
+  int  _pendingDeletionCount    = 0;
+  int  _teachersAbsent          = 0;
+  int  _unassignedBells         = 0;
+  int  _unreadNotifCount        = 0;
+  String _principalEmail        = '';
+  String _sessionRole           = 'principal';
 
   // Real-time badge streams
   StreamSubscription? _notifSub;
   StreamSubscription? _leaveSub;
+  StreamSubscription? _deletionSub;
   int _lastSeenMs = 0;
   List<Map<String, dynamic>> _latestNotifs = [];
 
@@ -79,6 +82,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   void dispose() {
     _notifSub?.cancel();
     _leaveSub?.cancel();
+    _deletionSub?.cancel();
     _studentSub?.cancel();
     super.dispose();
   }
@@ -101,6 +105,13 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
         .listen((count) {
       if (!mounted) return;
       setState(() => _pendingLeaveCount = count);
+    });
+
+    _deletionSub = StudentService()
+        .streamPendingDeletionCount()
+        .listen((count) {
+      if (!mounted) return;
+      setState(() => _pendingDeletionCount = count);
     });
   }
 
@@ -311,6 +322,15 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 subtitle: 'Review & approve pending applications from teachers',
                 badge: _pendingLeaveCount > 0 ? '$_pendingLeaveCount' : null,
                 onTap: () => _navigate(const LeaveRequestsScreen(viewerRole: 'principal')),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.person_remove_outlined,
+                color: AppTheme.danger,
+                title: 'Student Deletion Requests',
+                subtitle: 'Review & approve teacher requests to remove student records',
+                badge: _pendingDeletionCount > 0 ? '$_pendingDeletionCount' : null,
+                onTap: () => _navigate(const StudentDeletionRequestsScreen()),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(
