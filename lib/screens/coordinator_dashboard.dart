@@ -23,6 +23,7 @@ import 'announcements_screen.dart';
 import 'notifications_screen.dart';
 import 'fee_structure_screen.dart';
 import 'fee_collection_screen.dart';
+import 'fee_overview_screen.dart';
 import 'exam_management_screen.dart';
 import 'copy_check_overview_screen.dart';
 import 'homework_overview_screen.dart';
@@ -295,8 +296,8 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               icon: Icons.currency_rupee_outlined,
               color: AppTheme.success,
               title: 'Fee Collection',
-              subtitle: 'Record payments and view outstanding dues',
-              onTap: () => _navigate(const FeeCollectionScreen()),
+              subtitle: 'Class-wise collection, instalments & payment history',
+              onTap: () => _navigate(const FeeOverviewScreen(role: 'coordinator')),
             ),
 
             // ── Exams & Marks ──────────────────────────────────────────────

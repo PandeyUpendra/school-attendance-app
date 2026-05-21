@@ -16,9 +16,7 @@ class _AdminScreenState extends State<AdminScreen> {
   final _passCtrl   = TextEditingController();
 
   String  _selectedRole           = 'owner';
-  List<String> _selectedAssignedClasses = [];
-  List<String>              _availableClasses = [];
-  List<Map<String, dynamic>> _users           = [];
+  List<Map<String, dynamic>> _users = [];
   bool _loading  = true;
   bool _saving   = false;
   bool _showPass = false;
@@ -55,22 +53,15 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final results = await Future.wait([
-      _service.getAllowedUsers(),
-      _service.getSettings(),
-    ]);
+    final allUsers = await _service.getAllowedUsers();
     if (!mounted) return;
-    final allUsers = results[0] as List<Map<String, dynamic>>;
-    final settings = results[1] as Map<String, dynamic>;
     // Admin sees only Owner accounts.
-    final owners = allUsers.where((u) {
-      final r = u['role'] as String;
-      return r == 'owner';
-    }).toList();
+    final owners = allUsers
+        .where((u) => (u['role'] as String) == 'owner')
+        .toList();
     setState(() {
-      _users            = owners;
-      _availableClasses = List<String>.from(settings['classes'] as List? ?? []);
-      _loading          = false;
+      _users   = owners;
+      _loading = false;
     });
   }
 
@@ -99,16 +90,10 @@ class _AdminScreenState extends State<AdminScreen> {
     }
 
     setState(() => _saving = true);
-    await _service.addAllowedUser(
-      email, pass, _selectedRole,
-      assignedClasses: _selectedAssignedClasses,
-    );
+    await _service.addAllowedUser(email, pass, _selectedRole);
     _emailCtrl.clear();
     _passCtrl.clear();
-    setState(() {
-      _selectedAssignedClasses = [];
-      _saving                  = false;
-    });
+    setState(() => _saving = false);
     await _load();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -122,17 +107,8 @@ class _AdminScreenState extends State<AdminScreen> {
   // ── Edit ───────────────────────────────────────────────────────────────────
 
   Future<void> _edit(Map<String, dynamic> user) async {
-    final email        = user['email'] as String;
-    String editRole    = user['role']  as String;
-    String editClass   = (user['studentClass'] as String?) ?? '';
-    int    editRoll    = (user['studentRoll']  as int?)    ?? 0;
-    List<String> editAssigned =
-        List<String>.from((user['assignedClasses'] as List?) ?? []);
-
-    final passCtrl  = TextEditingController();
-    final rollCtrl  = TextEditingController(text: editRoll > 0 ? '$editRoll' : '');
-    String? selClass = editClass.isNotEmpty ? editClass : null;
-    bool showPass    = false;
+    final email     = user['email'] as String;
+    String editRole = user['role']  as String;
 
     await showModalBottomSheet(
       context: context,
@@ -214,17 +190,7 @@ class _AdminScreenState extends State<AdminScreen> {
                         final sel  = val == editRole;
                         final rCol = _roleColors[val] ?? AppTheme.primary;
                         return GestureDetector(
-                          onTap: () => setLocal(() {
-                            editRole = val;
-                            if (val != 'guardian') {
-                              selClass = null;
-                              rollCtrl.clear();
-                            }
-                            if (val != 'coordinator' && val != 'principal' &&
-                                val != 'owner') {
-                              editAssigned = [];
-                            }
-                          }),
+                          onTap: () => setLocal(() => editRole = val),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
                             padding: const EdgeInsets.symmetric(
@@ -235,18 +201,14 @@ class _AdminScreenState extends State<AdminScreen> {
                                   : Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: sel
-                                    ? rCol
-                                    : Colors.grey.shade300,
+                                color: sel ? rCol : Colors.grey.shade300,
                               ),
                             ),
                             child: Row(mainAxisSize: MainAxisSize.min,
                                 children: [
                               Icon(ico,
                                   size: 14,
-                                  color: sel
-                                      ? rCol
-                                      : Colors.grey.shade500),
+                                  color: sel ? rCol : Colors.grey.shade500),
                               const SizedBox(width: 5),
                               Text(lbl,
                                   style: TextStyle(
@@ -263,166 +225,6 @@ class _AdminScreenState extends State<AdminScreen> {
                       }).toList(),
                     ),
 
-                    // Coordinator / Principal / Owner — assigned classes
-                    if (editRole == 'coordinator' ||
-                        editRole == 'principal'   ||
-                        editRole == 'owner') ...[
-                      const SizedBox(height: 16),
-                      Text('ASSIGNED CLASSES',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.grey.shade500,
-                              letterSpacing: 0.8)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: _availableClasses.map((cls) {
-                          final sel = editAssigned.contains(cls);
-                          final rCol = _roleColors[editRole] ?? AppTheme.primary;
-                          return GestureDetector(
-                            onTap: () => setLocal(() {
-                              sel
-                                  ? editAssigned.remove(cls)
-                                  : editAssigned.add(cls);
-                            }),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: sel
-                                    ? rCol.withOpacity(0.12)
-                                    : Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                    color: sel
-                                        ? rCol
-                                        : Colors.grey.shade300),
-                              ),
-                              child: Text(cls,
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: sel
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                      color: sel
-                                          ? rCol
-                                          : Colors.grey.shade600)),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-
-                    // Guardian extras
-                    if (editRole == 'guardian') ...[
-                      const SizedBox(height: 16),
-                      Text("STUDENT'S CLASS & ROLL",
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.grey.shade500,
-                              letterSpacing: 0.8)),
-                      const SizedBox(height: 8),
-                      Row(children: [
-                        Expanded(
-                          flex: 3,
-                          child: DropdownButtonFormField<String>(
-                            value: selClass,
-                            decoration: InputDecoration(
-                              labelText: 'Class',
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10)),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                    color: AppTheme.primary, width: 1.5),
-                              ),
-                            ),
-                            hint: const Text('Select class'),
-                            items: _availableClasses
-                                .map((c) => DropdownMenuItem(
-                                      value: c, child: Text(c)))
-                                .toList(),
-                            onChanged: (v) =>
-                                setLocal(() => selClass = v),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          flex: 2,
-                          child: TextField(
-                            controller: rollCtrl,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            maxLength: 3,
-                            maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                            decoration: InputDecoration(
-                              labelText: 'Roll No.',
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10)),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                    color: AppTheme.primary, width: 1.5),
-                              ),
-                              counterText: '',
-                            ),
-                          ),
-                        ),
-                      ]),
-                    ],
-
-                    // New password (optional)
-                    const SizedBox(height: 16),
-                    Text('NEW PASSWORD (OPTIONAL)',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.grey.shade500,
-                            letterSpacing: 0.8)),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: passCtrl,
-                      obscureText: !showPass,
-                      maxLength: 50,
-                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                      decoration: InputDecoration(
-                        hintText: 'Leave blank to keep current password',
-                        hintStyle: TextStyle(
-                            color: Colors.grey.shade400, fontSize: 13),
-                        prefixIcon: const Icon(Icons.lock_outline,
-                            color: AppTheme.primary),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                              showPass
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                              color: Colors.grey.shade400,
-                              size: 18),
-                          onPressed: () =>
-                              setLocal(() => showPass = !showPass),
-                        ),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 12),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(
-                              color: AppTheme.primary, width: 1.5),
-                        ),
-                      ),
-                    ),
-
                     const SizedBox(height: 24),
 
                     // Save button
@@ -432,43 +234,15 @@ class _AdminScreenState extends State<AdminScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primary,
                           foregroundColor: Colors.white,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: () async {
-                          // Validate guardian fields
-                          if (editRole == 'guardian') {
-                            if (selClass == null) {
-                              _snack("Select the student's class");
-                              return;
-                            }
-                            final roll =
-                                int.tryParse(rollCtrl.text.trim());
-                            if (roll == null || roll < 1 || roll > 999) {
-                              _snack('Roll number must be between 1 and 999');
-                              return;
-                            }
-                          }
-                          final newPass = passCtrl.text.trim();
-                          if (newPass.isNotEmpty && newPass.length < 6) {
-                            _snack('Password must be at least 6 characters');
-                            return;
-                          }
                           Navigator.pop(ctx);
-                          final roll = int.tryParse(rollCtrl.text.trim());
                           await _service.updateAllowedUser(
                             email,
-                            role:            editRole,
-                            newPassword:     newPass.isNotEmpty ? newPass : null,
-                            studentClass:    editRole == 'guardian' ? selClass : null,
-                            studentRoll:     editRole == 'guardian' ? roll     : null,
-                            assignedClasses: (editRole == 'coordinator' ||
-                                              editRole == 'principal'   ||
-                                              editRole == 'owner')
-                                ? editAssigned
-                                : null,
+                            role: editRole,
                           );
                           await _load();
                           if (mounted) {
@@ -495,8 +269,6 @@ class _AdminScreenState extends State<AdminScreen> {
         );
       },
     );
-    passCtrl.dispose();
-    rollCtrl.dispose();
   }
 
   // ── Remove ─────────────────────────────────────────────────────────────────

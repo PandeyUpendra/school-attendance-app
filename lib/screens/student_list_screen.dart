@@ -14,6 +14,19 @@ import '../theme.dart';
 import 'add_student_screen.dart';
 import 'attendance_certificate_screen.dart';
 
+/// Pre-defined reasons shown in the deletion-request dropdown.
+const _kDeletionReasons = [
+  'Transferred to another school',
+  'Left school / Dropped out',
+  'Relocated to another city',
+  'Family reasons',
+  'Admission cancelled',
+  'Completed studies / Passed out',
+  'Medical reasons',
+  'Financial reasons',
+  'Other (specify below)',
+];
+
 class StudentListScreen extends StatefulWidget {
   final String className;
   final String section;
@@ -119,78 +132,127 @@ class _StudentListScreenState extends State<StudentListScreen> {
         .where((s) => _selectedRolls.contains(s.roll))
         .toList();
 
-    final reasonCtrl = TextEditingController();
+    final reasonCtrl    = TextEditingController();
+    String? dropReason;
+    bool    showCustom  = false;
+
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [
-          const Icon(Icons.pending_actions_outlined, color: AppTheme.warning),
-          const SizedBox(width: 8),
-          const Text('Request Deletion', style: TextStyle(fontSize: 17)),
-        ]),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'You are requesting to delete $count '
-              'student${count == 1 ? '' : 's'}. The principal must '
-              'approve before records are permanently removed.',
-              style: const TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            ...toDelete.map((s) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(children: [
-                    Container(
-                      width: 26, height: 26,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text('${s.roll}',
-                          style: const TextStyle(
-                              fontSize: 11,
-                              color: AppTheme.primary,
-                              fontWeight: FontWeight.bold)),
+      builder: (_) => StatefulBuilder(
+        builder: (_, setLocal) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(children: [
+            const Icon(Icons.pending_actions_outlined, color: AppTheme.warning),
+            const SizedBox(width: 8),
+            const Text('Request Deletion', style: TextStyle(fontSize: 17)),
+          ]),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'You are requesting to delete $count '
+                  'student${count == 1 ? '' : 's'}. The principal must '
+                  'approve before records are permanently removed.',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 10),
+                // Scrollable student list
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 200),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: toDelete.length,
+                    itemBuilder: (_, i) {
+                      final s = toDelete[i];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(children: [
+                          Container(
+                            width: 26, height: 26,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text('${s.roll}',
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppTheme.primary,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(s.name,
+                                style: const TextStyle(fontSize: 13)),
+                          ),
+                        ]),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Reason dropdown
+                DropdownButtonFormField<String>(
+                  value: dropReason,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: 'Reason (optional)',
+                    prefixIcon: const Icon(Icons.info_outline, size: 18),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                  ),
+                  hint: const Text('Select a reason',
+                      style: TextStyle(fontSize: 13)),
+                  items: _kDeletionReasons
+                      .map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 13))))
+                      .toList(),
+                  onChanged: (v) => setLocal(() {
+                    dropReason = v;
+                    showCustom = v == 'Other (specify below)';
+                    if (!showCustom) reasonCtrl.clear();
+                  }),
+                ),
+                if (showCustom) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: reasonCtrl,
+                    maxLines: 2,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'Specify reason',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.all(10),
                     ),
-                    const SizedBox(width: 8),
-                    Text(s.name,
-                        style: const TextStyle(fontSize: 13)),
-                  ]),
-                )),
-            const SizedBox(height: 12),
-            TextField(
-              controller: reasonCtrl,
-              maxLines: 2,
-              decoration: InputDecoration(
-                labelText: 'Reason (optional)',
-                hintText: 'e.g. Student transferred to another school',
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                contentPadding: const EdgeInsets.all(10),
-              ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(_, false),
+                child: const Text('Cancel')),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.send_outlined, size: 16, color: Colors.white),
+              label: const Text('Send Request',
+                  style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10))),
+              onPressed: () {
+                if (!showCustom) reasonCtrl.text = dropReason ?? '';
+                Navigator.pop(_, true);
+              },
             ),
           ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(_, false),
-              child: const Text('Cancel')),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.send_outlined, size: 16,
-                color: Colors.white),
-            label: const Text('Send Request',
-                style: TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10))),
-            onPressed: () => Navigator.pop(_, true),
-          ),
-        ],
       ),
     );
     if (ok != true || !mounted) return;
@@ -681,10 +743,14 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
 
   /// Submits a principal-approval request instead of deleting immediately.
   Future<void> _delete() async {
-    final reasonCtrl = TextEditingController();
+    final reasonCtrl   = TextEditingController();
+    String? dropReason;
+    bool    showCustom = false;
+
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(children: [
           const Icon(Icons.pending_actions_outlined, color: AppTheme.warning),
@@ -701,17 +767,42 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
               style: const TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: reasonCtrl,
-              maxLines: 2,
+            DropdownButtonFormField<String>(
+              value: dropReason,
+              isExpanded: true,
               decoration: InputDecoration(
                 labelText: 'Reason (optional)',
-                hintText: 'e.g. Student transferred to another school',
+                prefixIcon: const Icon(Icons.info_outline, size: 18),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10)),
-                contentPadding: const EdgeInsets.all(10),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 10),
               ),
+              hint: const Text('Select a reason',
+                  style: TextStyle(fontSize: 13)),
+              items: _kDeletionReasons
+                  .map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 13))))
+                  .toList(),
+              onChanged: (v) => setLocal(() {
+                dropReason = v;
+                showCustom = v == 'Other (specify below)';
+                if (!showCustom) reasonCtrl.clear();
+              }),
             ),
+            if (showCustom) ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: reasonCtrl,
+                maxLines: 2,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Specify reason',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.all(10),
+                ),
+              ),
+            ],
           ],
         ),
         actions: [
@@ -727,9 +818,13 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 backgroundColor: AppTheme.primary,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10))),
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () {
+              if (!showCustom) reasonCtrl.text = dropReason ?? '';
+              Navigator.pop(ctx, true);
+            },
           ),
         ],
+      ),
       ),
     );
     if (ok != true || !mounted) return;

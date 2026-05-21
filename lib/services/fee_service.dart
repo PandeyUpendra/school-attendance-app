@@ -4,10 +4,10 @@ import '../models/fee.dart';
 /// Firestore-backed fee management service.
 ///
 /// Schema:
-///   fee_structures/{className}  → FeeStructure doc
+///   fee_structures/{className}  → FeeStructure doc (components + installments)
 ///   fee_payments/{className}/students/{roll}/payments/{auto} → Payment doc
 class FeeService {
-  static final _db   = FirebaseFirestore.instance;
+  static final _db            = FirebaseFirestore.instance;
   static final _feeStructures = _db.collection('fee_structures');
 
   static final FeeService _instance = FeeService._();
@@ -56,13 +56,31 @@ class FeeService {
 
   Future<double> getTotalPaid({String? schoolId, required String className, required int roll}) async {
     final payments = await getPayments(className: className, roll: roll);
-    return payments.fold<double>(0.0, (sum, p) => sum + p.amount);
+    return payments.fold<double>(0.0, (acc, p) => acc + p.amount);
+  }
+
+  // ── Installment-aware helpers ──────────────────────────────────────────────
+
+  /// Returns { installmentName → amountPaid } for a single student.
+  /// Only payments that have an installmentName set are counted here.
+  Future<Map<String, double>> getInstallmentPaidAmounts({
+    required String className,
+    required int    roll,
+  }) async {
+    final payments = await getPayments(className: className, roll: roll);
+    final result   = <String, double>{};
+    for (final p in payments) {
+      final name = p.installmentName;
+      if (name != null && name.isNotEmpty) {
+        result[name] = (result[name] ?? 0) + p.amount;
+      }
+    }
+    return result;
   }
 
   // ── Class-wide fee overview ────────────────────────────────────────────────
 
   /// Returns { roll → totalPaid } for every student in a class.
-  /// Fires one query per student in parallel.
   Future<Map<int, double>> getClassFeeOverview({String? schoolId, required String className, required List<int> rolls}) async {
     if (rolls.isEmpty) return {};
     final futures = rolls.map((roll) async {
@@ -73,20 +91,72 @@ class FeeService {
     return Map.fromEntries(entries);
   }
 
+  // ── School-wide class summaries (for FeeOverviewScreen) ───────────────────
+
+  /// Returns one [ClassFeeSummary] per entry in [classes].
+  /// Fires parallel requests per class; each class fires parallel per-student requests.
+  Future<List<ClassFeeSummary>> getClassSummaries({
+    required List<String> classes,
+  }) async {
+    if (classes.isEmpty) return [];
+
+    // Load all students once
+    final studentSnap = await _db.collection('students').get();
+    final byClass = <String, List<Map<String, dynamic>>>{};
+    for (final doc in studentSnap.docs) {
+      final data = Map<String, dynamic>.from(doc.data() as Map);
+      final cls  = data['className'] as String? ?? '';
+      if (cls.isEmpty) continue;
+      byClass.putIfAbsent(cls, () => []).add(data);
+    }
+
+    // Load structure + paid overview per class in parallel
+    final futures = classes.map((cls) async {
+      final studs = byClass[cls] ?? [];
+      final rolls = studs
+          .map((s) => (s['roll'] as num?)?.toInt() ?? 0)
+          .where((r) => r > 0)
+          .toList();
+
+      final results = await Future.wait([
+        getFeeStructure(className: cls),
+        getClassFeeOverview(className: cls, rolls: rolls),
+      ]);
+      final structure = results[0] as FeeStructure;
+      final paidMap   = results[1] as Map<int, double>;
+
+      final totalCollected = paidMap.values.fold(0.0, (a, b) => a + b);
+      final totalDue       = structure.totalAnnualFee * studs.length;
+      final fullyPaid      = studs.where((s) {
+        final r = (s['roll'] as num?)?.toInt() ?? 0;
+        return r > 0 &&
+            structure.totalAnnualFee > 0 &&
+            (paidMap[r] ?? 0) >= structure.totalAnnualFee;
+      }).length;
+
+      return ClassFeeSummary(
+        className:      cls,
+        studentCount:   studs.length,
+        fullyPaid:      fullyPaid,
+        totalDue:       totalDue,
+        totalCollected: totalCollected,
+        totalAnnualFee: structure.totalAnnualFee,
+      );
+    });
+
+    return Future.wait(futures);
+  }
+
   // ── School-wide summary ────────────────────────────────────────────────────
 
-  /// Aggregates fee data across all students using fee_payments and fee_structures.
-  /// Returns {collected, pending, overdue, defaulters}.
-  /// collected  = students who have paid their full annual fee
-  /// overdue    = students who have not made any payment at all
-  /// pending    = students who have made partial payments
+  /// Aggregates fee data across all students.
   Future<Map<String, dynamic>> getFeesSummary() async {
     final studentSnap = await _db.collection('students').get();
 
     final byClass = <String, List<Map<String, dynamic>>>{};
     for (final doc in studentSnap.docs) {
       final data = Map<String, dynamic>.from(doc.data() as Map);
-      final cls = data['className'] as String? ?? '';
+      final cls  = data['className'] as String? ?? '';
       if (cls.isEmpty) continue;
       byClass.putIfAbsent(cls, () => []).add(data);
     }
@@ -95,7 +165,7 @@ class FeeService {
     final defaulters = <Map<String, dynamic>>[];
 
     for (final entry in byClass.entries) {
-      final cls = entry.key;
+      final cls   = entry.key;
       final studs = entry.value;
       final rolls = studs
           .map((s) => (s['roll'] as num?)?.toInt() ?? 0)
@@ -108,8 +178,8 @@ class FeeService {
       ]);
 
       final structure = results[0] as FeeStructure;
-      final paidMap = results[1] as Map<int, double>;
-      final totalDue = structure.totalAnnualFee;
+      final paidMap   = results[1] as Map<int, double>;
+      final totalDue  = structure.totalAnnualFee;
       if (totalDue <= 0) continue;
 
       for (final sData in studs) {
@@ -122,20 +192,20 @@ class FeeService {
         } else if (paid == 0) {
           overdue += totalDue;
           defaulters.add({
-            'name': sData['name'] ?? '',
+            'name':      sData['name']       ?? '',
             'className': cls,
-            'amount': totalDue,
+            'amount':    totalDue,
             'daysOverdue': 0,
-            'phone': sData['parentPhone'] ?? sData['phone'] ?? '',
+            'phone':     sData['parentPhone'] ?? sData['phone'] ?? '',
           });
         } else {
           pending += totalDue - paid;
           defaulters.add({
-            'name': sData['name'] ?? '',
+            'name':      sData['name']       ?? '',
             'className': cls,
-            'amount': totalDue - paid,
+            'amount':    totalDue - paid,
             'daysOverdue': 0,
-            'phone': sData['parentPhone'] ?? sData['phone'] ?? '',
+            'phone':     sData['parentPhone'] ?? sData['phone'] ?? '',
           });
         }
       }
@@ -146,15 +216,14 @@ class FeeService {
 
     return {
       'collected': collected,
-      'pending': pending,
-      'overdue': overdue,
+      'pending':   pending,
+      'overdue':   overdue,
       'defaulters': defaulters,
     };
   }
 
   // ── Receipt numbering ──────────────────────────────────────────────────────
 
-  /// Generates a receipt number in format RCP-{className 3 chars}-{roll}-{timestamp}.
   static String generateReceiptNo(String className, int roll) {
     final prefix = className.replaceAll(' ', '').substring(
         0, className.replaceAll(' ', '').length.clamp(0, 3)).toUpperCase();

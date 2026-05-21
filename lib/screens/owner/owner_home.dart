@@ -21,6 +21,7 @@ import '../../theme.dart';
 import '../../utils/role_guard.dart';
 import '../onboarding/school_onboarding_screen.dart';
 import '../role_selection_screen.dart';
+import '../fee_overview_screen.dart';
 import 'edit_school_settings_screen.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -115,7 +116,16 @@ class _OwnerHomeState extends State<OwnerHome> {
     if (!_loaded) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: Scaffold(
       backgroundColor: AppTheme.background,
       body: ListView(
         children: [
@@ -158,9 +168,18 @@ class _OwnerHomeState extends State<OwnerHome> {
           const _SectionHeader('FINANCE'),
           _FeatureTile(
             icon: Icons.currency_rupee_outlined,
-            color: AppTheme.primary,
+            color: AppTheme.success,
             title: 'Fee Collection',
-            subtitle: 'Collected, pending, overdue & defaulters',
+            subtitle: 'Class-wise collection, instalments & payment history',
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const FeeOverviewScreen(role: 'owner'),
+            )),
+          ),
+          _FeatureTile(
+            icon: Icons.bar_chart_outlined,
+            color: AppTheme.primary,
+            title: 'Fee Summary & Defaulters',
+            subtitle: 'School-wide collected, pending, overdue & defaulters',
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const _FinancePage(),
             )),
@@ -188,6 +207,7 @@ class _OwnerHomeState extends State<OwnerHome> {
 
           const SizedBox(height: 32),
         ],
+      ),
       ),
     );
   }
@@ -984,67 +1004,102 @@ class _FinancePageState extends State<_FinancePage> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Sub-page: Manage
+// Sub-page: Manage — menu
 // ══════════════════════════════════════════════════════════════════════════════
 
-class _ManagePage extends StatefulWidget {
+class _ManagePage extends StatelessWidget {
   final String email;
   final String role;
 
   const _ManagePage({required this.email, required this.role});
 
   @override
-  State<_ManagePage> createState() => _ManagePageState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        backgroundColor: AppTheme.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('Manage School'),
+      ),
+      body: ListView(
+        children: [
+          const _SectionHeader('MANAGE'),
+          _FeatureTile(
+            icon: Icons.person_add_outlined,
+            color: AppTheme.accent,
+            title: 'Create Accounts',
+            subtitle: 'Add principal, coordinator & other staff logins',
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => _CreateAccountsPage(email: email, role: role),
+            )),
+          ),
+          _FeatureTile(
+            icon: Icons.school_outlined,
+            color: AppTheme.primary,
+            title: 'School Settings',
+            subtitle: 'Name, phone, address & academic year',
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const _SchoolSettingsPage(),
+            )),
+          ),
+          _FeatureTile(
+            icon: Icons.campaign_outlined,
+            color: AppTheme.primaryMid,
+            title: 'Announcements',
+            subtitle: 'Broadcast messages to staff, guardians or everyone',
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => _AnnouncementsPage(email: email, role: role),
+            )),
+          ),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
 }
 
-class _ManagePageState extends State<_ManagePage> {
-  static const _primary = AppTheme.primary;
+// ══════════════════════════════════════════════════════════════════════════════
+// Sub-page: Create Accounts
+// ══════════════════════════════════════════════════════════════════════════════
 
-  final _svc = TimetableService();
+class _CreateAccountsPage extends StatefulWidget {
+  final String email;
+  final String role;
+  const _CreateAccountsPage({required this.email, required this.role});
+
+  @override
+  State<_CreateAccountsPage> createState() => _CreateAccountsPageState();
+}
+
+class _CreateAccountsPageState extends State<_CreateAccountsPage> {
+  static const _primary = AppTheme.primary;
+  final _svc  = TimetableService();
   final _perm = RolePermissionService();
+
+  final _nameCtrl  = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl  = TextEditingController();
+  bool _showPass   = false;
+  bool _saving     = false;
+  late String _createRole;
 
   List<Map<String, dynamic>> _createdUsers = [];
   bool _usersLoading = true;
-
-  final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  bool _showPass = false;
-  bool _saving = false;
-  late String _createRole;
-
-  final _schoolNameCtrl = TextEditingController();
-  final _schoolPhoneCtrl = TextEditingController();
-  final _schoolAddressCtrl = TextEditingController();
-  final _academicYearCtrl = TextEditingController();
-  bool _settingsSaving = false;
-  bool _settingsLoaded = false;
-
-  final _annTitleCtrl = TextEditingController();
-  final _annMsgCtrl = TextEditingController();
-  String _annTarget = 'All Staff';
-  bool _annSaving = false;
-  List<Map<String, dynamic>> _announcements = [];
 
   @override
   void initState() {
     super.initState();
     final allowed = _perm.getAllowedToCreate(widget.role);
     _createRole = allowed.isNotEmpty ? allowed.first : 'principal';
-    _loadAll();
+    _loadUsers();
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose(); _emailCtrl.dispose(); _passCtrl.dispose();
-    _schoolNameCtrl.dispose(); _schoolPhoneCtrl.dispose();
-    _schoolAddressCtrl.dispose(); _academicYearCtrl.dispose();
-    _annTitleCtrl.dispose(); _annMsgCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadAll() async {
-    await Future.wait([_loadUsers(), _loadSchoolSettings(), _loadAnnouncements()]);
   }
 
   Future<void> _loadUsers() async {
@@ -1054,76 +1109,28 @@ class _ManagePageState extends State<_ManagePage> {
     setState(() { _createdUsers = users; _usersLoading = false; });
   }
 
-  Future<void> _loadSchoolSettings() async {
-    if (_settingsLoaded) return;
-    try {
-      final doc = await FirebaseFirestore.instance.collection('schools').doc('school_1').collection('settings').doc('school').get();
-      if (doc.exists && doc.data() != null) {
-        final d = doc.data()!;
-        _schoolNameCtrl.text = d['name'] as String? ?? '';
-        _schoolPhoneCtrl.text = d['phone'] as String? ?? '';
-        _schoolAddressCtrl.text = d['address'] as String? ?? '';
-        _academicYearCtrl.text = d['academicYear'] as String? ?? '';
-      }
-      if (mounted) setState(() => _settingsLoaded = true);
-    } catch (_) {}
-  }
-
-  Future<void> _saveSchoolSettings() async {
-    setState(() => _settingsSaving = true);
-    try {
-      await FirebaseFirestore.instance.collection('schools').doc('school_1').collection('settings').doc('school').set({
-        'name': _schoolNameCtrl.text.trim(), 'phone': _schoolPhoneCtrl.text.trim(),
-        'address': _schoolAddressCtrl.text.trim(), 'academicYear': _academicYearCtrl.text.trim(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('School settings saved'), backgroundColor: AppTheme.success));
-    } catch (e) {
-      if (mounted) _snack('Error: $e');
-    }
-    if (mounted) setState(() => _settingsSaving = false);
-  }
-
-  Future<void> _loadAnnouncements() async {
-    try {
-      final anns = await AnnouncementService().getAnnouncements();
-      if (!mounted) return;
-      setState(() {
-        _announcements = anns.map((a) => {'id': a.id, 'title': a.title, 'body': a.body, 'audience': a.audience}).toList();
-      });
-    } catch (_) {}
-  }
-
-  Future<void> _sendAnnouncement() async {
-    final title = _annTitleCtrl.text.trim();
-    final body = _annMsgCtrl.text.trim();
-    if (title.isEmpty || body.isEmpty) { _snack('Enter title and message'); return; }
-    setState(() => _annSaving = true);
-    try {
-      await AnnouncementService().postAnnouncement(Announcement(id: '', title: title, body: body, postedBy: widget.email, postedByRole: widget.role, audience: _annTarget, isPinned: false));
-      _annTitleCtrl.clear(); _annMsgCtrl.clear();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Announcement sent'), backgroundColor: AppTheme.success));
-      await _loadAnnouncements();
-    } catch (e) {
-      if (mounted) _snack('Error: $e');
-    }
-    if (mounted) setState(() => _annSaving = false);
-  }
-
   Future<void> _createUser() async {
-    final name = _nameCtrl.text.trim();
+    final name  = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim().toLowerCase();
-    final pass = _passCtrl.text.trim();
+    final pass  = _passCtrl.text.trim();
     if (name.isEmpty) { _snack('Enter a name'); return; }
-    if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) { _snack('Enter a valid email'); return; }
+    if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
+      _snack('Enter a valid email'); return;
+    }
     if (pass.length < 6) { _snack('Password must be at least 6 characters'); return; }
-    if (!_perm.canCreate(widget.role, _createRole)) { _snack('No permission to create $_createRole accounts'); return; }
+    if (!_perm.canCreate(widget.role, _createRole)) {
+      _snack('No permission to create $_createRole accounts'); return;
+    }
     setState(() => _saving = true);
     try {
-      await _svc.addAllowedUser(email, pass, _createRole, name: name, createdByEmail: widget.email, createdByRole: widget.role);
+      await _svc.addAllowedUser(email, pass, _createRole,
+          name: name, createdByEmail: widget.email, createdByRole: widget.role);
       _nameCtrl.clear(); _emailCtrl.clear(); _passCtrl.clear();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${RolePermissionService.roleDisplayName(_createRole)} account created'), backgroundColor: AppTheme.success));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${RolePermissionService.roleDisplayName(_createRole)} account created'),
+          backgroundColor: AppTheme.success,
+        ));
         await _loadUsers();
       }
     } catch (e) {
@@ -1132,22 +1139,28 @@ class _ManagePageState extends State<_ManagePage> {
     if (mounted) setState(() => _saving = false);
   }
 
-  void _snack(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  void _snack(String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
   @override
   Widget build(BuildContext context) {
     final allowed = _perm.getAllowedToCreate(widget.role);
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: const Text('Manage School')),
+      appBar: AppBar(
+        backgroundColor: _primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('Create Accounts'),
+      ),
       body: RefreshIndicator(
-        onRefresh: _loadAll,
+        onRefresh: _loadUsers,
         color: _primary,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 32),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _sectionHeader('CREATE ACCOUNTS'),
+            _sectionHeader('NEW ACCOUNT'),
             if (allowed.isEmpty)
               _emptyCard(Icons.block_outlined, 'No permission to create accounts')
             else
@@ -1155,141 +1168,515 @@ class _ManagePageState extends State<_ManagePage> {
                 if (allowed.length > 1) ...[
                   DropdownButtonFormField<String>(
                     value: _createRole,
-                    decoration: const InputDecoration(labelText: 'Account Role', prefixIcon: Icon(Icons.badge_outlined), isDense: true),
-                    items: allowed.map((r) => DropdownMenuItem(value: r, child: Text(RolePermissionService.roleDisplayName(r)))).toList(),
+                    decoration: const InputDecoration(
+                        labelText: 'Account Role',
+                        prefixIcon: Icon(Icons.badge_outlined),
+                        isDense: true),
+                    items: allowed
+                        .map((r) => DropdownMenuItem(
+                            value: r,
+                            child: Text(RolePermissionService.roleDisplayName(r))))
+                        .toList(),
                     onChanged: (v) { if (v != null) setState(() => _createRole = v); },
                   ),
                   const SizedBox(height: 12),
                 ] else
-                  Padding(padding: const EdgeInsets.only(bottom: 12),
-                    child: Text('Creating: ${RolePermissionService.roleDisplayName(allowed.first)}', style: const TextStyle(fontWeight: FontWeight.w600, color: _primary))),
-                _field(_nameCtrl, 'Full Name', Icons.person_outline, keyboardType: TextInputType.name),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Creating: ${RolePermissionService.roleDisplayName(allowed.first)}',
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: _primary),
+                    ),
+                  ),
+                _inputField(_nameCtrl, 'Full Name', Icons.person_outline,
+                    keyboardType: TextInputType.name),
                 const SizedBox(height: 10),
-                _field(_emailCtrl, 'Email', Icons.email_outlined, keyboardType: TextInputType.emailAddress),
+                _inputField(_emailCtrl, 'Email', Icons.email_outlined,
+                    keyboardType: TextInputType.emailAddress),
                 const SizedBox(height: 10),
                 TextField(
-                  controller: _passCtrl, obscureText: !_showPass,
-                  maxLength: 50, maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                  controller: _passCtrl,
+                  obscureText: !_showPass,
+                  maxLength: 50,
+                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
                   decoration: InputDecoration(
-                    labelText: 'Password', prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(icon: Icon(_showPass ? Icons.visibility_off : Icons.visibility, size: 18), onPressed: () => setState(() => _showPass = !_showPass)),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true, counterText: '',
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(_showPass ? Icons.visibility_off : Icons.visibility, size: 18),
+                      onPressed: () => setState(() => _showPass = !_showPass),
+                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    isDense: true,
+                    counterText: '',
                   ),
                 ),
                 const SizedBox(height: 14),
-                SizedBox(width: double.infinity, child: ElevatedButton.icon(
-                  icon: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.person_add_outlined),
-                  label: Text(_saving ? 'Creating…' : 'Create ${RolePermissionService.roleDisplayName(_createRole)} Account'),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent, padding: const EdgeInsets.symmetric(vertical: 13), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                  onPressed: _saving ? null : _createUser,
-                )),
-              ])),
-            const SizedBox(height: 8),
-            _buildUsersList(),
-            _sectionHeader('MY SCHOOL SETTINGS'),
-            _OwnerCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _field(_schoolNameCtrl, 'School Name', Icons.school_outlined),
-              const SizedBox(height: 10),
-              _field(_schoolPhoneCtrl, 'Phone Number', Icons.phone_outlined, keyboardType: TextInputType.phone),
-              const SizedBox(height: 10),
-              _field(_schoolAddressCtrl, 'Address', Icons.location_on_outlined),
-              const SizedBox(height: 10),
-              _field(_academicYearCtrl, 'Academic Year', Icons.calendar_today_outlined),
-              const SizedBox(height: 14),
-              SizedBox(width: double.infinity, child: ElevatedButton.icon(
-                icon: _settingsSaving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.save_outlined),
-                label: Text(_settingsSaving ? 'Saving…' : 'Save Settings'),
-                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                onPressed: _settingsSaving ? null : _saveSchoolSettings,
-              )),
-            ])),
-            _sectionHeader('ANNOUNCEMENTS'),
-            _OwnerCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _field(_annTitleCtrl, 'Announcement Title', Icons.title_outlined),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _annMsgCtrl, maxLines: 3,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  labelText: 'Message', prefixIcon: const Padding(padding: EdgeInsets.only(bottom: 48), child: Icon(Icons.message_outlined)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true,
-                ),
-              ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                value: _annTarget,
-                decoration: const InputDecoration(labelText: 'Target Audience', prefixIcon: Icon(Icons.group_outlined), isDense: true),
-                items: ['All Staff', 'All Guardians', 'Everyone'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                onChanged: (v) { if (v != null) setState(() => _annTarget = v); },
-              ),
-              const SizedBox(height: 14),
-              SizedBox(width: double.infinity, child: ElevatedButton.icon(
-                icon: _annSaving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.send_outlined),
-                label: Text(_annSaving ? 'Sending…' : 'Send Announcement'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                onPressed: _annSaving ? null : _sendAnnouncement,
-              )),
-            ])),
-            const SizedBox(height: 8),
-            ..._announcements.take(5).map((a) => _OwnerCard(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Expanded(child: Text(a['title'] as String? ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: _primary.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                    child: Text(a['audience'] as String? ?? '', style: const TextStyle(fontSize: 10, color: _primary)),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: _saving
+                        ? const SizedBox(width: 16, height: 16,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.person_add_outlined),
+                    label: Text(_saving
+                        ? 'Creating…'
+                        : 'Create ${RolePermissionService.roleDisplayName(_createRole)} Account'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accent,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: _saving ? null : _createUser,
                   ),
-                ]),
-                const SizedBox(height: 4),
-                Text(a['body'] as String? ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.black87, fontSize: 13)),
-              ]),
-            )),
+                ),
+              ])),
+            _sectionHeader('CREATED BY YOU'),
+            if (_usersLoading)
+              const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: CircularProgressIndicator()))
+            else if (_createdUsers.isEmpty)
+              _emptyCard(Icons.group_outlined, 'No accounts created yet')
+            else
+              ..._createdUsers.map((u) {
+                final uEmail    = u['email']    as String? ?? '';
+                final uRole     = u['role']     as String? ?? '';
+                final createdAt = u['createdAt'];
+                String dateStr  = '';
+                if (createdAt is Timestamp) {
+                  final dt = createdAt.toDate();
+                  dateStr = '${dt.day}/${dt.month}/${dt.year}';
+                }
+                return _OwnerCard(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: Row(children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: _primary.withOpacity(0.1),
+                      child: Icon(
+                        uRole == 'principal'
+                            ? Icons.business_outlined
+                            : Icons.person_outline,
+                        color: _primary,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(uEmail,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                          overflow: TextOverflow.ellipsis),
+                      if (dateStr.isNotEmpty)
+                        Text('Created: $dateStr',
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                    ])),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _primary.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        RolePermissionService.roleDisplayName(uRole),
+                        style: const TextStyle(
+                            fontSize: 10, fontWeight: FontWeight.w700, color: _primary),
+                      ),
+                    ),
+                  ]),
+                );
+              }),
           ]),
         ),
       ),
     );
   }
 
-  Widget _buildUsersList() {
-    if (_usersLoading) return const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Center(child: CircularProgressIndicator()));
-    if (_createdUsers.isEmpty) return _emptyCard(Icons.group_outlined, 'No accounts created yet');
-    return Column(
-      children: _createdUsers.map((u) {
-        final email = u['email'] as String? ?? '';
-        final role = u['role'] as String? ?? '';
-        final createdAt = u['createdAt'];
-        String dateStr = '';
-        if (createdAt is Timestamp) {
-          final dt = createdAt.toDate();
-          dateStr = '${dt.day}/${dt.month}/${dt.year}';
-        }
-        return _OwnerCard(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: Row(children: [
-            CircleAvatar(radius: 18, backgroundColor: _primary.withOpacity(0.1),
-              child: Icon(role == 'principal' ? Icons.business_outlined : Icons.person_outline, color: _primary, size: 18)),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(email, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), overflow: TextOverflow.ellipsis),
-              if (dateStr.isNotEmpty) Text('Created: $dateStr', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-            ])),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: _primary.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
-              child: Text(RolePermissionService.roleDisplayName(role), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _primary)),
+  Widget _inputField(TextEditingController ctrl, String label, IconData icon,
+      {TextInputType keyboardType = TextInputType.text}) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        isDense: true,
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Sub-page: School Settings
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _SchoolSettingsPage extends StatefulWidget {
+  const _SchoolSettingsPage();
+
+  @override
+  State<_SchoolSettingsPage> createState() => _SchoolSettingsPageState();
+}
+
+class _SchoolSettingsPageState extends State<_SchoolSettingsPage> {
+  static const _primary = AppTheme.primary;
+
+  final _schoolNameCtrl    = TextEditingController();
+  final _schoolPhoneCtrl   = TextEditingController();
+  final _schoolAddressCtrl = TextEditingController();
+  final _academicYearCtrl  = TextEditingController();
+  bool _saving = false;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _schoolNameCtrl.dispose();
+    _schoolPhoneCtrl.dispose();
+    _schoolAddressCtrl.dispose();
+    _academicYearCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc('school_1')
+          .collection('settings')
+          .doc('school')
+          .get();
+      if (doc.exists && doc.data() != null) {
+        final d = doc.data()!;
+        _schoolNameCtrl.text    = d['name']         as String? ?? '';
+        _schoolPhoneCtrl.text   = d['phone']        as String? ?? '';
+        _schoolAddressCtrl.text = d['address']      as String? ?? '';
+        _academicYearCtrl.text  = d['academicYear'] as String? ?? '';
+      }
+      if (mounted) setState(() => _loaded = true);
+    } catch (_) {
+      if (mounted) setState(() => _loaded = true);
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('schools')
+          .doc('school_1')
+          .collection('settings')
+          .doc('school')
+          .set({
+        'name':         _schoolNameCtrl.text.trim(),
+        'phone':        _schoolPhoneCtrl.text.trim(),
+        'address':      _schoolAddressCtrl.text.trim(),
+        'academicYear': _academicYearCtrl.text.trim(),
+        'updatedAt':    FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('School settings saved'),
+          backgroundColor: AppTheme.success,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e')));
+      }
+    }
+    if (mounted) setState(() => _saving = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        backgroundColor: _primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('School Settings'),
+      ),
+      body: !_loaded
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 32),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _sectionHeader('BASIC INFO'),
+                _OwnerCard(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    _settingsField(_schoolNameCtrl, 'School Name', Icons.school_outlined),
+                    const SizedBox(height: 10),
+                    _settingsField(_schoolPhoneCtrl, 'Phone Number', Icons.phone_outlined,
+                        keyboardType: TextInputType.phone),
+                    const SizedBox(height: 10),
+                    _settingsField(_schoolAddressCtrl, 'Address', Icons.location_on_outlined),
+                    const SizedBox(height: 10),
+                    _settingsField(_academicYearCtrl, 'Academic Year',
+                        Icons.calendar_today_outlined),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: _saving
+                            ? const SizedBox(width: 16, height: 16,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
+                            : const Icon(Icons.save_outlined),
+                        label: Text(_saving ? 'Saving…' : 'Save Settings'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: _saving ? null : _save,
+                      ),
+                    ),
+                  ]),
+                ),
+              ]),
             ),
-          ]),
-        );
-      }).toList(),
     );
   }
 
-  Widget _field(TextEditingController ctrl, String label, IconData icon, {TextInputType keyboardType = TextInputType.text}) {
+  Widget _settingsField(TextEditingController ctrl, String label, IconData icon,
+      {TextInputType keyboardType = TextInputType.text}) {
     return TextField(
-      controller: ctrl, keyboardType: keyboardType,
-      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon), border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true),
+      controller: ctrl,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        isDense: true,
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Sub-page: Announcements
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _AnnouncementsPage extends StatefulWidget {
+  final String email;
+  final String role;
+  const _AnnouncementsPage({required this.email, required this.role});
+
+  @override
+  State<_AnnouncementsPage> createState() => _AnnouncementsPageState();
+}
+
+class _AnnouncementsPageState extends State<_AnnouncementsPage> {
+  static const _primary = AppTheme.primary;
+
+  final _titleCtrl = TextEditingController();
+  final _msgCtrl   = TextEditingController();
+  String _target   = 'All Staff';
+  bool _sending    = false;
+
+  List<Map<String, dynamic>> _announcements = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _msgCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    if (mounted) setState(() => _loading = true);
+    try {
+      final anns = await AnnouncementService().getAnnouncements();
+      if (!mounted) return;
+      setState(() {
+        _announcements = anns
+            .map((a) => {
+                  'id':       a.id,
+                  'title':    a.title,
+                  'body':     a.body,
+                  'audience': a.audience,
+                })
+            .toList();
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _send() async {
+    final title = _titleCtrl.text.trim();
+    final body  = _msgCtrl.text.trim();
+    if (title.isEmpty || body.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Enter title and message')));
+      return;
+    }
+    setState(() => _sending = true);
+    try {
+      await AnnouncementService().postAnnouncement(Announcement(
+        id:           '',
+        title:        title,
+        body:         body,
+        postedBy:     widget.email,
+        postedByRole: widget.role,
+        audience:     _target,
+        isPinned:     false,
+      ));
+      _titleCtrl.clear();
+      _msgCtrl.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Announcement sent'),
+          backgroundColor: AppTheme.success,
+        ));
+        await _load();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+    if (mounted) setState(() => _sending = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        backgroundColor: _primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('Announcements'),
+      ),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        color: _primary,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 32),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _sectionHeader('NEW ANNOUNCEMENT'),
+            _OwnerCard(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                TextField(
+                  controller: _titleCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Announcement Title',
+                    prefixIcon: const Icon(Icons.title_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _msgCtrl,
+                  maxLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: 'Message',
+                    prefixIcon: const Padding(
+                      padding: EdgeInsets.only(bottom: 48),
+                      child: Icon(Icons.message_outlined),
+                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: _target,
+                  decoration: const InputDecoration(
+                    labelText: 'Target Audience',
+                    prefixIcon: Icon(Icons.group_outlined),
+                    isDense: true,
+                  ),
+                  items: ['All Staff', 'All Guardians', 'Everyone']
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .toList(),
+                  onChanged: (v) { if (v != null) setState(() => _target = v); },
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: _sending
+                        ? const SizedBox(width: 16, height: 16,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.send_outlined),
+                    label: Text(_sending ? 'Sending…' : 'Send Announcement'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accent,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: _sending ? null : _send,
+                  ),
+                ),
+              ]),
+            ),
+            _sectionHeader('RECENT ANNOUNCEMENTS'),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_announcements.isEmpty)
+              _emptyCard(Icons.campaign_outlined, 'No announcements yet')
+            else
+              ..._announcements.map((a) => _OwnerCard(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Expanded(
+                      child: Text(
+                        a['title'] as String? ?? '',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        a['audience'] as String? ?? '',
+                        style: const TextStyle(fontSize: 10, color: _primary),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 4),
+                  Text(
+                    a['body'] as String? ?? '',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.black87, fontSize: 13),
+                  ),
+                ]),
+              )),
+          ]),
+        ),
+      ),
     );
   }
 }

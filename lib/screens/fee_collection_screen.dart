@@ -10,10 +10,12 @@ import '../services/fee_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 
-/// Fee collection screen — lists all students in a class with paid/due info.
-/// Tap a student to record a payment and generate a PDF receipt.
+/// Class-level fee collection screen.
+/// Pass [initialClass] to pre-select a class (from FeeOverviewScreen).
 class FeeCollectionScreen extends StatefulWidget {
-  const FeeCollectionScreen({super.key});
+  final String? initialClass;
+
+  const FeeCollectionScreen({super.key, this.initialClass});
 
   @override
   State<FeeCollectionScreen> createState() => _FeeCollectionScreenState();
@@ -24,11 +26,11 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   final _studentService = StudentService();
 
   bool _loading = true;
-  List<String>  _classes    = [];
-  String?       _selectedClass;
-  List<Student> _students   = [];
-  FeeStructure? _structure;
-  Map<int, double> _paid   = {};   // roll → total paid
+  List<String>     _classes   = [];
+  String?          _selectedClass;
+  List<Student>    _students  = [];
+  FeeStructure?    _structure;
+  Map<int, double> _paid      = {};   // roll → total paid
 
   @override
   void initState() {
@@ -41,7 +43,13 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
     final classes  = List<String>.from(settings['classes'] as List? ?? []);
     if (!mounted) return;
     setState(() { _classes = classes; });
-    if (classes.isNotEmpty) await _selectClass(classes.first);
+
+    // Pre-select from argument or default to first
+    final initial = widget.initialClass != null && classes.contains(widget.initialClass)
+        ? widget.initialClass!
+        : (classes.isNotEmpty ? classes.first : null);
+
+    if (initial != null) await _selectClass(initial);
     setState(() => _loading = false);
   }
 
@@ -54,12 +62,8 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
     final students  = results[0] as List<Student>;
     final structure = results[1] as FeeStructure;
 
-    assert(students.length == {for (final s in students) s.roll: s}.length,
-        'Duplicate rolls detected in class $cls');
-    debugPrint('[StudentList][$cls] count=${students.length}');
-
-    final rolls     = students.map((s) => s.roll).toList();
-    final paid      = await _feeService.getClassFeeOverview(className: cls, rolls: rolls);
+    final rolls = students.map((s) => s.roll).toList();
+    final paid  = await _feeService.getClassFeeOverview(className: cls, rolls: rolls);
     if (!mounted) return;
     setState(() {
       _students  = students;
@@ -70,7 +74,8 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   }
 
   Future<void> _refreshStudent(int roll) async {
-    final paid = await _feeService.getTotalPaid(className: _selectedClass!, roll: roll);
+    final paid = await _feeService.getTotalPaid(
+        className: _selectedClass!, roll: roll);
     if (!mounted) return;
     setState(() => _paid[roll] = paid);
   }
@@ -81,9 +86,9 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => _StudentFeeDetailScreen(
-          student:   student,
-          structure: _structure!,
-          totalPaid: _paid[student.roll] ?? 0,
+          student:        student,
+          structure:      _structure!,
+          totalPaid:      _paid[student.roll] ?? 0,
           onPaymentAdded: () => _refreshStudent(student.roll),
         ),
       ),
@@ -94,9 +99,9 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   Color _statusColor(double paid, double total) {
     if (total == 0) return Colors.grey;
     final ratio = paid / total;
-    if (ratio >= 1.0) return Colors.green;
+    if (ratio >= 1.0) return Colors.green.shade600;
     if (ratio >= 0.5) return const Color(0xFFF57F17);
-    return Colors.red;
+    return Colors.red.shade400;
   }
 
   String _statusLabel(double paid, double total) {
@@ -111,13 +116,20 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Column(
+        backgroundColor: AppTheme.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Fee Collection',
-                style:
-                    TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('Record payments & view dues',
+            Text(
+              _selectedClass != null
+                  ? 'Fee Collection — $_selectedClass'
+                  : 'Fee Collection',
+              style: const TextStyle(
+                  fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            const Text('Tap a student to record payment',
                 style: TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
@@ -130,7 +142,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                       style: TextStyle(color: Colors.grey.shade500)))
               : Column(
                   children: [
-                    // Class chips
+                    // ── Class chip selector ────────────────────────────
                     Container(
                       color: Colors.white,
                       padding: const EdgeInsets.symmetric(
@@ -145,7 +157,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                               child: ChoiceChip(
                                 label: Text(cls),
                                 selected: selected,
-                                selectedColor: Colors.green.shade700,
+                                selectedColor: AppTheme.primary,
                                 labelStyle: TextStyle(
                                   color: selected ? Colors.white : null,
                                   fontWeight: selected
@@ -161,7 +173,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                     ),
                     const Divider(height: 1),
 
-                    // Summary banner
+                    // ── Class summary banner ───────────────────────────
                     if (_structure != null &&
                         _structure!.totalAnnualFee > 0 &&
                         _students.isNotEmpty)
@@ -171,7 +183,30 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                         paid:      _paid,
                       ),
 
-                    // Student list
+                    // ── Installment legend (if configured) ────────────
+                    if (_structure != null &&
+                        _structure!.installments.isNotEmpty)
+                      Container(
+                        color: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline,
+                                size: 14, color: Colors.grey.shade500),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${_structure!.installments.length} instalments configured',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade600),
+                            ),
+                            const Spacer(),
+                            _InstallmentLegend(),
+                          ],
+                        ),
+                      ),
+
+                    // ── Student list ───────────────────────────────────
                     Expanded(
                       child: _students.isEmpty
                           ? Center(
@@ -180,27 +215,28 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                                       color: Colors.grey.shade500)),
                             )
                           : RefreshIndicator(
-                              onRefresh: () => _selectClass(_selectedClass!),
-                              color: Colors.green.shade700,
+                              onRefresh: () =>
+                                  _selectClass(_selectedClass!),
+                              color: AppTheme.primary,
                               child: ListView.separated(
                                 physics:
                                     const AlwaysScrollableScrollPhysics(),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 8),
                                 itemCount: _students.length,
                                 separatorBuilder: (_, __) =>
                                     const Divider(height: 1, indent: 72),
                                 itemBuilder: (_, i) {
-                                  final s = _students[i];
+                                  final s     = _students[i];
                                   final total = _structure?.totalAnnualFee ?? 0;
-                                  final paid  = _paid[s.roll] ?? 0;
-                                  final due   = (total - paid).clamp(0.0, double.infinity);
-                                  final color = _statusColor(paid, total);
+                                  final p     = _paid[s.roll] ?? 0;
+                                  final due   = (total - p).clamp(0.0, double.infinity);
+                                  final color = _statusColor(p, total);
                                   return ListTile(
                                     tileColor: Colors.white,
                                     leading: CircleAvatar(
                                       backgroundColor:
-                                          color.withOpacity(0.12),
+                                          color.withAlpha(30),
                                       child: Text(
                                         s.name.isNotEmpty
                                             ? s.name[0].toUpperCase()
@@ -214,13 +250,33 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                                         style: const TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w600)),
-                                    subtitle: Text(
-                                      'Roll ${s.roll}  •  Paid ₹${_fmt(paid)}'
-                                      '${total > 0 ? '  •  Due ₹${_fmt(due)}' : ''}',
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade600),
+                                    subtitle: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Roll ${s.roll}  •  Paid ₹${_fmt(p)}'
+                                          '${total > 0 ? '  •  Due ₹${_fmt(due)}' : ''}',
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade600),
+                                        ),
+                                        // Instalment dots
+                                        if (_structure != null &&
+                                            _structure!.installments.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                                top: 4),
+                                            child: _InstallmentDots(
+                                              installments:
+                                                  _structure!.installments,
+                                              totalPaid: p,
+                                            ),
+                                          ),
+                                      ],
                                     ),
+                                    isThreeLine: _structure != null &&
+                                        _structure!.installments.isNotEmpty,
                                     trailing: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       crossAxisAlignment:
@@ -230,17 +286,16 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 8, vertical: 3),
                                           decoration: BoxDecoration(
-                                            color: color.withOpacity(0.12),
+                                            color: color.withAlpha(30),
                                             borderRadius:
                                                 BorderRadius.circular(20),
                                           ),
                                           child: Text(
-                                            _statusLabel(paid, total),
+                                            _statusLabel(p, total),
                                             style: TextStyle(
                                                 fontSize: 11,
                                                 color: color,
-                                                fontWeight:
-                                                    FontWeight.bold),
+                                                fontWeight: FontWeight.bold),
                                           ),
                                         ),
                                         const SizedBox(height: 2),
@@ -261,14 +316,97 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   }
 
   String _fmt(double v) =>
-      v == v.truncateToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+      v == v.truncateToDouble()
+          ? v.toStringAsFixed(0)
+          : v.toStringAsFixed(2);
+}
+
+// ─── Instalment dots legend ───────────────────────────────────────────────────
+
+class _InstallmentLegend extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          _Dot(Colors.green.shade600),
+          const SizedBox(width: 3),
+          Text('Paid',
+              style:
+                  TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+          const SizedBox(width: 8),
+          _Dot(const Color(0xFFF57F17)),
+          const SizedBox(width: 3),
+          Text('Partial',
+              style:
+                  TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+          const SizedBox(width: 8),
+          _Dot(Colors.red.shade400),
+          const SizedBox(width: 3),
+          Text('Due',
+              style:
+                  TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+        ],
+      );
+}
+
+class _Dot extends StatelessWidget {
+  final Color color;
+  const _Dot(this.color);
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
+}
+
+/// Small row of coloured circles representing instalment statuses.
+/// Uses cumulative totalPaid to estimate how many instalments are covered.
+class _InstallmentDots extends StatelessWidget {
+  final List<FeeInstallment> installments;
+  final double               totalPaid;
+
+  const _InstallmentDots({
+    required this.installments,
+    required this.totalPaid,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    double remaining = totalPaid;
+
+    return Row(
+      children: installments.map((inst) {
+        Color dotColor;
+        if (remaining >= inst.amount) {
+          dotColor = Colors.green.shade600; // fully paid
+          remaining -= inst.amount;
+        } else if (remaining > 0) {
+          dotColor = const Color(0xFFF57F17); // partial
+          remaining = 0;
+        } else if (inst.dueDate.isBefore(now)) {
+          dotColor = Colors.red.shade400; // overdue & unpaid
+        } else {
+          dotColor = Colors.grey.shade400; // upcoming
+        }
+        return Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: Tooltip(
+            message: inst.name,
+            child: _Dot(dotColor),
+          ),
+        );
+      }).toList(),
+    );
+  }
 }
 
 // ─── Class-wide fee summary banner ───────────────────────────────────────────
 
 class _ClassFeeSummary extends StatelessWidget {
-  final List<Student>  students;
-  final FeeStructure   structure;
+  final List<Student>    students;
+  final FeeStructure     structure;
   final Map<int, double> paid;
 
   const _ClassFeeSummary({
@@ -288,19 +426,21 @@ class _ClassFeeSummary extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: Colors.green.shade700,
+      color: AppTheme.primary,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _SumCell('₹${_fmtK(totalPaid)}', 'Collected', Colors.white),
-          _SumCell('₹${_fmtK(totalDue - totalPaid)}', 'Pending', Colors.yellow.shade200),
-          _SumCell('$paidCount / ${students.length}', 'Fully Paid', Colors.white),
+          _SumCell('₹${_fmtK((totalDue - totalPaid).clamp(0, double.infinity))}',
+              'Pending', Colors.yellow.shade200),
+          _SumCell('$paidCount / ${students.length}', 'Fully Paid',
+              Colors.white),
         ],
       ),
     );
   }
 
-  String _fmtK(double v) {
+  static String _fmtK(double v) {
     if (v >= 100000) return '${(v / 100000).toStringAsFixed(1)}L';
     if (v >= 1000)   return '${(v / 1000).toStringAsFixed(1)}K';
     return v.toStringAsFixed(0);
@@ -318,13 +458,11 @@ class _SumCell extends StatelessWidget {
         children: [
           Text(value,
               style: TextStyle(
-                  color: color,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold)),
+                  color: color, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
           Text(label,
               style: TextStyle(
-                  color: color.withOpacity(0.7), fontSize: 10)),
+                  color: color.withAlpha(178), fontSize: 10)),
         ],
       );
 }
@@ -352,7 +490,8 @@ class _StudentFeeDetailScreen extends StatefulWidget {
 class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
   final _feeService = FeeService();
   bool _loading = true;
-  List<Payment> _payments = [];
+  List<Payment>        _payments          = [];
+  Map<String, double>  _installmentPaid   = {}; // installmentName → paid
   double _totalPaid = 0;
 
   @override
@@ -364,27 +503,39 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
 
   Future<void> _loadPayments() async {
     setState(() => _loading = true);
-    final payments = await _feeService.getPayments(
-        className: widget.student.className, roll: widget.student.roll);
+    final results = await Future.wait([
+      _feeService.getPayments(
+          className: widget.student.className, roll: widget.student.roll),
+      _feeService.getInstallmentPaidAmounts(
+          className: widget.student.className, roll: widget.student.roll),
+    ]);
     if (!mounted) return;
-    final paid = payments.fold(0.0, (s, p) => s + p.amount);
+    final payments = results[0] as List<Payment>;
+    final instPaid = results[1] as Map<String, double>;
+    final paid     = payments.fold(0.0, (s, p) => s + p.amount);
     setState(() {
-      _payments  = payments;
-      _totalPaid = paid;
-      _loading   = false;
+      _payments        = payments;
+      _installmentPaid = instPaid;
+      _totalPaid       = paid;
+      _loading         = false;
     });
   }
 
   double get _due =>
       (widget.structure.totalAnnualFee - _totalPaid).clamp(0.0, double.infinity);
 
+  // ── Record payment bottom sheet ──────────────────────────────────────────
+
   Future<void> _recordPayment() async {
-    final formKey    = GlobalKey<FormState>();
-    final amountCtrl = TextEditingController(
+    final formKey      = GlobalKey<FormState>();
+    final amountCtrl   = TextEditingController(
         text: _due > 0 ? _due.toStringAsFixed(0) : '');
-    final noteCtrl = TextEditingController();
-    String mode = 'Cash';
+    final noteCtrl     = TextEditingController();
+    String mode             = 'Cash';
+    String? selectedInstalment; // null = no instalment linked
     bool saving = false;
+
+    final hasInstalments = widget.structure.installments.isNotEmpty;
 
     final added = await showModalBottomSheet<bool>(
       context: context,
@@ -399,127 +550,200 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
           ),
           child: Form(
             key: formKey,
-            child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40, height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle
+                  Center(
+                    child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text('Record Payment — ${widget.student.name}',
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              Text(
-                'Outstanding Due: ₹${_due.toStringAsFixed(0)}',
-                style: TextStyle(
-                    fontSize: 13, color: Colors.red.shade700),
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: amountCtrl,
-                keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                  const SizedBox(height: 12),
+                  Text('Record Payment — ${widget.student.name}',
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Outstanding Due: ₹${_due.toStringAsFixed(0)}',
+                    style: TextStyle(
+                        fontSize: 13, color: Colors.red.shade700),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Amount
+                  TextFormField(
+                    controller: amountCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'[0-9.]')),
+                    ],
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'Amount (₹)',
+                      prefixIcon: const Icon(Icons.currency_rupee),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Required';
+                      final n = double.tryParse(v.trim());
+                      if (n == null || n <= 0) {
+                        return 'Must be greater than 0';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Instalment selector (only if configured)
+                  if (hasInstalments) ...[
+                    DropdownButtonFormField<String>(
+                      value: selectedInstalment,
+                      decoration: InputDecoration(
+                        labelText: 'Instalment (optional)',
+                        prefixIcon: const Icon(Icons.event_note_outlined),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                            value: null,
+                            child: Text('No specific instalment')),
+                        ...widget.structure.installments.map((inst) {
+                          final pd =
+                              _installmentPaid[inst.name] ?? 0;
+                          final status = pd >= inst.amount
+                              ? ' ✓'
+                              : pd > 0
+                                  ? ' (partial)'
+                                  : '';
+                          return DropdownMenuItem(
+                            value: inst.name,
+                            child: Text(
+                                '${inst.name} — ₹${inst.amount.toStringAsFixed(0)}$status'),
+                          );
+                        }),
+                      ],
+                      onChanged: (v) {
+                        setS(() {
+                          selectedInstalment = v;
+                          // Pre-fill with instalment remaining due
+                          if (v != null) {
+                            final inst = widget.structure.installments
+                                .firstWhere((i) => i.name == v);
+                            final alreadyPaid =
+                                _installmentPaid[v] ?? 0;
+                            final instDue =
+                                (inst.amount - alreadyPaid)
+                                    .clamp(0.0, double.infinity);
+                            if (instDue > 0) {
+                              amountCtrl.text =
+                                  instDue.toStringAsFixed(0);
+                            }
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+
+                  // Payment mode
+                  const Text('Payment Mode',
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    children:
+                        ['Cash', 'UPI', 'Bank', 'Cheque'].map((m) {
+                      return ChoiceChip(
+                        label: Text(m),
+                        selected: mode == m,
+                        selectedColor: AppTheme.primary,
+                        labelStyle: TextStyle(
+                            color: mode == m ? Colors.white : null),
+                        onSelected: (_) => setS(() => mode = m),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Note
+                  TextFormField(
+                    controller: noteCtrl,
+                    maxLength: 200,
+                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                    decoration: InputDecoration(
+                      labelText: 'Note (optional)',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      counterText: '',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Actions
+                  Row(children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
+                    const Spacer(),
+                    ElevatedButton.icon(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              if (!formKey.currentState!.validate()) {
+                                return;
+                              }
+                              final amt = double.tryParse(
+                                      amountCtrl.text.trim()) ??
+                                  0;
+                              setS(() => saving = true);
+                              final receiptNo =
+                                  FeeService.generateReceiptNo(
+                                widget.student.className,
+                                widget.student.roll,
+                              );
+                              final payment = Payment(
+                                id:              '',
+                                amount:          amt,
+                                paidOn:          DateTime.now(),
+                                mode:            mode,
+                                receiptNo:       receiptNo,
+                                installmentName: selectedInstalment,
+                                note: noteCtrl.text.trim().isEmpty
+                                    ? null
+                                    : noteCtrl.text.trim(),
+                              );
+                              await _feeService.addPayment(
+                                className: widget.student.className,
+                                roll:      widget.student.roll,
+                                payment:   payment,
+                              );
+                              if (ctx.mounted) {
+                                Navigator.pop(ctx, true);
+                              }
+                            },
+                      icon: const Icon(Icons.check, size: 18),
+                      label: const Text('Save Payment'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ]),
                 ],
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: 'Amount (₹)',
-                  prefixIcon: const Icon(Icons.currency_rupee),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Required';
-                  final n = double.tryParse(v.trim());
-                  if (n == null || n <= 0) return 'Must be greater than 0';
-                  return null;
-                },
               ),
-              const SizedBox(height: 10),
-              const Text('Payment Mode',
-                  style: TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                children: ['Cash', 'UPI', 'Bank', 'Cheque'].map((m) {
-                  return ChoiceChip(
-                    label: Text(m),
-                    selected: mode == m,
-                    selectedColor: Colors.green.shade700,
-                    labelStyle: TextStyle(
-                        color: mode == m ? Colors.white : null),
-                    onSelected: (_) => setS(() => mode = m),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: noteCtrl,
-                maxLength: 200,
-                maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                decoration: InputDecoration(
-                  labelText: 'Note (optional)',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  counterText: '',
-                ),
-              ),
-              const SizedBox(height: 14),
-              Row(children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancel'),
-                ),
-                const Spacer(),
-                ElevatedButton.icon(
-                  onPressed: saving
-                      ? null
-                      : () async {
-                          if (!formKey.currentState!.validate()) return;
-                          final amt = double.tryParse(
-                                  amountCtrl.text.trim()) ??
-                              0;
-                          setS(() => saving = true);
-                          final receiptNo = FeeService.generateReceiptNo(
-                            widget.student.className,
-                            widget.student.roll,
-                          );
-                          final payment = Payment(
-                            id:        '',
-                            amount:    amt,
-                            paidOn:    DateTime.now(),
-                            mode:      mode,
-                            receiptNo: receiptNo,
-                            note: noteCtrl.text.trim().isEmpty
-                                ? null
-                                : noteCtrl.text.trim(),
-                          );
-                          await _feeService.addPayment(
-                            className: widget.student.className,
-                            roll: widget.student.roll,
-                            payment: payment,
-                          );
-                          if (ctx.mounted) Navigator.pop(ctx, true);
-                        },
-                  icon: const Icon(Icons.check, size: 18),
-                  label: const Text('Save Payment'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ]),
-            ],
             ),
           ),
         ),
@@ -531,6 +755,8 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
       await _loadPayments();
     }
   }
+
+  // ── Print receipt ────────────────────────────────────────────────────────
 
   Future<void> _printReceipt(Payment p) async {
     final doc = pw.Document();
@@ -570,6 +796,10 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
               pw.Text('Mode: ${p.mode}'),
             ],
           ),
+          if (p.installmentName != null) ...[
+            pw.SizedBox(height: 4),
+            pw.Text('Instalment: ${p.installmentName}'),
+          ],
           pw.Divider(height: 20),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -609,6 +839,8 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
     );
   }
 
+  // ── Build ────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final s     = widget.student;
@@ -617,6 +849,9 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
+        backgroundColor: AppTheme.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -631,7 +866,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _recordPayment,
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Record Payment'),
@@ -641,14 +876,14 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                // Fee status card
+                // ── Fee status card ──────────────────────────────────
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Colors.green.shade700,
-                        Colors.green.shade500,
+                        AppTheme.primaryDark,
+                        AppTheme.primaryMid,
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -658,7 +893,8 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                   child: Column(
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        mainAxisAlignment:
+                            MainAxisAlignment.spaceAround,
                         children: [
                           _HeroStat('₹${_fmt(total)}', 'Annual Fee'),
                           _HeroStat('₹${_fmt(_totalPaid)}', 'Paid'),
@@ -673,7 +909,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                               ? (_totalPaid / total).clamp(0.0, 1.0)
                               : 0,
                           minHeight: 8,
-                          backgroundColor: Colors.white.withOpacity(0.3),
+                          backgroundColor: Colors.white24,
                           valueColor: const AlwaysStoppedAnimation<Color>(
                               Colors.white),
                         ),
@@ -691,7 +927,41 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Payment history
+                // ── Instalments section ──────────────────────────────
+                if (widget.structure.installments.isNotEmpty) ...[
+                  const Text('INSTALMENTS',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey,
+                          letterSpacing: 0.8)),
+                  const SizedBox(height: 10),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: List.generate(
+                        widget.structure.installments.length,
+                        (i) {
+                          final inst =
+                              widget.structure.installments[i];
+                          final paidAmt =
+                              _installmentPaid[inst.name] ?? 0;
+                          return _InstallmentRow(
+                            instalment: inst,
+                            paidAmount: paidAmt,
+                            showDivider: i > 0,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // ── Payment history ──────────────────────────────────
                 const Text('PAYMENT HISTORY',
                     style: TextStyle(
                         fontSize: 11,
@@ -729,10 +999,12 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                     child: Column(
                       children: [
                         for (int i = 0; i < _payments.length; i++) ...[
-                          if (i > 0) const Divider(height: 1, indent: 16),
+                          if (i > 0)
+                            const Divider(height: 1, indent: 16),
                           _PaymentTile(
                             payment: _payments[i],
-                            onPrint: () => _printReceipt(_payments[i]),
+                            onPrint: () =>
+                                _printReceipt(_payments[i]),
                           ),
                         ],
                       ],
@@ -745,8 +1017,109 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
   }
 
   String _fmt(double v) =>
-      v == v.truncateToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+      v == v.truncateToDouble()
+          ? v.toStringAsFixed(0)
+          : v.toStringAsFixed(2);
 }
+
+// ─── Instalment row ───────────────────────────────────────────────────────────
+
+class _InstallmentRow extends StatelessWidget {
+  final FeeInstallment instalment;
+  final double         paidAmount;
+  final bool           showDivider;
+
+  const _InstallmentRow({
+    required this.instalment,
+    required this.paidAmount,
+    required this.showDivider,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final due = (instalment.amount - paidAmount).clamp(0.0, double.infinity);
+
+    Color  statusColor;
+    String statusLabel;
+    IconData statusIcon;
+
+    if (paidAmount >= instalment.amount) {
+      statusColor  = Colors.green.shade600;
+      statusLabel  = 'Paid';
+      statusIcon   = Icons.check_circle_outline;
+    } else if (paidAmount > 0) {
+      statusColor  = const Color(0xFFF57F17);
+      statusLabel  = 'Partial';
+      statusIcon   = Icons.timelapse_outlined;
+    } else if (instalment.dueDate.isBefore(now)) {
+      statusColor  = Colors.red.shade400;
+      statusLabel  = 'Overdue';
+      statusIcon   = Icons.error_outline;
+    } else {
+      statusColor  = Colors.grey.shade500;
+      statusLabel  = 'Upcoming';
+      statusIcon   = Icons.schedule_outlined;
+    }
+
+    final dueDateStr =
+        '${instalment.dueDate.day}/${instalment.dueDate.month}/${instalment.dueDate.year}';
+
+    return Column(
+      children: [
+        if (showDivider) const Divider(height: 1, indent: 16),
+        ListTile(
+          dense: true,
+          leading: Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: statusColor.withAlpha(26),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(statusIcon, color: statusColor, size: 20),
+          ),
+          title: Text(instalment.name,
+              style: const TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w600)),
+          subtitle: Text(
+            'Due by $dueDateStr  •  ₹${instalment.amount.toStringAsFixed(0)}'
+            '${paidAmount > 0 ? '  •  Paid ₹${paidAmount.toStringAsFixed(0)}' : ''}',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+          trailing: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: statusColor.withAlpha(26),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(statusLabel,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: statusColor,
+                        fontWeight: FontWeight.bold)),
+              ),
+              if (due > 0 && paidAmount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text('Due ₹${due.toStringAsFixed(0)}',
+                      style: TextStyle(
+                          fontSize: 10, color: Colors.grey.shade500)),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Hero stat cell ───────────────────────────────────────────────────────────
 
 class _HeroStat extends StatelessWidget {
   final String value, label;
@@ -769,6 +1142,8 @@ class _HeroStat extends StatelessWidget {
       );
 }
 
+// ─── Payment tile ─────────────────────────────────────────────────────────────
+
 class _PaymentTile extends StatelessWidget {
   final Payment      payment;
   final VoidCallback onPrint;
@@ -776,23 +1151,23 @@ class _PaymentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = payment;
-    final date =
-        '${p.paidOn.day}/${p.paidOn.month}/${p.paidOn.year}';
+    final p    = payment;
+    final date = '${p.paidOn.day}/${p.paidOn.month}/${p.paidOn.year}';
     return ListTile(
       leading: Container(
         width: 42, height: 42,
         decoration: BoxDecoration(
-          color: Colors.green.shade50,
+          color: AppTheme.primary.withAlpha(20),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(Icons.currency_rupee,
-            color: Colors.green.shade700, size: 20),
+            color: AppTheme.primary, size: 20),
       ),
       title: Text(
-        '₹${p.amount.toStringAsFixed(0)}  •  ${p.mode}',
-        style: const TextStyle(
-            fontSize: 14, fontWeight: FontWeight.w600),
+        '₹${p.amount.toStringAsFixed(0)}  •  ${p.mode}'
+        '${p.installmentName != null ? '  •  ${p.installmentName}' : ''}',
+        style:
+            const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
       subtitle: Text(
         '$date  •  ${p.receiptNo}'
@@ -802,7 +1177,7 @@ class _PaymentTile extends StatelessWidget {
       isThreeLine: p.note != null && p.note!.isNotEmpty,
       trailing: IconButton(
         icon: Icon(Icons.print_outlined,
-            color: Colors.green.shade700, size: 20),
+            color: AppTheme.primary, size: 20),
         tooltip: 'Print Receipt',
         onPressed: onPrint,
       ),

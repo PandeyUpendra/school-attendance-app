@@ -65,6 +65,14 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
       }),
     );
 
+    // Instalments list (editable)  name | amount | dueDate
+    final instalments = current.installments.map((i) => {
+      'name':   TextEditingController(text: i.name),
+      'amount': TextEditingController(
+          text: i.amount > 0 ? i.amount.toStringAsFixed(0) : ''),
+      'date':   ValueNotifier<DateTime>(i.dueDate),
+    }).toList();
+
     final formKey = GlobalKey<FormState>();
     bool saving = false;
 
@@ -77,6 +85,29 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
 
     void removeComponent(StateSetter setS, int idx) {
       setS(() => components.removeAt(idx));
+    }
+
+    void addInstalment(StateSetter setS) {
+      setS(() => instalments.add({
+            'name':   TextEditingController(),
+            'amount': TextEditingController(),
+            'date':   ValueNotifier<DateTime>(DateTime.now()),
+          }));
+    }
+
+    void removeInstalment(StateSetter setS, int idx) {
+      setS(() => instalments.removeAt(idx));
+    }
+
+    Future<void> pickDate(StateSetter setS, int idx) async {
+      final notifier = instalments[idx]['date'] as ValueNotifier<DateTime>;
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: notifier.value,
+        firstDate: DateTime(2020),
+        lastDate: DateTime(2030),
+      );
+      if (picked != null) setS(() => notifier.value = picked);
     }
 
     final saved = await showModalBottomSheet<bool>(
@@ -224,6 +255,133 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                     ]),
                   ),
 
+                // ── Instalments ──────────────────────────────────────
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Instalments',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                    TextButton.icon(
+                      onPressed: () => addInstalment(setS),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Add'),
+                      style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.primary),
+                    ),
+                  ],
+                ),
+                if (instalments.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'No instalments. Tap Add to split into terms/quarters.',
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade500),
+                    ),
+                  ),
+                for (int i = 0; i < instalments.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 4,
+                          child: TextFormField(
+                            controller: instalments[i]['name']
+                                as TextEditingController,
+                            maxLength: 30,
+                            maxLengthEnforcement:
+                                MaxLengthEnforcement.enforced,
+                            decoration: InputDecoration(
+                              labelText: 'Name (e.g. Term 1)',
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 10),
+                              counterText: '',
+                            ),
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty)
+                                    ? 'Required'
+                                    : null,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          flex: 3,
+                          child: TextFormField(
+                            controller: instalments[i]['amount']
+                                as TextEditingController,
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9.]')),
+                            ],
+                            decoration: InputDecoration(
+                              labelText: '₹',
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 10),
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'Required';
+                              }
+                              final n = double.tryParse(v.trim());
+                              if (n == null || n <= 0) return '> 0';
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        // Date picker button
+                        ValueListenableBuilder<DateTime>(
+                          valueListenable: instalments[i]['date']
+                              as ValueNotifier<DateTime>,
+                          builder: (_, dt, __) => InkWell(
+                            onTap: () => pickDate(setS, i),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              height: 48,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                    color: Colors.grey.shade400),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    '${dt.day}/${dt.month}/${dt.year}',
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                  Text('Due date',
+                                      style: TextStyle(
+                                          fontSize: 9,
+                                          color: Colors.grey.shade500)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline,
+                              color: Colors.red, size: 20),
+                          onPressed: () => removeInstalment(setS, i),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
+                  ),
+
                 const SizedBox(height: 12),
                 Row(children: [
                   TextButton(
@@ -248,12 +406,26 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                                           0,
                                     ))
                                 .toList();
+                            final insts = instalments
+                                .where((i) =>
+                                    (i['name']! as TextEditingController)
+                                        .text
+                                        .trim()
+                                        .isNotEmpty)
+                                .map((i) => FeeInstallment(
+                                      name:    (i['name']! as TextEditingController).text.trim(),
+                                      amount:  double.tryParse(
+                                              (i['amount']! as TextEditingController).text.trim()) ?? 0,
+                                      dueDate: (i['date']! as ValueNotifier<DateTime>).value,
+                                    ))
+                                .toList();
                             setS(() => saving = true);
                             await FeeService().saveFeeStructure(
                               structure: FeeStructure(
-                                className: _selectedClass!,
+                                className:      _selectedClass!,
                                 totalAnnualFee: annual,
-                                components: comps,
+                                components:     comps,
+                                installments:   insts,
                               ),
                             );
                             if (ctx.mounted) Navigator.pop(ctx, true);
@@ -475,6 +647,69 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
             _TotalCheck(
               components: s.components,
               totalAnnual: s.totalAnnualFee,
+            ),
+          ],
+
+          // ── Instalments ──────────────────────────────────────────
+          if (s.installments.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const Text('PAYMENT INSTALMENTS',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey,
+                    letterSpacing: 0.8)),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  for (int i = 0; i < s.installments.length; i++) ...[
+                    if (i > 0) const Divider(height: 1, indent: 16),
+                    ListTile(
+                      dense: true,
+                      leading: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withAlpha(20),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${i + 1}',
+                            style: const TextStyle(
+                                color: AppTheme.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14),
+                          ),
+                        ),
+                      ),
+                      title: Text(s.installments[i].name,
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500)),
+                      subtitle: Text(
+                        'Due: ${s.installments[i].dueDate.day}/${s.installments[i].dueDate.month}/${s.installments[i].dueDate.year}',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade500),
+                      ),
+                      trailing: Text(
+                        '₹${_fmt(s.installments[i].amount)}',
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primary),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ],
