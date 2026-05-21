@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../models/guardian_student_details.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
@@ -1188,6 +1189,11 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                   ),
                 ),
               ),
+
+            // ── Details provided by guardian ─────────────────────────
+            if (_student.guardianDetails != null)
+              _GuardianDetailsSection(details: _student.guardianDetails!),
+
             const SizedBox(height: 24),
           ],
         ),
@@ -1300,4 +1306,98 @@ class _Chip extends StatelessWidget {
           style: const TextStyle(fontSize: 13, color: Colors.white)),
     );
   }
+}
+
+// ── Details Provided by Guardian section ──────────────────────────────────────
+
+class _GuardianDetailsSection extends StatelessWidget {
+  final GuardianStudentDetails details;
+  const _GuardianDetailsSection({required this.details});
+
+  @override
+  Widget build(BuildContext context) {
+    final d = details;
+
+    // Build list of non-empty rows
+    final rows = <_GRow>[
+      if (d.dob.isNotEmpty)
+        _GRow(Icons.cake_outlined, 'Date of Birth', d.dob),
+      if (d.gender.isNotEmpty)
+        _GRow(Icons.wc_outlined, 'Gender', d.gender),
+      if (d.address.isNotEmpty)
+        _GRow(Icons.home_outlined, 'Address', d.address),
+      if (d.bloodGroup.isNotEmpty)
+        _GRow(Icons.bloodtype_outlined, 'Blood Group', d.bloodGroup),
+      if (d.emergencyContactName.isNotEmpty)
+        _GRow(Icons.contact_phone_outlined, 'Emergency Contact',
+            d.emergencyContactPhone.isNotEmpty
+                ? '${d.emergencyContactName}  ·  ${d.emergencyContactPhone}'
+                : d.emergencyContactName),
+      if (d.allergies.isNotEmpty)
+        _GRow(Icons.medical_services_outlined, 'Allergies / Conditions',
+            d.allergies),
+      if (d.transportMode.isNotEmpty)
+        _GRow(Icons.directions_bus_outlined, 'Transport Mode',
+            d.transportMode),
+      if (d.previousSchool.isNotEmpty)
+        _GRow(Icons.school_outlined, 'Previous School', d.previousSchool),
+    ];
+
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(height: 1),
+        // Section header styled like the others
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+          child: Row(children: [
+            Text(
+              'DETAILS PROVIDED BY GUARDIAN',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade500,
+                  letterSpacing: 0.8),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text('Guardian supplied',
+                  style: const TextStyle(
+                      fontSize: 9,
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.bold)),
+            ),
+          ]),
+        ),
+        ...rows.map((r) => _InfoRow(r.icon, r.label, r.value)),
+        if (d.lastUpdated != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
+            child: Text(
+              'Last updated by guardian: ${d.lastUpdated!.split('T')[0]}',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade400,
+                  fontStyle: FontStyle.italic),
+            ),
+          )
+        else
+          const SizedBox(height: 8),
+      ],
+    );
+  }
+}
+
+class _GRow {
+  final IconData icon;
+  final String   label;
+  final String   value;
+  const _GRow(this.icon, this.label, this.value);
 }
