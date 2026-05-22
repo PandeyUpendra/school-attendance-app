@@ -18,9 +18,6 @@ class NotificationsScreen extends StatefulWidget {
   final String?  studentClass;
   final int?     studentRoll;
   final Teacher? teacher;
-  /// Pre-loaded notifications from the calling dashboard's badge stream.
-  /// When provided the screen opens instantly — no blank loading state.
-  final List<Map<String, dynamic>> initialItems;
 
   const NotificationsScreen({
     super.key,
@@ -29,7 +26,6 @@ class NotificationsScreen extends StatefulWidget {
     this.studentClass,
     this.studentRoll,
     this.teacher,
-    this.initialItems = const [],
   });
 
   @override
@@ -38,21 +34,19 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final _service = NotificationService();
-  late bool _loading;
-  late List<Map<String, dynamic>> _items;
+  bool _loading = true;
+  List<Map<String, dynamic>> _items = [];
   StreamSubscription? _sub;
   int _lastSeenMs = 0;
+
+  // ── Multi-select state ────────────────────────────────────────────────────
+  bool _selectionMode = false;
+  final Set<String> _selectedIds = {};
 
   @override
   void initState() {
     super.initState();
-    // Seed with pre-loaded data so the screen is never blank on open.
-    _items   = List.of(widget.initialItems);
-    _loading = _items.isEmpty; // only show spinner if truly nothing to show
-    // Start live stream (replaces / refreshes the initial seed).
-    _startStream();
-    // Load last-seen timestamp and mark all seen in the background.
-    _loadPrefsAndMarkSeen();
+    _init();
   }
 
   @override
@@ -61,7 +55,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.dispose();
   }
 
-  void _startStream() {
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0;
+
     _sub = _service
         .streamFor(
           role:         widget.role,
@@ -74,22 +71,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       setState(() {
         _items   = items;
         _loading = false;
+        // Drop any selected IDs that no longer exist.
+        final liveIds = items.map((n) => n['id'] as String? ?? '').toSet();
+        _selectedIds.removeWhere((id) => !liveIds.contains(id));
+        if (_selectedIds.isEmpty) _selectionMode = false;
       });
     }, onError: (_) {
       if (mounted) setState(() => _loading = false);
     });
-  }
 
-  Future<void> _loadPrefsAndMarkSeen() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() => _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0);
-    // Mark all seen so the badge on the calling screen clears on pop.
     await _service.markAllSeen();
   }
-
-  bool get _canDelete => widget.role == 'principal' ||
-      widget.role == 'owner' || widget.role == 'ownerPrincipal';
 
   bool _isUnread(Map<String, dynamic> n) {
     final ts = n['createdAt'];
@@ -97,11 +89,78 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return ts.toDate().millisecondsSinceEpoch > _lastSeenMs;
   }
 
+  // ── Selection helpers ─────────────────────────────────────────────────────
+
+  void _enterSelectionMode(String id) {
+    setState(() {
+      _selectionMode = true;
+      _selectedIds.add(id);
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelection(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+        if (_selectedIds.isEmpty) _selectionMode = false;
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _selectAll() {
+    setState(() {
+      for (final n in _items) {
+        final id = n['id'] as String?;
+        if (id != null) _selectedIds.add(id);
+      }
+    });
+  }
+
+  bool get _allSelected =>
+      _items.isNotEmpty &&
+      _items.every((n) => _selectedIds.contains(n['id'] as String? ?? ''));
+
+  // ── Delete actions ────────────────────────────────────────────────────────
+
   Future<void> _deleteOne(Map<String, dynamic> n) async {
     final id = n['id'] as String?;
     if (id == null) return;
     await _service.deleteNotification(id: id);
-    // Stream auto-updates _items.
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_selectedIds.isEmpty) return;
+    final count = _selectedIds.length;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Delete $count Notification${count > 1 ? 's' : ''}'),
+        content: Text(
+            'Remove $count selected notification${count > 1 ? 's' : ''}?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await _service.deleteAll(_selectedIds.toList());
+    if (mounted) _exitSelectionMode();
   }
 
   Future<void> _clearAll() async {
@@ -129,7 +188,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         .whereType<String>()
         .toList();
     await _service.deleteAll(ids);
-    // Stream auto-updates _items.
+    if (mounted) _exitSelectionMode();
   }
 
   Future<void> _markAllRead() async {
@@ -270,16 +329,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return '${d.day}/${d.month}/${d.year}';
   }
 
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final hasUnread = _items.any(_isUnread);
 
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        backgroundColor: AppTheme.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
+    return PopScope(
+      canPop: !_selectionMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _selectionMode) _exitSelectionMode();
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.background,
+        appBar: _selectionMode
+            ? _buildSelectionAppBar()
+            : _buildNormalAppBar(hasUnread),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _items.isEmpty
+                ? _buildEmpty()
+                : _buildList(),
+      ),
+    );
+  }
+
+  AppBar _buildNormalAppBar(bool hasUnread) => AppBar(
         title: const Text('Notifications',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
         actions: [
@@ -289,186 +364,217 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               child: const Text('Mark all read',
                   style: TextStyle(color: Colors.white70, fontSize: 12)),
             ),
-          if (_canDelete && _items.isNotEmpty)
+          if (_items.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.checklist_outlined),
+              tooltip: 'Select notifications',
+              onPressed: () {
+                final firstId = _items.first['id'] as String?;
+                if (firstId != null) _enterSelectionMode(firstId);
+              },
+            ),
+          if (_items.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_sweep_outlined),
               tooltip: 'Clear all',
               onPressed: _clearAll,
             ),
         ],
+      );
+
+  AppBar _buildSelectionAppBar() {
+    final count = _selectedIds.length;
+    return AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: _exitSelectionMode,
       ),
-      body: _loading
-          ? _buildShimmer()
-          : _items.isEmpty
-              ? ListView(children: [
-                  const SizedBox(height: 100),
-                  Icon(Icons.notifications_none,
-                      size: 64, color: Colors.grey.shade300),
-                  const SizedBox(height: 14),
-                  Center(
-                    child: Text('No notifications yet',
-                        style: TextStyle(
-                            fontSize: 14, color: Colors.grey.shade500)),
-                  ),
-                ])
-              : ListView.separated(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) {
-                    final n      = _items[i];
-                    final type   = (n['type'] as String?) ?? '';
-                    final color  = _colorFor(n);
-                    final unread = _isUnread(n);
-                    final routed = _hasRoute(type);
-
-                    final card = Ink(
-                      decoration: BoxDecoration(
-                        color: unread
-                            ? AppTheme.primary.withOpacity(0.05)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border(
-                          left: BorderSide(
-                            color: unread
-                                ? AppTheme.accent
-                                : Colors.grey.shade200,
-                            width: unread ? 3.5 : 1,
-                          ),
-                          top:    BorderSide(color: Colors.grey.shade200),
-                          right:  BorderSide(color: Colors.grey.shade200),
-                          bottom: BorderSide(color: Colors.grey.shade200),
-                        ),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: routed ? () => _handleTap(n) : null,
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 40, height: 40,
-                                decoration: BoxDecoration(
-                                  color: color.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(_iconFor(n),
-                                    color: color, size: 22),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(children: [
-                                      Expanded(
-                                        child: Text(
-                                          (n['title'] as String?) ?? '',
-                                          style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: unread
-                                                  ? FontWeight.w700
-                                                  : FontWeight.w600),
-                                        ),
-                                      ),
-                                      if (unread)
-                                        Container(
-                                          width: 8, height: 8,
-                                          decoration: const BoxDecoration(
-                                            color: AppTheme.accent,
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                    ]),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      (n['body'] as String?) ?? '',
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade700),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(_when(n['createdAt']),
-                                        style: TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.grey.shade500)),
-                                  ],
-                                ),
-                              ),
-                              if (routed) ...[
-                                const SizedBox(width: 4),
-                                Icon(Icons.chevron_right,
-                                    color: Colors.grey.shade300, size: 20),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-
-                    if (!_canDelete) return card;
-
-                    return Dismissible(
-                      key: ValueKey(n['id'] ?? i),
-                      direction: DismissDirection.endToStart,
-                      onDismissed: (_) => _deleteOne(n),
-                      background: Container(
-                        margin: const EdgeInsets.only(left: 40),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade400,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
-                        child: const Icon(Icons.delete_outline,
-                            color: Colors.white, size: 26),
-                      ),
-                      child: card,
-                    );
-                  },
-                ),
-    );
-  }
-
-  /// Skeleton placeholder shown while the first batch of notifications loads.
-  Widget _buildShimmer() {
-    return ListView.separated(
-      padding: const EdgeInsets.all(12),
-      itemCount: 5,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, __) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
+      title: Text(
+        count == 0 ? 'Select notifications' : '$count selected',
+        style:
+            const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+      ),
+      actions: [
+        // Select / deselect all
+        TextButton(
+          onPressed: _allSelected ? _exitSelectionMode : _selectAll,
+          child: Text(
+            _allSelected ? 'Deselect all' : 'Select all',
+            style:
+                const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
         ),
-        padding: const EdgeInsets.all(14),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(10),
-            ),
+        // Delete selected
+        if (count > 0)
+          IconButton(
+            icon: const Icon(Icons.delete_outlined),
+            tooltip: 'Delete selected',
+            onPressed: _deleteSelected,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Container(height: 13, width: 160,
-                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4))),
-              const SizedBox(height: 8),
-              Container(height: 11, width: double.infinity,
-                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4))),
-              const SizedBox(height: 6),
-              Container(height: 10, width: 60,
-                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4))),
-            ]),
-          ),
-        ]),
-      ),
+      ],
     );
   }
+
+  Widget _buildEmpty() => ListView(children: [
+        const SizedBox(height: 100),
+        Icon(Icons.notifications_none,
+            size: 64, color: Colors.grey.shade300),
+        const SizedBox(height: 14),
+        Center(
+          child: Text('No notifications yet',
+              style:
+                  TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+        ),
+      ]);
+
+  Widget _buildList() => ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(12),
+        itemCount: _items.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (_, i) {
+          final n      = _items[i];
+          final id     = (n['id'] as String?) ?? '';
+          final type   = (n['type'] as String?) ?? '';
+          final color  = _colorFor(n);
+          final unread = _isUnread(n);
+          final routed = _hasRoute(type);
+          final selected = _selectedIds.contains(id);
+
+          final card = Ink(
+            decoration: BoxDecoration(
+              color: selected
+                  ? AppTheme.primary.withOpacity(0.08)
+                  : unread
+                      ? AppTheme.primary.withOpacity(0.05)
+                      : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border(
+                left: BorderSide(
+                  color: selected
+                      ? AppTheme.primary
+                      : unread
+                          ? AppTheme.accent
+                          : Colors.grey.shade200,
+                  width: (selected || unread) ? 3.5 : 1,
+                ),
+                top:    BorderSide(color: Colors.grey.shade200),
+                right:  BorderSide(color: Colors.grey.shade200),
+                bottom: BorderSide(color: Colors.grey.shade200),
+              ),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onLongPress: id.isEmpty
+                  ? null
+                  : () => _selectionMode
+                      ? _toggleSelection(id)
+                      : _enterSelectionMode(id),
+              onTap: _selectionMode
+                  ? (id.isEmpty ? null : () => _toggleSelection(id))
+                  : (routed ? () => _handleTap(n) : null),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Leading: checkbox in select mode, icon otherwise
+                    if (_selectionMode)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 12, top: 2),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: selected
+                              ? const Icon(Icons.check_circle,
+                                  key: ValueKey(true),
+                                  color: AppTheme.primary,
+                                  size: 24)
+                              : Icon(Icons.radio_button_unchecked,
+                                  key: const ValueKey(false),
+                                  color: Colors.grey.shade400,
+                                  size: 24),
+                        ),
+                      )
+                    else
+                      Container(
+                        width: 40, height: 40,
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(_iconFor(n), color: color, size: 22),
+                      ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Expanded(
+                              child: Text(
+                                (n['title'] as String?) ?? '',
+                                style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: unread
+                                        ? FontWeight.w700
+                                        : FontWeight.w600),
+                              ),
+                            ),
+                            if (unread && !_selectionMode)
+                              Container(
+                                width: 8, height: 8,
+                                decoration: const BoxDecoration(
+                                  color: AppTheme.accent,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                          ]),
+                          const SizedBox(height: 3),
+                          Text(
+                            (n['body'] as String?) ?? '',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade700),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(_when(n['createdAt']),
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade500)),
+                        ],
+                      ),
+                    ),
+                    if (routed && !_selectionMode) ...[
+                      const SizedBox(width: 4),
+                      Icon(Icons.chevron_right,
+                          color: Colors.grey.shade300, size: 20),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+
+          // Swipe-to-dismiss only when not in selection mode
+          if (_selectionMode) return card;
+
+          return Dismissible(
+            key: ValueKey(n['id'] ?? i),
+            direction: DismissDirection.endToStart,
+            onDismissed: (_) => _deleteOne(n),
+            background: Container(
+              margin: const EdgeInsets.only(left: 40),
+              decoration: BoxDecoration(
+                color: Colors.red.shade400,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              child: const Icon(Icons.delete_outline,
+                  color: Colors.white, size: 26),
+            ),
+            child: card,
+          );
+        },
+      );
 }
