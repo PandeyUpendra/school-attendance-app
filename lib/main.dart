@@ -101,18 +101,15 @@ class _SplashGateState extends State<_SplashGate> {
 
     final role = session['role'] as String? ?? '';
 
-    // Guardian uses Google Sign-In (not Firebase Auth) — skip Auth check.
-    final isGuardian = role == 'guardian';
-    if (!isGuardian) {
-      // For staff: verify Firebase Auth is still valid. If the user's password
-      // was changed on another device or the session was revoked, sign them out.
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser == null) {
-        await AuthService().clearSession();
-        if (!mounted) return;
-        _go(const LoginScreen());
-        return;
-      }
+    // All roles (including guardians) now use Firebase Auth — verify the
+    // session is still valid before routing. Guardians may have signed in via
+    // email+password or phone OTP; both produce a Firebase Auth user.
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) {
+      await AuthService().clearSession();
+      if (!mounted) return;
+      _go(const LoginScreen());
+      return;
     }
 
     switch (role) {

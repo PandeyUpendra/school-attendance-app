@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'base_firestore_service.dart';
+
 /// Manages authentication (Firebase Auth) and local session persistence
 /// (SharedPreferences for role-specific data like teacherId, studentLinks).
 class AuthService {
@@ -16,6 +18,13 @@ class AuthService {
   static const _keyStudentLinks    = 'auth_student_links';
 
   static final _auth = FirebaseAuth.instance;
+
+  /// Returns the current school ID set during login, falling back to the
+  /// default production school ID so pre-migration sessions still work.
+  /// Delegates to [BaseFirestoreService.currentSchoolId] which is set by
+  /// all three login screens as soon as the allowed_users doc is read.
+  static String get currentSchoolId =>
+      BaseFirestoreService.currentSchoolId ?? 'school_1';
 
   static final AuthService _instance = AuthService._();
   AuthService._();

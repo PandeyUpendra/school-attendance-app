@@ -25,7 +25,7 @@ import 'copy_checking_screen.dart';
 import 'homework_screen.dart';
 import 'substitution_history_screen.dart';
 import 'student_remarks_screen.dart';
-import 'tasks/unified_staff_task_screen.dart';
+import 'staff_tasks_screen.dart';
 import 'meeting/teacher_meeting_tasks_screen.dart';
 import '../services/meeting_service.dart';
 import 'birthdays/birthdays_screen.dart';
@@ -212,10 +212,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => NotificationsScreen(
-                                role:         'teacher',
-                                teacherId:    t?.id,
-                                teacher:      t,
-                                initialItems: _latestNotifs,
+                                role:      'teacher',
+                                teacherId: t?.id,
+                                teacher:   t,
                               ),
                             ),
                           );
@@ -372,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ]),
                 const SizedBox(height: 4),
                 const Text(
-                  'Creates a guardian login linked to a student. An invite email will be sent so they can set their own password.',
+                  'Creates a guardian login. A password-setup link will be emailed to the guardian.',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const SizedBox(height: 16),
@@ -481,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             try {
                               await TimetableService().addAllowedUser(
                                 email,
-                                'Parent@123',
+                                '',   // temp password auto-generated
                                 'guardian',
                                 studentClass: cls,
                                 studentRoll: roll,
@@ -493,7 +492,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ScaffoldMessenger.of(context)
                                     .showSnackBar(SnackBar(
                                   content: Text(
-                                      'Invite email sent to $email'),
+                                      'Guardian $email added — setup link sent'),
                                   backgroundColor: AppTheme.success,
                                   duration: const Duration(seconds: 3),
                                 ));
@@ -744,12 +743,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(
                     builder: (_) =>
-                        UnifiedStaffTaskScreen(
-                          role: 'teacher',
-                          userEmail: teacher?.email ?? '',
-                          teacherId: teacher?.id,
-                          userName: teacher?.name ?? '',
-                        )),
+                        StaffTasksScreen(teacherId: teacher?.id)),
               );
               _loadNotifCount();
             },
@@ -1023,12 +1017,7 @@ class _HomeScreenState extends State<HomeScreen> {
             await Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (_) => UnifiedStaffTaskScreen(
-                          role: 'teacher',
-                          userEmail: teacher?.email ?? '',
-                          teacherId: teacher?.id,
-                          userName: teacher?.name ?? '',
-                        )),
+                  builder: (_) => StaffTasksScreen(teacherId: teacher?.id)),
             );
             _loadNotifCount();
           },

@@ -48,11 +48,9 @@ class _CreateAccountSheet extends StatefulWidget {
 class _CreateAccountSheetState extends State<_CreateAccountSheet> {
   final _nameCtrl  = TextEditingController();
   final _emailCtrl = TextEditingController();
-  final _passCtrl  = TextEditingController();
   final _rollCtrl  = TextEditingController();
 
   bool _saving  = false;
-  bool _obscure = true;
   String? _selectedClass;
   List<String> _selectedClasses = [];
 
@@ -66,7 +64,6 @@ class _CreateAccountSheetState extends State<_CreateAccountSheet> {
   void dispose() {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
-    _passCtrl.dispose();
     _rollCtrl.dispose();
     super.dispose();
   }
@@ -74,7 +71,6 @@ class _CreateAccountSheetState extends State<_CreateAccountSheet> {
   Future<void> _submit() async {
     final name  = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim().toLowerCase();
-    final pass  = _passCtrl.text.trim();
 
     if (name.isEmpty) {
       _snack('Enter a name');
@@ -82,10 +78,6 @@ class _CreateAccountSheetState extends State<_CreateAccountSheet> {
     }
     if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
       _snack('Enter a valid email address');
-      return;
-    }
-    if (pass.length < 6) {
-      _snack('Password must be at least 6 characters');
       return;
     }
 
@@ -117,9 +109,11 @@ class _CreateAccountSheetState extends State<_CreateAccountSheet> {
         roll = int.parse(_rollCtrl.text.trim());
       }
 
+      // No password passed — a secure temp is generated and a setup link
+      // is emailed automatically via Firebase Auth.
       await svc.addAllowedUser(
         email,
-        pass,
+        '',
         widget.targetRole,
         name: name,
         schoolId: widget.schoolId,
@@ -220,33 +214,22 @@ class _CreateAccountSheetState extends State<_CreateAccountSheet> {
               ),
               const SizedBox(height: 12),
 
-              // Password
-              TextField(
-                controller: _passCtrl,
-                obscureText: _obscure,
-                decoration: InputDecoration(
-                  hintText: 'Password (min 6 chars)',
-                  prefixIcon:
-                      const Icon(Icons.lock_outline, color: Colors.grey),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscure
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                      color: Colors.grey,
+              // Password is managed by Firebase Auth — no field needed.
+              // A setup link is emailed to the user automatically.
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 4),
+                child: Row(children: [
+                  const Icon(Icons.info_outline,
+                      size: 14, color: AppTheme.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'A password-setup link will be sent to the user\'s email.',
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade600),
                     ),
-                    onPressed: () => setState(() => _obscure = !_obscure),
                   ),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide:
-                        const BorderSide(color: AppTheme.primary, width: 1.5),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 14),
-                ),
+                ]),
               ),
 
               // ── Coordinator: assigned classes dropdown ─────────────────

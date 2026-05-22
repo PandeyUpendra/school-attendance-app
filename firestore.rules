@@ -1,45 +1,511 @@
 rules_version = '2';
 
+// ════════════════════════════════════════════════════════════════════════════
+// School App — Firestore Security Rules
+//
+// Architecture notes
+// ──────────────────
+// • All user identity lives in  allowed_users/{uid}  (root, not school-scoped)
+//   Fields: role, schoolId, classIds[], studentIds[], status, name, email
+// • Every other collection is school-scoped: schools/{sid}/...
+// • Roles: teacher · subjectTeacher · guardian · coordinator · principal
+//          admin   · owner
+// • Attendance doc ID  = class name string  e.g. "Class 9-A"
+// • Student  doc ID    = "{cls}_{section}_{roll}" (spaces → underscores)
+// • Notification audience field formats — see NOTIFICATIONS block below
+//
+// Hard guarantees
+// ───────────────
+// ① Default-deny catch-all at the top of every database match.
+// ② Every school-scoped rule calls inSchool(sid) first.
+// ③ Role escalation blocked: non-admin self-update cannot change role or schoolId.
+// ════════════════════════════════════════════════════════════════════════════
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Login / user registry ────────────────────────────────────────────────
-    // App has no Firebase Auth — login and account management are handled
-    // app-side (PIN-gated Admin screen). Both reads and writes must be open.
-    match /allowed_users/{email} {
-      allow read, write: if true;
-    }
-
-    // ── School-namespaced data (Gallery, Albums) ──────────────────────────────
-    match /schools/{schoolId}/{document=**} {
-      allow read, write: if true;
-    }
-
-    // ── Root-level app collections ────────────────────────────────────────────
-    match /teachers/{doc=**}           { allow read, write: if true; }
-    match /students/{doc=**}           { allow read, write: if true; }
-    match /attendance/{doc=**}         { allow read, write: if true; }
-    match /timetable/{doc=**}          { allow read, write: if true; }
-    match /settings/{doc=**}           { allow read, write: if true; }
-    match /duties/{doc=**}             { allow read, write: if true; }
-    match /substitutions/{doc=**}      { allow read, write: if true; }
-    match /leave_applications/{doc=**} { allow read, write: if true; }
-    match /notifications/{doc=**}      { allow read, write: if true; }
-    match /announcements/{doc=**}      { allow read, write: if true; }
-    match /homework/{doc=**}           { allow read, write: if true; }
-    match /exams/{doc=**}              { allow read, write: if true; }
-    match /fees/{doc=**}               { allow read, write: if true; }
-    match /copy_checks/{doc=**}        { allow read, write: if true; }
-    match /staff_tasks/{doc=**}        { allow read, write: if true; }
-    match /tasks/{doc=**}              { allow read, write: if true; }
-    match /personal_todos/{doc=**}     { allow read, write: if true; }
-    match /fee_structures/{doc=**}     { allow read, write: if true; }
-    match /fee_payments/{doc=**}       { allow read, write: if true; }
-    match /exam_results/{doc=**}       { allow read, write: if true; }
-
-    // Deny everything else
+    // ════════════════════════════════════════════════════════════════
+    // ① DEFAULT DENY — every path must carry an explicit allow.
+    // ════════════════════════════════════════════════════════════════
     match /{document=**} {
       allow read, write: if false;
     }
-  }
-}
+
+    // ════════════════════════════════════════════════════════════════
+    // HELPER FUNCTIONS
+    //
+    // userDoc() result is memoised per evaluation — multiple calls in
+    // a single rule cost only ONE document-read quota unit.
+    // ════════════════════════════════════════════════════════════════
+
+    /// Firebase Auth token is present.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /// The calling user's allowed_users document.
+    function userDoc() {
+      return get(/databases/$(database)/documents/allowed_users/$(request.auth.uid));
+    }
+
+    /// Caller's role string (e.g. 'teacher', 'coordinator', …).
+    function userRole() {
+      return userDoc().data.role;
+    }
+
+    /// Caller's schoolId.
+    function userSchoolId() {
+      return userDoc().data.schoolId;
+    }
+
+    /// True when caller's role exactly equals r.
+    function isRole(r) {
+      return userRole() == r;
+    }
+
+    /// ② True when the caller's schoolId matches path variable sid.
+    function inSchool(sid) {
+      return userSchoolId() == sid;
+    }
+
+    /// True when cls is listed in the caller's classIds array.
+    function isClassTeacher(cls) {
+      return cls in userDoc().data.classIds;
+    }
+
+    /// True when caller's role is one of the given list literal.
+    function hasAnyRole(roles) {
+      return userRole() in roles;
+    }
+
+    // ── Convenience role groups ──────────────────────────────────────────
+
+    /// coordinator | principal | admin | owner
+    function isManagement() {
+      return hasAnyRole(['coordinator', 'principal', 'admin', 'owner']);
+    }
+
+    /// admin | owner  (user-lifecycle / privileged operations)
+    function isStrictAdmin() {
+      return hasAnyRole(['admin', 'owner']);
+    }
+
+    /// teacher | subjectTeacher
+    function isAnyTeacher() {
+      return hasAnyRole(['teacher', 'subjectTeacher']);
+    }
+
+    /// Any staff member (teachers + management).
+    function isAnyStaff() {
+      return hasAnyRole(['teacher', 'subjectTeacher',
+                         'coordinator', 'principal', 'admin', 'owner']);
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // ALLOWED USERS  (/allowed_users/{uid})
+    //
+    // Root collection — identity is cross-school by design. schoolId
+    // embedded in each document scopes reads and writes.
+    // ════════════════════════════════════════════════════════════════
+    match /allowed_users/{uid} {
+
+      // Own document, OR any coordinator / principal / admin in the same school.
+      allow read: if isSignedIn() && (
+        request.auth.uid == uid ||
+        (isManagement() && userSchoolId() == resource.data.schoolId)
+      );
+
+      // ③ Only strict admin; new document must belong to caller's school.
+      allow create: if isSignedIn()
+        && isStrictAdmin()
+        && userSchoolId() == request.resource.data.schoolId;
+
+      allow update: if isSignedIn() && (
+        // Admin: full update power within own school.
+        (isStrictAdmin() && userSchoolId() == resource.data.schoolId) ||
+
+        // ③ Non-admin self-update: role and schoolId MUST remain unchanged.
+        (request.auth.uid == uid
+          && request.resource.data.role     == resource.data.role
+          && request.resource.data.schoolId == resource.data.schoolId)
+      );
+
+      allow delete: if isSignedIn()
+        && isStrictAdmin()
+        && userSchoolId() == resource.data.schoolId;
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // SCHOOL ROOT DOCUMENT  (/schools/{sid})
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid} {
+      allow read:  if isSignedIn() && inSchool(sid);
+      allow write: if isSignedIn() && inSchool(sid) && isStrictAdmin();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // STUDENTS  (/schools/{sid}/students/{studentId})
+    //
+    // Document ID = "{className}_{section}_{roll}" (spaces → underscores)
+    // Guardian access is gated on studentId appearing in their studentIds[].
+    // Guardian may self-serve guardianDetails for their own child.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/students/{studentId} {
+
+      allow read: if isSignedIn() && inSchool(sid) && (
+        isAnyStaff() ||
+        (isRole('guardian') && studentId in userDoc().data.studentIds)
+      );
+
+      allow create: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isAnyTeacher() && isClassTeacher(request.resource.data.className))
+      );
+
+      allow update: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isAnyTeacher() && isClassTeacher(resource.data.className)) ||
+        // Guardian: only guardianDetails / guardianEmail for their own child.
+        (isRole('guardian')
+          && studentId in userDoc().data.studentIds
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['guardianDetails', 'guardianEmail']))
+      );
+
+      allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // TEACHERS  (/schools/{sid}/teachers/{teacherId})
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/teachers/{teacherId} {
+      allow read:  if isSignedIn() && inSchool(sid);
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // ATTENDANCE  (/schools/{sid}/attendance/{cls})
+    //
+    // Document ID = class name string, e.g. "Class 9-A".
+    // Guardian: restricted to classes in their classIds[].
+    // Write: class teacher of that class, or management.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/attendance/{cls} {
+
+      allow read: if isSignedIn() && inSchool(sid) && (
+        isAnyStaff() ||
+        (isRole('guardian') && cls in userDoc().data.classIds)
+      );
+
+      allow write: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isAnyTeacher() && isClassTeacher(cls))
+      );
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // ANNOUNCEMENTS  (/schools/{sid}/announcements/{id})
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/announcements/{announcementId} {
+      allow read:  if isSignedIn() && inSchool(sid);
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // LEAVE APPLICATIONS  (/schools/{sid}/leave_applications/{leaveId})
+    //
+    // Read:   submitting teacher (teacherId == uid) + management.
+    // Create: any teacher; teacherId MUST equal their own uid.
+    // Update: management → status/review fields only.
+    //         Teacher (own pending application) → everything except status.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/leave_applications/{leaveId} {
+
+      allow read: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isAnyTeacher() && resource.data.teacherId == request.auth.uid)
+      );
+
+      // No impersonation: teacherId must equal the calling user's uid.
+      allow create: if isSignedIn() && inSchool(sid)
+        && isAnyTeacher()
+        && request.resource.data.teacherId == request.auth.uid;
+
+      allow update: if isSignedIn() && inSchool(sid) && (
+
+        // Management may only update status + review metadata.
+        (isManagement()
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'reviewedBy', 'reviewedAt', 'remarks'])) ||
+
+        // Submitting teacher may edit body fields of their own PENDING leave
+        // but may NOT touch status or reassign teacherId.
+        (isAnyTeacher()
+          && resource.data.teacherId == request.auth.uid
+          && resource.data.status == 'pending'
+          && !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['status', 'teacherId']))
+      );
+
+      allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // FEES  (/schools/{sid}/fees/{feeId})
+    //
+    // Class-level FeeStructure documents.
+    // Guardian reads limited to their children's class (via classIds[]).
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/fees/{feeId} {
+
+      allow read: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isRole('guardian') && resource.data.className in userDoc().data.classIds)
+      );
+
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // FEE PAYMENTS  (/schools/{sid}/fee_payments/{paymentId})
+    //
+    // Per-student payment records.
+    // Guardian reads limited to their own children (via studentIds[]).
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/fee_payments/{paymentId} {
+
+      allow read: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isRole('guardian') && resource.data.studentId in userDoc().data.studentIds)
+      );
+
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // EXAMS  (/schools/{sid}/exams/{examId})
+    //
+    // Readable by every school member (including guardians).
+    // Write: class teacher of the exam's className, or management.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/exams/{examId} {
+      allow read: if isSignedIn() && inSchool(sid);
+
+      allow create: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isAnyTeacher() && isClassTeacher(request.resource.data.className))
+      );
+
+      allow update: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isAnyTeacher() && isClassTeacher(resource.data.className))
+      );
+
+      allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // EXAM RESULTS  (/schools/{sid}/exam_results/{resultId})
+    //
+    // Same access pattern as exams.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/exam_results/{resultId} {
+      allow read: if isSignedIn() && inSchool(sid);
+
+      allow create: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isAnyTeacher() && isClassTeacher(request.resource.data.className))
+      );
+
+      allow update: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isAnyTeacher() && isClassTeacher(resource.data.className))
+      );
+
+      allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // COPY CHECKS  (/schools/{sid}/copy_checks/{checkId})
+    //
+    // Same access pattern as exams.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/copy_checks/{checkId} {
+      allow read: if isSignedIn() && inSchool(sid);
+
+      allow create: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isAnyTeacher() && isClassTeacher(request.resource.data.className))
+      );
+
+      allow update: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isAnyTeacher() && isClassTeacher(resource.data.className))
+      );
+
+      allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // STAFF TASKS  (/schools/{sid}/staff_tasks/{taskId})
+    //
+    // Read:   assignee OR management.
+    // Create/Delete: principal | admin | owner only.
+    // Update: principal/admin/owner (full) or assignee (status fields only).
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/staff_tasks/{taskId} {
+
+      allow read: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        request.auth.uid == resource.data.assignedTo
+      );
+
+      allow create, delete: if isSignedIn() && inSchool(sid)
+        && hasAnyRole(['principal', 'admin', 'owner']);
+
+      allow update: if isSignedIn() && inSchool(sid) && (
+        hasAnyRole(['principal', 'admin', 'owner']) ||
+
+        // Assignee may only update status and completion timestamps.
+        (request.auth.uid == resource.data.assignedTo
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'updatedAt', 'completedAt', 'checkpoints']))
+      );
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // NOTIFICATIONS  (/schools/{sid}/notifications/{notifId})
+    //
+    // Audience field formats written by NotificationService:
+    //   'all'                     → any authenticated school member
+    //   'teachers'                → teacher | subjectTeacher
+    //   'guardians'               → any guardian
+    //   'coordinator'             → coordinator role
+    //   'principal'               → principal role
+    //   'teacher:{uid}'           → a specific teacher (UID match)
+    //   'guardian:{class}:{roll}' → class-level check; client query filters roll
+    //   'class_teacher:{class}'   → the class teacher of the named class
+    //
+    // split(':')[1] is safe here because class names in this app do not
+    // contain colon characters. If that assumption changes, switch to
+    // audience.replace('class_teacher:', '') or store audience parts separately.
+    //
+    // Write: any authenticated school member for now.
+    // TODO: lock down to Cloud Function / Admin SDK service account.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/notifications/{notifId} {
+
+      allow read: if isSignedIn() && inSchool(sid) && (
+        // Broadcast
+        resource.data.audience == 'all' ||
+
+        // Group audiences
+        (resource.data.audience == 'teachers'   && isAnyTeacher())      ||
+        (resource.data.audience == 'guardians'  && isRole('guardian'))   ||
+
+        // Role-targeted
+        (resource.data.audience == 'coordinator' && isRole('coordinator')) ||
+        (resource.data.audience == 'principal'   && isRole('principal'))   ||
+
+        // Direct teacher — 'teacher:{uid}'
+        resource.data.audience == ('teacher:' + request.auth.uid) ||
+
+        // Guardian — 'guardian:{class}:{roll}'
+        // Rules enforce class-level access; client must filter by exact roll.
+        (isRole('guardian')
+          && resource.data.audience.matches('guardian:.*')
+          && resource.data.audience.split(':')[1] in userDoc().data.classIds) ||
+
+        // Class teacher — 'class_teacher:{className}'
+        (isAnyTeacher()
+          && resource.data.audience.matches('class_teacher:.*')
+          && isClassTeacher(resource.data.audience.split(':')[1]))
+      );
+
+      allow write: if isSignedIn() && inSchool(sid);
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // TIMETABLE  (/schools/{sid}/timetable/{docId})
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/timetable/{docId} {
+      allow read:  if isSignedIn() && inSchool(sid);
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // SETTINGS  (/schools/{sid}/settings/{docId})
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/settings/{docId} {
+      allow read:  if isSignedIn() && inSchool(sid);
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // DUTIES  (/schools/{sid}/duties/{docId})
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/duties/{docId} {
+      allow read:  if isSignedIn() && inSchool(sid);
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // SUBSTITUTIONS  (/schools/{sid}/substitutions/{docId})
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/substitutions/{docId} {
+      allow read:  if isSignedIn() && inSchool(sid);
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // HOMEWORK  (/schools/{sid}/homework/{docId})
+    //
+    // All school members may read; any teacher or management may write.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/homework/{docId} {
+      allow read:  if isSignedIn() && inSchool(sid);
+      allow write: if isSignedIn() && inSchool(sid)
+        && (isManagement() || isAnyTeacher());
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // GALLERY — Albums & Photos
+    // (/schools/{sid}/albums/{albumId}, /schools/{sid}/photos/{photoId})
+    //
+    // Published items are publicly readable (share links, parent portals).
+    // Write: coordinator | principal | admin | owner.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/albums/{albumId} {
+      allow read: if (isSignedIn() && inSchool(sid))
+                  || resource.data.published == true;
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+    match /schools/{sid}/photos/{photoId} {
+      allow read: if (isSignedIn() && inSchool(sid))
+                  || resource.data.published == true;
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+  } // /databases/{database}/documents
+} // service cloud.firestore

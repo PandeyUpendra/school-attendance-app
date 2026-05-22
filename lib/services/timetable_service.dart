@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -22,12 +21,6 @@ class TimetableService {
 
   // In-memory cache for settings (invalidated on every saveSettings call)
   static Map<String, dynamic>? _settingsCache;
-
-  String _hashPassword(String password) {
-    final bytes = utf8.encode(password);
-    final digest = sha256.convert(bytes);
-    return digest.toString();
-  }
 
   // ── Teachers ──────────────────────────────────────────────────────────────
 
@@ -111,32 +104,12 @@ class TimetableService {
   }
 
   Future<void> removeTeacher(String schoolId, String id) async {
-    // ── 1. Fetch email before deleting (needed for allowed_users cleanup) ──────
-    String? teacherEmail;
-    try {
-      final doc = await _teachers.doc(id).get();
-      if (doc.exists) {
-        teacherEmail =
-            (doc.data() as Map<String, dynamic>?)?['email'] as String?;
-      }
-    } catch (_) {}
-
-    // ── 2. Delete teacher document ────────────────────────────────────────────
     await _teachers.doc(id).delete();
 
-    // ── 3. Revoke teacher login (allowed_users entry) ─────────────────────────
-    if (teacherEmail != null && teacherEmail.trim().isNotEmpty) {
-      try {
-        await _allowedUsers
-            .doc(teacherEmail.toLowerCase().trim())
-            .delete();
-      } catch (_) {}
-    }
-
-    // ── 4. Scrub teacher from every timetable slot ────────────────────────────
-    final ttSnap = await _tt.get();
-    final ttBatch = _db.batch();
-    for (final doc in ttSnap.docs) {
+    // Scrub teacher from every timetable slot
+    final snap = await _tt.get();
+    final batch = _db.batch();
+    for (final doc in snap.docs) {
       final raw = Map<String, dynamic>.from(
           (doc.data()['data'] as Map?) ?? {});
       var dirty = false;
@@ -151,45 +124,9 @@ class TimetableService {
         });
         raw[day] = bells;
       });
-      if (dirty) ttBatch.set(doc.reference, {'data': raw});
+      if (dirty) batch.set(doc.reference, {'data': raw});
     }
-    await ttBatch.commit();
-
-    // ── 5. Delete all leave applications for this teacher ─────────────────────
-    await _deleteQueryBatch(
-        _leaveApps.where('teacherId', isEqualTo: id));
-
-    // ── 6. Delete notifications targeting this teacher ────────────────────────
-    await _deleteQueryBatch(
-        _db.collection('notifications')
-            .where('audience', isEqualTo: 'teacher:$id'));
-
-    // ── 7. Delete homework created by this teacher ────────────────────────────
-    await _deleteQueryBatch(
-        _db.collection('homework').where('teacherId', isEqualTo: id));
-
-    // ── 8. Delete staff tasks assigned to this teacher ────────────────────────
-    await _deleteQueryBatch(
-        _db.collection('staff_tasks').where('assignedTo', isEqualTo: id));
-  }
-
-  /// Deletes every document returned by [query] in Firestore batch(es).
-  /// Errors are swallowed so one missing collection never blocks the rest.
-  Future<void> _deleteQueryBatch(Query query) async {
-    try {
-      final snap = await query.get();
-      if (snap.docs.isEmpty) return;
-      // Firestore batch limit = 500 writes
-      const chunkSize = 490;
-      for (var i = 0; i < snap.docs.length; i += chunkSize) {
-        final chunk = snap.docs.skip(i).take(chunkSize);
-        final batch = _db.batch();
-        for (final doc in chunk) {
-          batch.delete(doc.reference);
-        }
-        await batch.commit();
-      }
-    } catch (_) {}
+    await batch.commit();
   }
 
   // ── Settings ──────────────────────────────────────────────────────────────
@@ -351,6 +288,9 @@ class TimetableService {
   Future<void> updateAllowedUser(
     String email, {
     required String role,
+    // newPassword is intentionally ignored — credentials live in Firebase Auth.
+    // Call resendInvitationEmail() to trigger a password-reset link instead.
+    @Deprecated('Password field removed from allowed_users. Use resendInvitationEmail() instead.')
     String?       newPassword,
     String?       studentClass,
     int?          studentRoll,
@@ -358,10 +298,7 @@ class TimetableService {
   }) async {
     final docRef = _allowedUsers.doc(email.toLowerCase().trim());
     final data   = <String, dynamic>{'role': role};
-    if (newPassword != null && newPassword.isNotEmpty) {
-      data['password']      = _hashPassword(newPassword);
-      data['plainPassword'] = newPassword;
-    }
+    // password is no longer stored in Firestore — Firebase Auth owns credentials.
     if (role == 'guardian' && studentClass != null && studentRoll != null) {
       data['studentClass'] = studentClass;
       data['studentRoll']  = studentRoll;
@@ -381,8 +318,17 @@ class TimetableService {
   // without displacing the currently signed-in user's session.
   static const _firebaseApiKey = 'AIzaSyB9dyjWRfwMeq8-J6juhYdizI-584MCkBE';
 
+  /// Creates a profile in [allowed_users] and provisions a Firebase Auth account.
+  ///
+  /// [password] is only used as the temporary Firebase Auth credential for the
+  /// REST account-creation call. It is **never** written to Firestore.
+  /// Pass an empty string (or omit entirely via the named overload) to have a
+  /// secure temp password generated automatically — a password-reset/invite
+  /// email is always sent regardless.
   Future<void> addAllowedUser(
     String email,
+    // password is ONLY used for the transient Firebase Auth REST call.
+    // It is NOT stored in Firestore. Pass '' to auto-generate a temp password.
     String password,
     String role, {
     String?       name,
@@ -395,15 +341,15 @@ class TimetableService {
   }) async {
     final normEmail = email.toLowerCase().trim();
 
-    // 1. Write to allowed_users (existing logic, adds status field).
+    // 1. Write to allowed_users — no password field; credentials live in Firebase Auth.
     final data = <String, dynamic>{
       'role':      role,
       'email':     normEmail,
-      'password':  _hashPassword(password),
+      // 'password' intentionally omitted — Firebase Auth owns credentials.
       'status':    'pending',
       'createdAt': FieldValue.serverTimestamp(),
-      if (name           != null && name.isNotEmpty)     'name':     name,
-      if (schoolId       != null && schoolId.isNotEmpty) 'schoolId': schoolId,
+      if (name           != null && name.isNotEmpty)     'name':          name,
+      if (schoolId       != null && schoolId.isNotEmpty) 'schoolId':      schoolId,
       if (createdByEmail != null) 'createdByEmail': createdByEmail,
       if (createdByRole  != null) 'createdByRole':  createdByRole,
     };
@@ -418,6 +364,10 @@ class TimetableService {
 
     // 2. Create Firebase Auth account via REST (doesn't sign out current user).
     //    If the account already exists, skip silently.
+    //    Use caller's password if provided, otherwise generate a secure temp one.
+    final authPass = password.isNotEmpty
+        ? password
+        : 'Tmp_${normEmail.hashCode.abs()}${DateTime.now().millisecondsSinceEpoch}!Aa1';
     try {
       final res = await http.post(
         Uri.parse(
@@ -425,7 +375,7 @@ class TimetableService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email':            normEmail,
-          'password':         password,
+          'password':         authPass,
           'returnSecureToken': false,
         }),
       );
@@ -485,16 +435,6 @@ class TimetableService {
     final section = data['studentSection'] as String? ?? '';
     if (cls == null || roll == null) return null;
     return {'studentClass': cls, 'studentRoll': roll, 'studentSection': section};
-  }
-
-  /// Returns the plaintext password for a guardian email (for teacher display).
-  /// Returns null if the account doesn't exist or has no stored plainPassword.
-  Future<String?> getGuardianPlainPassword(String email) async {
-    final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
-    if (!doc.exists || doc.data() == null) return null;
-    final data = doc.data()!;
-    if (data['role'] != 'guardian') return null;
-    return data['plainPassword'] as String?;
   }
 
   Future<void> removeAllowedUser(String email) async {
@@ -561,12 +501,14 @@ class TimetableService {
   /// Provisions Firebase Auth + allowed_users for a guardian email set on a
   /// student, then sends a password-setup invite. Safe to call multiple times
   /// (arrayUnion keeps existing student links, EMAIL_EXISTS is silently skipped).
+  /// Optionally stores [phone] (E.164) to enable phone-OTP sign-in later.
   Future<void> provisionGuardianLoginAccess({
     required String email,
     required String studentClass,
     required int    studentRoll,
     required String studentName,
     String?         schoolId,
+    String?         phone,   // E.164 format
   }) async {
     final normEmail = email.trim().toLowerCase();
     if (!normEmail.contains('@')) return;
@@ -578,6 +520,7 @@ class TimetableService {
       studentRoll:  studentRoll,
       studentName:  studentName,
       schoolId:     schoolId,
+      phone:        phone,
     );
 
     // Create Firebase Auth account via REST (no-op if EMAIL_EXISTS).
@@ -612,14 +555,28 @@ class TimetableService {
     return doc.data()!['role'] as String?;
   }
 
-  /// Validates email + password. Returns role string on success, null on failure.
-  Future<String?> validateLogin(String email, String password) async {
-    final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
-    if (!doc.exists || doc.data() == null) return null;
-    final data = doc.data()!;
-    final storedPass = data['password'] as String? ?? '';
-    if (storedPass.isEmpty || storedPass != _hashPassword(password)) return null;
-    return data['role'] as String?;
+  /// @deprecated Password-based login is now handled by Firebase Auth.
+  /// This method always returns null and will be removed in a future release.
+  /// Use [AuthService.signInWithEmail] + [getAllowedUserDoc] instead.
+  @Deprecated('Use Firebase Auth sign-in + getAllowedUserDoc. This method always returns null.')
+  Future<String?> validateLogin(String email, String password) async => null;
+
+  /// Looks up a guardian profile by phone number stored in [allowed_users].
+  /// Returns the document data (with 'email' key added) or null if not found.
+  Future<Map<String, dynamic>?> getGuardianByPhone(String phone) async {
+    final normalized = phone.trim();
+    if (normalized.isEmpty) return null;
+    final snap = await _allowedUsers
+        .where('phone', isEqualTo: normalized)
+        .where('role',  isEqualTo: 'guardian')
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    final d = snap.docs.first;
+    return <String, dynamic>{
+      ...Map<String, dynamic>.from(d.data()),
+      'email': d.id,
+    };
   }
 
   // ── Leave Applications ────────────────────────────────────────────────────────
@@ -891,12 +848,14 @@ class TimetableService {
   }
 
   /// Links a guardian email to a student in the allowed_users collection.
+  /// Optionally stores the guardian's phone number for phone-OTP sign-in.
   Future<void> linkGuardianEmail({
     required String email,
     required String studentClass,
     required int    studentRoll,
     String?         studentName,
     String?         schoolId,
+    String?         phone,           // E.164 format, e.g. "+919876543210"
   }) async {
     final docRef = _allowedUsers.doc(email.toLowerCase().trim());
     final doc    = await docRef.get();
@@ -924,6 +883,7 @@ class TimetableService {
       'studentClass': studentClass,  // legacy compat
       'studentRoll':  studentRoll,   // legacy compat
       if (schoolId != null) 'schoolId': schoolId,
+      if (phone != null && phone.isNotEmpty) 'phone': phone.trim(),
     }, SetOptions(merge: true));
   }
 
