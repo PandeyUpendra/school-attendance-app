@@ -1080,8 +1080,6 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
 
   final _nameCtrl  = TextEditingController();
   final _emailCtrl = TextEditingController();
-  final _passCtrl  = TextEditingController();
-  bool _showPass   = false;
   bool _saving     = false;
   late String _createRole;
 
@@ -1098,7 +1096,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
 
   @override
   void dispose() {
-    _nameCtrl.dispose(); _emailCtrl.dispose(); _passCtrl.dispose();
+    _nameCtrl.dispose(); _emailCtrl.dispose();
     super.dispose();
   }
 
@@ -1112,20 +1110,19 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
   Future<void> _createUser() async {
     final name  = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim().toLowerCase();
-    final pass  = _passCtrl.text.trim();
     if (name.isEmpty) { _snack('Enter a name'); return; }
     if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
       _snack('Enter a valid email'); return;
     }
-    if (pass.length < 6) { _snack('Password must be at least 6 characters'); return; }
     if (!_perm.canCreate(widget.role, _createRole)) {
       _snack('No permission to create $_createRole accounts'); return;
     }
     setState(() => _saving = true);
     try {
-      await _svc.addAllowedUser(email, pass, _createRole,
+      // No password needed — auto-generated + setup link emailed.
+      await _svc.addAllowedUser(email, '', _createRole,
           name: name, createdByEmail: widget.email, createdByRole: widget.role);
-      _nameCtrl.clear(); _emailCtrl.clear(); _passCtrl.clear();
+      _nameCtrl.clear(); _emailCtrl.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('${RolePermissionService.roleDisplayName(_createRole)} account created'),
@@ -1194,23 +1191,16 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                 _inputField(_emailCtrl, 'Email', Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress),
                 const SizedBox(height: 10),
-                TextField(
-                  controller: _passCtrl,
-                  obscureText: !_showPass,
-                  maxLength: 50,
-                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(_showPass ? Icons.visibility_off : Icons.visibility, size: 18),
-                      onPressed: () => setState(() => _showPass = !_showPass),
+                Row(children: [
+                  const Icon(Icons.info_outline, size: 13, color: _primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'A password-setup link will be sent to the user\'s email.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    isDense: true,
-                    counterText: '',
                   ),
-                ),
+                ]),
                 const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,

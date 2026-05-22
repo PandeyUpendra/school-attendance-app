@@ -371,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ]),
                 const SizedBox(height: 4),
                 const Text(
-                  'Creates a guardian login linked to a student. Default password: Parent@123',
+                  'Creates a guardian login. A password-setup link will be emailed to the guardian.',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const SizedBox(height: 16),
@@ -480,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             try {
                               await TimetableService().addAllowedUser(
                                 email,
-                                'Parent@123',
+                                '',   // temp password auto-generated
                                 'guardian',
                                 studentClass: cls,
                                 studentRoll: roll,
@@ -492,7 +492,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ScaffoldMessenger.of(context)
                                     .showSnackBar(SnackBar(
                                   content: Text(
-                                      'Guardian $email added (password: Parent@123)'),
+                                      'Guardian $email added — setup link sent'),
                                   backgroundColor: AppTheme.success,
                                   duration: const Duration(seconds: 3),
                                 ));

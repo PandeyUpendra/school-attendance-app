@@ -13,13 +13,11 @@ class AdminScreen extends StatefulWidget {
 class _AdminScreenState extends State<AdminScreen> {
   final _service   = TimetableService();
   final _emailCtrl  = TextEditingController();
-  final _passCtrl   = TextEditingController();
 
   String  _selectedRole           = 'owner';
   List<Map<String, dynamic>> _users = [];
   bool _loading  = true;
   bool _saving   = false;
-  bool _showPass = false;
 
   // Admin can only create Owner and Owner-Principal. All other roles are
   // created by the appropriate role in their own home screen.
@@ -45,7 +43,6 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   void dispose() {
     _emailCtrl.dispose();
-    _passCtrl.dispose();
     super.dispose();
   }
 
@@ -69,19 +66,10 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _add() async {
     final email = _emailCtrl.text.trim().toLowerCase();
-    final pass  = _passCtrl.text.trim();
 
     if (email.isEmpty ||
         !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
       _snack('Enter a valid email address');
-      return;
-    }
-    if (pass.isEmpty) {
-      _snack('Enter a password for this user');
-      return;
-    }
-    if (pass.length < 6) {
-      _snack('Password must be at least 6 characters');
       return;
     }
     if (_users.any((u) => u['email'] == email)) {
@@ -90,16 +78,17 @@ class _AdminScreenState extends State<AdminScreen> {
     }
 
     setState(() => _saving = true);
-    await _service.addAllowedUser(email, pass, _selectedRole);
+    // No password needed — a secure temp is generated automatically and a
+    // setup link is sent to the user's email via Firebase Auth.
+    await _service.addAllowedUser(email, '', _selectedRole);
     _emailCtrl.clear();
-    _passCtrl.clear();
     setState(() => _saving = false);
     await _load();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('$email added as $_selectedRole'),
+        content: Text('$email added as $_selectedRole — setup link sent'),
         backgroundColor: Colors.green.shade700,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
       ));
     }
   }
@@ -400,51 +389,21 @@ class _AdminScreenState extends State<AdminScreen> {
               ),
             ),
             const SizedBox(height: 8),
+            Text(
+              'A password-setup link will be emailed automatically.',
+              style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11),
+            ),
+            const SizedBox(height: 8),
 
-            // Password + Add button
-            Row(children: [
-              Expanded(
-                child: TextField(
-                  controller: _passCtrl,
-                  obscureText: !_showPass,
-                  maxLength: 50,
-                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Password…',
-                    hintStyle:
-                        const TextStyle(color: Colors.white60),
-                    prefixIcon: const Icon(Icons.lock_outline,
-                        color: Colors.white70),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                          _showPass
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          color: Colors.white70, size: 18),
-                      onPressed: () =>
-                          setState(() => _showPass = !_showPass),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white.withOpacity(0.15),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none),
-                    contentPadding:
-                        const EdgeInsets.symmetric(vertical: 12),
-                    counterStyle: const TextStyle(color: Colors.white60),
-                  ),
-                  onSubmitted: (_) => _add(),
-                ),
-              ),
-              const SizedBox(width: 8),
+            // Add button
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
               ElevatedButton(
                 onPressed: _saving ? null : _add,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: AppTheme.primary,
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 16),
+                      horizontal: 20, vertical: 16),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
                 ),

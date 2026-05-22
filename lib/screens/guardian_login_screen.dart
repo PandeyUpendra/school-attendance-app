@@ -8,6 +8,7 @@ import 'guardian_dashboard.dart';
 import 'student_selection_screen.dart';
 import 'forgot_password_screen.dart';
 import 'login_screen.dart';
+import 'phone_otp_screen.dart';
 
 class GuardianLoginScreen extends StatefulWidget {
   const GuardianLoginScreen({super.key});
@@ -301,6 +302,29 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
                 ),
 
                 const SizedBox(height: 28),
+
+                // Phone OTP alternative
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const PhoneOtpScreen()),
+                  ),
+                  icon: const Icon(Icons.phone_android_outlined,
+                      color: Colors.white70),
+                  label: const Text(
+                    'Sign in with Phone Number',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.white.withOpacity(0.4)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
 
                 // Back to staff login
                 OutlinedButton.icon(

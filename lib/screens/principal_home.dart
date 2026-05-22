@@ -106,8 +106,6 @@ class _PrincipalHomeState extends State<PrincipalHome> {
   void _showCreateCoordinatorSheet() {
     final nameCtrl  = TextEditingController();
     final emailCtrl = TextEditingController();
-    final passCtrl  = TextEditingController();
-    bool showPass   = false;
     bool saving     = false;
 
     showModalBottomSheet(
@@ -159,37 +157,18 @@ class _PrincipalHomeState extends State<PrincipalHome> {
                 _sheetField(emailCtrl, 'Email Address', Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress),
                 const SizedBox(height: 12),
-                StatefulBuilder(
-                  builder: (_, setSub) => TextField(
-                    controller: passCtrl,
-                    obscureText: !showPass,
-                    maxLength: 50,
-                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline,
-                          color: AppTheme.primary),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                            showPass
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                            color: Colors.grey.shade400, size: 18),
-                        onPressed: () {
-                          setLocal(() => showPass = !showPass);
-                        },
-                      ),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                            color: AppTheme.primary, width: 1.5),
-                      ),
-                      counterText: '',
+                Row(children: [
+                  const Icon(Icons.info_outline,
+                      size: 14, color: AppTheme.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'A password-setup link will be sent to the coordinator\'s email.',
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade600),
                     ),
                   ),
-                ),
+                ]),
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
@@ -206,7 +185,6 @@ class _PrincipalHomeState extends State<PrincipalHome> {
                         : () async {
                             final name  = nameCtrl.text.trim();
                             final email = emailCtrl.text.trim().toLowerCase();
-                            final pass  = passCtrl.text.trim();
                             if (name.isEmpty) return;
                             if (email.isEmpty ||
                                 !RegExp(r'^[^@]+@[^@]+\.[^@]+$')
@@ -216,17 +194,11 @@ class _PrincipalHomeState extends State<PrincipalHome> {
                                       content: Text('Enter a valid email')));
                               return;
                             }
-                            if (pass.length < 6) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text(
-                                          'Password must be at least 6 characters')));
-                              return;
-                            }
                             setLocal(() => saving = true);
                             try {
+                              // No password — setup link emailed automatically.
                               await TimetableService().addAllowedUser(
-                                email, pass, 'coordinator',
+                                email, '', 'coordinator',
                                 createdByEmail: _myEmail,
                                 createdByRole:  'principal',
                               );
