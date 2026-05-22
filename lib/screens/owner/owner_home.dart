@@ -128,6 +128,13 @@ class _OwnerHomeState extends State<OwnerHome> {
       child: Scaffold(
       backgroundColor: AppTheme.background,
       body: ListView(
+        // Remove default top padding — the hero's inner SafeArea already
+        // handles content clearance. Without this, ListView shifts the hero
+        // below the status bar and shows the lavender scaffold background
+        // behind the transparent status bar instead of the purple gradient.
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).padding.bottom,
+        ),
         children: [
           _buildHero(),
           const SizedBox(height: 4),

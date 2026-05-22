@@ -116,6 +116,9 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: ListView(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).padding.bottom,
+        ),
         children: [
           _buildHero(),
           const SizedBox(height: 4),
