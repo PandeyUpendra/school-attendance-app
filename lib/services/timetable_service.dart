@@ -699,6 +699,94 @@ class TimetableService {
     await _leaveApps.doc(id).update(update);
   }
 
+  // ── Student Leave Applications (submitted by Guardian) ────────────────────
+
+  Future<void> submitStudentLeaveApplication({
+    required String studentClass,
+    required int    studentRoll,
+    required String studentName,
+    String?         guardianName,
+    required String startDate,
+    required int    numberOfDays,
+    required String reason,
+  }) async {
+    await _leaveApps.add({
+      'applicantType': 'guardian',
+      'studentClass' : studentClass,
+      'studentRoll'  : studentRoll,
+      'studentName'  : studentName,
+      if (guardianName != null && guardianName.isNotEmpty)
+        'guardianName': guardianName,
+      'toRole'       : 'teacher',
+      'startDate'    : startDate,
+      'numberOfDays' : numberOfDays,
+      'reason'       : reason,
+      'status'       : 'pending',
+      'createdAt'    : FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// All student leaves for [studentClass] (class teacher view).
+  Future<List<Map<String, dynamic>>> getStudentLeaveApplications({
+    required String studentClass,
+    String? status,
+  }) async {
+    Query q = _leaveApps
+        .where('applicantType', isEqualTo: 'guardian')
+        .where('studentClass',  isEqualTo: studentClass);
+    if (status != null) q = q.where('status', isEqualTo: status);
+    final snap = await q.get();
+    final list = snap.docs.map((d) {
+      final data = Map<String, dynamic>.from(d.data() as Map);
+      data['id'] = d.id;
+      return data;
+    }).toList();
+    list.sort((a, b) {
+      final ta = a['createdAt'];
+      final tb = b['createdAt'];
+      if (ta == null && tb == null) return 0;
+      if (ta == null) return 1;
+      if (tb == null) return -1;
+      return (tb as dynamic).compareTo(ta as dynamic);
+    });
+    return list;
+  }
+
+  /// Student leaves for a specific student (guardian history view).
+  Future<List<Map<String, dynamic>>> getGuardianStudentLeaveHistory({
+    required String studentClass,
+    required int    studentRoll,
+  }) async {
+    final snap = await _leaveApps
+        .where('applicantType', isEqualTo: 'guardian')
+        .where('studentClass',  isEqualTo: studentClass)
+        .where('studentRoll',   isEqualTo: studentRoll)
+        .get();
+    final list = snap.docs.map((d) {
+      final data = Map<String, dynamic>.from(d.data() as Map);
+      data['id'] = d.id;
+      return data;
+    }).toList();
+    list.sort((a, b) {
+      final ta = a['createdAt'];
+      final tb = b['createdAt'];
+      if (ta == null && tb == null) return 0;
+      if (ta == null) return 1;
+      if (tb == null) return -1;
+      return (tb as dynamic).compareTo(ta as dynamic);
+    });
+    return list;
+  }
+
+  /// Real-time pending count for the class teacher badge.
+  Stream<int> streamPendingStudentLeaveCount({required String studentClass}) =>
+      _leaveApps
+          .where('applicantType', isEqualTo: 'guardian')
+          .where('studentClass',  isEqualTo: studentClass)
+          .where('status',        isEqualTo: 'pending')
+          .snapshots()
+          .map((snap) => snap.docs.length);
+
   // ── Substitutions ─────────────────────────────────────────────────────────
 
   String _dateKeyFor(DateTime d) => '${d.year}-${d.month}-${d.day}';

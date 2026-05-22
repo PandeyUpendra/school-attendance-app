@@ -178,6 +178,40 @@ class NotificationService {
     });
   }
 
+  /// Called when a guardian submits a student leave — notifies the class teacher.
+  Future<void> addStudentLeaveSubmitted({
+    required String studentName,
+    required String studentClass,
+    required int    days,
+    required String startDate,
+  }) async {
+    await _coll.add({
+      'type':      'student_leave_submitted',
+      'title':     'Leave request: $studentName',
+      'body':      'Guardian applied $days day(s) leave for $studentName '
+                   '($studentClass) starting $startDate. Tap to review.',
+      'audience':  'class_teacher:$studentClass',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Called when a student leave is resolved — notifies the guardian.
+  Future<void> addStudentLeaveResolved({
+    required String studentClass,
+    required int    studentRoll,
+    required String studentName,
+    required String status,
+  }) async {
+    await _coll.add({
+      'type':      'student_leave_resolved',
+      'status':    status,
+      'title':     'Leave $status for $studentName',
+      'body':      "Your child's leave application has been $status.",
+      'audience':  'guardian:$studentClass:$studentRoll',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   // ── Deleters ───────────────────────────────────────────────────────────────
 
   /// Deletes a single notification by its Firestore document ID.

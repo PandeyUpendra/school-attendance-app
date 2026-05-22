@@ -15,6 +15,7 @@ import 'my_timetable_screen.dart';
 import 'role_selection_screen.dart';
 import 'class_picker_screen.dart';
 import 'leave_application_screen.dart';
+import 'student_leave_requests_screen.dart';
 import 'daily_calls_screen.dart';
 import 'attendance_history_screen.dart';
 import 'announcements_screen.dart';
@@ -40,13 +41,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _unreadNotifCount   = 0;
-  int _pendingTaskCount   = 0;
-  int _pendingMeetingTasks = 0;
+  int _unreadNotifCount     = 0;
+  int _pendingTaskCount     = 0;
+  int _pendingMeetingTasks  = 0;
+  int _pendingStudentLeaves = 0;
 
   StreamSubscription? _notifSub;
   StreamSubscription? _taskSub;
   StreamSubscription? _meetingTaskSub;
+  StreamSubscription? _studentLeaveSub;
   int _lastSeenMs = 0;
   List<Map<String, dynamic>> _latestNotifs = [];
 
@@ -61,6 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _notifSub?.cancel();
     _taskSub?.cancel();
     _meetingTaskSub?.cancel();
+    _studentLeaveSub?.cancel();
     super.dispose();
   }
 
@@ -91,6 +95,17 @@ class _HomeScreenState extends State<HomeScreen> {
           .listen((count) {
         if (!mounted) return;
         setState(() => _pendingMeetingTasks = count);
+      });
+    }
+
+    // Student leave badge — only if this teacher is a class teacher
+    final cls = widget.teacher?.classTeacherOf;
+    if (cls != null && cls.isNotEmpty) {
+      _studentLeaveSub = TimetableService()
+          .streamPendingStudentLeaveCount(studentClass: cls)
+          .listen((count) {
+        if (!mounted) return;
+        setState(() => _pendingStudentLeaves = count);
       });
     }
   }
@@ -643,6 +658,24 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(
                   builder: (_) =>
                       LeaveApplicationScreen(teacher: teacher!)),
+            ),
+          ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.assignment_return_outlined,
+            color: Colors.teal,
+            title: 'Student Leave Requests',
+            subtitle: 'Review leave applications submitted by guardians',
+            badge: _pendingStudentLeaves > 0
+                ? '$_pendingStudentLeaves'
+                : null,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StudentLeaveRequestsScreen(
+                  studentClass: teacher!.classTeacherOf!,
+                ),
+              ),
             ),
           ),
 
