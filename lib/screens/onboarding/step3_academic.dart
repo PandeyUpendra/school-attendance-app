@@ -17,8 +17,9 @@ class Step3Academic extends StatefulWidget {
 }
 
 class Step3AcademicState extends State<Step3Academic> {
-  late int _from;
-  late int _to;
+  // Index into _classOptions (0 = Nursery, 1 = LKG, 2 = UKG, 3 = Class 1 … 14 = Class 12)
+  late int _fromIdx;
+  late int _toIdx;
   late List<String> _sections;
   late String _yearStart;
   late String _workingDays;
@@ -31,12 +32,20 @@ class Step3AcademicState extends State<Step3Academic> {
   static const _sectionOptions = ['A', 'B', 'C', 'D', 'E'];
   static const _durations = [35, 40, 45, 50];
 
+  static const _classOptions = [
+    'Nursery', 'LKG', 'UKG',
+    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6',
+    'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12',
+  ];
+  static const _prePrimary = ['Nursery', 'LKG', 'UKG'];
+
   @override
   void initState() {
     super.initState();
     final d = widget.initial;
-    _from = d.classesFrom.clamp(1, 12);
-    _to = d.classesTo.clamp(1, 12);
+    // Convert stored integer class number to index (Class N → index N+2)
+    _fromIdx = (d.classesFrom + 2).clamp(0, _classOptions.length - 1);
+    _toIdx   = (d.classesTo   + 2).clamp(0, _classOptions.length - 1);
     _sections = List.from(d.sectionsPerClass.isNotEmpty ? d.sectionsPerClass : ['A']);
     _yearStart = d.academicYearStart;
     _workingDays = d.workingDays;
@@ -46,10 +55,10 @@ class Step3AcademicState extends State<Step3Academic> {
   }
 
   void _notify() {
-    final classList = SchoolOnboarding.generateClassList(_from, _to, _sections);
+    final classList = _generateClassList();
     widget.onChanged(widget.initial.copyWith(
-      classesFrom: _from,
-      classesTo: _to,
+      classesFrom: _fromIdx >= 3 ? (_fromIdx - 2) : 1, // backward-compat integer
+      classesTo:   _toIdx   >= 3 ? (_toIdx   - 2) : 1,
       sectionsPerClass: List.from(_sections),
       classList: classList,
       academicYearStart: _yearStart,
@@ -60,16 +69,31 @@ class Step3AcademicState extends State<Step3Academic> {
     ));
   }
 
+  List<String> _generateClassList() {
+    final list = <String>[];
+    for (int i = _fromIdx; i <= _toIdx; i++) {
+      final label = _classOptions[i];
+      for (final s in _sections) {
+        if (_prePrimary.contains(label)) {
+          list.add('$label-$s');
+        } else {
+          list.add('${label.replaceFirst("Class ", "")}-$s');
+        }
+      }
+    }
+    return list;
+  }
+
   bool validate() {
     setState(() => _validated = true);
-    if (_to < _from) return false;
+    if (_toIdx < _fromIdx) return false;
     if (_sections.isEmpty) return false;
     return true;
   }
 
   String? get _rangeError {
     if (!_validated) return null;
-    if (_to < _from) return 'Class To must be ≥ Class From';
+    if (_toIdx < _fromIdx) return 'Class To must be ≥ Class From';
     return null;
   }
 
@@ -91,14 +115,14 @@ class Step3AcademicState extends State<Step3Academic> {
       children: [
         _label('Class Range *'),
         Row(children: [
-          Expanded(child: _classDropdown('From', _from, (v) {
-            setState(() => _from = v);
-            if (_to < v) setState(() => _to = v);
+          Expanded(child: _classDropdown('From', _fromIdx, (v) {
+            setState(() => _fromIdx = v);
+            if (_toIdx < v) setState(() => _toIdx = v);
             _notify();
           })),
           const SizedBox(width: 12),
-          Expanded(child: _classDropdown('To', _to, (v) {
-            setState(() => _to = v);
+          Expanded(child: _classDropdown('To', _toIdx, (v) {
+            setState(() => _toIdx = v);
             _notify();
           })),
         ]),
@@ -137,10 +161,10 @@ class Step3AcademicState extends State<Step3Academic> {
             padding: const EdgeInsets.only(top: 6),
             child: Text(_sectionError!, style: const TextStyle(color: AppTheme.danger, fontSize: 12)),
           ),
-        if (_sections.isNotEmpty) ...[
+        if (_sections.isNotEmpty && _toIdx >= _fromIdx) ...[
           const SizedBox(height: 8),
           Text(
-            'Classes: ${SchoolOnboarding.generateClassList(_from, _to, _sections).join(", ")}',
+            'Classes: ${_generateClassList().join(", ")}',
             style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
           ),
         ],
@@ -217,17 +241,18 @@ class Step3AcademicState extends State<Step3Academic> {
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
       );
 
-  Widget _classDropdown(String label, int value, void Function(int) onChanged) {
+  Widget _classDropdown(String label, int idxValue, void Function(int) onChanged) {
     return DropdownButtonFormField<int>(
-      value: value,
+      value: idxValue.clamp(0, _classOptions.length - 1),
       decoration: InputDecoration(
         labelText: label,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         isDense: true,
       ),
-      items: List.generate(12, (i) => i + 1)
-          .map((n) => DropdownMenuItem(value: n, child: Text('Class $n')))
-          .toList(),
+      items: List.generate(
+        _classOptions.length,
+        (i) => DropdownMenuItem(value: i, child: Text(_classOptions[i])),
+      ),
       onChanged: (v) { if (v != null) onChanged(v); },
     );
   }

@@ -7,7 +7,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/announcement.dart';
 import '../../models/exam.dart';
-import '../../models/student.dart';
 import '../../providers/school_settings_provider.dart';
 import '../../services/announcement_service.dart';
 import '../../services/auth_service.dart';
@@ -38,7 +37,6 @@ class OwnerHome extends StatefulWidget {
 class _OwnerHomeState extends State<OwnerHome> {
   String _myEmail = '';
   String _myRole = 'owner';
-  String _schoolName = '';
   bool _loaded = false;
 
   @override
@@ -68,18 +66,10 @@ class _OwnerHomeState extends State<OwnerHome> {
       }
     } catch (_) {}
 
-    String schoolName = '';
-    try {
-      final schoolDoc = await FirebaseFirestore.instance
-          .doc('schools/school_1/settings/school')
-          .get();
-      schoolName = schoolDoc.data()?['schoolName'] as String? ?? '';
-    } catch (_) {}
     if (!mounted) return;
     setState(() {
       _myEmail = email;
       _myRole = role;
-      _schoolName = schoolName;
       _loaded = true;
     });
   }
@@ -194,21 +184,30 @@ class _OwnerHomeState extends State<OwnerHome> {
 
           const _SectionHeader('MANAGE'),
           _FeatureTile(
-            icon: Icons.settings_outlined,
-            color: AppTheme.primary,
-            title: 'Manage School',
-            subtitle: 'Accounts, school settings & announcements',
+            icon: Icons.person_add_outlined,
+            color: AppTheme.accent,
+            title: 'Create Accounts',
+            subtitle: 'Add principal, coordinator & other staff logins',
             onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => _ManagePage(email: _myEmail, role: _myRole),
+              builder: (_) => _CreateAccountsPage(email: _myEmail, role: _myRole),
             )),
           ),
           _FeatureTile(
             icon: Icons.tune_outlined,
-            color: AppTheme.primaryMid,
+            color: AppTheme.primary,
             title: 'School Settings',
             subtitle: 'Edit basic info, academic, fees & communication',
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const EditSchoolSettingsScreen(),
+            )),
+          ),
+          _FeatureTile(
+            icon: Icons.campaign_outlined,
+            color: AppTheme.primaryMid,
+            title: 'Announcements',
+            subtitle: 'Broadcast messages to staff, guardians or everyone',
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => _AnnouncementsPage(email: _myEmail, role: _myRole),
             )),
           ),
 
@@ -1011,63 +1010,6 @@ class _FinancePageState extends State<_FinancePage> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Sub-page: Manage — menu
-// ══════════════════════════════════════════════════════════════════════════════
-
-class _ManagePage extends StatelessWidget {
-  final String email;
-  final String role;
-
-  const _ManagePage({required this.email, required this.role});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        backgroundColor: AppTheme.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: const Text('Manage School'),
-      ),
-      body: ListView(
-        children: [
-          const _SectionHeader('MANAGE'),
-          _FeatureTile(
-            icon: Icons.person_add_outlined,
-            color: AppTheme.accent,
-            title: 'Create Accounts',
-            subtitle: 'Add principal, coordinator & other staff logins',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => _CreateAccountsPage(email: email, role: role),
-            )),
-          ),
-          _FeatureTile(
-            icon: Icons.school_outlined,
-            color: AppTheme.primary,
-            title: 'School Settings',
-            subtitle: 'Name, phone, address & academic year',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const _SchoolSettingsPage(),
-            )),
-          ),
-          _FeatureTile(
-            icon: Icons.campaign_outlined,
-            color: AppTheme.primaryMid,
-            title: 'Announcements',
-            subtitle: 'Broadcast messages to staff, guardians or everyone',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => _AnnouncementsPage(email: email, role: role),
-            )),
-          ),
-          const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
 // Sub-page: Create Accounts
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -1721,22 +1663,14 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _Divider extends StatelessWidget {
-  const _Divider();
-
-  @override
-  Widget build(BuildContext context) => const Divider(height: 1, indent: 70);
-}
-
 class _FeatureTile extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
-  final String? badge;
 
-  const _FeatureTile({required this.icon, required this.color, required this.title, required this.subtitle, required this.onTap, this.badge});
+  const _FeatureTile({required this.icon, required this.color, required this.title, required this.subtitle, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1746,19 +1680,11 @@ class _FeatureTile extends StatelessWidget {
         color: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(children: [
-          Stack(clipBehavior: Clip.none, children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            if (badge != null)
-              Positioned(top: -4, right: -4, child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(color: AppTheme.accent, borderRadius: BorderRadius.circular(10)),
-                child: Text(badge!, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-              )),
-          ]),
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, color: color, size: 22),
+          ),
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),

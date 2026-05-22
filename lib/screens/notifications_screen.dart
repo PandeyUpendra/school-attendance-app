@@ -277,6 +277,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
+        backgroundColor: AppTheme.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
         title: const Text('Notifications',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
         actions: [
@@ -295,7 +298,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? _buildShimmer()
           : _items.isEmpty
               ? ListView(children: [
                   const SizedBox(height: 100),
@@ -427,6 +430,45 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     );
                   },
                 ),
+    );
+  }
+
+  /// Skeleton placeholder shown while the first batch of notifications loads.
+  Widget _buildShimmer() {
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: 5,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, __) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(height: 13, width: 160,
+                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4))),
+              const SizedBox(height: 8),
+              Container(height: 11, width: double.infinity,
+                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4))),
+              const SizedBox(height: 6),
+              Container(height: 10, width: 60,
+                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4))),
+            ]),
+          ),
+        ]),
+      ),
     );
   }
 }

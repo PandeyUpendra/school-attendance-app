@@ -71,6 +71,14 @@ class SchoolSettingsProvider extends ChangeNotifier {
   // ── Academic ─────────────────────────────────────────────────────────────
   int get classesFrom => _academic['classesFrom'] as int? ?? 6;
   int get classesTo => _academic['classesTo'] as int? ?? 10;
+  /// Label-based getters (new format, added for pre-primary support).
+  /// Falls back to constructing a label from the old integer fields.
+  String get classesFromLabel =>
+      _academic['classesFromLabel'] as String? ??
+      'Class ${_academic['classesFrom'] ?? 1}';
+  String get classesToLabel =>
+      _academic['classesToLabel'] as String? ??
+      'Class ${_academic['classesTo'] ?? 10}';
   List<String> get sections =>
       List<String>.from(_academic['sections'] as List? ?? ['A']);
   List<String> get classList =>

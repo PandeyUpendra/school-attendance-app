@@ -23,6 +23,7 @@ import 'principal_digest_screen.dart';
 import 'tasks/unified_staff_task_screen.dart';
 import 'coordinator_dashboard.dart';
 import 'coordinator_management_screen.dart';
+import 'owner/edit_school_settings_screen.dart';
 import 'birthdays/birthdays_screen.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
@@ -290,6 +291,14 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   principalEmail: _principalEmail,
                   principalName:  _principalEmail,
                 )),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.tune_outlined,
+                color: AppTheme.primaryMid,
+                title: 'School Settings',
+                subtitle: 'Edit school info, academic, fees & communication',
+                onTap: () => _navigate(const EditSchoolSettingsScreen()),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(

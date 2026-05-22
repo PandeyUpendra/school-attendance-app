@@ -24,7 +24,6 @@ import 'announcements_screen.dart';
 import 'guardian_leave_application_screen.dart';
 import 'notifications_screen.dart';
 import 'attendance_certificate_screen.dart';
-import 'student_remarks_screen.dart';
 import 'guardian_student_details_screen.dart';
 
 /// The Guardian Portal — shows a single student's attendance to their parent.
@@ -382,20 +381,6 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
             subtitle: 'Call the school or class teacher directly',
             onTap:    _callSchool,
           ),
-          if (_student != null) ...[
-            const Divider(height: 1, indent: 72),
-            _GuardianFeatureTile(
-              icon:     Icons.comment_outlined,
-              color:    AppTheme.primary,
-              title:    'Student Remarks',
-              subtitle: 'View remarks and feedback from teachers',
-              onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => StudentRemarksScreen(
-                  role:            'guardian',
-                  guardianStudent: _student,
-                ))),
-            ),
-          ],
         ],
       ),
     ),
@@ -1852,106 +1837,184 @@ class _CalendarCard extends StatelessWidget {
     final daysInMonth  = DateTime(month.year, month.month + 1, 0).day;
     final firstWeekday = DateTime(month.year, month.month, 1).weekday; // 1=Mon
     final today        = DateTime.now();
-    const headers = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final isThisMonth = today.year == month.year && today.month == month.month;
+
+    // Inline stats for the gradient header
+    int present = 0, absent = 0, leave = 0;
+    for (int d = 1; d <= daysInMonth; d++) {
+      final s = monthData[d]?[roll];
+      if (s == 'Present') present++;
+      else if (s == 'Absent') absent++;
+      else if (s == 'Leave') leave++;
+    }
+
+    const weekdays  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final totalCells = (firstWeekday - 1) + daysInMonth;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: AppTheme.primary.withValues(alpha: 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4)),
+        ],
       ),
-      child: Column(children: [
-        // ── Day-of-week header row ───────────────────────────────────
-        Row(
-          children: List.generate(7, (i) {
-            final isSunCol = i == 6;
-            return Expanded(
-              child: Center(
-                child: Text(
-                  headers[i],
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: isSunCol
-                        ? Colors.red.shade300
-                        : Colors.grey.shade400,
-                  ),
-                ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // ── Gradient header with inline stats ──────────────────────
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppTheme.primaryDark, AppTheme.primaryMid],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-            );
-          }),
-        ),
-        const SizedBox(height: 8),
-
-        // ── Calendar grid ────────────────────────────────────────────
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount:    7,
-            childAspectRatio:  1,
-            mainAxisSpacing:   4,
-            crossAxisSpacing:  2,
+            ),
+            child: present + absent + leave > 0
+                ? Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    _statPill(Icons.check_circle_outline, '$present',
+                        Colors.greenAccent.shade400),
+                    const SizedBox(width: 16),
+                    _statPill(Icons.cancel_outlined, '$absent',
+                        Colors.redAccent.shade200),
+                    const SizedBox(width: 16),
+                    _statPill(Icons.event_note_outlined, '$leave',
+                        Colors.orangeAccent.shade200),
+                  ])
+                : const SizedBox(height: 4),
           ),
-          itemCount: (firstWeekday - 1) + daysInMonth,
-          itemBuilder: (_, idx) {
-            // Empty cells before the 1st
-            if (idx < firstWeekday - 1) return const SizedBox();
 
-            final day    = idx - (firstWeekday - 1) + 1;
-            final date   = DateTime(month.year, month.month, day);
-            final status = monthData[day]?[roll];
-            final isSun  = date.weekday == DateTime.sunday;
-            final isFuture = date.isAfter(today);
-            final isToday  = date.year  == today.year &&
-                             date.month == today.month &&
-                             date.day   == today.day;
-
-            // Colors
-            final Color circleFill = (!isFuture && status != null)
-                ? _circleColor(status)
-                : Colors.transparent;
-            final bool filled = circleFill != Colors.transparent;
-
-            Color textColor;
-            if (filled) {
-              textColor = Colors.white;
-            } else if (isFuture) {
-              textColor = Colors.grey.shade300;
-            } else if (isSun) {
-              textColor = Colors.red.shade200;
-            } else {
-              textColor = Colors.grey.shade500;
-            }
-
-            return Center(
-              child: Container(
-                width: 30, height: 30,
-                decoration: BoxDecoration(
-                  color: filled ? circleFill : Colors.transparent,
-                  shape: BoxShape.circle,
-                  border: isToday && !filled
-                      ? Border.all(color: AppTheme.primary, width: 1.5)
-                      : null,
-                ),
-                child: Center(
-                  child: Text(
-                    '$day',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight:
-                          filled || isToday ? FontWeight.bold : FontWeight.normal,
-                      color: isToday && !filled ? AppTheme.primary : textColor,
-                    ),
+          // ── Weekday header row ───────────────────────────────────
+          Container(
+            color: AppTheme.primary.withValues(alpha: 0.04),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: weekdays.map((d) {
+                final isSun = d == 'Sun';
+                return Expanded(
+                  child: Center(
+                    child: Text(d,
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                            color: isSun
+                                ? Colors.red.shade300
+                                : Colors.grey.shade500)),
                   ),
-                ),
+                );
+              }).toList(),
+            ),
+          ),
+
+          // ── Day grid ────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 12),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount:   7,
+                childAspectRatio: 0.85,
+                mainAxisSpacing:  4,
+                crossAxisSpacing: 2,
               ),
-            );
-          },
-        ),
-      ]),
+              itemCount: totalCells,
+              itemBuilder: (_, idx) {
+                if (idx < firstWeekday - 1) return const SizedBox();
+                final day    = idx - (firstWeekday - 1) + 1;
+                final date   = DateTime(month.year, month.month, day);
+                final status = monthData[day]?[roll];
+                final isSun  = date.weekday == DateTime.sunday;
+                final isFut  = date.isAfter(today);
+                final isToday = isThisMonth && today.day == day;
+
+                // Pick circle background, text color, dot color
+                Color? circleBg;
+                Color numColor;
+                Color? dotColor;
+
+                if (isToday && status == null) {
+                  circleBg = AppTheme.primary.withValues(alpha: 0.12);
+                  numColor = AppTheme.primary;
+                } else if (status != null) {
+                  final sc = _circleColor(status);
+                  circleBg = sc.withValues(alpha: 0.13);
+                  numColor = sc;
+                  dotColor = sc;
+                } else if (isFut) {
+                  numColor = Colors.grey.shade300;
+                } else if (isSun) {
+                  circleBg = Colors.red.shade50;
+                  numColor = Colors.red.shade200;
+                } else {
+                  circleBg = Colors.grey.shade50;
+                  numColor = Colors.grey.shade400;
+                }
+
+                final borderColor = status != null
+                    ? _circleColor(status).withValues(alpha: 0.35)
+                    : null;
+
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(
+                        color: circleBg,
+                        shape: BoxShape.circle,
+                        border: isToday
+                            ? Border.all(
+                                color: AppTheme.primary, width: 1.5)
+                            : borderColor != null
+                                ? Border.all(
+                                    color: borderColor, width: 1.2)
+                                : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$day',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: status != null || isToday
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: numColor),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Container(
+                      width: 5, height: 5,
+                      decoration: BoxDecoration(
+                        color: dotColor ?? Colors.transparent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _statPill(IconData icon, String value, Color color) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, color: color, size: 14),
+      const SizedBox(width: 4),
+      Text(value,
+          style: TextStyle(
+              color: color, fontSize: 13, fontWeight: FontWeight.bold)),
+    ]);
   }
 }
 

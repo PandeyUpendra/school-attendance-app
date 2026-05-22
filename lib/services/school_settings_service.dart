@@ -93,11 +93,18 @@ class SchoolSettingsService {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
+    // Build label fields from classList if not explicitly provided
+    final classList = List<String>.from(d['classList'] as List? ?? []);
+    final fromInt = d['classesFrom'] as int? ?? 1;
+    final toInt   = d['classesTo']   as int? ?? 10;
+    String intToLabel(int n) => n <= 0 ? 'Nursery' : 'Class $n';
     batch.set(_settings.doc('academic'), {
-      'classesFrom': d['classesFrom'] ?? 1,
-      'classesTo': d['classesTo'] ?? 10,
+      'classesFrom': fromInt,
+      'classesTo':   toInt,
+      'classesFromLabel': d['classesFromLabel'] ?? intToLabel(fromInt),
+      'classesToLabel':   d['classesToLabel']   ?? intToLabel(toInt),
       'sections': d['sectionsPerClass'] ?? ['A'],
-      'classList': d['classList'] ?? [],
+      'classList': classList,
       'academicYearStart': d['academicYearStart'] ?? 'April',
       'workingDays': d['workingDays'] ?? 'Mon-Sat',
       'periodsPerDay': d['periodsPerDay'] ?? 8,
@@ -133,7 +140,6 @@ class SchoolSettingsService {
     await batch.commit();
 
     // Sync classList to legacy settings/main so all existing screens pick it up
-    final classList = List<String>.from(d['classList'] as List? ?? []);
     await _db.collection('settings').doc('main').set({
       'classes': classList,
       'schoolName': d['schoolName'] ?? '',
