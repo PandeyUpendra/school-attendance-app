@@ -312,6 +312,25 @@ class StudentService {
             SetOptions(merge: true));
   }
 
+  /// Marks a student as 'Leave' for every day in the given range.
+  /// Sundays are skipped. Uses merge so other students in the same doc are untouched.
+  Future<void> markLeaveForDateRange({
+    required String   className,
+    required int      roll,
+    required DateTime startDate,
+    required int      numberOfDays,
+  }) async {
+    for (int i = 0; i < numberOfDays; i++) {
+      final date = startDate.add(Duration(days: i));
+      if (date.weekday == DateTime.sunday) continue;
+      await saveAttendanceForDate(
+        className:  className,
+        attendance: {roll: 'Leave'},
+        date:       date,
+      );
+    }
+  }
+
   // ── Reasons (call notes after follow-up) ──────────────────────────────────
 
   Future<void> saveReasons({required String className, required Map<int, String> reasons}) async {

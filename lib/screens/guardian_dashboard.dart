@@ -21,6 +21,7 @@ import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
 import 'role_selection_screen.dart';
 import 'announcements_screen.dart';
+import 'guardian_leave_application_screen.dart';
 import 'notifications_screen.dart';
 import 'attendance_certificate_screen.dart';
 import 'student_remarks_screen.dart';
@@ -244,15 +245,6 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     return '${months[dt.month - 1]} ${dt.year}';
   }
 
-  Color _statusColor(String? s) {
-    switch (s) {
-      case 'Present': return Colors.green;
-      case 'Absent':  return Colors.red;
-      case 'Leave':   return const Color(0xFFF57F17);
-      default:        return Colors.grey;
-    }
-  }
-
   List<Widget> _buildErrorChildren() => [
     const SizedBox(height: 40),
     Icon(Icons.wifi_off_outlined, size: 64, color: Colors.grey.shade400),
@@ -338,6 +330,32 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       const SizedBox(height: 16),
     ],
     // ── Quick Actions ─────────────────────────────────────────────
+    // Apply for Leave (primary CTA — filled button)
+    if (_student != null)
+      SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => GuardianLeaveApplicationScreen(
+                  student: _student!),
+            ),
+          ).then((_) => _loadAll()),
+          icon: const Icon(Icons.event_busy_outlined),
+          label: const Text('Apply for Leave'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            textStyle: const TextStyle(
+                fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ),
+    const SizedBox(height: 12),
     // Attendance Certificate
     OutlinedButton.icon(
       onPressed: () => Navigator.push(
@@ -432,9 +450,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       month: _month,
       monthData: _monthData,
       roll: widget.studentRoll,
-      statusColor: _statusColor,
     ),
-    const SizedBox(height: 16),
+    const SizedBox(height: 10),
     // ── Legend ───────────────────────────────────────────────────
     _LegendRow(),
     const SizedBox(height: 20),
@@ -1830,111 +1847,127 @@ class _LowAttendanceBanner extends StatelessWidget {
   }
 }
 
-// ─── Calendar card ───────────────────────────────────────────────────────────
+// ─── Calendar card (redesigned — clean circle style) ─────────────────────────
 
 class _CalendarCard extends StatelessWidget {
-  final DateTime               month;
+  final DateTime                   month;
   final Map<int, Map<int, String>> monthData;
-  final int                    roll;
-  final Color Function(String?) statusColor;
+  final int                        roll;
 
   const _CalendarCard({
     required this.month,
     required this.monthData,
     required this.roll,
-    required this.statusColor,
   });
+
+  Color _circleColor(String status) {
+    switch (status) {
+      case 'Present': return const Color(0xFF43A047); // green 600
+      case 'Absent':  return const Color(0xFFE53935); // red 600
+      case 'Leave':   return const Color(0xFFF57C00); // orange 700
+      default:        return Colors.transparent;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final daysInMonth  = DateTime(month.year, month.month + 1, 0).day;
-    final firstWeekday = DateTime(month.year, month.month, 1).weekday;
+    final firstWeekday = DateTime(month.year, month.month, 1).weekday; // 1=Mon
+    final today        = DateTime.now();
+    const headers = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(children: [
-        // Day-of-week headers
+        // ── Day-of-week header row ───────────────────────────────────
         Row(
-          children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-              .map((d) => Expanded(
-                    child: Center(
-                      child: Text(d,
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: d == 'Sun'
-                                  ? Colors.red.shade300
-                                  : Colors.grey.shade500)),
-                    ),
-                  ))
-              .toList(),
+          children: List.generate(7, (i) {
+            final isSunCol = i == 6;
+            return Expanded(
+              child: Center(
+                child: Text(
+                  headers[i],
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isSunCol
+                        ? Colors.red.shade300
+                        : Colors.grey.shade400,
+                  ),
+                ),
+              ),
+            );
+          }),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
+
+        // ── Calendar grid ────────────────────────────────────────────
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 7,
-            childAspectRatio: 1,
-            mainAxisSpacing: 5,
-            crossAxisSpacing: 4,
+            crossAxisCount:    7,
+            childAspectRatio:  1,
+            mainAxisSpacing:   4,
+            crossAxisSpacing:  2,
           ),
           itemCount: (firstWeekday - 1) + daysInMonth,
           itemBuilder: (_, idx) {
+            // Empty cells before the 1st
             if (idx < firstWeekday - 1) return const SizedBox();
+
             final day    = idx - (firstWeekday - 1) + 1;
             final date   = DateTime(month.year, month.month, day);
             final status = monthData[day]?[roll];
             final isSun  = date.weekday == DateTime.sunday;
-            final isFut  = date.isAfter(DateTime.now());
+            final isFuture = date.isAfter(today);
+            final isToday  = date.year  == today.year &&
+                             date.month == today.month &&
+                             date.day   == today.day;
 
-            final bg = isFut
-                ? Colors.transparent
-                : status != null
-                    ? statusColor(status).withOpacity(0.15)
-                    : isSun
-                        ? Colors.red.shade50
-                        : Colors.grey.shade50;
-            final bd = status != null
-                ? statusColor(status).withOpacity(0.45)
-                : Colors.grey.shade200;
-            final tc = isFut
-                ? Colors.grey.shade300
-                : status != null
-                    ? statusColor(status)
-                    : isSun
-                        ? Colors.red.shade200
-                        : Colors.grey.shade400;
+            // Colors
+            final Color circleFill = (!isFuture && status != null)
+                ? _circleColor(status)
+                : Colors.transparent;
+            final bool filled = circleFill != Colors.transparent;
 
-            return Container(
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(7),
-                border: Border.all(
-                    color: bd, width: status != null ? 1.5 : 0.8),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('$day',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: status != null
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color: tc)),
-                  if (status != null)
-                    Text(status[0],
-                        style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                            color: statusColor(status))),
-                ],
+            Color textColor;
+            if (filled) {
+              textColor = Colors.white;
+            } else if (isFuture) {
+              textColor = Colors.grey.shade300;
+            } else if (isSun) {
+              textColor = Colors.red.shade200;
+            } else {
+              textColor = Colors.grey.shade500;
+            }
+
+            return Center(
+              child: Container(
+                width: 30, height: 30,
+                decoration: BoxDecoration(
+                  color: filled ? circleFill : Colors.transparent,
+                  shape: BoxShape.circle,
+                  border: isToday && !filled
+                      ? Border.all(color: AppTheme.primary, width: 1.5)
+                      : null,
+                ),
+                child: Center(
+                  child: Text(
+                    '$day',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight:
+                          filled || isToday ? FontWeight.bold : FontWeight.normal,
+                      color: isToday && !filled ? AppTheme.primary : textColor,
+                    ),
+                  ),
+                ),
               ),
             );
           },
@@ -2182,25 +2215,36 @@ class _HomeworkSection extends StatelessWidget {
 class _LegendRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    Widget dot(Color c, String lbl) => Row(children: [
-          Container(
-              width: 10, height: 10,
-              decoration: BoxDecoration(
-                  color: c, shape: BoxShape.circle)),
-          const SizedBox(width: 5),
-          Text(lbl,
-              style:
-                  TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-        ]);
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 16,
-      runSpacing: 6,
+    Widget item(Color bg, String label) => Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        dot(Colors.green, 'Present'),
-        dot(Colors.red, 'Absent'),
-        dot(const Color(0xFFF57F17), 'Leave'),
-        dot(Colors.grey.shade300, 'No School'),
+        Container(
+          width: 20, height: 20,
+          decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+          child: Center(
+            child: Text(
+              label[0],
+              style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
+            ),
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(label,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+      ],
+    );
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        item(const Color(0xFF43A047), 'Present'),
+        const SizedBox(width: 16),
+        item(const Color(0xFFE53935), 'Absent'),
+        const SizedBox(width: 16),
+        item(const Color(0xFFF57C00), 'Leave'),
       ],
     );
   }
