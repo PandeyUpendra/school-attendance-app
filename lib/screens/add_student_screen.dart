@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
+import 'consent/parental_consent_flow.dart';
 
 class AddStudentScreen extends StatefulWidget {
   final String className;
@@ -151,9 +152,35 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(error), backgroundColor: Colors.red));
         setState(() => _saving = false);
-      } else {
-        Navigator.pop(context, student);
+        return;
       }
+
+      // ── Parental consent flow ───────────────────────────────────────────
+      // Build the canonical student doc ID that StudentService uses.
+      final cls        = widget.className.replaceAll(' ', '_');
+      final sec        = widget.section.replaceAll(' ', '_');
+      final studentDocId = '${cls}_${sec}_${student.roll}';
+
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ParentalConsentFlow(
+            studentDocId:        studentDocId,
+            studentName:         student.name,
+            prefillGuardianName: student.fatherName.isNotEmpty
+                                     ? student.fatherName
+                                     : null,
+            prefillGuardianPhone: (student.parentPhone?.isNotEmpty == true)
+                                      ? student.parentPhone
+                                      : (student.phone.isNotEmpty
+                                            ? student.phone
+                                            : null),
+          ),
+          fullscreenDialog: true,
+        ),
+      );
+      if (mounted) Navigator.pop(context, student);
     }
   }
 

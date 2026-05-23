@@ -176,6 +176,51 @@ service cloud.firestore {
       );
 
       allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+
+
+      // ── PARENTAL CONSENTS  (/schools/{sid}/students/{sid}/consents/{cid})
+      //
+      // Read:   own guardian (studentId in their studentIds[]) or any management.
+      // Create: any authenticated school member (service writes on enrollment).
+      // Update: guardian (own child) — only withdrawnAt/withdrawnReason/withdrawnBy
+      //         fields (soft withdrawal). Management may also update.
+      // Delete: nobody — immutable audit trail; use withdrawnAt instead.
+      // ────────────────────────────────────────────────────────────────────
+      match /consents/{consentId} {
+
+        allow read: if isSignedIn() && inSchool(sid) && (
+          isManagement() ||
+          (isRole('guardian') && studentId in userDoc().data.studentIds)
+        );
+
+        allow create: if isSignedIn() && inSchool(sid);
+
+        allow update: if isSignedIn() && inSchool(sid) && (
+          isManagement() ||
+          // Guardian may only stamp withdrawal fields
+          (isRole('guardian')
+            && studentId in userDoc().data.studentIds
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['withdrawnAt', 'withdrawnReason', 'withdrawnBy']))
+        );
+
+        allow delete: if false;
+      }
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // CONSENT WITHDRAWALS  (/schools/{sid}/consent_withdrawals/{wfId})
+    //
+    // Workflow documents created when a guardian withdraws consent.
+    // Read/update: management only (admin must review and action).
+    // Create: any authenticated school member (guardian + service layer).
+    // Delete: nobody.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/consent_withdrawals/{wfId} {
+      allow read, update: if isSignedIn() && inSchool(sid) && isManagement();
+      allow create:       if isSignedIn() && inSchool(sid);
+      allow delete:       if false;
     }
 
 
