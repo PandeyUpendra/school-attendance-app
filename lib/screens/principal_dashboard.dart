@@ -32,6 +32,7 @@ import 'meeting/principal_meeting_records_screen.dart';
 import 'todo_list_screen.dart';
 import 'todo_reminder_banner.dart';
 import 'fee_overview_screen.dart';
+import 'admin/audit_log_screen.dart';
 
 /// The Principal Portal — school-wide overview dashboard.
 class PrincipalDashboard extends StatefulWidget {
@@ -386,6 +387,14 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 title: 'Student Records',
                 subtitle: 'View student details and contact info by class',
                 onTap: () => _navigate(const StudentDetailsScreen()),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.security_outlined,
+                color: AppTheme.primary,
+                title: 'Audit Log',
+                subtitle: 'View all create/update/delete actions with before/after diff',
+                onTap: () => _navigate(const AuditLogScreen()),
               ),
 
               // ── Owner-Principal: Coordinator Tools ────────────────────────
