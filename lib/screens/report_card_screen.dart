@@ -4,8 +4,10 @@ import 'package:printing/printing.dart';
 import '../models/exam.dart';
 import '../models/report_card_template.dart';
 import '../models/student.dart';
+import '../services/auth_service.dart';
 import '../services/exam_service.dart';
 import '../services/report_card_template_service.dart';
+import '../services/school_service.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
 import '../utils/report_card_pdf_builder.dart';
@@ -33,6 +35,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
   final _examSvc      = ExamService();
   final _studentSvc   = StudentService();
   final _templateSvc  = ReportCardTemplateService();
+  final _schoolSvc    = SchoolService();
 
   StreamSubscription<List<Student>>? _studentSub;
 
@@ -91,10 +94,15 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
   // ── Template picker ────────────────────────────────────────────────────────
 
   /// Shows a bottom sheet to pick a template, then calls [onPicked].
+  /// Auto-seeds the 3 system presets if the school has none yet.
   Future<void> _pickTemplateAndRun(
       Future<void> Function(ReportCardTemplate) onPicked) async {
-    List<ReportCardTemplate>? templates;
+    List<ReportCardTemplate> templates;
     try {
+      // Idempotent seed — no-op if presets already exist.
+      final sid   = AuthService.currentSchoolId;
+      final brand = await _schoolSvc.getBrandName(sid);
+      await _templateSvc.seedDefaultTemplates(schoolId: sid, brandName: brand);
       templates = await _templateSvc.getTemplates();
     } catch (_) {
       templates = [];
@@ -104,7 +112,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
 
     if (templates.isEmpty) {
       _showSnack(
-        'No templates found. Create one in Manage Templates.',
+        'No templates found. Create one via Manage Templates.',
         color: Colors.orange,
       );
       return;

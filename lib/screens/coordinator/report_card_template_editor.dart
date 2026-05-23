@@ -4,7 +4,9 @@ import 'package:printing/printing.dart';
 import '../../models/exam.dart';
 import '../../models/report_card_template.dart';
 import '../../models/student.dart';
+import '../../services/auth_service.dart';
 import '../../services/report_card_template_service.dart';
+import '../../services/school_service.dart';
 import '../../theme.dart';
 import '../../utils/report_card_pdf_builder.dart';
 
@@ -22,8 +24,9 @@ class ReportCardTemplateListScreen extends StatefulWidget {
 
 class _ReportCardTemplateListScreenState
     extends State<ReportCardTemplateListScreen> {
-  final _svc     = ReportCardTemplateService();
-  bool _loading  = true;
+  final _svc        = ReportCardTemplateService();
+  final _schoolSvc  = SchoolService();
+  bool _loading     = true;
   List<ReportCardTemplate> _templates = [];
 
   @override
@@ -34,6 +37,12 @@ class _ReportCardTemplateListScreenState
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    // Auto-seed the 3 system presets the first time a school uses templates.
+    // seedDefaultTemplates is idempotent — safe to call every load.
+    final sid   = AuthService.currentSchoolId;
+    final brand = await _schoolSvc.getBrandName(sid);
+    await _svc.seedDefaultTemplates(schoolId: sid, brandName: brand);
+
     final list = await _svc.getTemplates();
     if (!mounted) return;
     setState(() { _templates = list; _loading = false; });

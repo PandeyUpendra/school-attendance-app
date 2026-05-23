@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/student.dart';
 import '../models/student_remark.dart';
 import '../repositories/student_repository.dart';
+import 'audit_log_service.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
 import 'timetable_service.dart';
@@ -115,6 +116,14 @@ class StudentService extends BaseFirestoreService {
           '${student.className}$sec.';
     }
     await _repo.upsert(student);
+    AuditService.emit(
+      action:   'create',
+      entity:   'student',
+      entityId: student.id.isNotEmpty
+          ? student.id
+          : '${student.className}_${student.section}_${student.roll}',
+      after: student.toJson(),
+    );
     // If a guardian email is provided, create their Firebase Auth account.
     if (student.guardianEmail != null &&
         student.guardianEmail!.trim().isNotEmpty) {
@@ -129,8 +138,20 @@ class StudentService extends BaseFirestoreService {
     return null;
   }
 
-  Future<void> updateStudent({required Student updated}) =>
-      _repo.upsert(updated);
+  Future<void> updateStudent({required Student updated}) async {
+    final before = await _repo.fetchByRoll(
+        updated.className, updated.section, updated.roll);
+    await _repo.upsert(updated);
+    AuditService.emit(
+      action:   'update',
+      entity:   'student',
+      entityId: updated.id.isNotEmpty
+          ? updated.id
+          : '${updated.className}_${updated.section}_${updated.roll}',
+      before: before?.toJson(),
+      after:  updated.toJson(),
+    );
+  }
 
   /// Creates/updates a Firebase Auth account + allowed_users entry for a guardian.
   /// If the account already exists, the link is re-registered (idempotent).
@@ -216,6 +237,16 @@ class StudentService extends BaseFirestoreService {
     await _cascadeDeleteStudentNotifications(className, roll);
     await _cascadeDeleteExamResults(className, roll);
     await _cascadeDeleteFeePayments(className, roll);
+
+    AuditService.emit(
+      action:   'delete',
+      entity:   'student',
+      entityId: student.id.isNotEmpty
+          ? student.id
+          : '${className}_${section}_$roll',
+      before: student.toJson(),
+      reason: 'principal-approved deletion',
+    );
 
     // 5. Revoke guardian login.
     final guardianEmail = student.guardianEmail;
@@ -311,11 +342,23 @@ class StudentService extends BaseFirestoreService {
   Future<void> saveAttendance(
       {required String className,
       required Map<int, String> attendance}) async {
-    final rolls = attendance.map((k, v) => MapEntry(k.toString(), v));
+    final docKey = _todayKey(className);
+    final prev   = await _attendance.doc(docKey).get();
+    final isUpdate = prev.exists;
+    final rolls  = attendance.map((k, v) => MapEntry(k.toString(), v));
     await _attendance
-        .doc(_todayKey(className))
+        .doc(docKey)
         .set({'rolls': rolls, 'updatedAt': FieldValue.serverTimestamp()},
             SetOptions(merge: true));
+    AuditService.emit(
+      action:   isUpdate ? 'update' : 'create',
+      entity:   'attendance',
+      entityId: docKey,
+      before:   isUpdate && prev.data() != null
+          ? Map<String, dynamic>.from(prev.data()!)
+          : null,
+      after:    {'rolls': rolls},
+    );
   }
 
   /// Save attendance for a specific date (used by offline sync).

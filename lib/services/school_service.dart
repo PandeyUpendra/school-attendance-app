@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../models/school.dart';
 import 'base_firestore_service.dart';
+import 'report_card_template_service.dart';
 
 class SchoolService extends BaseFirestoreService {
   static final SchoolService _instance = SchoolService._();
@@ -34,12 +35,28 @@ class SchoolService extends BaseFirestoreService {
       'schoolId': school.id,
       'password': adminPassword,
     });
+
+    // 4. Seed the 3 default report card templates for this school.
+    //    Uses school.effectiveBrandName so no institution name is hardcoded.
+    await ReportCardTemplateService().seedDefaultTemplates(
+      schoolId:  school.id,
+      brandName: school.effectiveBrandName,
+    );
   }
 
   Future<School?> getSchool(String schoolId) async {
     final doc = await _schools.doc(schoolId).get();
     if (!doc.exists || doc.data() == null) return null;
     return School.fromJson(doc.data()!, doc.id);
+  }
+
+  /// Returns the effective branding label for [schoolId].
+  /// Reads schools/{schoolId}.brandName; falls back to .name.
+  /// Used by report card generation to stamp PDFs with the correct brand.
+  /// Never returns a hardcoded institution name.
+  Future<String> getBrandName(String schoolId) async {
+    final school = await getSchool(schoolId);
+    return school?.effectiveBrandName ?? '';
   }
 
   Future<Map<String, dynamic>> getSchoolPolicy(String schoolId) async {

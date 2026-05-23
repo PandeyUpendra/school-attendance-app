@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'audit_log_service.dart';
 import 'base_firestore_service.dart';
 
 /// Manages authentication (Firebase Auth) and local session persistence
@@ -42,9 +43,47 @@ class AuthService {
   }
 
   /// Sends a password-reset email (also used as first-time invitation email).
-  Future<void> sendPasswordResetEmail(String email) {
-    return _auth.sendPasswordResetEmail(
+  Future<void> sendPasswordResetEmail(String email) async {
+    await _auth.sendPasswordResetEmail(
       email: email.trim().toLowerCase(),
+    );
+    AuditService.emit(
+      action:   'update',
+      entity:   'auth',
+      entityId: email.trim().toLowerCase(),
+      reason:   'password_reset_email_sent',
+    );
+  }
+
+  /// Logs a role change for auditing. Call this from any screen that modifies
+  /// a user's role in allowed_users.
+  static void auditRoleChange({
+    required String targetEmail,
+    required String oldRole,
+    required String newRole,
+    String? reason,
+  }) {
+    AuditService.emit(
+      action:   'update',
+      entity:   'auth',
+      entityId: targetEmail,
+      before:   {'role': oldRole},
+      after:    {'role': newRole},
+      reason:   reason ?? 'role_change',
+    );
+  }
+
+  /// Logs an account-disable event.
+  static void auditAccountDisable({
+    required String targetEmail,
+    String? reason,
+  }) {
+    AuditService.emit(
+      action:   'update',
+      entity:   'auth',
+      entityId: targetEmail,
+      after:    {'status': 'disabled'},
+      reason:   reason ?? 'account_disabled',
     );
   }
 

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/fee.dart';
+import 'audit_log_service.dart';
 
 /// Firestore-backed fee management service.
 ///
@@ -34,9 +35,19 @@ class FeeService {
   }
 
   Future<void> saveFeeStructure({String? schoolId, required FeeStructure structure}) async {
-    await _feeStructures
-        .doc(structure.className.replaceAll(' ', '_'))
-        .set(structure.toJson());
+    final docId = structure.className.replaceAll(' ', '_');
+    final prev  = await _feeStructures.doc(docId).get();
+    final before = prev.exists && prev.data() != null
+        ? Map<String, dynamic>.from(prev.data()!)
+        : null;
+    await _feeStructures.doc(docId).set(structure.toJson());
+    AuditService.emit(
+      action:   before == null ? 'create' : 'update',
+      entity:   'fee_structure',
+      entityId: docId,
+      before:   before,
+      after:    structure.toJson(),
+    );
   }
 
   // ── Payments ───────────────────────────────────────────────────────────────
@@ -51,7 +62,34 @@ class FeeService {
   }
 
   Future<void> addPayment({String? schoolId, required String className, required int roll, required Payment payment}) async {
-    await _paymentsCol(className, roll).add(payment.toJson());
+    final ref = await _paymentsCol(className, roll).add(payment.toJson());
+    AuditService.emit(
+      action:   'create',
+      entity:   'fee_payment',
+      entityId: ref.id,
+      after:    payment.toJson()
+        ..['className'] = className
+        ..['roll']      = roll,
+    );
+  }
+
+  /// Deletes a single payment record. Logs a 'delete' audit entry.
+  Future<void> deletePayment({
+    required String className,
+    required int    roll,
+    required String paymentId,
+  }) async {
+    final doc = await _paymentsCol(className, roll).doc(paymentId).get();
+    final before = doc.exists && doc.data() != null
+        ? Map<String, dynamic>.from(doc.data()!)
+        : null;
+    await _paymentsCol(className, roll).doc(paymentId).delete();
+    AuditService.emit(
+      action:   'delete',
+      entity:   'fee_payment',
+      entityId: paymentId,
+      before:   before,
+    );
   }
 
   Future<double> getTotalPaid({String? schoolId, required String className, required int roll}) async {

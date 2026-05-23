@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/exam.dart';
+import 'audit_log_service.dart';
 
 /// Firestore-backed exam & marks service.
 ///
@@ -36,14 +37,36 @@ class ExamService {
 
   Future<String> createExam({String? schoolId, required Exam exam}) async {
     final ref = await _exams.add(exam.toJson());
+    AuditService.emit(
+      action:   'create',
+      entity:   'exam',
+      entityId: ref.id,
+      after:    exam.toJson(),
+    );
     return ref.id;
   }
 
   Future<void> updateExam({required Exam exam}) async {
+    final prev   = await _exams.doc(exam.id).get();
+    final before = prev.exists && prev.data() != null
+        ? Map<String, dynamic>.from(prev.data()!)
+        : null;
     await _exams.doc(exam.id).set(exam.toJson());
+    AuditService.emit(
+      action:   'update',
+      entity:   'exam',
+      entityId: exam.id,
+      before:   before,
+      after:    exam.toJson(),
+    );
   }
 
   Future<void> deleteExam({String? schoolId, required String examId}) async {
+    final prev   = await _exams.doc(examId).get();
+    final before = prev.exists && prev.data() != null
+        ? Map<String, dynamic>.from(prev.data()!)
+        : null;
+
     final resultsSnap = await _db
         .collection('exam_results')
         .doc(examId)
@@ -56,12 +79,20 @@ class ExamService {
     batch.delete(_db.collection('exam_results').doc(examId));
     batch.delete(_exams.doc(examId));
     await batch.commit();
+
+    AuditService.emit(
+      action:   'delete',
+      entity:   'exam',
+      entityId: examId,
+      before:   before,
+    );
   }
 
   // ── Results ────────────────────────────────────────────────────────────────
 
   /// Get all results for an exam.
-  Future<List<ExamResult>> getResults({String? schoolId, required String examId}) async {
+  Future<List<ExamResult>> getResults(
+      {String? schoolId, required String examId}) async {
     final snap = await _resultsCol(examId).get();
     return snap.docs
         .map((d) =>
@@ -78,14 +109,30 @@ class ExamService {
         Map<String, dynamic>.from(doc.data() as Map));
   }
 
-  /// Save / update marks for a student.
-  Future<void> saveResult({String? schoolId, required String examId, required ExamResult result}) async {
+  /// Save / update marks for a student. Detects create vs update automatically.
+  Future<void> saveResult(
+      {String? schoolId,
+      required String examId,
+      required ExamResult result}) async {
+    final prev   = await _resultsCol(examId).doc('${result.roll}').get();
+    final before = prev.exists && prev.data() != null
+        ? Map<String, dynamic>.from(prev.data()!)
+        : null;
     await _resultsCol(examId).doc('${result.roll}').set(result.toJson());
+    AuditService.emit(
+      action:   before == null ? 'create' : 'update',
+      entity:   'exam_result',
+      entityId: '${examId}_${result.roll}',
+      before:   before,
+      after:    result.toJson(),
+    );
   }
 
   /// Get all results for a student across all exams in a class.
   Future<List<ExamResult>> getStudentResults(
-      {String? schoolId, required String className, required int roll}) async {
+      {String? schoolId,
+      required String className,
+      required int roll}) async {
     final exams = await getExams(className: className);
     if (exams.isEmpty) return [];
 
