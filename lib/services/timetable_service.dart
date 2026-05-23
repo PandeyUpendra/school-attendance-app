@@ -4,16 +4,16 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
+import 'auth_service.dart';
+import 'base_firestore_service.dart';
 
-class TimetableService {
-  static final _db            = FirebaseFirestore.instance;
-  static final _teachers      = _db.collection('teachers');
-  static final _settings      = _db.collection('settings');
-  static final _tt            = _db.collection('timetable');
-  static final _duties        = _db.collection('duties');
-  static final _allowedUsers  = _db.collection('allowed_users');
-  static final _substitutions = _db.collection('substitutions');
-  static final _leaveApps     = _db.collection('leave_applications');
+class TimetableService extends BaseFirestoreService {
+  static final _db = FirebaseFirestore.instance;
+
+  // allowed_users stays at the Firestore root — it is the user→school mapping
+  // table and must be readable before schoolId is known (login flow reads it
+  // to determine which school the user belongs to).
+  static final _allowedUsers = _db.collection('allowed_users');
 
   static final TimetableService _instance = TimetableService._();
   TimetableService._();
@@ -21,6 +21,31 @@ class TimetableService {
 
   // In-memory cache for settings (invalidated on every saveSettings call)
   static Map<String, dynamic>? _settingsCache;
+
+  // ── School-scoped collection helpers ────────────────────────────────────────
+  // Everything except allowed_users lives under schools/{schoolId}/.
+  // _schoolId reads the value set at login time; falls back to 'school_1'
+  // so existing deployments keep working before migration.
+
+  String get _schoolId => AuthService.currentSchoolId;
+
+  CollectionReference<Map<String, dynamic>> get _teachers =>
+      schoolCollection(_schoolId, 'teachers');
+
+  CollectionReference<Map<String, dynamic>> get _settings =>
+      schoolCollection(_schoolId, 'settings');
+
+  CollectionReference<Map<String, dynamic>> get _tt =>
+      schoolCollection(_schoolId, 'timetable');
+
+  CollectionReference<Map<String, dynamic>> get _duties =>
+      schoolCollection(_schoolId, 'duties');
+
+  CollectionReference<Map<String, dynamic>> get _substitutions =>
+      schoolCollection(_schoolId, 'substitutions');
+
+  CollectionReference<Map<String, dynamic>> get _leaveApps =>
+      schoolCollection(_schoolId, 'leave_applications');
 
   // ── Teachers ──────────────────────────────────────────────────────────────
 
@@ -107,7 +132,7 @@ class TimetableService {
     await _teachers.doc(id).delete();
 
     // Scrub teacher from every timetable slot
-    final snap = await _tt.get();
+    final snap  = await _tt.get();
     final batch = _db.batch();
     for (final doc in snap.docs) {
       final raw = Map<String, dynamic>.from(
@@ -177,13 +202,13 @@ class TimetableService {
   // Shape: className → day → bell(1-indexed) → TimetableEntry
 
   Future<Map<String, Map<String, Map<int, TimetableEntry>>>> getTimetable() async {
-    final snap = await _tt.get();
+    final snap   = await _tt.get();
     final result = <String, Map<String, Map<int, TimetableEntry>>>{};
 
     for (final doc in snap.docs) {
       final className = doc.id;
-      final rawData = (doc.data()['data'] as Map?) ?? {};
-      final dayMap = <String, Map<int, TimetableEntry>>{};
+      final rawData   = (doc.data()['data'] as Map?) ?? {};
+      final dayMap    = <String, Map<int, TimetableEntry>>{};
 
       rawData.forEach((day, bellsRaw) {
         final bells = Map<String, dynamic>.from(bellsRaw as Map);
@@ -214,7 +239,7 @@ class TimetableService {
   Future<String?> findClash({
     required String forClass,
     required String day,
-    required int bell,
+    required int    bell,
     required String teacherId,
   }) async {
     final tt = await getTimetable();
@@ -246,22 +271,23 @@ class TimetableService {
   Future<void> saveTodayDuties(Map<String, String> duties) async {
     await _duties.doc(_dutyKey()).set({
       'assignments': duties,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt':   FieldValue.serverTimestamp(),
     });
   }
 
   // ── Allowed Users (Admin manages who can log in) ──────────────────────────
+  // allowed_users stays at the root — see comment at class top.
 
   Future<List<Map<String, dynamic>>> getAllowedUsers() async {
     final snap = await _allowedUsers.get();
     return snap.docs.map((d) {
-      final data = Map<String, dynamic>.from(d.data());
+      final data       = Map<String, dynamic>.from(d.data());
       final rawClasses = data['assignedClasses'];
       return <String, dynamic>{
-        'email':          d.id,
-        'role':           (data['role']         as String? ?? 'teacher'),
-        'studentClass':   (data['studentClass'] as String? ?? ''),
-        'studentRoll':    (data['studentRoll']  as int?    ?? 0),
+        'email':           d.id,
+        'role':            (data['role']         as String? ?? 'teacher'),
+        'studentClass':    (data['studentClass'] as String? ?? ''),
+        'studentRoll':     (data['studentRoll']  as int?    ?? 0),
         'assignedClasses': rawClasses != null
             ? List<String>.from(rawClasses as List)
             : <String>[],
@@ -271,9 +297,12 @@ class TimetableService {
   }
 
   /// Returns the assigned classes for a coordinator/principal, or null if not set.
-  Future<({List<String>? assignedClasses, String? schoolId})> getAssignedClasses(String email) async {
+  Future<({List<String>? assignedClasses, String? schoolId})> getAssignedClasses(
+      String email) async {
     final doc = await _allowedUsers.doc(email.toLowerCase().trim()).get();
-    if (!doc.exists || doc.data() == null) return (assignedClasses: null, schoolId: null);
+    if (!doc.exists || doc.data() == null) {
+      return (assignedClasses: null, schoolId: null);
+    }
     final data     = doc.data()!;
     final raw      = data['assignedClasses'];
     final schoolId = data['schoolId'] as String?;
@@ -374,12 +403,12 @@ class TimetableService {
             'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$_firebaseApiKey'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'email':            normEmail,
-          'password':         authPass,
+          'email':             normEmail,
+          'password':          authPass,
           'returnSecureToken': false,
         }),
       );
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final body    = jsonDecode(res.body) as Map<String, dynamic>;
       final errCode = (body['error'] as Map?)?['message'] as String? ?? '';
       // EMAIL_EXISTS is fine — the account was already created before.
       if (body['localId'] == null && errCode != 'EMAIL_EXISTS') {
@@ -402,20 +431,21 @@ class TimetableService {
   }
 
   /// Returns users created by the given creator email.
-  Future<List<Map<String, dynamic>>> getUsersCreatedBy(String creatorEmail) async {
+  Future<List<Map<String, dynamic>>> getUsersCreatedBy(
+      String creatorEmail) async {
     final snap = await _allowedUsers
         .where('createdByEmail', isEqualTo: creatorEmail.toLowerCase().trim())
         .get();
     return snap.docs.map((d) {
       final data = Map<String, dynamic>.from(d.data());
       return <String, dynamic>{
-        'email':          d.id,
-        'role':           data['role']           as String?   ?? '',
-        'createdAt':      data['createdAt'],
-        'createdByEmail': data['createdByEmail'] as String?   ?? '',
-        'createdByRole':  data['createdByRole']  as String?   ?? '',
-        'studentClass':   data['studentClass']   as String?   ?? '',
-        'studentRoll':    data['studentRoll']    as int?      ?? 0,
+        'email':           d.id,
+        'role':            data['role']           as String?   ?? '',
+        'createdAt':       data['createdAt'],
+        'createdByEmail':  data['createdByEmail'] as String?   ?? '',
+        'createdByRole':   data['createdByRole']  as String?   ?? '',
+        'studentClass':    data['studentClass']   as String?   ?? '',
+        'studentRoll':     data['studentRoll']    as int?      ?? 0,
         'assignedClasses': data['assignedClasses'] != null
             ? List<String>.from(data['assignedClasses'] as List)
             : <String>[],
@@ -588,7 +618,7 @@ class TimetableService {
     required String teacherEmail,
     required String toRole,
     required String startDate,
-    required int numberOfDays,
+    required int    numberOfDays,
     required String reason,
   }) async {
     await _leaveApps.add({
@@ -611,7 +641,8 @@ class TimetableService {
   /// requiring a Firestore composite index (status + createdAt).  Results are
   /// sorted in-memory instead — negligible cost for the small number of leave
   /// apps a school typically has.
-  Future<List<Map<String, dynamic>>> getLeaveApplications({String? status, String? schoolId}) async {
+  Future<List<Map<String, dynamic>>> getLeaveApplications(
+      {String? status, String? schoolId}) async {
     QuerySnapshot snap;
     if (status != null) {
       // No orderBy here — composite index not guaranteed to exist on all
@@ -785,12 +816,12 @@ class TimetableService {
   }
 
   Future<String?> assignTeacher({
-    required String className,
+    required String  className,
     required List<String> days,
-    required int bell,
+    required int     bell,
     required String? teacherId,
-    String? subject,
-    String? schoolId,
+    String?          subject,
+    String?          schoolId,
   }) async {
     if (teacherId != null) {
       for (final day in days) {
@@ -864,7 +895,9 @@ class TimetableService {
         : <String, dynamic>{};
 
     final links = List<Map<String, dynamic>>.from(
-        (data['studentLinks'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? []);
+        (data['studentLinks'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ?? []);
 
     final exists = links.any((l) =>
         l['studentClass'] == studentClass && l['studentRoll'] == studentRoll);
@@ -899,7 +932,9 @@ class TimetableService {
 
     final data  = Map<String, dynamic>.from(doc.data()!);
     final links = List<Map<String, dynamic>>.from(
-        (data['studentLinks'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? []);
+        (data['studentLinks'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ?? []);
     links.removeWhere((l) =>
         l['studentClass'] == studentClass && l['studentRoll'] == studentRoll);
 
@@ -935,9 +970,9 @@ class TimetableService {
   Future<Map<String, int>> getTodayAbsentTeachersInfo([String? schoolId]) async {
     final now = DateTime.now();
 
-    final allLeavesFuture  = getLeaveApplications();
-    final timetableFuture  = getTimetable();
-    final subsFuture       = getTodaySubstitutions();
+    final allLeavesFuture = getLeaveApplications();
+    final timetableFuture = getTimetable();
+    final subsFuture      = getTodaySubstitutions();
 
     final allLeaves = await allLeavesFuture;
     final timetable = await timetableFuture;
@@ -950,8 +985,8 @@ class TimetableService {
       if (startStr == null) continue;
       final start = DateTime.tryParse(startStr);
       if (start == null) continue;
-      final days = (app['numberOfDays'] as num?)?.toInt() ?? 1;
-      final end  = start.add(Duration(days: days - 1));
+      final days  = (app['numberOfDays'] as num?)?.toInt() ?? 1;
+      final end   = start.add(Duration(days: days - 1));
       final today = DateTime(now.year, now.month, now.day);
       if (!today.isBefore(DateTime(start.year, start.month, start.day)) &&
           !today.isAfter(DateTime(end.year, end.month, end.day))) {
@@ -963,8 +998,8 @@ class TimetableService {
     const dayNames = [
       'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
     ];
-    final todayName = dayNames[(now.weekday - 1).clamp(0, 5)];
-    var unassigned = 0;
+    final todayName  = dayNames[(now.weekday - 1).clamp(0, 5)];
+    var   unassigned = 0;
     timetable.forEach((className, dayMap) {
       final bellMap = dayMap[todayName] ?? {};
       bellMap.forEach((bell, entry) {
