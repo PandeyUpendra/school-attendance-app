@@ -37,6 +37,7 @@ import 'meeting/coordinator_meeting_records_screen.dart';
 import 'birthdays/birthdays_screen.dart';
 import 'todo_list_screen.dart';
 import 'todo_reminder_banner.dart';
+import 'coordinator/report_card_template_editor.dart';
 
 const _cPurple    = AppTheme.primary;
 const _cPurpleMid = AppTheme.primaryMid;
@@ -308,6 +309,13 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               title: 'Exam Management',
               subtitle: 'Create exams, enter marks and view report cards',
               onTap: () => _navigate(const ExamManagementScreen(role: 'coordinator')),
+            ),
+            _FeatureTile(
+              icon: Icons.description_outlined,
+              color: _cPurpleMid,
+              title: 'Report Card Templates',
+              subtitle: 'Design and manage PDF report card layouts',
+              onTap: () => _navigate(const ReportCardTemplateListScreen()),
             ),
 
             // ── Copy Checking ──────────────────────────────────────────────
