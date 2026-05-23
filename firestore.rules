@@ -489,6 +489,48 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
+    // AUDIT LOGS  (/schools/{sid}/audit_logs/{logId})
+    //
+    // APPEND-ONLY — once created, records are immutable for all users.
+    //   Read:   principal | admin | owner | coordinator in school.
+    //   Create: any authenticated school member (service layer only;
+    //           fire-and-forget from service singletons).
+    //   Update: admin/owner ONLY, and only to add a soft-delete reason
+    //           (deletedReason, deletedAt, deletedBy fields). All other
+    //           fields are locked.
+    //   Delete: nobody — hard deletes are permanently forbidden.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/audit_logs/{logId} {
+
+      allow read: if isSignedIn() && inSchool(sid)
+        && hasAnyRole(['principal', 'admin', 'owner', 'coordinator']);
+
+      allow create: if isSignedIn() && inSchool(sid);
+
+      // Soft-delete only: admin may stamp a reason but cannot alter
+      // any original audit fields (action, entity, before, after, etc.)
+      allow update: if isSignedIn() && inSchool(sid)
+        && isStrictAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['deletedReason', 'deletedAt', 'deletedBy']);
+
+      allow delete: if false;
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // REPORT CARD TEMPLATES  (/schools/{sid}/report_card_templates/{templateId})
+    //
+    // Read: all school members.
+    // Write: coordinator | principal | admin | owner.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/report_card_templates/{templateId} {
+      allow read:  if isSignedIn() && inSchool(sid);
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
     // GALLERY — Albums & Photos
     // (/schools/{sid}/albums/{albumId}, /schools/{sid}/photos/{photoId})
     //
