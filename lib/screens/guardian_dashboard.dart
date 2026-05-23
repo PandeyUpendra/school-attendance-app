@@ -26,6 +26,8 @@ import 'notifications_screen.dart';
 import 'attendance_certificate_screen.dart';
 import 'student_remarks_screen.dart';
 import 'guardian_student_details_screen.dart';
+import '../widgets/consent_pending_banner.dart';
+import '../services/consent_service.dart';
 
 /// The Guardian Portal — shows a single student's attendance to their parent.
 /// Guardian is linked to {studentClass, studentRoll} in allowed_users.
@@ -81,6 +83,16 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   List<Map<String, dynamic>> _bellSettings = [];
   String _firstBellTime = '08:00';
   Map<String, Teacher> _teacherById = {};
+
+  // Consent
+  final _consentSvc = ConsentService();
+  bool  _hasConsent  = true;  // optimistic — don't show banner until we know
+  bool  _needsReConsent = false;
+  String get _studentDocId {
+    final cls = widget.studentClass.replaceAll(' ', '_');
+    final sec = widget.studentSection.replaceAll(' ', '_');
+    return '${cls}_${sec}_${widget.studentRoll}';
+  }
 
   @override
   void initState() {
@@ -183,6 +195,19 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
             .map((e) => Map<String, dynamic>.from(e as Map)),
       );
 
+      // ── Consent check (fire-and-forget, does NOT block load) ─────────────────
+      _consentSvc.hasActiveConsent(_studentDocId)
+          .then((has) {
+            if (!mounted) return;
+            setState(() => _hasConsent = has);
+            if (!has) {
+              _consentSvc.needsReConsent(_studentDocId).then((needs) {
+                if (mounted) setState(() => _needsReConsent = needs);
+              }).catchError((_) {});
+            }
+          })
+          .catchError((_) {}); // never crash the dashboard over consent check
+
       setState(() {
         _student        = student;
         _monthData      = monthData;
@@ -281,6 +306,12 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
 
   List<Widget> _buildContentChildren() => [
     const SizedBox(height: 16),
+    // ── Consent pending banner ────────────────────────────────────
+    if (!_hasConsent)
+      ConsentPendingBanner(
+        hasConsent:  false,
+        isReConsent: _needsReConsent,
+      ),
     // ── Child profile card (name / parents) ──────────────────────
     _ChildProfileCard(student: _student!),
     const SizedBox(height: 12),
@@ -433,6 +464,30 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
           padding: const EdgeInsets.symmetric(vertical: 14),
         ),
       ),
+    const SizedBox(height: 24),
+
+    // ── Privacy & Consent ─────────────────────────────────────────
+    Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color:        Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color:      Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset:     const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: GuardianConsentSection(
+        studentDocId:   _studentDocId,
+        studentName:    _student!.name,
+        guardianName:   _student!.fatherName,
+        guardianPhone:  _student!.parentPhone ?? _student!.phone,
+        guardianEmail:  _student!.guardianEmail,
+      ),
+    ),
     const SizedBox(height: 24),
 
     // ── Combined attendance calendar ──────────────────────────────
