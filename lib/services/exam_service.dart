@@ -116,7 +116,7 @@ class ExamService {
       required ExamResult result}) async {
     final prev   = await _resultsCol(examId).doc('${result.roll}').get();
     final before = prev.exists && prev.data() != null
-        ? Map<String, dynamic>.from(prev.data()!)
+        ? Map<String, dynamic>.from(prev.data()! as Map)
         : null;
     await _resultsCol(examId).doc('${result.roll}').set(result.toJson());
     AuditService.emit(

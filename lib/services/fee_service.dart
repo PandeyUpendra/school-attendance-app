@@ -81,7 +81,7 @@ class FeeService {
   }) async {
     final doc = await _paymentsCol(className, roll).doc(paymentId).get();
     final before = doc.exists && doc.data() != null
-        ? Map<String, dynamic>.from(doc.data()!)
+        ? Map<String, dynamic>.from(doc.data()! as Map)
         : null;
     await _paymentsCol(className, roll).doc(paymentId).delete();
     AuditService.emit(
