@@ -78,18 +78,30 @@ class _AdminScreenState extends State<AdminScreen> {
     }
 
     setState(() => _saving = true);
-    // No password needed — a secure temp is generated automatically and a
-    // setup link is sent to the user's email via Firebase Auth.
-    await _service.addAllowedUser(email, '', _selectedRole);
-    _emailCtrl.clear();
-    setState(() => _saving = false);
-    await _load();
-    if (mounted) {
+    try {
+      // No password needed — a secure temp is generated automatically and a
+      // setup link is sent to the user's email via Firebase Auth.
+      await _service.addAllowedUser(email, '', _selectedRole);
+      _emailCtrl.clear();
+      if (!mounted) return;
+      await _load();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('$email added as $_selectedRole — setup link sent'),
         backgroundColor: Colors.green.shade700,
         duration: const Duration(seconds: 3),
       ));
+    } catch (e) {
+      // ignore: avoid_print
+      print('AdminScreen._add failed for $email: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not add $email: $e'),
+        backgroundColor: Colors.red.shade700,
+        duration: const Duration(seconds: 8),
+      ));
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
