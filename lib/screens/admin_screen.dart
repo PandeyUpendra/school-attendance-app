@@ -50,16 +50,31 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final allUsers = await _service.getAllowedUsers();
-    if (!mounted) return;
-    // Admin sees only Owner accounts.
-    final owners = allUsers
-        .where((u) => (u['role'] as String) == 'owner')
-        .toList();
-    setState(() {
-      _users   = owners;
-      _loading = false;
-    });
+    try {
+      final allUsers = await _service.getAllowedUsers();
+      if (!mounted) return;
+      // Admin sees only Owner accounts.
+      final owners = allUsers
+          .where((u) => (u['role'] as String) == 'owner')
+          .toList();
+      setState(() {
+        _users   = owners;
+        _loading = false;
+      });
+    } catch (e) {
+      // ignore: avoid_print
+      print('AdminScreen._load failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _users   = [];
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not load users: $e'),
+        backgroundColor: Colors.red.shade700,
+        duration: const Duration(seconds: 8),
+      ));
+    }
   }
 
   // ── Add ────────────────────────────────────────────────────────────────────
