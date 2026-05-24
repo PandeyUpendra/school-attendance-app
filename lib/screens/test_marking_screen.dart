@@ -176,7 +176,7 @@ class _TestMarkingScreenState extends State<TestMarkingScreen> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(44),
           child: Container(
-            color: const AppTheme.primary,
+            color: AppTheme.primary,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: Row(children: [
               _Chip(widget.subject, Icons.menu_book_outlined),
@@ -405,7 +405,7 @@ class _ResultRow extends StatelessWidget {
                     : FontWeight.w500,
                 fontSize: highlight ? 15 : 13,
                 color: highlight
-                    ? const AppTheme.primary
+                    ? AppTheme.primary
                     : null)),
       ]),
     );

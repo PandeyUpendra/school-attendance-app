@@ -11,7 +11,6 @@ import '../models/guardian_student_details.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
-import '../services/base_firestore_service.dart';
 import '../theme.dart';
 import 'add_student_screen.dart';
 import 'attendance_certificate_screen.dart';

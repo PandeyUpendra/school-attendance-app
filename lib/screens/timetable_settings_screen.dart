@@ -407,13 +407,6 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   Teacher? _teacherById(String? id) =>
       id == null ? null : _teachers.where((t) => t.id == id).firstOrNull;
 
-  String _shortName(String? tid) {
-    final t = _teacherById(tid);
-    if (t == null) return '';
-    final p = t.name.trim().split(RegExp(r'\s+'));
-    return p.length >= 2 ? '${p.first[0]}. ${p.last}' : p.first;
-  }
-
   Future<void> _editCell(String cls, int bell) async {
     if (_teachers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

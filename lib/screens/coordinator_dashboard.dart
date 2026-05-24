@@ -22,7 +22,6 @@ import '../services/auth_service.dart';
 import 'announcements_screen.dart';
 import 'notifications_screen.dart';
 import 'fee_structure_screen.dart';
-import 'fee_collection_screen.dart';
 import 'fee_overview_screen.dart';
 import 'exam_management_screen.dart';
 import 'copy_check_overview_screen.dart';

@@ -371,14 +371,6 @@ class _TaskDetailSheet extends StatelessWidget {
     );
   }
 
-  String _fmtDate(DateTime dt) {
-    const mo = [
-      'Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec'
-    ];
-    return '${dt.day} ${mo[dt.month - 1]}';
-  }
-
   String _fmtDateFull(DateTime dt) {
     const mo = [
       'Jan','Feb','Mar','Apr','May','Jun',

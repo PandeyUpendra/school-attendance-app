@@ -695,9 +695,3 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
   };
 }
 
-extension _ColorShade on Color {
-  Color get shade800 {
-    final hsl = HSLColor.fromColor(this);
-    return hsl.withLightness((hsl.lightness - 0.15).clamp(0.0, 1.0)).toColor();
-  }
-}
