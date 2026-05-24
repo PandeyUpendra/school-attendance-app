@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/teacher.dart';
 import '../services/timetable_service.dart';
-import '../services/base_firestore_service.dart';
 import '../theme.dart';
 
 class AssignDutiesScreen extends StatefulWidget {

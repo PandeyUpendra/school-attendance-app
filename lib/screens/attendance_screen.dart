@@ -13,7 +13,6 @@ import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_queue_service.dart';
-import '../services/base_firestore_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/student_remark.dart';
 
@@ -45,7 +44,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   StreamSubscription<List<ConnectivityResult>>? _connectSub;
   StreamSubscription<List<Student>>? _studentSub;
 
-  late final String _schoolId;
   List<Student>    _students   = [];
   Map<int, String> _attendance = {}; // roll → 'Present' | 'Leave' | 'Absent'
   bool   _loading        = true;
@@ -90,7 +88,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   void initState() {
     super.initState();
-    _schoolId  = widget.schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
     _className = widget.className;
     _section   = widget.section;
     _loadSettings();
@@ -107,18 +104,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _vibrationEnabled = prefs.getBool('att_vibration_enabled') ?? true;
       });
     }
-  }
-
-  Future<void> _toggleSound() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() => _soundEnabled = !_soundEnabled);
-    await prefs.setBool('att_sound_enabled', _soundEnabled);
-  }
-
-  Future<void> _toggleVibration() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() => _vibrationEnabled = !_vibrationEnabled);
-    await prefs.setBool('att_vibration_enabled', _vibrationEnabled);
   }
 
   void _triggerFeedback() {
@@ -356,59 +341,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     });
   }
 
-  Future<void> _refresh() async {
-    final connectivity = await _connectivity.checkConnectivity();
-    final online = connectivity.any((r) => r != ConnectivityResult.none);
-    setState(() => _isOnline = online);
-
-    List<Student>    students = _students;
-    Map<int, String> saved    = {};
-
-    if (online) {
-      students = await _service.getStudentsByClass(className: _className,
-          section: _section, teacherId: _teacherId);
-      if (widget.date == null) {
-        saved = await _service.loadTodayAttendance(className: _attendanceKey);
-      } else {
-        final raw = await _service.loadAttendanceForDate(className: _attendanceKey, date: widget.date!);
-        if (raw != null) {
-          final rolls = Map<String, dynamic>.from((raw['rolls'] as Map?) ?? {});
-          rolls.forEach((k, v) {
-            if (v is bool) saved[int.parse(k)] = v ? 'Present' : 'Absent';
-            else saved[int.parse(k)] = v as String;
-          });
-        }
-      }
-    } else {
-      if (widget.date == null) {
-        final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
-        if (cached != null) saved = cached;
-      }
-    }
-
-    final pending = await _offlineQueue.pendingCount();
-    if (!mounted) return;
-    setState(() {
-      _students     = students;
-      _pendingCount = pending;
-      _alreadySaved = saved.isNotEmpty || _alreadySaved;
-      for (final s in students) {
-        _attendance[s.roll] = saved[s.roll] ?? _attendance[s.roll] ?? '';
-      }
-      _dirty = false;
-    });
-    _loadExtraData();
-  }
-
   // ── Actions ─────────────────────────────────────────────────────────────────
   void _setStatus(int roll, String status) =>
       setState(() { _attendance[roll] = status; _dirty = true; });
-
-  void _markAll(String status) =>
-      setState(() {
-        for (final s in _students) _attendance[s.roll] = status;
-        _dirty = true;
-      });
 
   Future<void> _saveQuietly() async {
     if (!_dirty) return;
@@ -559,47 +494,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-  Future<void> _removeStudent(Student s) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Remove Student'),
-        content: Text('Remove ${s.name} (Roll ${s.roll})?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    await _service.removeStudent(s.roll, _className, section: _section);
-    setState(() { _students.remove(s); _attendance.remove(s.roll); });
-  }
-
   // ── Helpers ─────────────────────────────────────────────────────────────────
-  Color _accentColor(String status) {
-    switch (status) {
-      case 'Present': return const Color(0xFF2E7D32);
-      case 'Leave':   return const Color(0xFFF57F17);
-      case 'Absent':  return const Color(0xFFC62828);
-      default:        return Colors.grey.shade300; // unmarked
-    }
-  }
-
-  Color _rowBg(String status) {
-    switch (status) {
-      case 'Present': return Colors.green.withOpacity(0.05);
-      case 'Leave':   return Colors.amber.withOpacity(0.07);
-      default:        return Colors.white;
-    }
-  }
-
   String _dateLabel() {
     final d = widget.date ?? DateTime.now();
     const mo = ['Jan','Feb','Mar','Apr','May','Jun',
@@ -820,12 +715,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       Text(text, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
     ]),
   );
-
-  Widget _buildStatsCard() {
-    return const SizedBox.shrink();
-  }
-
-
 
   // ── Entry view: attendance not yet taken today ──────────────────────────────
   Widget _buildEntryView() {
@@ -1244,88 +1133,6 @@ class _HeroStat extends StatelessWidget {
 //  Wave clipper (shared shape for hero cards)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _WaveClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    path.lineTo(0, size.height - 30);
-    path.quadraticBezierTo(
-        size.width * 0.25, size.height,
-        size.width * 0.5,  size.height - 20);
-    path.quadraticBezierTo(
-        size.width * 0.75, size.height - 40,
-        size.width,        size.height - 20);
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(_WaveClipper _) => false;
-}
-
-// Unused widgets removed for clarity.
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Floating Save button
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _SaveButton extends StatelessWidget {
-  final bool dirty;
-  final bool isOnline;
-  final VoidCallback onTap;
-  const _SaveButton(
-      {required this.dirty, required this.isOnline, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isOnline ? AppTheme.primary : Colors.orange.shade700;
-    final label = isOnline ? 'Save Attendance' : 'Save Offline';
-    final icon  = isOnline
-        ? Icons.save_alt_rounded
-        : Icons.cloud_off_outlined;
-
-    return Material(
-      elevation: 6,
-      shadowColor: color.withOpacity(0.4),
-      borderRadius: BorderRadius.circular(14),
-      color: color,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          height: 52,
-          alignment: Alignment.center,
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
-              ),
-            ),
-            if (dirty) ...[
-              const SizedBox(width: 8),
-              Container(
-                width: 7, height: 7,
-                decoration: const BoxDecoration(
-                  color: Colors.amberAccent,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ],
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 //  Stat bubble
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1568,12 +1375,6 @@ class _VerticalStudentCard extends StatelessWidget {
     );
   }
 
-  Color _statusColor(String status) {
-    if (status == 'Present') return const Color(0xFF2E7D32);
-    if (status == 'Leave')   return const Color(0xFFF57F17);
-    if (status == 'Absent')  return const Color(0xFFC62828);
-    return Colors.grey.shade200;
-  }
 }
 
 class _AttendanceSummaryCard extends StatelessWidget {
@@ -1751,43 +1552,6 @@ class _CircleAction extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _VerticalProgressBar extends StatelessWidget {
-  final int total, current;
-  const _VerticalProgressBar({required this.total, required this.current});
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (ctx, constraints) {
-        const h = 220.0;
-        return Container(
-          width: 5, height: h,
-          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(3)),
-          child: Stack(
-            children: [
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 300),
-                top: 0, left: 0, right: 0,
-                height: h * (current / total),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppTheme.primary, AppTheme.primaryDark],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      }
     );
   }
 }

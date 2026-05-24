@@ -143,8 +143,5 @@ const kPrivacyNoticeBodyHi = '''
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 
-String privacyNoticeTitle(String langCode) =>
-    langCode == 'hi' ? kPrivacyNoticeTitleHi : kPrivacyNoticeTitleEn;
-
 String privacyNoticeBody(String langCode) =>
     langCode == 'hi' ? kPrivacyNoticeBodyHi : kPrivacyNoticeBodyEn;
