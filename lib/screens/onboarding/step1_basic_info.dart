@@ -203,7 +203,7 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
             children: [
               CircleAvatar(
                 radius: 52,
-                backgroundColor: AppTheme.primaryLight.withOpacity(0.3),
+                backgroundColor: AppTheme.primaryLight.withValues(alpha: 0.3),
                 backgroundImage:
                     _logoUrl.isNotEmpty ? NetworkImage(_logoUrl) : null,
                 child: _logoUrl.isEmpty

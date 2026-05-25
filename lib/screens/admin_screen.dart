@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../theme.dart';
 import '../services/timetable_service.dart';
 
@@ -163,7 +162,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       Container(
                         width: 44, height: 44,
                         decoration: BoxDecoration(
-                          color: roleColor.withOpacity(0.1),
+                          color: roleColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(_roleIcon(editRole),
@@ -213,7 +212,7 @@ class _AdminScreenState extends State<AdminScreen> {
                                 horizontal: 14, vertical: 8),
                             decoration: BoxDecoration(
                               color: sel
-                                  ? rCol.withOpacity(0.12)
+                                  ? rCol.withValues(alpha: 0.12)
                                   : Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
@@ -361,7 +360,7 @@ class _AdminScreenState extends State<AdminScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: DropdownButtonHideUnderline(
@@ -407,7 +406,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 prefixIcon: const Icon(Icons.email_outlined,
                     color: Colors.white70),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.15),
+                fillColor: Colors.white.withValues(alpha: 0.15),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none),
@@ -418,7 +417,7 @@ class _AdminScreenState extends State<AdminScreen> {
             const SizedBox(height: 8),
             Text(
               'A password-setup link will be emailed automatically.',
-              style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11),
             ),
             const SizedBox(height: 8),
 
@@ -538,7 +537,7 @@ class _AdminScreenState extends State<AdminScreen> {
                               leading: Container(
                                 width: 44, height: 44,
                                 decoration: BoxDecoration(
-                                  color: color.withOpacity(0.1),
+                                  color: color.withValues(alpha: 0.1),
                                   borderRadius:
                                       BorderRadius.circular(12),
                                 ),
@@ -563,12 +562,12 @@ class _AdminScreenState extends State<AdminScreen> {
                                             vertical: 3),
                                     decoration: BoxDecoration(
                                       color:
-                                          color.withOpacity(0.1),
+                                          color.withValues(alpha: 0.1),
                                       borderRadius:
                                           BorderRadius.circular(20),
                                       border: Border.all(
                                           color: color
-                                              .withOpacity(0.3)),
+                                              .withValues(alpha: 0.3)),
                                     ),
                                     child: Text(
                                       role[0].toUpperCase() +
@@ -608,7 +607,7 @@ class _AdminScreenState extends State<AdminScreen> {
                                 children: [
                                   // Edit button
                                   IconButton(
-                                    icon: Icon(
+                                    icon: const Icon(
                                         Icons.edit_outlined,
                                         color: AppTheme.primary,
                                         size: 20),

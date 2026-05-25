@@ -113,7 +113,7 @@ class _TaskMarkingScreenState extends State<TaskMarkingScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  color: AppTheme.primary.withOpacity(0.05),
+                  color: AppTheme.primary.withValues(alpha: 0.05),
                   child: Row(
                     children: [
                       Expanded(

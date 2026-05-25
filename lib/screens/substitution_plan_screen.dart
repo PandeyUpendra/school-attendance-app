@@ -195,7 +195,7 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.primary.withOpacity(0.15)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Row(children: [
@@ -229,9 +229,9 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(label,
           style: TextStyle(
@@ -266,7 +266,7 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.06),
+                color: AppTheme.primary.withValues(alpha: 0.06),
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(14)),
               ),

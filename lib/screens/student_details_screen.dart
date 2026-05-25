@@ -150,10 +150,10 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: AppTheme.primaryLight
-                                        .withOpacity(0.25),
+                                        .withValues(alpha: 0.25),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: Icon(Icons.school_outlined,
+                                  child: const Icon(Icons.school_outlined,
                                       color: AppTheme.primary, size: 22),
                                 ),
                                 const SizedBox(width: 14),
@@ -259,10 +259,10 @@ class _SectionPickerScreen extends StatelessWidget {
                       height: 44,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryLight.withOpacity(0.25),
+                        color: AppTheme.primaryLight.withValues(alpha: 0.25),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(Icons.group_outlined,
+                      child: const Icon(Icons.group_outlined,
                           color: AppTheme.primary, size: 22),
                     ),
                     const SizedBox(width: 14),

@@ -333,7 +333,7 @@ class _InstallmentLegend extends StatelessWidget {
               style:
                   TextStyle(fontSize: 10, color: Colors.grey.shade500)),
           const SizedBox(width: 8),
-          _Dot(const Color(0xFFF57F17)),
+          const _Dot(Color(0xFFF57F17)),
           const SizedBox(width: 3),
           Text('Partial',
               style:
@@ -880,7 +880,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
+                    gradient: const LinearGradient(
                       colors: [
                         AppTheme.primaryDark,
                         AppTheme.primaryMid,
@@ -1160,7 +1160,7 @@ class _PaymentTile extends StatelessWidget {
           color: AppTheme.primary.withAlpha(20),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(Icons.currency_rupee,
+        child: const Icon(Icons.currency_rupee,
             color: AppTheme.primary, size: 20),
       ),
       title: Text(
@@ -1176,7 +1176,7 @@ class _PaymentTile extends StatelessWidget {
       ),
       isThreeLine: p.note != null && p.note!.isNotEmpty,
       trailing: IconButton(
-        icon: Icon(Icons.print_outlined,
+        icon: const Icon(Icons.print_outlined,
             color: AppTheme.primary, size: 20),
         tooltip: 'Print Receipt',
         onPressed: onPrint,

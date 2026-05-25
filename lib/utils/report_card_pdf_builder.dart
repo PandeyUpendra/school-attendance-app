@@ -63,7 +63,7 @@ Future<Uint8List> buildReportCardPdf({
 
   doc.addPage(pw.Page(
     pageFormat: fmt,
-    margin: pw.EdgeInsets.all(_kMargin),
+    margin: const pw.EdgeInsets.all(_kMargin),
     build: (ctx) => pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
@@ -132,7 +132,7 @@ Future<Uint8List> buildClassReportCardPdf({
 
   doc.addPage(pw.MultiPage(
     pageFormat: fmt,
-    margin: pw.EdgeInsets.all(_kMargin),
+    margin: const pw.EdgeInsets.all(_kMargin),
     header: (ctx) => _buildHeader(template, exam),
     footer: (ctx) => _buildFooter(template),
     build: (ctx) => [
@@ -217,9 +217,9 @@ pw.Widget _buildHeader(ReportCardTemplate template, Exam exam) {
             pw.SizedBox(height: 2),
             pw.Container(
               padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 color: _kWhite24,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
               ),
               child: pw.Text(
                 template.board.label,
@@ -396,9 +396,9 @@ pw.Widget _buildSummaryStrip({
 
   return pw.Container(
     padding: const pw.EdgeInsets.symmetric(vertical: 9, horizontal: 12),
-    decoration: pw.BoxDecoration(
+    decoration: const pw.BoxDecoration(
       color: _kViolet,
-      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+      borderRadius: pw.BorderRadius.all(pw.Radius.circular(5)),
     ),
     child: pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
@@ -576,7 +576,6 @@ pw.Widget _buildClassTable({
 }) {
   final showRank = template.showRank;
   final subjects = exam.subjects;
-  final numCols  = 2 + subjects.length + 3 + (showRank ? 1 : 0);
 
   // Column widths: Roll | Name | sub*N | Total | % | Grade | [Rank]
   final colWidths = <int, pw.TableColumnWidth>{

@@ -33,10 +33,6 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
     _loadClasses();
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
 
   Future<void> _loadClasses() async {
     setState(() => _loading = true);
@@ -62,9 +58,6 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
       return;
     }
 
-    // Get unique classes
-    final classes = _assignments.map((a) => a.className).toSet().toList()..sort();
-
     showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -73,10 +66,9 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
         teacher: widget.teacher,
         onCreated: (check) async {
           await _service.createCheck(check);
-          if (mounted) {
-            Navigator.pop(ctx, true);
-            _loadSessions();
-          }
+          if (!ctx.mounted) return;
+          Navigator.pop(ctx, true);
+          if (mounted) _loadSessions();
         },
       ),
     );
@@ -310,11 +302,11 @@ class _CascadingSessionDialogState extends State<_CascadingSessionDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Row(
+      title: const Row(
         children: [
-          const Icon(Icons.menu_book_outlined, color: AppTheme.primary),
-          const SizedBox(width: 10),
-          const Text('New Session', style: TextStyle(fontWeight: FontWeight.bold)),
+          Icon(Icons.menu_book_outlined, color: AppTheme.primary),
+          SizedBox(width: 10),
+          Text('New Session', style: TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
       content: SingleChildScrollView(
@@ -511,7 +503,7 @@ class _SessionCard extends StatelessWidget {
           Container(
             width: 44, height: 44,
             decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.1),
+              color: AppTheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.menu_book_outlined,
@@ -901,7 +893,7 @@ class _StudentStatusTile extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
         ],
       ),
       child: ClipRRect(
@@ -923,7 +915,7 @@ class _StudentStatusTile extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppTheme.primary.withOpacity(0.1),
+                        color: AppTheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text('ROLL ${status.roll}',
@@ -994,7 +986,7 @@ class _StatusBtn extends StatelessWidget {
           width: 34, height: 34,
           decoration: BoxDecoration(
             color: active
-                ? color.withOpacity(0.15)
+                ? color.withValues(alpha: 0.15)
                 : Colors.grey.shade100,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
@@ -1062,7 +1054,7 @@ class _PendingTab extends StatelessWidget {
             Container(
               width: 40, height: 40,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(

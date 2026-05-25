@@ -17,9 +17,6 @@ class AnalyticsScreen extends StatefulWidget {
 
 class _AnalyticsScreenState extends State<AnalyticsScreen>
     with SingleTickerProviderStateMixin {
-  final _studentService = StudentService();
-  final _feeService     = FeeService();
-
   late TabController _tab;
 
   List<String>    _classes = [];
@@ -123,7 +120,7 @@ class _OverviewTabState extends State<_OverviewTab>
     super.build(context);
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_summaries.isEmpty || _summaries.every((s) => !s.marked)) {
-      return _EmptyState(
+      return const _EmptyState(
         icon: Icons.bar_chart_outlined,
         message: 'No attendance marked today yet.',
       );
@@ -135,7 +132,7 @@ class _OverviewTabState extends State<_OverviewTab>
       padding: const EdgeInsets.all(16),
       children: [
         // ── Stats row ───────────────────────────────────────────────────────
-        _SectionTitle('Today\'s Snapshot'),
+        const _SectionTitle('Today\'s Snapshot'),
         const SizedBox(height: 8),
         Row(children: [
           _StatCard(
@@ -162,7 +159,7 @@ class _OverviewTabState extends State<_OverviewTab>
         const SizedBox(height: 20),
 
         // ── Class comparison bar chart ──────────────────────────────────────
-        _SectionTitle('Attendance % by Class'),
+        const _SectionTitle('Attendance % by Class'),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(16),
@@ -267,11 +264,11 @@ class _OverviewTabState extends State<_OverviewTab>
               ),
               const SizedBox(height: 12),
               // Legend
-              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 _LegendDot(Colors.green, '≥85% Good'),
-                const SizedBox(width: 14),
+                SizedBox(width: 14),
                 _LegendDot(Colors.orange, '75–84% OK'),
-                const SizedBox(width: 14),
+                SizedBox(width: 14),
                 _LegendDot(Colors.red, '<75% Low'),
               ]),
             ],
@@ -280,7 +277,7 @@ class _OverviewTabState extends State<_OverviewTab>
         const SizedBox(height: 20),
 
         // ── Per-class summary tiles ─────────────────────────────────────────
-        _SectionTitle('Class Details'),
+        const _SectionTitle('Class Details'),
         const SizedBox(height: 8),
         ...markedSummaries.map((s) {
           final pct = s.total > 0 ? s.present / s.total : 0.0;
@@ -440,7 +437,7 @@ class _AttendanceTrendTabState extends State<_AttendanceTrendTab>
             child: CircularProgressIndicator(),
           ))
         else if (_spots.isEmpty)
-          _EmptyState(
+          const _EmptyState(
             icon: Icons.show_chart,
             message: 'No attendance data for this month yet.',
           )
@@ -480,7 +477,7 @@ class _AttendanceTrendTabState extends State<_AttendanceTrendTab>
                       ),
                       belowBarData: BarAreaData(
                         show: true,
-                        color: AppTheme.primary.withOpacity(0.08),
+                        color: AppTheme.primary.withValues(alpha: 0.08),
                       ),
                     ),
                   ],
@@ -489,7 +486,7 @@ class _AttendanceTrendTabState extends State<_AttendanceTrendTab>
                     horizontalLines: [
                       HorizontalLine(
                         y: 75,
-                        color: Colors.red.withOpacity(0.5),
+                        color: Colors.red.withValues(alpha: 0.5),
                         strokeWidth: 1.5,
                         dashArray: [5, 4],
                         label: HorizontalLineLabel(
@@ -721,13 +718,13 @@ class _AbsenceLeaderboardTabState extends State<_AbsenceLeaderboardTab>
             child: CircularProgressIndicator(),
           ))
         else if (_leaderboard.isEmpty)
-          _EmptyState(
+          const _EmptyState(
             icon: Icons.emoji_events_outlined,
             message:
                 'No absences in the last 30 days!\nAll students have been attending.',
           )
         else ...[
-          _SectionTitle('Most Absent — Last 30 Days'),
+          const _SectionTitle('Most Absent — Last 30 Days'),
           const SizedBox(height: 4),
           Text(
             '${_leaderboard.length} student${_leaderboard.length > 1 ? "s" : ""} have absences',
@@ -912,7 +909,7 @@ class _FeeTabState extends State<_FeeTab>
         _entries.where((e) => e.totalFee > 0).toList();
 
     if (configured.isEmpty) {
-      return _EmptyState(
+      return const _EmptyState(
         icon: Icons.account_balance_wallet_outlined,
         message: 'No fee structures set up yet.\nGo to Fee Management to configure.',
       );
@@ -922,7 +919,7 @@ class _FeeTabState extends State<_FeeTab>
       padding: const EdgeInsets.all(16),
       children: [
         // ── School-wide summary card ───────────────────────────────────────
-        _SectionTitle('School-Wide Fee Summary'),
+        const _SectionTitle('School-Wide Fee Summary'),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(16),
@@ -980,7 +977,7 @@ class _FeeTabState extends State<_FeeTab>
         const SizedBox(height: 20),
 
         // ── Per-class bar chart ────────────────────────────────────────────
-        _SectionTitle('Collection % by Class'),
+        const _SectionTitle('Collection % by Class'),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
@@ -1079,7 +1076,7 @@ class _FeeTabState extends State<_FeeTab>
         const SizedBox(height: 20),
 
         // ── Per-class detail tiles ─────────────────────────────────────────
-        _SectionTitle('Class Details'),
+        const _SectionTitle('Class Details'),
         const SizedBox(height: 8),
         ...configured.map((e) {
           final pct = e.totalFee > 0

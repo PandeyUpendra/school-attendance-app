@@ -290,8 +290,8 @@ class _GuardianConsentSectionState extends State<GuardianConsentSection> {
         _EmptyConsentCard(studentName: widget.studentName),
       ] else ...[
         if (stale.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
             child: ConsentPendingBanner(
               hasConsent:  false,
               isReConsent: true,

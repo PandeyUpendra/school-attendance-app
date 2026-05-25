@@ -222,7 +222,7 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
         child: Stack(children: [
           CircleAvatar(
             radius: 44,
-            backgroundColor: AppTheme.primaryLight.withOpacity(0.3),
+            backgroundColor: AppTheme.primaryLight.withValues(alpha: 0.3),
             backgroundImage: _logoUrl.isNotEmpty ? NetworkImage(_logoUrl) : null,
             child: _logoUrl.isEmpty
                 ? const Icon(Icons.school, size: 36, color: AppTheme.primary)
@@ -451,7 +451,9 @@ class _AcademicTabState extends State<_AcademicTab>
       });
       // Create documents for new classes
       final added = newClasses.where((c) => !oldClasses.contains(c)).toList();
-      for (final c in added) await svc.createClassDocument(c);
+      for (final c in added) {
+        await svc.createClassDocument(c);
+      }
       if (mounted) _snack('Settings updated', success: true);
     } catch (e) {
       if (mounted) _snack('Error: $e');
@@ -462,7 +464,9 @@ class _AcademicTabState extends State<_AcademicTab>
   List<String> _generateClassList() {
     final list = <String>[];
     for (int c = _from; c <= _to; c++) {
-      for (final s in _sections) list.add('$c-$s');
+      for (final s in _sections) {
+        list.add('$c-$s');
+      }
     }
     return list;
   }
@@ -493,7 +497,9 @@ class _AcademicTabState extends State<_AcademicTab>
               selected: sel,
               selectedColor: AppTheme.primaryLight,
               onSelected: (v) => setState(() {
-                if (v) { _sections.add(s); _sections.sort(); } else _sections.remove(s);
+                if (v) { _sections.add(s); _sections.sort(); } else {
+                  _sections.remove(s);
+                }
               }),
             );
           }).toList(),

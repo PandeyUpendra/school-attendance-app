@@ -86,15 +86,15 @@ class _HomeScreenState extends State<HomeScreen> {
     if (tid.isNotEmpty) {
       _taskSub = StaffTaskService()
           .streamPendingCountForTeacher(tid)
-          .listen((count) {
+          .listen((n) {
         if (!mounted) return;
-        setState(() => _pendingTaskCount = count);
+        setState(() => _pendingTaskCount = n);
       });
       _meetingTaskSub = MeetingService()
           .streamPendingTaskCountForTeacher(tid)
-          .listen((count) {
+          .listen((n) {
         if (!mounted) return;
-        setState(() => _pendingMeetingTasks = count);
+        setState(() => _pendingMeetingTasks = n);
       });
     }
 
@@ -103,9 +103,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (cls != null && cls.isNotEmpty) {
       _studentLeaveSub = TimetableService()
           .streamPendingStudentLeaveCount(studentClass: cls)
-          .listen((count) {
+          .listen((n) {
         if (!mounted) return;
-        setState(() => _pendingStudentLeaves = count);
+        setState(() => _pendingStudentLeaves = n);
       });
     }
   }
@@ -251,14 +251,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     tooltip: 'Logout',
                     onPressed: () async {
                       await AuthService().clearSession();
-                      if (context.mounted) {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) =>
-                                  const RoleSelectionScreen()),
-                        );
-                      }
+                      if (!mounted) return;
+                      if (!context.mounted) return;
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const RoleSelectionScreen()),
+                      );
                     },
                   ),
                 ]),
@@ -286,7 +286,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.13),
+                      color: Colors.white.withValues(alpha: 0.13),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(children: [
@@ -353,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppTheme.primary.withOpacity(0.1),
+                      color: AppTheme.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(Icons.family_restroom_outlined,
@@ -533,7 +533,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           _buildSubDutyCard(),
 
-          _SectionHeader('ACADEMICS'),
+          const _SectionHeader('ACADEMICS'),
           _FeatureTile(
             icon: Icons.fact_check_outlined,
             color: AppTheme.primary,
@@ -577,7 +577,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          _SectionHeader('STUDENTS'),
+          const _SectionHeader('STUDENTS'),
           _FeatureTile(
             icon: Icons.people_outline,
             color: AppTheme.primary,
@@ -632,7 +632,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          _SectionHeader('CALLS'),
+          const _SectionHeader('CALLS'),
           _FeatureTile(
             icon: Icons.phone_callback_outlined,
             color: AppTheme.primary,
@@ -645,7 +645,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          _SectionHeader('LEAVE'),
+          const _SectionHeader('LEAVE'),
           _FeatureTile(
             icon: Icons.event_busy_outlined,
             color: AppTheme.warning,
@@ -678,7 +678,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          _SectionHeader('COPY CHECKING'),
+          const _SectionHeader('COPY CHECKING'),
           _FeatureTile(
             icon: Icons.menu_book_outlined,
             color: AppTheme.primary,
@@ -696,7 +696,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
 
-          _SectionHeader('HOMEWORK'),
+          const _SectionHeader('HOMEWORK'),
           _FeatureTile(
             icon: Icons.assignment_outlined,
             color: AppTheme.primary,
@@ -713,7 +713,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
 
-          _SectionHeader('EXAMS & MARKS'),
+          const _SectionHeader('EXAMS & MARKS'),
           _FeatureTile(
             icon: Icons.quiz_outlined,
             color: AppTheme.primary,
@@ -731,7 +731,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          _SectionHeader('MY TASKS'),
+          const _SectionHeader('MY TASKS'),
           _FeatureTile(
             icon: Icons.task_outlined,
             color: AppTheme.primary,
@@ -766,7 +766,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          _SectionHeader('ANNOUNCEMENTS'),
+          const _SectionHeader('ANNOUNCEMENTS'),
           _FeatureTile(
             icon: Icons.campaign_outlined,
             color: AppTheme.primary,
@@ -781,7 +781,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          _SectionHeader('GUARDIANS'),
+          const _SectionHeader('GUARDIANS'),
           _FeatureTile(
             icon: Icons.family_restroom_outlined,
             color: AppTheme.primary,
@@ -790,7 +790,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () => _showAddGuardianSheet(context),
           ),
 
-          _SectionHeader('BIRTHDAYS'),
+          const _SectionHeader('BIRTHDAYS'),
           BirthdayBanner(
             role: 'class_teacher',
             className: teacher?.classTeacherOf,
@@ -823,7 +823,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          _SectionHeader('MY TO-DO LIST'),
+          const _SectionHeader('MY TO-DO LIST'),
           _FeatureTile(
             icon: Icons.checklist_outlined,
             color: AppTheme.primary,
@@ -863,7 +863,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         _buildSubDutyCard(),
 
-        _SectionHeader('ACADEMICS'),
+        const _SectionHeader('ACADEMICS'),
         _FeatureTile(
           icon: Icons.calendar_month_outlined,
           color: AppTheme.primary,
@@ -890,7 +890,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        _SectionHeader('STUDENTS'),
+        const _SectionHeader('STUDENTS'),
         _FeatureTile(
           icon: Icons.people_outline,
           color: AppTheme.primary,
@@ -936,7 +936,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        _SectionHeader('LEAVE'),
+        const _SectionHeader('LEAVE'),
         _FeatureTile(
           icon: Icons.event_busy_outlined,
           color: AppTheme.warning,
@@ -955,7 +955,7 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
 
-        _SectionHeader('COPY CHECKING'),
+        const _SectionHeader('COPY CHECKING'),
         _FeatureTile(
           icon: Icons.menu_book_outlined,
           color: AppTheme.primary,
@@ -973,7 +973,7 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
 
-        _SectionHeader('HOMEWORK'),
+        const _SectionHeader('HOMEWORK'),
         _FeatureTile(
           icon: Icons.assignment_outlined,
           color: AppTheme.primary,
@@ -990,7 +990,7 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
 
-        _SectionHeader('EXAMS & MARKS'),
+        const _SectionHeader('EXAMS & MARKS'),
         _FeatureTile(
           icon: Icons.quiz_outlined,
           color: AppTheme.primary,
@@ -1006,7 +1006,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        _SectionHeader('MY TASKS'),
+        const _SectionHeader('MY TASKS'),
         _FeatureTile(
           icon: Icons.task_outlined,
           color: AppTheme.primary,
@@ -1040,7 +1040,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        _SectionHeader('ANNOUNCEMENTS'),
+        const _SectionHeader('ANNOUNCEMENTS'),
         _FeatureTile(
           icon: Icons.campaign_outlined,
           color: AppTheme.primary,
@@ -1055,7 +1055,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        _SectionHeader('GUARDIANS'),
+        const _SectionHeader('GUARDIANS'),
         _FeatureTile(
           icon: Icons.family_restroom_outlined,
           color: AppTheme.primary,
@@ -1064,7 +1064,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: () => _showAddGuardianSheet(context),
         ),
 
-        _SectionHeader('BIRTHDAYS'),
+        const _SectionHeader('BIRTHDAYS'),
         BirthdayBanner(
           role: 'subject_teacher',
           assignedClasses: teacher?.assignedClasses,
@@ -1094,7 +1094,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        _SectionHeader('MY TO-DO LIST'),
+        const _SectionHeader('MY TO-DO LIST'),
         _FeatureTile(
           icon: Icons.checklist_outlined,
           color: AppTheme.primary,
@@ -1167,11 +1167,11 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: [
-                    const Icon(Icons.swap_horiz_outlined,
+                  const Row(children: [
+                    Icon(Icons.swap_horiz_outlined,
                         color: AppTheme.warning, size: 20),
-                    const SizedBox(width: 8),
-                    const Text('Substitute Duty Today',
+                    SizedBox(width: 8),
+                    Text('Substitute Duty Today',
                         style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14)),
@@ -1183,7 +1183,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
-                        color: AppTheme.warning.withOpacity(0.08),
+                        color: AppTheme.warning.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(children: [
@@ -1336,7 +1336,7 @@ class _FeatureTile extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color, size: 22),

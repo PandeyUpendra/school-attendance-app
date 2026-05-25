@@ -438,7 +438,7 @@ class _DateChip extends StatelessWidget {
               const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             color: active
-                ? AppTheme.primary.withOpacity(0.08)
+                ? AppTheme.primary.withValues(alpha: 0.08)
                 : Colors.grey.shade100,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
@@ -526,7 +526,7 @@ class _AuditEntryCardState extends State<_AuditEntryCard> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: _actionColor.withOpacity(0.12),
+                    color: _actionColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -544,7 +544,7 @@ class _AuditEntryCardState extends State<_AuditEntryCard> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.07),
+                    color: AppTheme.primary.withValues(alpha: 0.07),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(

@@ -290,7 +290,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     'Sign in to your account',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 15, color: Colors.white.withOpacity(0.75)),
+                        fontSize: 15, color: Colors.white.withValues(alpha: 0.75)),
                   ),
                   const SizedBox(height: 40),
 
@@ -302,7 +302,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
+                          color: Colors.black.withValues(alpha: 0.15),
                           blurRadius: 24,
                           offset: const Offset(0, 8),
                         ),
@@ -448,7 +448,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(color: Colors.white70),
                     ),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.white.withOpacity(0.4)),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
@@ -465,7 +465,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         'Admin Access',
                         style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white.withOpacity(0.45)),
+                            color: Colors.white.withValues(alpha: 0.45)),
                       ),
                     ),
                   ),

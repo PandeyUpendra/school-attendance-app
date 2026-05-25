@@ -189,7 +189,7 @@ class _TemplateCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.08),
+              color: AppTheme.primary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -311,7 +311,7 @@ class _ActionBtn extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.08),
+            color: color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(6),
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -771,7 +771,7 @@ class _ReportCardTemplateEditorState
         return ChoiceChip(
           label: Text(b.label),
           selected: sel,
-          selectedColor: AppTheme.primary.withOpacity(0.15),
+          selectedColor: AppTheme.primary.withValues(alpha: 0.15),
           checkmarkColor: AppTheme.primary,
           labelStyle: TextStyle(
             color: sel ? AppTheme.primary : null,
@@ -994,7 +994,7 @@ class _ReportCardTemplateEditorState
   Widget _gradeHeader() => Container(
     color: Colors.grey.shade50,
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    child: Row(children: const [
+    child: const Row(children: [
       Expanded(flex: 2, child: Text('Min %',
           style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
       Expanded(flex: 2, child: Text('Max %',
@@ -1013,14 +1013,14 @@ class _ReportCardTemplateEditorState
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Row(children: [
         Expanded(flex: 2, child: _gradeTF(
-          '${b.minPercent.toStringAsFixed(0)}',
+          b.minPercent.toStringAsFixed(0),
           onChanged: (v) => setState(() =>
               _gradeBands[i] = b.copyWith(
                   minPercent: double.tryParse(v) ?? b.minPercent)),
         )),
         const SizedBox(width: 4),
         Expanded(flex: 2, child: _gradeTF(
-          '${b.maxPercent.toStringAsFixed(0)}',
+          b.maxPercent.toStringAsFixed(0),
           onChanged: (v) => setState(() =>
               _gradeBands[i] = b.copyWith(
                   maxPercent: double.tryParse(v) ?? b.maxPercent)),

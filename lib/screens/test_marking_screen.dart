@@ -42,7 +42,9 @@ class _TestMarkingScreenState extends State<TestMarkingScreen> {
 
   @override
   void dispose() {
-    for (final c in _ctrls) c.dispose();
+    for (final c in _ctrls) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -314,7 +316,7 @@ class _MarkRowState extends State<_MarkRow> {
         // Roll avatar
         CircleAvatar(
           radius: 18,
-          backgroundColor: color.withOpacity(0.12),
+          backgroundColor: color.withValues(alpha: 0.12),
           child: Text(
             '${widget.student.roll}',
             style: TextStyle(

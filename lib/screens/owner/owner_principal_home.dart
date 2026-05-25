@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -37,7 +36,6 @@ class OwnerPrincipalHome extends StatefulWidget {
 class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
   String _myEmail = '';
   String _myRole = 'ownerPrincipal';
-  String _schoolName = '';
   bool _loaded = false;
 
   @override
@@ -61,22 +59,16 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
       final isCompleted = onboarding['isCompleted'] as bool? ?? false;
       if (!isCompleted && mounted) {
         Navigator.pushReplacement(context, MaterialPageRoute(
-          builder: (_) => SchoolOnboardingScreen(destination: const OwnerPrincipalHome()),
+          builder: (_) => const SchoolOnboardingScreen(destination: OwnerPrincipalHome()),
         ));
         return;
       }
     } catch (_) {}
 
-    String schoolName = '';
-    try {
-      final settings = await TimetableService().getSettings();
-      schoolName = settings['schoolName'] as String? ?? '';
-    } catch (_) {}
     if (!mounted) return;
     setState(() {
       _myEmail = email;
       _myRole = role;
-      _schoolName = schoolName;
       _loaded = true;
     });
   }
@@ -306,8 +298,9 @@ class _OPDashPageState extends State<_OPDashPage> {
       }
       final alerts = <String>[];
       for (final c in classAtt) {
-        if ((c['marked'] as bool) && (c['pct'] as double) < 70)
+        if ((c['marked'] as bool) && (c['pct'] as double) < 70) {
           alerts.add('Low attendance in ${c['className']}: ${(c['pct'] as double).toStringAsFixed(0)}%');
+        }
       }
       final leaves = await _svc.getLeaveApplications(status: 'pending');
       if (leaves.length > 3) alerts.add('${leaves.length} leave requests pending approval');
@@ -403,9 +396,9 @@ class _OPDashPageState extends State<_OPDashPage> {
 
   Widget _buildAlerts() {
     if (_alerts.isEmpty) {
-      return Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4), child: _OPCard(child: Row(children: [
-        const Icon(Icons.check_circle_outline, color: AppTheme.success, size: 20), const SizedBox(width: 10),
-        const Text('All good today', style: TextStyle(color: AppTheme.success, fontWeight: FontWeight.w600)),
+      return const Padding(padding: EdgeInsets.symmetric(horizontal: 14, vertical: 4), child: _OPCard(child: Row(children: [
+        Icon(Icons.check_circle_outline, color: AppTheme.success, size: 20), SizedBox(width: 10),
+        Text('All good today', style: TextStyle(color: AppTheme.success, fontWeight: FontWeight.w600)),
       ])));
     }
     return Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Column(
@@ -428,7 +421,7 @@ class _OPDashPageState extends State<_OPDashPage> {
         topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
       ),
       borderData: FlBorderData(show: false), minX: 0, maxX: 6, minY: 0, maxY: 100,
-      lineBarsData: [LineChartBarData(spots: _trend, isCurved: true, color: _primary, barWidth: 2.5, isStrokeCapRound: true, dotData: const FlDotData(show: true), belowBarData: BarAreaData(show: true, color: _primary.withOpacity(0.08)))],
+      lineBarsData: [LineChartBarData(spots: _trend, isCurved: true, color: _primary, barWidth: 2.5, isStrokeCapRound: true, dotData: const FlDotData(show: true), belowBarData: BarAreaData(show: true, color: _primary.withValues(alpha: 0.08)))],
     )))));
   }
 }
@@ -511,13 +504,13 @@ class _OPStaffPageState extends State<_OPStaffPage> {
                 final id = leave['id'] as String? ?? '';
                 return _OPCard(margin: const EdgeInsets.only(bottom: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [
-                    CircleAvatar(radius: 16, backgroundColor: _primary.withOpacity(0.12), child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'T', style: const TextStyle(color: _primary, fontWeight: FontWeight.bold, fontSize: 12))),
+                    CircleAvatar(radius: 16, backgroundColor: _primary.withValues(alpha: 0.12), child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'T', style: const TextStyle(color: _primary, fontWeight: FontWeight.bold, fontSize: 12))),
                     const SizedBox(width: 10),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       Text('${leave['fromDate'] ?? ''} → ${leave['toDate'] ?? ''}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     ])),
-                    Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: AppTheme.warning.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: const Text('Pending', style: TextStyle(fontSize: 11, color: AppTheme.warning, fontWeight: FontWeight.w600))),
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: AppTheme.warning.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)), child: const Text('Pending', style: TextStyle(fontSize: 11, color: AppTheme.warning, fontWeight: FontWeight.w600))),
                   ]),
                   if ((leave['reason'] as String? ?? '').isNotEmpty) ...[const SizedBox(height: 6), Text(leave['reason'] as String, style: const TextStyle(fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis)],
                   const SizedBox(height: 8),
@@ -544,15 +537,15 @@ class _OPStaffPageState extends State<_OPStaffPage> {
                     final classes = List<String>.from(t['assignedClasses'] as List? ?? []);
                     final isOnLeave = _leaves.any((l) => (l['teacherId'] as String? ?? '') == email);
                     return _OPCard(margin: const EdgeInsets.only(bottom: 8), child: Row(children: [
-                      CircleAvatar(radius: 20, backgroundColor: _primary.withOpacity(0.12), child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'T', style: const TextStyle(color: _primary, fontWeight: FontWeight.bold))),
+                      CircleAvatar(radius: 20, backgroundColor: _primary.withValues(alpha: 0.12), child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'T', style: const TextStyle(color: _primary, fontWeight: FontWeight.bold))),
                       const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         Text(email, style: const TextStyle(color: Colors.grey, fontSize: 11), overflow: TextOverflow.ellipsis),
-                        if (classes.isNotEmpty) Text(classes.join(', '), style: TextStyle(color: _primary.withOpacity(0.7), fontSize: 11)),
+                        if (classes.isNotEmpty) Text(classes.join(', '), style: TextStyle(color: _primary.withValues(alpha: 0.7), fontSize: 11)),
                       ])),
                       Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(color: isOnLeave ? AppTheme.warning.withOpacity(0.1) : AppTheme.success.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                        decoration: BoxDecoration(color: isOnLeave ? AppTheme.warning.withValues(alpha: 0.1) : AppTheme.success.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                         child: Text(isOnLeave ? 'On Leave' : 'Active', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isOnLeave ? AppTheme.warning : AppTheme.success))),
                     ]));
                   }).toList(),
@@ -608,7 +601,7 @@ class _OPAcademicsPageState extends State<_OPAcademicsPage> {
             children: _recent.map((exam) {
               final dt = exam.examDate;
               return _OPCard(margin: const EdgeInsets.only(bottom: 8), child: Row(children: [
-                Container(width: 44, height: 44, decoration: BoxDecoration(color: _primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.quiz_outlined, color: _primary, size: 22)),
+                Container(width: 44, height: 44, decoration: BoxDecoration(color: _primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.quiz_outlined, color: _primary, size: 22)),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(exam.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
@@ -625,15 +618,15 @@ class _OPAcademicsPageState extends State<_OPAcademicsPage> {
               final dColor = daysLeft <= 3 ? AppTheme.danger : daysLeft <= 7 ? AppTheme.warning : _primary;
               return _OPCard(margin: const EdgeInsets.only(bottom: 8), child: Row(children: [
                 Column(children: [
-                  Text('${dt.day}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _primary)),
-                  Text(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.month - 1], style: TextStyle(fontSize: 11, color: _primary)),
+                  Text('${dt.day}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _primary)),
+                  Text(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.month - 1], style: const TextStyle(fontSize: 11, color: _primary)),
                 ]),
                 const SizedBox(width: 14),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(exam.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   Text(exam.className, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                 ])),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: dColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: dColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                   child: Text(daysLeft == 0 ? 'Today' : '${daysLeft}d left', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: dColor))),
               ]));
             }).toList(),
@@ -679,7 +672,7 @@ class _OPFinancePageState extends State<_OPFinancePage> {
           col += amount;
         } else {
           final due = s.feeDueDate != null ? DateTime.tryParse(s.feeDueDate!) ?? now : now;
-          if (due.isBefore(now)) { ov += amount; defaulters.add({'name': s.name, 'className': s.className, 'amount': amount, 'daysOverdue': now.difference(due).inDays, 'phone': s.parentPhone ?? s.phone ?? ''}); }
+          if (due.isBefore(now)) { ov += amount; defaulters.add({'name': s.name, 'className': s.className, 'amount': amount, 'daysOverdue': now.difference(due).inDays, 'phone': s.parentPhone ?? s.phone}); }
           else { pen += amount; }
         }
       }
@@ -942,14 +935,14 @@ class _OPManagePageState extends State<_OPManagePage> {
               String dateStr = '';
               if (createdAt is Timestamp) { final dt = createdAt.toDate(); dateStr = '${dt.day}/${dt.month}/${dt.year}'; }
               return _OPCard(margin: const EdgeInsets.only(bottom: 8), child: Row(children: [
-                CircleAvatar(radius: 18, backgroundColor: _primary.withOpacity(0.1),
+                CircleAvatar(radius: 18, backgroundColor: _primary.withValues(alpha: 0.1),
                   child: Icon(role == 'coordinator' ? Icons.manage_accounts_outlined : Icons.business_outlined, color: _primary, size: 18)),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(email, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), overflow: TextOverflow.ellipsis),
                   if (dateStr.isNotEmpty) Text('Created: $dateStr', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
                 ])),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: _primary.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: _primary.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
                   child: Text(RolePermissionService.roleDisplayName(role), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _primary))),
               ]));
             }).toList()),
@@ -991,7 +984,7 @@ class _OPManagePageState extends State<_OPManagePage> {
             ..._announcements.take(5).map((a) => _OPCard(margin: const EdgeInsets.only(bottom: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 Expanded(child: Text(a['title'] as String? ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: _primary.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: _primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
                   child: Text(a['audience'] as String? ?? '', style: const TextStyle(fontSize: 10, color: _primary))),
               ]),
               const SizedBox(height: 4),
@@ -1058,7 +1051,7 @@ class _FeatureTile extends StatelessWidget {
         color: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(children: [
-          Container(width: 44, height: 44, decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: color, size: 22)),
+          Container(width: 44, height: 44, decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: color, size: 22)),
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
@@ -1127,7 +1120,7 @@ class _OPFeeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.3)), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))]),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.3)), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Icon(icon, color: color, size: 20), const SizedBox(height: 6),
         Text('₹${amount >= 1000 ? '${(amount / 1000).toStringAsFixed(1)}k' : amount.toStringAsFixed(0)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: color)),

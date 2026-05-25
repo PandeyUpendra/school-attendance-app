@@ -122,13 +122,13 @@ class _TeacherMeetingTasksScreenState
                               horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
                             color: pending > 0
-                                ? AppTheme.warning.withOpacity(0.1)
-                                : AppTheme.success.withOpacity(0.08),
+                                ? AppTheme.warning.withValues(alpha: 0.1)
+                                : AppTheme.success.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                                 color: pending > 0
-                                    ? AppTheme.warning.withOpacity(0.3)
-                                    : AppTheme.success.withOpacity(0.2)),
+                                    ? AppTheme.warning.withValues(alpha: 0.3)
+                                    : AppTheme.success.withValues(alpha: 0.2)),
                           ),
                           child: Row(children: [
                             Icon(
@@ -270,7 +270,7 @@ class _TaskCardState extends State<_TaskCard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryLight.withOpacity(0.3),
+                  color: AppTheme.primaryLight.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(widget.fmtDate(t.meetingDate),
@@ -306,8 +306,8 @@ class _TaskCardState extends State<_TaskCard> {
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: t.isCompleted
-                      ? AppTheme.success.withOpacity(0.1)
-                      : AppTheme.warning.withOpacity(0.1),
+                      ? AppTheme.success.withValues(alpha: 0.1)
+                      : AppTheme.warning.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [

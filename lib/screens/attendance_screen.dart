@@ -45,7 +45,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   StreamSubscription<List<Student>>? _studentSub;
 
   List<Student>    _students   = [];
-  Map<int, String> _attendance = {}; // roll → 'Present' | 'Leave' | 'Absent'
+  final Map<int, String> _attendance = {}; // roll → 'Present' | 'Leave' | 'Absent'
   bool   _loading        = true;
   bool   _dirty          = false;
   bool   _isOnline       = true;   // current connectivity status
@@ -214,8 +214,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         if (raw != null) {
           final rolls = Map<String, dynamic>.from((raw['rolls'] as Map?) ?? {});
           rolls.forEach((k, v) {
-            if (v is bool) saved[int.parse(k)] = v ? 'Present' : 'Absent';
-            else saved[int.parse(k)] = v as String;
+            if (v is bool) {
+              saved[int.parse(k)] = v ? 'Present' : 'Absent';
+            } else {
+              saved[int.parse(k)] = v as String;
+            }
           });
         }
       }
@@ -508,7 +511,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !(_isMarking && _alreadySaved),
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (!didPop) setState(() => _isMarking = false);
       },
       child: Scaffold(
@@ -659,8 +662,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       value = _pageController.page! - index;
                       value = (1 - (value.abs() * 0.3)).clamp(0.0, 1.0);
                     } else {
-                      if (_currentIndex == index) value = 1.0;
-                      else value = 0.7;
+                      if (_currentIndex == index) {
+                        value = 1.0;
+                      } else {
+                        value = 0.7;
+                      }
                     }
 
                     return Center(
@@ -727,7 +733,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             Container(
               width: 96, height: 96,
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
+                color: AppTheme.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.edit_calendar_outlined,
@@ -747,7 +753,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.08),
+                color: AppTheme.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -805,11 +811,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               color: Colors.orange.shade700,
               padding:
                   const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-              child: Row(children: [
-                const Icon(Icons.cloud_off_outlined,
+              child: const Row(children: [
+                Icon(Icons.cloud_off_outlined,
                     color: Colors.white, size: 16),
-                const SizedBox(width: 8),
-                const Expanded(
+                SizedBox(width: 8),
+                Expanded(
                   child: Text(
                     'No internet — attendance saved locally',
                     style: TextStyle(
@@ -876,7 +882,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
+                    color: Colors.black.withValues(alpha: 0.06),
                     blurRadius: 8,
                     offset: const Offset(0, 2)),
               ],
@@ -1082,7 +1088,7 @@ class _AttendanceHeroCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.white24),
               ),
@@ -1226,7 +1232,7 @@ class _VerticalStudentCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primary.withOpacity(0.35),
+            color: AppTheme.primary.withValues(alpha: 0.35),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -1271,7 +1277,7 @@ class _VerticalStudentCard extends StatelessWidget {
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            AppTheme.primary.withOpacity(0.5),
+                            AppTheme.primary.withValues(alpha: 0.5),
                             AppTheme.primary,
                           ],
                           stops: const [0.6, 0.9, 1.0],
@@ -1298,7 +1304,7 @@ class _VerticalStudentCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -1398,7 +1404,7 @@ class _AttendanceSummaryCard extends StatelessWidget {
         color: AppTheme.primary,
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
-          BoxShadow(color: AppTheme.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10)),
+          BoxShadow(color: AppTheme.primary.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10)),
         ],
       ),
       child: Padding(
@@ -1528,13 +1534,13 @@ class _CircleAction extends StatelessWidget {
           color: selected ? (isDark ? color : Colors.white) : Colors.transparent,
           shape: BoxShape.circle,
           border: Border.all(
-            color: selected ? (isDark ? color : Colors.white) : (isDark ? color.withOpacity(0.35) : Colors.white38), 
+            color: selected ? (isDark ? color : Colors.white) : (isDark ? color.withValues(alpha: 0.35) : Colors.white38), 
             width: selected ? 3.0 : 2.0
           ),
           boxShadow: [
             if (selected) 
               BoxShadow(
-                color: (isDark ? color : Colors.white).withOpacity(0.4), 
+                color: (isDark ? color : Colors.white).withValues(alpha: 0.4), 
                 blurRadius: 12, 
                 offset: const Offset(0, 5)
               ),
@@ -1628,7 +1634,7 @@ class _WhatsAppNotifySheet extends StatelessWidget {
             Container(
               width: 44, height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFF25D366).withOpacity(0.12),
+                color: const Color(0xFF25D366).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(FontAwesomeIcons.whatsapp,

@@ -189,7 +189,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                         return FilterChip(
                           label: Text(cls),
                           selected: sel,
-                          selectedColor: AppTheme.primary.withOpacity(0.15),
+                          selectedColor: AppTheme.primary.withValues(alpha: 0.15),
                           checkmarkColor: AppTheme.primary,
                           labelStyle: TextStyle(
                             color: sel ? AppTheme.primary : null,
@@ -526,7 +526,7 @@ class _ExamCard extends StatelessWidget {
             Container(
               width: 40, height: 40,
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
+                color: AppTheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.quiz_outlined,
@@ -576,7 +576,7 @@ class _ExamCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: AppTheme.primary.withOpacity(0.08),
+                        color: AppTheme.primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(s,

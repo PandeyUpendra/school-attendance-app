@@ -174,7 +174,7 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
           _buildHeader(),
           if (_resuming)
             Material(
-              color: AppTheme.warning.withOpacity(0.12),
+              color: AppTheme.warning.withValues(alpha: 0.12),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(children: [
@@ -290,7 +290,7 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, -2)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, -2)),
         ],
       ),
       child: Row(children: [

@@ -105,11 +105,11 @@ class _TaskCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: overdue
-              ? Border.all(color: AppTheme.danger.withOpacity(0.5), width: 1.5)
+              ? Border.all(color: AppTheme.danger.withValues(alpha: 0.5), width: 1.5)
               : null,
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 6,
                 offset: const Offset(0, 2)),
           ],
@@ -267,10 +267,10 @@ class _TaskDetailSheet extends StatelessWidget {
               padding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: AppTheme.danger.withOpacity(0.08),
+                color: AppTheme.danger.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                    color: AppTheme.danger.withOpacity(0.3)),
+                    color: AppTheme.danger.withValues(alpha: 0.3)),
               ),
               child: Row(children: [
                 const Icon(Icons.warning_amber_outlined,

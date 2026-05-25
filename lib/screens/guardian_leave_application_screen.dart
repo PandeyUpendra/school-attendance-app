@@ -221,12 +221,12 @@ class _GuardianLeaveApplicationScreenState
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppTheme.primary.withOpacity(0.15)),
+              border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15)),
             ),
             child: Row(children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: AppTheme.primary.withOpacity(0.1),
+                backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                 child: Text(
                   widget.student.name.isNotEmpty
                       ? widget.student.name[0].toUpperCase()
@@ -255,7 +255,7 @@ class _GuardianLeaveApplicationScreenState
                 padding: const EdgeInsets.symmetric(
                     horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.08),
+                  color: AppTheme.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Row(mainAxisSize: MainAxisSize.min, children: [
@@ -604,13 +604,13 @@ class _GuardianLeaveApplicationScreenState
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withOpacity(0.25)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.25)),
       ),
       child: Row(children: [
         Container(
           width: 38, height: 38,
           decoration: BoxDecoration(
-            color: statusColor.withOpacity(0.1),
+            color: statusColor.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(statusIcon, color: statusColor, size: 20),
@@ -637,9 +637,9 @@ class _GuardianLeaveApplicationScreenState
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: statusColor.withOpacity(0.3)),
+              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
             ),
             child: Text(statusLabel,
                 style: TextStyle(

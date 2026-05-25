@@ -62,7 +62,7 @@ class StaffTaskAnalyticsView extends StatelessWidget {
   Widget _summaryCard(String label, String value, Color color) {
     return Container(
       padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.3))),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.3))),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

@@ -7,7 +7,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/announcement.dart';
 import '../../models/exam.dart';
-import '../../models/student.dart';
 import '../../providers/school_settings_provider.dart';
 import '../../services/announcement_service.dart';
 import '../../services/auth_service.dart';
@@ -38,7 +37,6 @@ class OwnerHome extends StatefulWidget {
 class _OwnerHomeState extends State<OwnerHome> {
   String _myEmail = '';
   String _myRole = 'owner';
-  String _schoolName = '';
   bool _loaded = false;
 
   @override
@@ -62,24 +60,16 @@ class _OwnerHomeState extends State<OwnerHome> {
       final isCompleted = onboarding['isCompleted'] as bool? ?? false;
       if (!isCompleted && mounted) {
         Navigator.pushReplacement(context, MaterialPageRoute(
-          builder: (_) => SchoolOnboardingScreen(destination: const OwnerHome()),
+          builder: (_) => const SchoolOnboardingScreen(destination: OwnerHome()),
         ));
         return;
       }
     } catch (_) {}
 
-    String schoolName = '';
-    try {
-      final schoolDoc = await FirebaseFirestore.instance
-          .doc('schools/school_1/settings/school')
-          .get();
-      schoolName = schoolDoc.data()?['schoolName'] as String? ?? '';
-    } catch (_) {}
     if (!mounted) return;
     setState(() {
       _myEmail = email;
       _myRole = role;
-      _schoolName = schoolName;
       _loaded = true;
     });
   }
@@ -485,13 +475,13 @@ class _DashPageState extends State<_DashPage> {
 
   Widget _buildAlerts() {
     if (_alerts.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 4),
         child: _OwnerCard(
           child: Row(children: [
-            const Icon(Icons.check_circle_outline, color: AppTheme.success, size: 20),
-            const SizedBox(width: 10),
-            const Text('All good today', style: TextStyle(color: AppTheme.success, fontWeight: FontWeight.w600)),
+            Icon(Icons.check_circle_outline, color: AppTheme.success, size: 20),
+            SizedBox(width: 10),
+            Text('All good today', style: TextStyle(color: AppTheme.success, fontWeight: FontWeight.w600)),
           ]),
         ),
       );
@@ -538,7 +528,7 @@ class _DashPageState extends State<_DashPage> {
             lineBarsData: [LineChartBarData(
               spots: _weeklyTrend, isCurved: true, color: _primary, barWidth: 2.5,
               isStrokeCapRound: true, dotData: const FlDotData(show: true),
-              belowBarData: BarAreaData(show: true, color: _primary.withOpacity(0.08)),
+              belowBarData: BarAreaData(show: true, color: _primary.withValues(alpha: 0.08)),
             )],
           )),
         ),
@@ -671,7 +661,7 @@ class _StaffPageState extends State<_StaffPage> {
             margin: const EdgeInsets.only(bottom: 8),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                CircleAvatar(radius: 16, backgroundColor: _primary.withOpacity(0.12),
+                CircleAvatar(radius: 16, backgroundColor: _primary.withValues(alpha: 0.12),
                   child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'T', style: const TextStyle(color: _primary, fontWeight: FontWeight.bold, fontSize: 12))),
                 const SizedBox(width: 10),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -680,7 +670,7 @@ class _StaffPageState extends State<_StaffPage> {
                 ])),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: AppTheme.warning.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: AppTheme.warning.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                   child: const Text('Pending', style: TextStyle(fontSize: 11, color: AppTheme.warning, fontWeight: FontWeight.w600)),
                 ),
               ]),
@@ -722,18 +712,18 @@ class _StaffPageState extends State<_StaffPage> {
           return _OwnerCard(
             margin: const EdgeInsets.only(bottom: 8),
             child: Row(children: [
-              CircleAvatar(radius: 20, backgroundColor: _primary.withOpacity(0.12),
+              CircleAvatar(radius: 20, backgroundColor: _primary.withValues(alpha: 0.12),
                 child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'T', style: const TextStyle(color: _primary, fontWeight: FontWeight.bold))),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 Text(email, style: const TextStyle(color: Colors.grey, fontSize: 11), overflow: TextOverflow.ellipsis),
-                if (classes.isNotEmpty) Text(classes.join(', '), style: TextStyle(color: _primary.withOpacity(0.7), fontSize: 11)),
+                if (classes.isNotEmpty) Text(classes.join(', '), style: TextStyle(color: _primary.withValues(alpha: 0.7), fontSize: 11)),
               ])),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: isOnLeave ? AppTheme.warning.withOpacity(0.1) : AppTheme.success.withOpacity(0.1),
+                  color: isOnLeave ? AppTheme.warning.withValues(alpha: 0.1) : AppTheme.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(isOnLeave ? 'On Leave' : 'Active',
@@ -823,7 +813,7 @@ class _AcademicsPageState extends State<_AcademicsPage> {
               margin: const EdgeInsets.only(bottom: 8),
               child: Row(children: [
                 Container(width: 44, height: 44,
-                  decoration: BoxDecoration(color: _primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(color: _primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                   child: const Icon(Icons.quiz_outlined, color: _primary, size: 22)),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -839,9 +829,9 @@ class _AcademicsPageState extends State<_AcademicsPage> {
             margin: const EdgeInsets.only(bottom: 8),
             child: Row(children: [
               Column(children: [
-                Text('${dt.day}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _primary)),
+                Text('${dt.day}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _primary)),
                 Text(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.month - 1],
-                    style: TextStyle(fontSize: 11, color: _primary)),
+                    style: const TextStyle(fontSize: 11, color: _primary)),
               ]),
               const SizedBox(width: 14),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -850,7 +840,7 @@ class _AcademicsPageState extends State<_AcademicsPage> {
               ])),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: dColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: dColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                 child: Text(daysLeft == 0 ? 'Today' : '${daysLeft}d left', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: dColor)),
               ),
             ]),
@@ -1243,7 +1233,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                   child: Row(children: [
                     CircleAvatar(
                       radius: 18,
-                      backgroundColor: _primary.withOpacity(0.1),
+                      backgroundColor: _primary.withValues(alpha: 0.1),
                       child: Icon(
                         uRole == 'principal'
                             ? Icons.business_outlined
@@ -1264,7 +1254,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: _primary.withOpacity(0.08),
+                        color: _primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -1646,7 +1636,7 @@ class _AnnouncementsPageState extends State<_AnnouncementsPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: _primary.withOpacity(0.1),
+                        color: _primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -1704,22 +1694,14 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _Divider extends StatelessWidget {
-  const _Divider();
-
-  @override
-  Widget build(BuildContext context) => const Divider(height: 1, indent: 70);
-}
-
 class _FeatureTile extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
-  final String? badge;
 
-  const _FeatureTile({required this.icon, required this.color, required this.title, required this.subtitle, required this.onTap, this.badge});
+  const _FeatureTile({required this.icon, required this.color, required this.title, required this.subtitle, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1729,19 +1711,11 @@ class _FeatureTile extends StatelessWidget {
         color: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(children: [
-          Stack(clipBehavior: Clip.none, children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            if (badge != null)
-              Positioned(top: -4, right: -4, child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(color: AppTheme.accent, borderRadius: BorderRadius.circular(10)),
-                child: Text(badge!, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-              )),
-          ]),
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, color: color, size: 22),
+          ),
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
@@ -1815,7 +1789,7 @@ class _FeeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.3)), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))]),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.3)), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Icon(icon, color: color, size: 20),
         const SizedBox(height: 6),

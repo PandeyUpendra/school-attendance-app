@@ -531,13 +531,13 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
       children: [
         if (_logSelectMode)
           Container(
-            color: AppTheme.primary.withOpacity(0.07),
+            color: AppTheme.primary.withValues(alpha: 0.07),
             padding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(children: [
               Text(
                 '${_selectedLogIds.length} selected',
-                style: TextStyle(
+                style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.primary,
                     fontSize: 13),
@@ -783,7 +783,7 @@ class _Card extends StatelessWidget {
               padding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: audColor.withOpacity(0.12),
+                color: audColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -805,7 +805,7 @@ class _Card extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: roleColor.withOpacity(0.10),
+                color: roleColor.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(roleLabel,
@@ -901,12 +901,12 @@ class _LogCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: isSelected
-            ? AppTheme.primary.withOpacity(0.06)
+            ? AppTheme.primary.withValues(alpha: 0.06)
             : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isSelected
-              ? AppTheme.primary.withOpacity(0.5)
+              ? AppTheme.primary.withValues(alpha: 0.5)
               : Colors.grey.shade200,
           width: isSelected ? 1.5 : 1,
         ),
@@ -919,8 +919,8 @@ class _LogCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               color: isSelected
-                  ? AppTheme.primary.withOpacity(0.08)
-                  : AppTheme.primary.withOpacity(0.05),
+                  ? AppTheme.primary.withValues(alpha: 0.08)
+                  : AppTheme.primary.withValues(alpha: 0.05),
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(12)),
             ),
@@ -935,11 +935,11 @@ class _LogCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
               ] else ...[
-                Icon(Icons.history, size: 14, color: AppTheme.primary),
+                const Icon(Icons.history, size: 14, color: AppTheme.primary),
                 const SizedBox(width: 6),
               ],
               Text(_fmtDateFull(a.postedAt),
-                  style: TextStyle(
+                  style: const TextStyle(
                       fontSize: 11,
                       color: AppTheme.primary,
                       fontWeight: FontWeight.w600)),
@@ -948,7 +948,7 @@ class _LogCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: audColor.withOpacity(0.12),
+                  color: audColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -996,7 +996,7 @@ class _LogCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: roleColor.withOpacity(0.10),
+                  color: roleColor.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(roleLabel,

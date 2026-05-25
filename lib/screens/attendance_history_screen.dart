@@ -31,9 +31,13 @@ Map<int, _Stats> _computeStats(
     int p = 0, a = 0, l = 0;
     for (final dayData in monthData.values) {
       final status = dayData[s.roll];
-      if (status == 'Present') p++;
-      else if (status == 'Absent') a++;
-      else if (status == 'Leave') l++;
+      if (status == 'Present') {
+        p++;
+      } else if (status == 'Absent') {
+        a++;
+      } else if (status == 'Leave') {
+        l++;
+      }
     }
     map[s.roll] = _Stats(present: p, absent: a, leave: l);
   }
@@ -123,7 +127,9 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     final now  = DateTime.now();
     final next = DateTime(_month.year, _month.month + 1);
     if (next.year > now.year ||
-        (next.year == now.year && next.month > now.month)) return;
+        (next.year == now.year && next.month > now.month)) {
+      return;
+    }
     setState(() => _month = next);
     _loadMonth();
   }
@@ -480,7 +486,7 @@ class _StudentCard extends StatelessWidget {
                 // Roll avatar
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: _barColor.withOpacity(0.15),
+                  backgroundColor: _barColor.withValues(alpha: 0.15),
                   child: Text(student.roll.toString(),
                       style: TextStyle(
                           fontSize: 13,
@@ -824,13 +830,13 @@ class _StudentCalendarScreenState extends State<_StudentCalendarScreen> {
                     final bgColor = isFuture
                         ? Colors.transparent
                         : status != null
-                            ? _statusColor(status).withOpacity(0.15)
+                            ? _statusColor(status).withValues(alpha: 0.15)
                             : isSun
                                 ? Colors.red.shade50
                                 : Colors.grey.shade50;
 
                     final borderColor = status != null
-                        ? _statusColor(status).withOpacity(0.45)
+                        ? _statusColor(status).withValues(alpha: 0.45)
                         : Colors.grey.shade200;
 
                     final textColor = isFuture
@@ -881,12 +887,12 @@ class _StudentCalendarScreenState extends State<_StudentCalendarScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _Legend(color: Colors.green, label: 'Present'),
+                  const _Legend(color: Colors.green, label: 'Present'),
                   const SizedBox(width: 18),
-                  _Legend(color: Colors.red, label: 'Absent'),
+                  const _Legend(color: Colors.red, label: 'Absent'),
                   const SizedBox(width: 18),
-                  _Legend(
-                      color: const Color(0xFFF57F17), label: 'Leave'),
+                  const _Legend(
+                      color: Color(0xFFF57F17), label: 'Leave'),
                   const SizedBox(width: 18),
                   _Legend(
                       color: Colors.grey.shade300, label: 'No School'),

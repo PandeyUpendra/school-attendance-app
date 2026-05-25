@@ -119,7 +119,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 Text('Choose how to sign in',
                     style: TextStyle(
                         fontSize: 16,
-                        color: Colors.white.withOpacity(0.7))),
+                        color: Colors.white.withValues(alpha: 0.7))),
                 const SizedBox(height: 32),
 
                 // ── Staff (teacher / coordinator / principal / owner) ───────
@@ -189,15 +189,15 @@ class _RoleCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.13),
+          color: Colors.white.withValues(alpha: 0.13),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withOpacity(0.25)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
         ),
         child: Row(children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.18),
+              color: Colors.white.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: Colors.white, size: 24),
@@ -216,12 +216,12 @@ class _RoleCard extends StatelessWidget {
                 Text(subtitle,
                     style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withOpacity(0.7))),
+                        color: Colors.white.withValues(alpha: 0.7))),
               ],
             ),
           ),
           Icon(Icons.arrow_forward_ios,
-              size: 14, color: Colors.white.withOpacity(0.5)),
+              size: 14, color: Colors.white.withValues(alpha: 0.5)),
         ]),
       ),
     );

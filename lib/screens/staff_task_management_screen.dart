@@ -264,7 +264,7 @@ class _StaffTaskManagementScreenState
               child: const Text('Cancel')),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: Text('Delete',
+              child: const Text('Delete',
                   style: TextStyle(color: AppTheme.danger))),
         ],
       ),
@@ -312,7 +312,7 @@ class _StatsRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 6,
               offset: const Offset(0, 2)),
         ],
@@ -383,11 +383,11 @@ class _PrincipalTaskCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: overdue
             ? Border.all(
-                color: AppTheme.danger.withOpacity(0.4), width: 1.5)
+                color: AppTheme.danger.withValues(alpha: 0.4), width: 1.5)
             : null,
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 6,
               offset: const Offset(0, 2)),
         ],
@@ -625,7 +625,7 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
                   const SizedBox(height: 16),
 
                   // Title
-                  _SheetLabel('Task Title'),
+                  const _SheetLabel('Task Title'),
                   TextField(
                     controller: _titleCtrl,
                     decoration: _dec(hint: 'e.g. PTM Preparation'),
@@ -634,7 +634,7 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
                   const SizedBox(height: 12),
 
                   // Description
-                  _SheetLabel('Description'),
+                  const _SheetLabel('Description'),
                   TextField(
                     controller: _descCtrl,
                     maxLines: 3,
@@ -645,7 +645,7 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
                   const SizedBox(height: 12),
 
                   // Assign to teacher
-                  _SheetLabel('Assign To'),
+                  const _SheetLabel('Assign To'),
                   _loadingPeople
                       ? const Center(
                           child: CircularProgressIndicator(
@@ -676,7 +676,7 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
                   const SizedBox(height: 12),
 
                   // Priority
-                  _SheetLabel('Priority'),
+                  const _SheetLabel('Priority'),
                   Row(children: [
                     for (final p in TaskPriority.values)
                       Padding(
@@ -685,7 +685,7 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
                           label: Text(p.label),
                           selected: _priority == p,
                           selectedColor:
-                              _pColor(p).withOpacity(0.15),
+                              _pColor(p).withValues(alpha: 0.15),
                           labelStyle: TextStyle(
                             color: _priority == p
                                 ? _pColor(p)
@@ -707,7 +707,7 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
                   const SizedBox(height: 12),
 
                   // Due date
-                  _SheetLabel('Due Date (optional)'),
+                  const _SheetLabel('Due Date (optional)'),
                   GestureDetector(
                     onTap: _pickDueDate,
                     child: Container(

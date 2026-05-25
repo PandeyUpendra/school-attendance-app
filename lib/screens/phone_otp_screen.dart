@@ -330,7 +330,7 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
         Text(
           'We\'ll send a one-time code to your number.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.7)),
+          style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7)),
         ),
         const SizedBox(height: 40),
 
@@ -342,7 +342,7 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 24,
                   offset: const Offset(0, 8)),
             ],
@@ -425,7 +425,7 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
         Text(
           'Code sent to $phone',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.7)),
+          style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7)),
         ),
         const SizedBox(height: 40),
 
@@ -437,7 +437,7 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 24,
                   offset: const Offset(0, 8)),
             ],

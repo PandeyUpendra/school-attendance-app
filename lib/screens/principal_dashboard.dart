@@ -105,16 +105,16 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
     _leaveSub = TimetableService()
         .streamPendingLeaveCount()
-        .listen((count) {
+        .listen((n) {
       if (!mounted) return;
-      setState(() => _pendingLeaveCount = count);
+      setState(() => _pendingLeaveCount = n);
     });
 
     _deletionSub = StudentService()
         .streamPendingDeletionCount()
-        .listen((count) {
+        .listen((n) {
       if (!mounted) return;
-      setState(() => _pendingDeletionCount = count);
+      setState(() => _pendingDeletionCount = n);
     });
   }
 
@@ -225,15 +225,15 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             ),
             if (!_loading) ...[
               // ── Today's Attendance ─────────────────────────────────────
-              _SectionHeader("TODAY'S ATTENDANCE"),
+              const _SectionHeader("TODAY'S ATTENDANCE"),
               _buildAttendanceSection(),
 
               // ── Active Tasks ───────────────────────────────────────────
-              _SectionHeader('ACTIVE TASKS'),
+              const _SectionHeader('ACTIVE TASKS'),
               _buildTasksSection(),
 
               // ── Analytics ─────────────────────────────────────────────
-              _SectionHeader('ANALYTICS'),
+              const _SectionHeader('ANALYTICS'),
               _FeatureTile(
                 icon: Icons.analytics_outlined,
                 color: AppTheme.primary,
@@ -244,7 +244,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               const Divider(height: 1, indent: 72),
 
               // ── Finance ───────────────────────────────────────────────
-              _SectionHeader('FINANCE'),
+              const _SectionHeader('FINANCE'),
               _FeatureTile(
                 icon: Icons.currency_rupee_outlined,
                 color: AppTheme.success,
@@ -255,7 +255,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               const Divider(height: 1, indent: 72),
 
               // ── Tools ─────────────────────────────────────────────────
-              _SectionHeader('TOOLS'),
+              const _SectionHeader('TOOLS'),
               _FeatureTile(
                 icon: Icons.history_edu_outlined,
                 color: AppTheme.primary,
@@ -383,7 +383,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               // ── Owner-Principal: Coordinator Tools ────────────────────────
               if (_sessionRole == 'ownerPrincipal') ...[
                 const Divider(height: 1, indent: 72),
-                _SectionHeader('COORDINATOR TOOLS'),
+                const _SectionHeader('COORDINATOR TOOLS'),
                 _FeatureTile(
                   icon: Icons.admin_panel_settings_outlined,
                   color: AppTheme.primaryMid,
@@ -394,7 +394,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               ],
 
               // ── My To-Do List ───────────────────────────────────────────
-              _SectionHeader('MY TO-DO LIST'),
+              const _SectionHeader('MY TO-DO LIST'),
               _FeatureTile(
                 icon: Icons.checklist_outlined,
                 color: AppTheme.primary,
@@ -448,7 +448,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 width: 36, height: 36,
                 decoration: BoxDecoration(
                   color: s.marked
-                      ? _classColor(s).withOpacity(0.12)
+                      ? _classColor(s).withValues(alpha: 0.12)
                       : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -770,7 +770,7 @@ class _HeroInfoCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.12),
+                color: Colors.white.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(children: [
@@ -867,7 +867,7 @@ class _FeatureTile extends StatelessWidget {
             Container(
               width: 44, height: 44,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color, size: 22),

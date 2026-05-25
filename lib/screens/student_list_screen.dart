@@ -141,10 +141,10 @@ class _StudentListScreenState extends State<StudentListScreen> {
       builder: (_) => StatefulBuilder(
         builder: (_, setLocal) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(children: [
-            const Icon(Icons.pending_actions_outlined, color: AppTheme.warning),
-            const SizedBox(width: 8),
-            const Text('Request Deletion', style: TextStyle(fontSize: 17)),
+          title: const Row(children: [
+            Icon(Icons.pending_actions_outlined, color: AppTheme.warning),
+            SizedBox(width: 8),
+            Text('Request Deletion', style: TextStyle(fontSize: 17)),
           ]),
           content: SizedBox(
             width: double.maxFinite,
@@ -174,7 +174,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                             width: 26, height: 26,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: AppTheme.primary.withOpacity(0.08),
+                              color: AppTheme.primary.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text('${s.roll}',
@@ -396,7 +396,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                 dense: true,
                 leading: CircleAvatar(
                   radius: 16,
-                  backgroundColor: AppTheme.primary.withOpacity(0.1),
+                  backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                   child: Text('${s.roll}',
                       style: const TextStyle(
                           fontSize: 11, color: AppTheme.primary)),
@@ -430,7 +430,11 @@ class _StudentListScreenState extends State<StudentListScreen> {
     int added = 0, skipped = 0;
     for (final s in students) {
       final err = await _service.addStudent(student: s);
-      if (err == null) added++; else skipped++;
+      if (err == null) {
+        added++;
+      } else {
+        skipped++;
+      }
     }
     if (!mounted) return;
     // Stream auto-refreshes after the import.
@@ -602,7 +606,7 @@ class _StudentCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Material(
@@ -632,7 +636,7 @@ class _StudentCard extends StatelessWidget {
                       width: 54, height: 54,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppTheme.primary.withOpacity(0.1), width: 2),
+                        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.1), width: 2),
                       ),
                       child: ClipOval(
                         child: student.photoUrl != null
@@ -663,7 +667,7 @@ class _StudentCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppTheme.primary.withOpacity(0.08),
+                              color: AppTheme.primary.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text('ROLL ${student.roll}', 
@@ -679,7 +683,7 @@ class _StudentCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _feeColor.withOpacity(0.1),
+                    color: _feeColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(student.feeStatus, 
@@ -705,7 +709,7 @@ class StudentDetailPage extends StatefulWidget {
   final String teacherName;
   final String teacherEmail;
   final String? teacherId;
-  const StudentDetailPage({
+  const StudentDetailPage({super.key, 
     required this.student,
     this.canEdit = false,
     this.teacherName = '',
@@ -752,10 +756,10 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [
-          const Icon(Icons.pending_actions_outlined, color: AppTheme.warning),
-          const SizedBox(width: 8),
-          const Text('Request Deletion', style: TextStyle(fontSize: 17)),
+        title: const Row(children: [
+          Icon(Icons.pending_actions_outlined, color: AppTheme.warning),
+          SizedBox(width: 8),
+          Text('Request Deletion', style: TextStyle(fontSize: 17)),
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -998,7 +1002,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
               child: Column(children: [
                 CircleAvatar(
                   radius: 54,
-                  backgroundColor: Colors.white.withOpacity(0.2),
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
                   backgroundImage: _student.photoUrl != null
                       ? NetworkImage(_student.photoUrl!)
                       : (_student.photoPath != null
@@ -1041,7 +1045,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             const SizedBox(height: 8),
 
             // ── Basic Info ───────────────────────────────────────────────────
-            _SectionHeader('BASIC INFO'),
+            const _SectionHeader('BASIC INFO'),
             _InfoRow(Icons.person_outline, 'Name', _student.name),
             _InfoRow(Icons.cake_outlined, 'Date of Birth',
                 _student.dateOfBirth != null
@@ -1055,7 +1059,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             const Divider(height: 1),
 
             // ── Family ──────────────────────────────────────────────────────
-            _SectionHeader('FAMILY'),
+            const _SectionHeader('FAMILY'),
             _InfoRow(Icons.man_outlined, "Father's Name",
                 _student.fatherName.isNotEmpty ? _student.fatherName : '—'),
             _InfoRow(Icons.woman_outlined, "Mother's Name",
@@ -1063,7 +1067,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             const Divider(height: 1),
 
             // ── Contact ─────────────────────────────────────────────────────
-            _SectionHeader('CONTACT'),
+            const _SectionHeader('CONTACT'),
             _InfoRow(Icons.phone_outlined, 'Primary Contact',
                 _student.phone.isEmpty ? '—' : _student.phone),
             if (_student.phone.isNotEmpty)
@@ -1104,7 +1108,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             const Divider(height: 1),
 
             // ── Academic & Medical ───────────────────────────────────────────
-            _SectionHeader('ACADEMIC & MEDICAL'),
+            const _SectionHeader('ACADEMIC & MEDICAL'),
             _InfoRow(Icons.account_balance_outlined, 'Previous School',
                 _student.previousSchool?.isNotEmpty == true ? _student.previousSchool! : '—'),
             _InfoRow(Icons.bloodtype_outlined, 'Blood Group',
@@ -1126,9 +1130,9 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: _feeColor.withOpacity(0.1),
+                  color: _feeColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: _feeColor.withOpacity(0.4)),
+                  border: Border.all(color: _feeColor.withValues(alpha: 0.4)),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(_feeIcon, color: _feeColor, size: 18),
@@ -1144,7 +1148,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             const Divider(height: 1),
 
             // ── Documents ────────────────────────────────────────────────────
-            _SectionHeader('DOCUMENTS'),
+            const _SectionHeader('DOCUMENTS'),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
               child: SizedBox(
@@ -1272,9 +1276,9 @@ class _ActionBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(children: [
           iconWidget ?? Icon(icon, color: color, size: 26),
@@ -1298,7 +1302,7 @@ class _Chip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(text,
@@ -1364,11 +1368,11 @@ class _GuardianDetailsSection extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
+                color: AppTheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Text('Guardian supplied',
-                  style: const TextStyle(
+              child: const Text('Guardian supplied',
+                  style: TextStyle(
                       fontSize: 9,
                       color: AppTheme.primary,
                       fontWeight: FontWeight.bold)),

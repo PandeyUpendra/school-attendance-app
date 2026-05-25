@@ -209,12 +209,12 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppTheme.primary.withOpacity(0.15)),
+              border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15)),
             ),
             child: Row(children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: AppTheme.primary.withOpacity(0.1),
+                backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                 child: Text(widget.teacher.name[0].toUpperCase(),
                     style: const TextStyle(
                         color: AppTheme.primary,
@@ -536,7 +536,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? color.withOpacity(0.08) : Colors.grey.shade50,
+          color: selected ? color.withValues(alpha: 0.08) : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
               color: selected ? color : Colors.grey.shade200),
@@ -604,7 +604,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.08),
+                    color: AppTheme.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -626,10 +626,10 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                      color: statusColor.withOpacity(0.3)),
+                      color: statusColor.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   statusLabel,

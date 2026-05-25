@@ -673,7 +673,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                         decoration: BoxDecoration(
                           color: isLunch
                               ? Colors.orange.shade100
-                              : AppTheme.primary.withOpacity(0.07),
+                              : AppTheme.primary.withValues(alpha: 0.07),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(_fmt12(start),
@@ -848,7 +848,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
               child: ListTile(
                 dense: true,
                 leading: Icon(Icons.class_outlined,
-                    color: AppTheme.primary.withOpacity(0.6)),
+                    color: AppTheme.primary.withValues(alpha: 0.6)),
                 title: Text(cls,
                     style: const TextStyle(fontWeight: FontWeight.w500)),
               ),
@@ -953,7 +953,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: i.isEven
-                          ? AppTheme.primary.withOpacity(0.07)
+                          ? AppTheme.primary.withValues(alpha: 0.07)
                           : Colors.white,
                       border: Border.all(color: Colors.grey.shade200),
                     ),
@@ -1074,11 +1074,11 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: teacher != null
-                ? color.withOpacity(0.14)
+                ? color.withValues(alpha: 0.14)
                 : (even ? Colors.grey.shade50 : Colors.white),
             border: Border.all(
                 color: teacher != null
-                    ? color.withOpacity(0.35)
+                    ? color.withValues(alpha: 0.35)
                     : Colors.grey.shade200),
           ),
           child: teacher != null
@@ -1114,7 +1114,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                         child: Text(
                           subject,
                           style: TextStyle(
-                              fontSize: 9, color: color.withOpacity(0.75)),
+                              fontSize: 9, color: color.withValues(alpha: 0.75)),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                           textAlign: TextAlign.center,
@@ -1128,7 +1128,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 3, vertical: 1),
                             decoration: BoxDecoration(
-                              color: color.withOpacity(0.18),
+                              color: color.withValues(alpha: 0.18),
                               borderRadius: BorderRadius.circular(3),
                             ),
                             child: Text(abbr.substring(0, 2),
@@ -1164,7 +1164,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           Positioned(
             bottom: 3,
             right: 3,
-            child: Icon(Icons.edit, size: 9, color: color.withOpacity(0.5)),
+            child: Icon(Icons.edit, size: 9, color: color.withValues(alpha: 0.5)),
           ),
       ]),
     );
@@ -1458,14 +1458,14 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                         color: sel
                             ? AppTheme.primary
                             : (hasAssignment
-                                ? existingColor!.withOpacity(0.10)
+                                ? existingColor!.withValues(alpha: 0.10)
                                 : Colors.grey.shade100),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                             color: sel
                                 ? AppTheme.primary
                                 : (hasAssignment
-                                    ? existingColor!.withOpacity(0.4)
+                                    ? existingColor!.withValues(alpha: 0.4)
                                     : Colors.grey.shade300)),
                       ),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -1483,7 +1483,7 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                           CircleAvatar(
                             radius: 7,
                             backgroundColor: sel
-                                ? Colors.white.withOpacity(0.3)
+                                ? Colors.white.withValues(alpha: 0.3)
                                 : existingColor,
                             child: Text(
                               existingTeacher.name[0].toUpperCase(),
@@ -1595,7 +1595,7 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
               return ListTile(
                 leading: CircleAvatar(
                   backgroundColor:
-                      selected ? color : color.withOpacity(0.2),
+                      selected ? color : color.withValues(alpha: 0.2),
                   child: Text(t.name[0].toUpperCase(),
                       style: TextStyle(
                           color: selected ? Colors.white : color,
@@ -1610,7 +1610,7 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                     ? const Icon(Icons.check_circle, color: Colors.green)
                     : null,
                 selected: selected,
-                selectedTileColor: color.withOpacity(0.06),
+                selectedTileColor: color.withValues(alpha: 0.06),
                 onTap: () {
                   setState(() {
                     if (_teacherId == t.id) {
@@ -1732,8 +1732,8 @@ class _DurationDialogState extends State<_DurationDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (widget.applyToAll)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 10),
               child: Text(
                 'Duration will be applied to all regular bells',
                 style: TextStyle(fontSize: 12, color: AppTheme.primaryMid),

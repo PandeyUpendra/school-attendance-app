@@ -185,7 +185,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 6,
               offset: const Offset(0, 2))
         ],
@@ -195,7 +195,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
         Container(
           padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
           decoration: BoxDecoration(
-            color: AppTheme.primary.withOpacity(0.06),
+            color: AppTheme.primary.withValues(alpha: 0.06),
             borderRadius:
                 const BorderRadius.vertical(top: Radius.circular(14)),
           ),
@@ -325,7 +325,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
                 borderSide: BorderSide(
                     color: isSub
                         ? Colors.orange.shade400
-                        : AppTheme.primary.withOpacity(0.6)),
+                        : AppTheme.primary.withValues(alpha: 0.6)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),

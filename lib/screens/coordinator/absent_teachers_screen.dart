@@ -269,7 +269,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.06),
+                color: AppTheme.primary.withValues(alpha: 0.06),
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(20)),
               ),
@@ -333,7 +333,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                     return ListTile(
                       leading: CircleAvatar(
                         backgroundColor:
-                            AppTheme.primary.withOpacity(0.12),
+                            AppTheme.primary.withValues(alpha: 0.12),
                         child: Text(
                           t.name[0].toUpperCase(),
                           style: const TextStyle(
@@ -349,10 +349,10 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: AppTheme.success.withOpacity(0.1),
+                          color: AppTheme.success.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                              color: AppTheme.success.withOpacity(0.3)),
+                              color: AppTheme.success.withValues(alpha: 0.3)),
                         ),
                         child: Text('Free B$bell',
                             style: const TextStyle(
@@ -390,8 +390,8 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
         .where((t) => !_allAbsentIds.contains(t.id))
         .toList();
 
-    const _kCustomReason = '__custom__';
-    const _kReasonOptions = [
+    const kCustomReason = '__custom__';
+    const kReasonOptions = [
       'Sick / Unwell',
       'Personal Emergency',
       'Family Function',
@@ -411,7 +411,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) {
-          final isCustom = selectedReason == _kCustomReason;
+          final isCustom = selectedReason == kCustomReason;
           final effectiveReason = isCustom
               ? customCtrl.text.trim()
               : (selectedReason ?? '');
@@ -456,8 +456,8 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                       prefixIcon: const Icon(Icons.notes_outlined),
                     ),
                     hint: const Text('Select a reason'),
-                    items: _kReasonOptions.map((r) {
-                      final value = r == 'Custom…' ? _kCustomReason : r;
+                    items: kReasonOptions.map((r) {
+                      final value = r == 'Custom…' ? kCustomReason : r;
                       return DropdownMenuItem(
                         value: value,
                         child: Text(r),
@@ -465,7 +465,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                     }).toList(),
                     onChanged: (v) => setLocal(() {
                       selectedReason = v;
-                      if (v != _kCustomReason) customCtrl.clear();
+                      if (v != kCustomReason) customCtrl.clear();
                     }),
                   ),
 
@@ -733,9 +733,9 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withOpacity(0.3)),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
           ),
           child: Text(
             label,
@@ -773,7 +773,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
             child: Row(children: [
               CircleAvatar(
                 radius: 22,
-                backgroundColor: AppTheme.primary.withOpacity(0.12),
+                backgroundColor: AppTheme.primary.withValues(alpha: 0.12),
                 child: Text(
                   teacher.name[0].toUpperCase(),
                   style: const TextStyle(
@@ -829,10 +829,10 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.danger.withOpacity(0.1),
+                  color: AppTheme.danger.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border:
-                      Border.all(color: AppTheme.danger.withOpacity(0.3)),
+                      Border.all(color: AppTheme.danger.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   isOnLeave ? 'On Leave' : 'Absent',
