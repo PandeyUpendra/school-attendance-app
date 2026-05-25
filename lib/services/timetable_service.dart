@@ -81,6 +81,7 @@ class TimetableService extends BaseFirestoreService {
       'role':      'teacher',
       'email':     normEmail,
       'name':      teacher.name,
+      'teacherId': teacher.id,
       'schoolId':  schoolId,
       'status':    'pending',
       'createdAt': FieldValue.serverTimestamp(),
@@ -280,6 +281,24 @@ class TimetableService extends BaseFirestoreService {
 
   Future<List<Map<String, dynamic>>> getAllowedUsers() async {
     final snap = await _allowedUsers.get();
+    return snap.docs.map((d) {
+      final data       = Map<String, dynamic>.from(d.data());
+      final rawClasses = data['assignedClasses'];
+      return <String, dynamic>{
+        'email':           d.id,
+        'role':            (data['role']         as String? ?? 'teacher'),
+        'studentClass':    (data['studentClass'] as String? ?? ''),
+        'studentRoll':     (data['studentRoll']  as int?    ?? 0),
+        'assignedClasses': rawClasses != null
+            ? List<String>.from(rawClasses as List)
+            : <String>[],
+      };
+    }).toList()
+      ..sort((a, b) => (a['email'] as String).compareTo(b['email'] as String));
+  }
+
+  Future<List<Map<String, dynamic>>> getAllowedOwners() async {
+    final snap = await _allowedUsers.where('role', isEqualTo: 'owner').get();
     return snap.docs.map((d) {
       final data       = Map<String, dynamic>.from(d.data());
       final rawClasses = data['assignedClasses'];
@@ -499,6 +518,7 @@ class TimetableService extends BaseFirestoreService {
       'role':      'teacher',
       'email':     normEmail,
       'name':      teacher.name,
+      'teacherId': teacher.id,
       'status':    'pending',
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));

@@ -102,6 +102,8 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       if (!mounted) return;
       _latestNotifs = items;
       _recomputeUnread();
+    }, onError: (err, stack) {
+      debugPrint('Error in Principal notifications stream: $err\n$stack');
     });
 
     _leaveSub = TimetableService()
@@ -109,6 +111,8 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
         .listen((count) {
       if (!mounted) return;
       setState(() => _pendingLeaveCount = count);
+    }, onError: (err, stack) {
+      debugPrint('Error in Principal leave requests stream: $err\n$stack');
     });
 
     _deletionSub = StudentService()
@@ -116,6 +120,8 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
         .listen((count) {
       if (!mounted) return;
       setState(() => _pendingDeletionCount = count);
+    }, onError: (err, stack) {
+      debugPrint('Error in Principal student deletions stream: $err\n$stack');
     });
   }
 
@@ -139,36 +145,55 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   Future<void> _loadAll() async {
     setState(() => _loading = true);
 
-    final session = await AuthService().getSession();
-    final email   = (session?['email'] as String?) ?? '';
-    final role    = (session?['role']  as String?) ?? 'principal';
+    try {
+      final session = await AuthService().getSession();
+      final email   = (session?['email'] as String?) ?? '';
+      final role    = (session?['role']  as String?) ?? 'principal';
 
-    final settings   = await TimetableService().getSettings();
-    final allClasses = List<String>.from(settings['classes'] as List);
+      final settings   = await TimetableService().getSettings();
+      final allClasses = List<String>.from(settings['classes'] as List);
 
-    // Filter to assigned classes; fall back to all.
-    final assignedRaw = session?['assignedClasses'];
-    final List<String> classes = (assignedRaw is List && assignedRaw.isNotEmpty)
-        ? List<String>.from(assignedRaw).where(allClasses.contains).toList()
-        : allClasses;
+      // Filter to assigned classes; fall back to all.
+      final assignedRaw = session?['assignedClasses'];
+      final List<String> classes = (assignedRaw is List && assignedRaw.isNotEmpty)
+          ? List<String>.from(assignedRaw).where(allClasses.contains).toList()
+          : allClasses;
 
-    // Fire attendance-related reads in parallel (badges handled by streams).
-    final summariesFuture  = StudentService().loadTodayFullSummary(classes: classes);
-    final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo();
+      // Fire attendance-related reads in parallel (badges handled by streams).
+      final summariesFuture  = StudentService().loadTodayFullSummary(classes: classes);
+      final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo();
 
-    final summaries  = await summariesFuture;
-    final absentInfo = await absentInfoFuture;
+      final summaries  = await summariesFuture;
+      final absentInfo = await absentInfoFuture;
 
-    if (!mounted) return;
-    setState(() {
-      _principalEmail  = email;
-      _sessionRole     = role;
-      _summaries       = summaries;
-      _teachersAbsent  = absentInfo['absentCount']    ?? 0;
-      _unassignedBells = absentInfo['unassignedBells'] ?? 0;
-      _loading         = false;
-    });
-
+      if (!mounted) return;
+      setState(() {
+        _principalEmail  = email;
+        _sessionRole     = role;
+        _summaries       = summaries;
+        _teachersAbsent  = absentInfo['absentCount']    ?? 0;
+        _unassignedBells = absentInfo['unassignedBells'] ?? 0;
+        _loading         = false;
+      });
+    } catch (e, stack) {
+      debugPrint('Error loading Principal Dashboard data: $e\n$stack');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load dashboard: $e'),
+          backgroundColor: AppTheme.danger,
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'RETRY',
+            textColor: Colors.white,
+            onPressed: _loadAll,
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _logout() async {

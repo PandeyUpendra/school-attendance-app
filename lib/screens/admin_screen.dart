@@ -51,12 +51,8 @@ class _AdminScreenState extends State<AdminScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final allUsers = await _service.getAllowedUsers();
+      final owners = await _service.getAllowedOwners();
       if (!mounted) return;
-      // Admin sees only Owner accounts.
-      final owners = allUsers
-          .where((u) => (u['role'] as String) == 'owner')
-          .toList();
       setState(() {
         _users   = owners;
         _loading = false;

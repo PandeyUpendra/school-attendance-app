@@ -38,24 +38,42 @@ service cloud.firestore {
     // a single rule cost only ONE document-read quota unit.
     // ════════════════════════════════════════════════════════════════
 
-    /// Firebase Auth token is present.
+    /// Firebase Auth token is present and contains an email.
     function isSignedIn() {
-      return request.auth != null;
+      return request.auth != null && request.auth.token != null && 'email' in request.auth.token;
     }
 
-    /// The calling user's allowed_users document.
-    function userDoc() {
-      return get(/databases/$(database)/documents/allowed_users/$(request.auth.uid));
+    function userEmail() {
+      return isSignedIn() ? request.auth.token.email.lower() : '';
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/allowed_users/$(userEmail())).data;
     }
 
     /// Caller's role string (e.g. 'teacher', 'coordinator', …).
     function userRole() {
-      return userDoc().data.role;
+      return getUserData() != null ? getUserData().role : null;
     }
 
     /// Caller's schoolId.
     function userSchoolId() {
-      return userDoc().data.schoolId;
+      return getUserData() != null && 'schoolId' in getUserData() ? getUserData().schoolId : null;
+    }
+
+    /// Caller's teacherId.
+    function userTeacherId() {
+      return getUserData() != null && 'teacherId' in getUserData() ? getUserData().teacherId : null;
+    }
+
+    /// Caller's assigned classIds array.
+    function userClassIds() {
+      return getUserData() != null && 'classIds' in getUserData() ? getUserData().classIds : [];
+    }
+
+    /// Caller's assigned studentIds array (for guardians).
+    function userStudentIds() {
+      return getUserData() != null && 'studentIds' in getUserData() ? getUserData().studentIds : [];
     }
 
     /// True when caller's role exactly equals r.
@@ -65,17 +83,17 @@ service cloud.firestore {
 
     /// ② True when the caller's schoolId matches path variable sid.
     function inSchool(sid) {
-      return userSchoolId() == sid;
+      return userSchoolId() == sid || isRole('owner');
     }
 
     /// True when cls is listed in the caller's classIds array.
     function isClassTeacher(cls) {
-      return cls in userDoc().data.classIds;
+      return cls in userClassIds();
     }
 
     /// True when caller's role is one of the given list literal.
     function hasAnyRole(roles) {
-      return userRole() in roles;
+      return userRole() != null && userRole() in roles;
     }
 
     // ── Convenience role groups ──────────────────────────────────────────
@@ -103,37 +121,65 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
+    // TASKS  (/tasks/{taskId})
+    // ════════════════════════════════════════════════════════════════
+    match /tasks/{taskId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isAnyStaff();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
     // ALLOWED USERS  (/allowed_users/{uid})
     //
     // Root collection — identity is cross-school by design. schoolId
     // embedded in each document scopes reads and writes.
     // ════════════════════════════════════════════════════════════════
-    match /allowed_users/{uid} {
+    match /allowed_users/{email} {
 
-      // Own document, OR any coordinator / principal / admin in the same school.
-      allow read: if isSignedIn() && (
-        request.auth.uid == uid ||
-        (isManagement() && userSchoolId() == resource.data.schoolId)
+      // Own document, OR any coordinator / principal / admin in the same school,
+      // OR any owner globally,
+      // OR unauthenticated read if the target document is an 'owner' (for bootstrapping).
+      allow read: if (isSignedIn() && (
+        userEmail() == email ||
+        isRole('owner') ||
+        (isManagement() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId)
+      )) || (
+        'role' in resource.data && resource.data.role == 'owner'
       );
 
       // ③ Only strict admin; new document must belong to caller's school.
-      allow create: if isSignedIn()
-        && isStrictAdmin()
-        && userSchoolId() == request.resource.data.schoolId;
-
-      allow update: if isSignedIn() && (
-        // Admin: full update power within own school.
-        (isStrictAdmin() && userSchoolId() == resource.data.schoolId) ||
-
-        // ③ Non-admin self-update: role and schoolId MUST remain unchanged.
-        (request.auth.uid == uid
-          && request.resource.data.role     == resource.data.role
-          && request.resource.data.schoolId == resource.data.schoolId)
+      // OR any owner globally.
+      // OR unauthenticated create if the new document's role is 'owner' (for bootstrapping).
+      allow create: if (isSignedIn() && (
+        isRole('owner') ||
+        (isStrictAdmin() && 'schoolId' in request.resource.data && userSchoolId() == request.resource.data.schoolId)
+      )) || (
+        'role' in request.resource.data && request.resource.data.role == 'owner'
       );
 
-      allow delete: if isSignedIn()
-        && isStrictAdmin()
-        && userSchoolId() == resource.data.schoolId;
+      allow update: if (isSignedIn() && (
+        isRole('owner') ||
+        // Admin: full update power within own school.
+        (isStrictAdmin() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId) ||
+
+        // ③ Non-admin self-update: role and schoolId MUST remain unchanged.
+        (userEmail() == email
+          && 'role' in request.resource.data && 'role' in resource.data
+          && request.resource.data.role     == resource.data.role
+          && 'schoolId' in request.resource.data && 'schoolId' in resource.data
+          && request.resource.data.schoolId == resource.data.schoolId)
+      )) || (
+        'role' in resource.data && resource.data.role == 'owner' &&
+        'role' in request.resource.data && request.resource.data.role == 'owner'
+      );
+
+      allow delete: if (isSignedIn() && (
+        isRole('owner') ||
+        (isStrictAdmin() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId)
+      )) || (
+        'role' in resource.data && resource.data.role == 'owner'
+      );
     }
 
 
@@ -157,7 +203,7 @@ service cloud.firestore {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isAnyStaff() ||
-        (isRole('guardian') && studentId in userDoc().data.studentIds)
+        (isRole('guardian') && studentId in userStudentIds())
       );
 
       allow create: if isSignedIn() && inSchool(sid) && (
@@ -170,7 +216,7 @@ service cloud.firestore {
         (isAnyTeacher() && isClassTeacher(resource.data.className)) ||
         // Guardian: only guardianDetails / guardianEmail for their own child.
         (isRole('guardian')
-          && studentId in userDoc().data.studentIds
+          && studentId in userStudentIds()
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['guardianDetails', 'guardianEmail']))
       );
@@ -190,7 +236,7 @@ service cloud.firestore {
 
         allow read: if isSignedIn() && inSchool(sid) && (
           isManagement() ||
-          (isRole('guardian') && studentId in userDoc().data.studentIds)
+          (isRole('guardian') && studentId in userStudentIds())
         );
 
         allow create: if isSignedIn() && inSchool(sid);
@@ -199,7 +245,7 @@ service cloud.firestore {
           isManagement() ||
           // Guardian may only stamp withdrawal fields
           (isRole('guardian')
-            && studentId in userDoc().data.studentIds
+            && studentId in userStudentIds()
             && request.resource.data.diff(resource.data).affectedKeys()
                  .hasOnly(['withdrawnAt', 'withdrawnReason', 'withdrawnBy']))
         );
@@ -244,7 +290,7 @@ service cloud.firestore {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isAnyStaff() ||
-        (isRole('guardian') && cls in userDoc().data.classIds)
+        (isRole('guardian') && cls in userClassIds())
       );
 
       allow write: if isSignedIn() && inSchool(sid) && (
@@ -275,13 +321,14 @@ service cloud.firestore {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isAnyTeacher() && resource.data.teacherId == request.auth.uid)
+        (isAnyTeacher() && resource.data.teacherId == userTeacherId())
       );
 
-      // No impersonation: teacherId must equal the calling user's uid.
+      // No impersonation: teacherId must equal the calling user's teacherId, and teacherEmail must match their authenticated email.
       allow create: if isSignedIn() && inSchool(sid)
         && isAnyTeacher()
-        && request.resource.data.teacherId == request.auth.uid;
+        && request.resource.data.teacherId == userTeacherId()
+        && request.resource.data.teacherEmail == userEmail();
 
       allow update: if isSignedIn() && inSchool(sid) && (
 
@@ -293,7 +340,7 @@ service cloud.firestore {
         // Submitting teacher may edit body fields of their own PENDING leave
         // but may NOT touch status or reassign teacherId.
         (isAnyTeacher()
-          && resource.data.teacherId == request.auth.uid
+          && resource.data.teacherId == userTeacherId()
           && resource.data.status == 'pending'
           && !request.resource.data.diff(resource.data).affectedKeys()
                 .hasAny(['status', 'teacherId']))
@@ -313,7 +360,7 @@ service cloud.firestore {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isRole('guardian') && resource.data.className in userDoc().data.classIds)
+        (isRole('guardian') && resource.data.className in userClassIds())
       );
 
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
@@ -330,7 +377,7 @@ service cloud.firestore {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isRole('guardian') && resource.data.studentId in userDoc().data.studentIds)
+        (isRole('guardian') && resource.data.studentId in userStudentIds())
       );
 
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
@@ -415,7 +462,7 @@ service cloud.firestore {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        request.auth.uid == resource.data.assignedTo
+        userTeacherId() == resource.data.assignedTo
       );
 
       allow create, delete: if isSignedIn() && inSchool(sid)
@@ -425,7 +472,7 @@ service cloud.firestore {
         hasAnyRole(['principal', 'admin', 'owner']) ||
 
         // Assignee may only update status and completion timestamps.
-        (request.auth.uid == resource.data.assignedTo
+        (userTeacherId() == resource.data.assignedTo
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['status', 'updatedAt', 'completedAt', 'checkpoints']))
       );
@@ -466,14 +513,14 @@ service cloud.firestore {
         (resource.data.audience == 'coordinator' && isRole('coordinator')) ||
         (resource.data.audience == 'principal'   && isRole('principal'))   ||
 
-        // Direct teacher — 'teacher:{uid}'
-        resource.data.audience == ('teacher:' + request.auth.uid) ||
+        // Direct teacher — 'teacher:{teacherId}'
+        resource.data.audience == ('teacher:' + userTeacherId()) ||
 
         // Guardian — 'guardian:{class}:{roll}'
         // Rules enforce class-level access; client must filter by exact roll.
         (isRole('guardian')
           && resource.data.audience.matches('guardian:.*')
-          && resource.data.audience.split(':')[1] in userDoc().data.classIds) ||
+          && resource.data.audience.split(':')[1] in userClassIds()) ||
 
         // Class teacher — 'class_teacher:{className}'
         (isAnyTeacher()
@@ -500,6 +547,20 @@ service cloud.firestore {
     match /schools/{sid}/settings/{docId} {
       allow read:  if isSignedIn() && inSchool(sid);
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
+
+      match /entries/{entryId} {
+        allow read:  if isSignedIn() && inSchool(sid);
+        allow write: if isSignedIn() && inSchool(sid) && isManagement();
+      }
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // LEGACY SETTINGS  (/settings/{docId})
+    // ════════════════════════════════════════════════════════════════
+    match /settings/{docId} {
+      allow read:  if isSignedIn();
+      allow write: if isSignedIn() && isAnyStaff();
     }
 
 

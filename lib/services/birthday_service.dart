@@ -1,13 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'base_firestore_service.dart';
+import 'auth_service.dart';
 
-class BirthdayService {
-  static final _db = FirebaseFirestore.instance;
-  static final _teachers = _db.collection('teachers');
-  static final _students = _db.collection('students');
-
+class BirthdayService extends BaseFirestoreService {
   static final BirthdayService _instance = BirthdayService._();
   BirthdayService._();
   factory BirthdayService() => _instance;
+
+  CollectionReference<Map<String, dynamic>> get _teachers =>
+      schoolCollection(AuthService.currentSchoolId, 'teachers');
+
+  CollectionReference<Map<String, dynamic>> get _students =>
+      schoolCollection(AuthService.currentSchoolId, 'students');
 
   // ── Date helpers ───────────────────────────────────────────────────────────
 

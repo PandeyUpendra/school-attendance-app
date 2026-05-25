@@ -1,0 +1,31 @@
+{
+  "name": "school_app",
+  "version": "1.0.0",
+  "description": "A new Flutter project.",
+  "main": "firestore.rules.test.js",
+  "directories": {
+    "doc": "docs",
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PandeyUpendra/school-attendance-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/PandeyUpendra/school-attendance-app/issues"
+  },
+  "homepage": "https://github.com/PandeyUpendra/school-attendance-app#readme",
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "firebase": "^12.13.0",
+    "jest": "^30.4.2"
+  }
+}
