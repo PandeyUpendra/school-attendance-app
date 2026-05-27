@@ -363,7 +363,9 @@ class _AcademicTabState extends State<_AcademicTab>
   @override
   bool get wantKeepAlive => true;
 
-  int _from = 1, _to = 10, _periods = 8, _duration = 45, _lunch = 4;
+  // Index into _classOptions (0 = Nursery, 1 = LKG, 2 = UKG, 3 = Class 1 … 14 = Class 12)
+  int _fromIdx = 3, _toIdx = 12;
+  int _periods = 8, _duration = 45, _lunch = 4;
   List<String> _sections = ['A'];
   String _yearStart = 'April';
   String _workingDays = 'Mon-Sat';
@@ -373,13 +375,24 @@ class _AcademicTabState extends State<_AcademicTab>
   static const _sectionOptions = ['A', 'B', 'C', 'D', 'E'];
   static const _durations = [35, 40, 45, 50];
 
+  /// Full ordered list of class options — pre-primary first, then Class 1-12.
+  static const _classOptions = [
+    'Nursery', 'LKG', 'UKG',
+    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6',
+    'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12',
+  ];
+  static const _prePrimary = ['Nursery', 'LKG', 'UKG'];
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_init) {
       final p = context.read<SchoolSettingsProvider>();
-      _from = p.classesFrom;
-      _to = p.classesTo;
+      // Prefer label-based fields (new format); fall back to integer → index math.
+      _fromIdx = _classOptions.indexOf(p.classesFromLabel);
+      if (_fromIdx < 0) _fromIdx = (p.classesFrom + 2).clamp(0, _classOptions.length - 1);
+      _toIdx = _classOptions.indexOf(p.classesToLabel);
+      if (_toIdx < 0) _toIdx = (p.classesTo + 2).clamp(0, _classOptions.length - 1);
       _periods = p.periodsPerDay;
       _duration = _durations.contains(p.periodDuration) ? p.periodDuration : 45;
       _lunch = p.lunchAfterPeriod;
@@ -392,7 +405,7 @@ class _AcademicTabState extends State<_AcademicTab>
 
   Future<void> _save() async {
     if (_sections.isEmpty) { _snack('Select at least one section'); return; }
-    if (_to < _from) { _snack('Class To must be ≥ Class From'); return; }
+    if (_toIdx < _fromIdx) { _snack('Class To must be ≥ Class From'); return; }
 
     final p = context.read<SchoolSettingsProvider>();
     final oldClasses = List<String>.from(p.classList);
@@ -438,8 +451,12 @@ class _AcademicTabState extends State<_AcademicTab>
     try {
       final svc = SchoolSettingsService();
       await p.updateAcademicSettings({
-        'classesFrom': _from,
-        'classesTo': _to,
+        // New label-based fields (supports pre-primary)
+        'classesFromLabel': _classOptions[_fromIdx],
+        'classesToLabel': _classOptions[_toIdx],
+        // Legacy integer fields for backward compat (Class N → N; pre-primary → 1)
+        'classesFrom': _fromIdx >= 3 ? (_fromIdx - 2) : 1,
+        'classesTo': _toIdx >= 3 ? (_toIdx - 2) : 1,
         'sections': _sections,
         'classList': newClasses,
         'academicYearStart': _yearStart,
@@ -451,9 +468,7 @@ class _AcademicTabState extends State<_AcademicTab>
       });
       // Create documents for new classes
       final added = newClasses.where((c) => !oldClasses.contains(c)).toList();
-      for (final c in added) {
-        await svc.createClassDocument(c);
-      }
+      for (final c in added) { await svc.createClassDocument(c); }
       if (mounted) _snack('Settings updated', success: true);
     } catch (e) {
       if (mounted) _snack('Error: $e');
@@ -463,9 +478,15 @@ class _AcademicTabState extends State<_AcademicTab>
 
   List<String> _generateClassList() {
     final list = <String>[];
-    for (int c = _from; c <= _to; c++) {
+    for (int i = _fromIdx; i <= _toIdx; i++) {
+      final label = _classOptions[i];
       for (final s in _sections) {
-        list.add('$c-$s');
+        if (_prePrimary.contains(label)) {
+          list.add('$label-$s'); // e.g. "Nursery-A", "LKG-B"
+        } else {
+          final num = label.replaceFirst('Class ', '');
+          list.add('$num-$s'); // e.g. "1-A", "2-B"
+        }
       }
     }
     return list;
@@ -482,9 +503,9 @@ class _AcademicTabState extends State<_AcademicTab>
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _sectionLabel('Class Range'),
         Row(children: [
-          Expanded(child: _classDropdown('From', _from, (v) => setState(() => _from = v))),
+          Expanded(child: _classDropdown('From', _fromIdx, (v) => setState(() => _fromIdx = v))),
           const SizedBox(width: 12),
-          Expanded(child: _classDropdown('To', _to, (v) => setState(() => _to = v))),
+          Expanded(child: _classDropdown('To', _toIdx, (v) => setState(() => _toIdx = v))),
         ]),
         const SizedBox(height: 16),
         _sectionLabel('Sections'),
@@ -497,9 +518,7 @@ class _AcademicTabState extends State<_AcademicTab>
               selected: sel,
               selectedColor: AppTheme.primaryLight,
               onSelected: (v) => setState(() {
-                if (v) { _sections.add(s); _sections.sort(); } else {
-                  _sections.remove(s);
-                }
+                if (v) { _sections.add(s); _sections.sort(); } else { _sections.remove(s); }
               }),
             );
           }).toList(),
@@ -538,17 +557,18 @@ class _AcademicTabState extends State<_AcademicTab>
     );
   }
 
-  Widget _classDropdown(String label, int value, void Function(int) onChanged) =>
+  Widget _classDropdown(String label, int idxValue, void Function(int) onChanged) =>
       DropdownButtonFormField<int>(
-        value: value,
+        value: idxValue.clamp(0, _classOptions.length - 1),
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           isDense: true,
         ),
-        items: List.generate(12, (i) => i + 1)
-            .map((n) => DropdownMenuItem(value: n, child: Text('Class $n')))
-            .toList(),
+        items: List.generate(
+          _classOptions.length,
+          (i) => DropdownMenuItem(value: i, child: Text(_classOptions[i])),
+        ),
         onChanged: (v) { if (v != null) onChanged(v); },
       );
 
