@@ -20,9 +20,7 @@ import 'announcements_screen.dart';
 import 'notifications_screen.dart';
 import 'analytics_screen.dart';
 import 'principal_digest_screen.dart';
-import 'staff_task_management_screen.dart';
-import 'create_task_screen.dart';
-import 'task_status_screen.dart';
+import 'tasks/unified_staff_task_screen.dart';
 import 'coordinator_dashboard.dart';
 import 'coordinator_management_screen.dart';
 import 'owner/edit_school_settings_screen.dart';
@@ -321,30 +319,12 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               _FeatureTile(
                 icon: Icons.task_outlined,
                 color: AppTheme.primary,
-                title: 'Staff Task Management',
-                subtitle: 'Assign tasks to staff, track status and overdue',
-                onTap: () => _navigate(const StaffTaskManagementScreen()),
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.task_alt_outlined,
-                color: AppTheme.primary,
-                title: 'Task Status',
-                subtitle: 'Check completion status of created tasks',
-                onTap: () => _navigate(TaskStatusScreen(
-                  createdByEmail: _principalEmail,
-                  isAdmin: true,
-                )),
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.add_task_outlined,
-                color: AppTheme.primary,
-                title: 'Create Task',
-                subtitle: 'Assign tasks to teachers/classes',
-                onTap: () => _navigate(CreateTaskScreen(
-                  createdBy: _principalEmail,
-                  creatorRole: 'principal',
+                title: 'Staff Tasks',
+                subtitle: 'Create, assign and track task completion in one place',
+                onTap: () => _navigate(UnifiedStaffTaskScreen(
+                  role: 'principal',
+                  userEmail: _principalEmail,
+                  userName: _principalEmail,
                 )),
               ),
               const Divider(height: 1, indent: 72),
