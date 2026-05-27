@@ -73,13 +73,17 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     _loadAll();
     _initBadgeStreams();
     // Re-run summaries whenever the student roster changes (add/delete).
-    _studentSub = StudentService().watchStudents().listen((students) {
-      final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
-      if (_knownStudentIds.isNotEmpty && ids != _knownStudentIds) {
-        _loadAll();
-      }
-      _knownStudentIds = ids;
-    });
+    _studentSub = StudentService().watchStudents().listen(
+      (students) {
+        final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
+        if (_knownStudentIds.isNotEmpty && ids != _knownStudentIds) {
+          _loadAll();
+        }
+        _knownStudentIds = ids;
+      },
+      // ignore: avoid_print
+      onError: (e) => print('PrincipalDashboard student stream error: $e'),
+    );
   }
 
   @override

@@ -15,6 +15,7 @@ import 'screens/guardian_dashboard.dart';
 import 'screens/owner/owner_home.dart';
 import 'screens/owner/owner_principal_home.dart';
 import 'services/auth_service.dart';
+import 'services/base_firestore_service.dart';
 import 'services/timetable_service.dart';
 
 void main() async {
@@ -110,6 +111,14 @@ class _SplashGateState extends State<_SplashGate> {
       if (!mounted) return;
       _go(const LoginScreen());
       return;
+    }
+
+    // Restore in-memory schoolId so services read from the correct school
+    // on cold-start with a cached session. Without this, BaseFirestoreService
+    // falls back to 'school_1' which may not match the user's allowed_users doc.
+    final schoolId = session['schoolId'] as String?;
+    if (schoolId != null && schoolId.isNotEmpty) {
+      BaseFirestoreService.currentSchoolId = schoolId;
     }
 
     switch (role) {
