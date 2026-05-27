@@ -60,7 +60,7 @@ class _OwnerHomeState extends State<OwnerHome> {
       final isCompleted = onboarding['isCompleted'] as bool? ?? false;
       if (!isCompleted && mounted) {
         Navigator.pushReplacement(context, MaterialPageRoute(
-          builder: (_) => SchoolOnboardingScreen(destination: const OwnerHome()),
+          builder: (_) => const SchoolOnboardingScreen(destination: OwnerHome()),
         ));
         return;
       }
@@ -118,13 +118,6 @@ class _OwnerHomeState extends State<OwnerHome> {
       child: Scaffold(
       backgroundColor: AppTheme.background,
       body: ListView(
-        // Remove default top padding — the hero's inner SafeArea already
-        // handles content clearance. Without this, ListView shifts the hero
-        // below the status bar and shows the lavender scaffold background
-        // behind the transparent status bar instead of the purple gradient.
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).padding.bottom,
-        ),
         children: [
           _buildHero(),
           const SizedBox(height: 4),
@@ -184,30 +177,21 @@ class _OwnerHomeState extends State<OwnerHome> {
 
           const _SectionHeader('MANAGE'),
           _FeatureTile(
-            icon: Icons.person_add_outlined,
-            color: AppTheme.accent,
-            title: 'Create Accounts',
-            subtitle: 'Add principal, coordinator & other staff logins',
+            icon: Icons.settings_outlined,
+            color: AppTheme.primary,
+            title: 'Manage School',
+            subtitle: 'Accounts, school settings & announcements',
             onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => _CreateAccountsPage(email: _myEmail, role: _myRole),
+              builder: (_) => _ManagePage(email: _myEmail, role: _myRole),
             )),
           ),
           _FeatureTile(
             icon: Icons.tune_outlined,
-            color: AppTheme.primary,
+            color: AppTheme.primaryMid,
             title: 'School Settings',
             subtitle: 'Edit basic info, academic, fees & communication',
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const EditSchoolSettingsScreen(),
-            )),
-          ),
-          _FeatureTile(
-            icon: Icons.campaign_outlined,
-            color: AppTheme.primaryMid,
-            title: 'Announcements',
-            subtitle: 'Broadcast messages to staff, guardians or everyone',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => _AnnouncementsPage(email: _myEmail, role: _myRole),
             )),
           ),
 
@@ -491,13 +475,13 @@ class _DashPageState extends State<_DashPage> {
 
   Widget _buildAlerts() {
     if (_alerts.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 4),
         child: _OwnerCard(
           child: Row(children: [
-            const Icon(Icons.check_circle_outline, color: AppTheme.success, size: 20),
-            const SizedBox(width: 10),
-            const Text('All good today', style: TextStyle(color: AppTheme.success, fontWeight: FontWeight.w600)),
+            Icon(Icons.check_circle_outline, color: AppTheme.success, size: 20),
+            SizedBox(width: 10),
+            Text('All good today', style: TextStyle(color: AppTheme.success, fontWeight: FontWeight.w600)),
           ]),
         ),
       );
@@ -544,7 +528,7 @@ class _DashPageState extends State<_DashPage> {
             lineBarsData: [LineChartBarData(
               spots: _weeklyTrend, isCurved: true, color: _primary, barWidth: 2.5,
               isStrokeCapRound: true, dotData: const FlDotData(show: true),
-              belowBarData: BarAreaData(show: true, color: _primary.withOpacity(0.08)),
+              belowBarData: BarAreaData(show: true, color: _primary.withValues(alpha: 0.08)),
             )],
           )),
         ),
@@ -677,7 +661,7 @@ class _StaffPageState extends State<_StaffPage> {
             margin: const EdgeInsets.only(bottom: 8),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                CircleAvatar(radius: 16, backgroundColor: _primary.withOpacity(0.12),
+                CircleAvatar(radius: 16, backgroundColor: _primary.withValues(alpha: 0.12),
                   child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'T', style: const TextStyle(color: _primary, fontWeight: FontWeight.bold, fontSize: 12))),
                 const SizedBox(width: 10),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -686,7 +670,7 @@ class _StaffPageState extends State<_StaffPage> {
                 ])),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: AppTheme.warning.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: AppTheme.warning.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                   child: const Text('Pending', style: TextStyle(fontSize: 11, color: AppTheme.warning, fontWeight: FontWeight.w600)),
                 ),
               ]),
@@ -728,18 +712,18 @@ class _StaffPageState extends State<_StaffPage> {
           return _OwnerCard(
             margin: const EdgeInsets.only(bottom: 8),
             child: Row(children: [
-              CircleAvatar(radius: 20, backgroundColor: _primary.withOpacity(0.12),
+              CircleAvatar(radius: 20, backgroundColor: _primary.withValues(alpha: 0.12),
                 child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'T', style: const TextStyle(color: _primary, fontWeight: FontWeight.bold))),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 Text(email, style: const TextStyle(color: Colors.grey, fontSize: 11), overflow: TextOverflow.ellipsis),
-                if (classes.isNotEmpty) Text(classes.join(', '), style: TextStyle(color: _primary.withOpacity(0.7), fontSize: 11)),
+                if (classes.isNotEmpty) Text(classes.join(', '), style: TextStyle(color: _primary.withValues(alpha: 0.7), fontSize: 11)),
               ])),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: isOnLeave ? AppTheme.warning.withOpacity(0.1) : AppTheme.success.withOpacity(0.1),
+                  color: isOnLeave ? AppTheme.warning.withValues(alpha: 0.1) : AppTheme.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(isOnLeave ? 'On Leave' : 'Active',
@@ -829,7 +813,7 @@ class _AcademicsPageState extends State<_AcademicsPage> {
               margin: const EdgeInsets.only(bottom: 8),
               child: Row(children: [
                 Container(width: 44, height: 44,
-                  decoration: BoxDecoration(color: _primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(color: _primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                   child: const Icon(Icons.quiz_outlined, color: _primary, size: 22)),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -845,9 +829,9 @@ class _AcademicsPageState extends State<_AcademicsPage> {
             margin: const EdgeInsets.only(bottom: 8),
             child: Row(children: [
               Column(children: [
-                Text('${dt.day}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _primary)),
+                Text('${dt.day}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _primary)),
                 Text(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.month - 1],
-                    style: TextStyle(fontSize: 11, color: _primary)),
+                    style: const TextStyle(fontSize: 11, color: _primary)),
               ]),
               const SizedBox(width: 14),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -856,7 +840,7 @@ class _AcademicsPageState extends State<_AcademicsPage> {
               ])),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: dColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: dColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                 child: Text(daysLeft == 0 ? 'Today' : '${daysLeft}d left', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: dColor)),
               ),
             ]),
@@ -1004,6 +988,63 @@ class _FinancePageState extends State<_FinancePage> {
               ),
           ]),
         )).toList(),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Sub-page: Manage — menu
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _ManagePage extends StatelessWidget {
+  final String email;
+  final String role;
+
+  const _ManagePage({required this.email, required this.role});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        backgroundColor: AppTheme.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('Manage School'),
+      ),
+      body: ListView(
+        children: [
+          const _SectionHeader('MANAGE'),
+          _FeatureTile(
+            icon: Icons.person_add_outlined,
+            color: AppTheme.accent,
+            title: 'Create Accounts',
+            subtitle: 'Add principal, coordinator & other staff logins',
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => _CreateAccountsPage(email: email, role: role),
+            )),
+          ),
+          _FeatureTile(
+            icon: Icons.school_outlined,
+            color: AppTheme.primary,
+            title: 'School Settings',
+            subtitle: 'Name, phone, address & academic year',
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const _SchoolSettingsPage(),
+            )),
+          ),
+          _FeatureTile(
+            icon: Icons.campaign_outlined,
+            color: AppTheme.primaryMid,
+            title: 'Announcements',
+            subtitle: 'Broadcast messages to staff, guardians or everyone',
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => _AnnouncementsPage(email: email, role: role),
+            )),
+          ),
+          const SizedBox(height: 32),
+        ],
       ),
     );
   }
@@ -1192,7 +1233,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                   child: Row(children: [
                     CircleAvatar(
                       radius: 18,
-                      backgroundColor: _primary.withOpacity(0.1),
+                      backgroundColor: _primary.withValues(alpha: 0.1),
                       child: Icon(
                         uRole == 'principal'
                             ? Icons.business_outlined
@@ -1213,7 +1254,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: _primary.withOpacity(0.08),
+                        color: _primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -1595,7 +1636,7 @@ class _AnnouncementsPageState extends State<_AnnouncementsPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: _primary.withOpacity(0.1),
+                        color: _primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -1672,7 +1713,7 @@ class _FeatureTile extends StatelessWidget {
         child: Row(children: [
           Container(
             width: 44, height: 44,
-            decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: color, size: 22),
           ),
           const SizedBox(width: 14),
@@ -1748,7 +1789,7 @@ class _FeeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.3)), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))]),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.3)), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Icon(icon, color: color, size: 20),
         const SizedBox(height: 6),

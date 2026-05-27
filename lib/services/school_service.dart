@@ -94,7 +94,7 @@ class SchoolService extends BaseFirestoreService {
     final path = 'schools/$schoolId/policy/ideal_dress.jpg';
     final ref  = _storage.ref(path);
     final task = await ref.putData(
-      Uint8List.fromList(compressedBytes!),
+      Uint8List.fromList(compressedBytes),
       SettableMetadata(contentType: 'image/jpeg'),
     );
     return await task.ref.getDownloadURL();

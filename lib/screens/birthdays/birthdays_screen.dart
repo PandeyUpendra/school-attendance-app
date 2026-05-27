@@ -193,7 +193,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
                       widget.schoolName,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.white.withOpacity(0.75),
+                        color: Colors.white.withValues(alpha: 0.75),
                       ),
                     ),
                   ],
@@ -203,7 +203,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.18),
+                  color: Colors.white.withValues(alpha: 0.18),
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
@@ -225,7 +225,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.12),
+          color: Colors.white.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(24),
         ),
         padding: const EdgeInsets.all(3),
@@ -355,7 +355,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primary.withOpacity(0.3),
+            color: AppTheme.primary.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -369,8 +369,8 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
               children: [
                 Text(
                   isToday && todayCount > 0
-                      ? '🎉 ${_totalCount} Birthday${_totalCount > 1 ? 's' : ''} Today!'
-                      : '🎂 ${_totalCount} Birthday${_totalCount > 1 ? 's' : ''} — ${_filters[_filter]}',
+                      ? '🎉 $_totalCount Birthday${_totalCount > 1 ? 's' : ''} Today!'
+                      : '🎂 $_totalCount Birthday${_totalCount > 1 ? 's' : ''} — ${_filters[_filter]}',
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
@@ -384,7 +384,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
                       : 'Tap a card to send birthday wishes',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                   ),
                 ),
               ],
@@ -395,7 +395,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -437,7 +437,7 @@ class _SectionHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, size: 16, color: color),
@@ -456,7 +456,7 @@ class _SectionHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
@@ -469,7 +469,7 @@ class _SectionHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        Expanded(child: Divider(color: color.withOpacity(0.2), thickness: 1)),
+        Expanded(child: Divider(color: color.withValues(alpha: 0.2), thickness: 1)),
       ],
     );
   }
@@ -496,7 +496,7 @@ class _EmptyBlock extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.07),
+              color: AppTheme.primary.withValues(alpha: 0.07),
               shape: BoxShape.circle,
             ),
             child: const Center(
@@ -570,11 +570,11 @@ class _BirthdayCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: _isToday
-            ? Border.all(color: AppTheme.accent.withOpacity(0.4), width: 1.5)
+            ? Border.all(color: AppTheme.accent.withValues(alpha: 0.4), width: 1.5)
             : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -586,11 +586,11 @@ class _BirthdayCard extends StatelessWidget {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
                   colors: [AppTheme.accent, AppTheme.accent],
                 ),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
               ),
               child: Row(
                 children: [
@@ -619,8 +619,8 @@ class _BirthdayCard extends StatelessWidget {
                       height: 52,
                       decoration: BoxDecoration(
                         color: _isToday
-                            ? AppTheme.accent.withOpacity(0.12)
-                            : AppTheme.primary.withOpacity(0.1),
+                            ? AppTheme.accent.withValues(alpha: 0.12)
+                            : AppTheme.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -764,9 +764,9 @@ class _DaysBadge extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withOpacity(0.25)),
+            border: Border.all(color: color.withValues(alpha: 0.25)),
           ),
           child: Text(
             isTomorrow ? 'Tomorrow' : 'in $daysLeft days',
@@ -811,10 +811,10 @@ class _ActionBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: enabled ? color.withOpacity(0.1) : Colors.grey.shade100,
+          color: enabled ? color.withValues(alpha: 0.1) : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: enabled ? color.withOpacity(0.3) : Colors.grey.shade200,
+            color: enabled ? color.withValues(alpha: 0.3) : Colors.grey.shade200,
           ),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -916,7 +916,7 @@ class _CustomMessageSheetState extends State<_CustomMessageSheet> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
+                color: AppTheme.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Text('🎂', style: TextStyle(fontSize: 18)),
@@ -1060,10 +1060,12 @@ class _MonthlyStatsState extends State<_MonthlyStats> {
   Future<void> _loadMonth() async {
     setState(() => _loading = true);
     final data = await widget.svc.getMonthlyBirthdays(_selectedMonth);
-    if (mounted) setState(() {
+    if (mounted) {
+      setState(() {
       _calData = data;
       _loading = false;
     });
+    }
   }
 
   int _daysInMonth(int month) =>
@@ -1156,7 +1158,7 @@ class _MonthlyStatsState extends State<_MonthlyStats> {
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                      color: Colors.black.withOpacity(0.05), blurRadius: 6)
+                      color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)
                 ],
               ),
               padding: const EdgeInsets.all(12),
@@ -1191,7 +1193,7 @@ class _MonthlyStatsState extends State<_MonthlyStats> {
                             ? Border.all(
                                 color: isSelected
                                     ? AppTheme.primary
-                                    : AppTheme.primary.withOpacity(0.3),
+                                    : AppTheme.primary.withValues(alpha: 0.3),
                                 width: 1.5)
                             : null,
                       ),
@@ -1230,7 +1232,7 @@ class _MonthlyStatsState extends State<_MonthlyStats> {
                 color: const Color(0xFFF3E5F5),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                    color: AppTheme.primary.withOpacity(0.3)),
+                    color: AppTheme.primary.withValues(alpha: 0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1292,9 +1294,9 @@ class _StatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(children: [
         Container(

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../theme.dart';
 import '../services/timetable_service.dart';
 
@@ -51,8 +50,12 @@ class _AdminScreenState extends State<AdminScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final owners = await _service.getAllowedOwners();
+      final allUsers = await _service.getAllowedUsers();
       if (!mounted) return;
+      // Admin sees only Owner accounts.
+      final owners = allUsers
+          .where((u) => (u['role'] as String) == 'owner')
+          .toList();
       setState(() {
         _users   = owners;
         _loading = false;
@@ -159,7 +162,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       Container(
                         width: 44, height: 44,
                         decoration: BoxDecoration(
-                          color: roleColor.withOpacity(0.1),
+                          color: roleColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(_roleIcon(editRole),
@@ -209,7 +212,7 @@ class _AdminScreenState extends State<AdminScreen> {
                                 horizontal: 14, vertical: 8),
                             decoration: BoxDecoration(
                               color: sel
-                                  ? rCol.withOpacity(0.12)
+                                  ? rCol.withValues(alpha: 0.12)
                                   : Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
@@ -352,22 +355,41 @@ class _AdminScreenState extends State<AdminScreen> {
           color: AppTheme.primary,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(children: [
-            // Role label (fixed: Owner only)
+            // Role dropdown
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Row(children: [
-                Icon(Icons.stars_outlined, color: Colors.white70, size: 18),
-                SizedBox(width: 10),
-                Text('Owner',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14)),
-              ]),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedRole,
+                  isExpanded: true,
+                  dropdownColor: AppTheme.primaryDark,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 14),
+                  iconEnabledColor: Colors.white70,
+                  items: _roles.map((r) {
+                    return DropdownMenuItem<String>(
+                      value: r['value'] as String,
+                      child: Row(children: [
+                        Icon(r['icon'] as IconData,
+                            color: Colors.white70, size: 18),
+                        const SizedBox(width: 10),
+                        Text(r['label'] as String,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600)),
+                      ]),
+                    );
+                  }).toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _selectedRole = v);
+                  },
+                ),
+              ),
             ),
             const SizedBox(height: 10),
 
@@ -384,7 +406,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 prefixIcon: const Icon(Icons.email_outlined,
                     color: Colors.white70),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.15),
+                fillColor: Colors.white.withValues(alpha: 0.15),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none),
@@ -395,7 +417,7 @@ class _AdminScreenState extends State<AdminScreen> {
             const SizedBox(height: 8),
             Text(
               'A password-setup link will be emailed automatically.',
-              style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11),
             ),
             const SizedBox(height: 8),
 
@@ -441,7 +463,8 @@ class _AdminScreenState extends State<AdminScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Add Owner accounts here. Principals and Coordinators are created from their respective dashboards.',
+                'Admin can only create Owner and Owner-Principal accounts. '
+                'Each role creates the roles below them in the hierarchy.',
                 style: TextStyle(
                     fontSize: 12, color: Colors.orange.shade800),
               ),
@@ -514,7 +537,7 @@ class _AdminScreenState extends State<AdminScreen> {
                               leading: Container(
                                 width: 44, height: 44,
                                 decoration: BoxDecoration(
-                                  color: color.withOpacity(0.1),
+                                  color: color.withValues(alpha: 0.1),
                                   borderRadius:
                                       BorderRadius.circular(12),
                                 ),
@@ -539,12 +562,12 @@ class _AdminScreenState extends State<AdminScreen> {
                                             vertical: 3),
                                     decoration: BoxDecoration(
                                       color:
-                                          color.withOpacity(0.1),
+                                          color.withValues(alpha: 0.1),
                                       borderRadius:
                                           BorderRadius.circular(20),
                                       border: Border.all(
                                           color: color
-                                              .withOpacity(0.3)),
+                                              .withValues(alpha: 0.3)),
                                     ),
                                     child: Text(
                                       role[0].toUpperCase() +
@@ -584,7 +607,7 @@ class _AdminScreenState extends State<AdminScreen> {
                                 children: [
                                   // Edit button
                                   IconButton(
-                                    icon: Icon(
+                                    icon: const Icon(
                                         Icons.edit_outlined,
                                         color: AppTheme.primary,
                                         size: 20),

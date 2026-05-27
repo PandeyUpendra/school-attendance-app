@@ -27,8 +27,6 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
   List<Student>    _students = [];
   // roll → subject → marks controller
   Map<int, Map<String, TextEditingController>> _controllers = {};
-  // Previously saved results
-  Map<int, ExamResult> _savedResults = {};
 
   @override
   void initState() {
@@ -73,7 +71,6 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     setState(() {
       _students      = students;
       _controllers   = ctrlMap;
-      _savedResults  = savedMap;
       _loading       = false;
     });
   }

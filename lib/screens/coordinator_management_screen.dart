@@ -189,12 +189,12 @@ class _CoordCard extends StatelessWidget {
           // Header
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [AppTheme.primary, AppTheme.primaryMid],
                 begin: Alignment.topLeft, end: Alignment.bottomRight,
               ),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
               children: [
@@ -254,7 +254,7 @@ class _CoordCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
                       ),
-                      child: Text(c, style: TextStyle(fontSize: 12, color: AppTheme.primary, fontWeight: FontWeight.w600)),
+                      child: Text(c, style: const TextStyle(fontSize: 12, color: AppTheme.primary, fontWeight: FontWeight.w600)),
                     )).toList(),
                   ),
                 ] else ...[
@@ -431,7 +431,7 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Row(children: [
-              Icon(Icons.supervisor_account_outlined, color: AppTheme.primary),
+              const Icon(Icons.supervisor_account_outlined, color: AppTheme.primary),
               const SizedBox(width: 10),
               Text(
                 _isEdit ? 'Edit Coordinator' : 'Add Coordinator',

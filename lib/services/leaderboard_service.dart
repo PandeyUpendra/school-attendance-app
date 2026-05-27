@@ -441,7 +441,9 @@ class LeaderboardService extends BaseFirestoreService {
     // Delete entries sub-collection first
     final snap = await _entries(sId, leaderboardId).get();
     final batch = db.batch();
-    for (final doc in snap.docs) batch.delete(doc.reference);
+    for (final doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
     await batch.commit();
     await _lb(sId).doc(leaderboardId).delete();
   }

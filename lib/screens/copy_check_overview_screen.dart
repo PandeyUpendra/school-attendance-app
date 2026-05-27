@@ -161,7 +161,7 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
                                           width: 42, height: 42,
                                           decoration: BoxDecoration(
                                             color: AppTheme.primary
-                                                .withOpacity(0.1),
+                                                .withValues(alpha: 0.1),
                                             borderRadius:
                                                 BorderRadius.circular(10),
                                           ),
@@ -387,7 +387,7 @@ class _StatusList extends StatelessWidget {
           child: Row(children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor: color.withOpacity(0.12),
+              backgroundColor: color.withValues(alpha: 0.12),
               child: Text(
                 s.studentName.isNotEmpty
                     ? s.studentName[0].toUpperCase()
@@ -414,7 +414,7 @@ class _StatusList extends StatelessWidget {
               padding: const EdgeInsets.symmetric(
                   horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(

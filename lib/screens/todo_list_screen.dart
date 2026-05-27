@@ -151,19 +151,19 @@ class _TodoTab extends StatelessWidget {
       padding: const EdgeInsets.only(top: 8, bottom: 100),
       children: [
         if (overdue.isNotEmpty) ...[
-          _GroupHeader('OVERDUE', color: AppTheme.danger),
+          const _GroupHeader('OVERDUE', color: AppTheme.danger),
           ..._tiles(overdue),
         ],
         if (today.isNotEmpty) ...[
-          _GroupHeader('TODAY', color: AppTheme.warning),
+          const _GroupHeader('TODAY', color: AppTheme.warning),
           ..._tiles(today),
         ],
         if (upcoming.isNotEmpty) ...[
-          _GroupHeader('UPCOMING', color: AppTheme.primary),
+          const _GroupHeader('UPCOMING', color: AppTheme.primary),
           ..._tiles(upcoming),
         ],
         if (noDue.isNotEmpty) ...[
-          _GroupHeader('NO DUE DATE', color: Colors.grey),
+          const _GroupHeader('NO DUE DATE', color: Colors.grey),
           ..._tiles(noDue),
         ],
       ],
@@ -245,13 +245,13 @@ class _TodoTile extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: item.isOverdue && !item.isCompleted
-              ? Border.all(color: AppTheme.danger.withOpacity(0.4))
+              ? Border.all(color: AppTheme.danger.withValues(alpha: 0.4))
               : item.isDueToday && !item.isCompleted
-                  ? Border.all(color: AppTheme.warning.withOpacity(0.5))
+                  ? Border.all(color: AppTheme.warning.withValues(alpha: 0.5))
                   : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -340,7 +340,7 @@ class _TodoTile extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 5, vertical: 1),
                             decoration: BoxDecoration(
-                              color: AppTheme.danger.withOpacity(0.12),
+                              color: AppTheme.danger.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text('OVERDUE',
@@ -534,7 +534,7 @@ class _AddTodoSheetState extends State<_AddTodoSheet> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: AppTheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.add_task,
@@ -647,12 +647,12 @@ class _AddTodoSheetState extends State<_AddTodoSheet> {
                       horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
                     color: _dueDate != null
-                        ? AppTheme.primary.withOpacity(0.1)
+                        ? AppTheme.primary.withValues(alpha: 0.1)
                         : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                         color: _dueDate != null
-                            ? AppTheme.primary.withOpacity(0.3)
+                            ? AppTheme.primary.withValues(alpha: 0.3)
                             : Colors.grey.shade300),
                   ),
                   child: Text(
@@ -828,7 +828,7 @@ class _EditTodoSheetState extends State<_EditTodoSheet> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
+                color: AppTheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(Icons.edit_outlined,
@@ -863,12 +863,12 @@ class _EditTodoSheetState extends State<_EditTodoSheet> {
                     horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
                   color: _dueDate != null
-                      ? AppTheme.primary.withOpacity(0.1)
+                      ? AppTheme.primary.withValues(alpha: 0.1)
                       : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                       color: _dueDate != null
-                          ? AppTheme.primary.withOpacity(0.3)
+                          ? AppTheme.primary.withValues(alpha: 0.3)
                           : Colors.grey.shade300),
                 ),
                 child: Text(
@@ -950,7 +950,9 @@ class _EditTodoSheetState extends State<_EditTodoSheet> {
                   );
                   if (confirm == true && mounted) {
                     await widget.svc.deleteTodo(widget.item.id);
-                    if (mounted) Navigator.pop(context);
+                    if (!mounted) return;
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
                   }
                 },
                 icon: const Icon(Icons.delete_outline, color: AppTheme.danger),

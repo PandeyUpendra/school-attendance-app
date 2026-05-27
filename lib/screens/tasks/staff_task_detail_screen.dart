@@ -57,7 +57,6 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
 
         final task = StaffTask.fromJson(snapshot.data!.data() as Map<String, dynamic>, snapshot.data!.id);
         final isCreator = task.createdBy == _userEmail;
-        final isAssigned = task.assignedToIds.contains(_userEmail);
         final isOverdue = task.status == TaskStatus.overdue || (task.status != TaskStatus.completed && (task.dueDate?.isBefore(DateTime.now()) ?? false));
 
         return Scaffold(

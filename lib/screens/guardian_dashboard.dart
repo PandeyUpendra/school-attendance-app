@@ -742,7 +742,7 @@ class _GuardianHeroCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.white30),
                     ),
@@ -833,7 +833,7 @@ class _TodayScheduleCard extends StatelessWidget {
               Container(
                 width: 34, height: 34,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: AppTheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(9),
                 ),
                 child: const Icon(Icons.schedule_outlined,
@@ -906,7 +906,7 @@ class _TodayScheduleCard extends StatelessWidget {
                 subject = entry.subject ??
                     (teacher?.subject ?? '—');
                 teacherName = teacher?.name ?? '';
-                periodColor = AppTheme.primary.withOpacity(0.07);
+                periodColor = AppTheme.primary.withValues(alpha: 0.07);
               }
 
               return Container(
@@ -1016,7 +1016,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
               Container(
                 width: 34, height: 34,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: AppTheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(9),
                 ),
                 child: const Icon(Icons.school_outlined,
@@ -1090,7 +1090,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                     Container(
                       width: 42, height: 42,
                       decoration: BoxDecoration(
-                        color: gradeColor.withOpacity(0.1),
+                        color: gradeColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Center(
@@ -1166,8 +1166,8 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                   child: Column(
                     children: [
                       // Column headers
-                      Row(children: [
-                        const Expanded(
+                      const Row(children: [
+                        Expanded(
                             child: Text('Subject',
                                 style: TextStyle(
                                     fontSize: 11,
@@ -1177,7 +1177,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                           width: 60,
                           child: Text('Marks',
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.black54)),
@@ -1186,7 +1186,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                           width: 50,
                           child: Text('%',
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.black54)),
@@ -1338,7 +1338,7 @@ class _SubjectTeachersCard extends StatelessWidget {
               Container(
                 width: 34, height: 34,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: AppTheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(9),
                 ),
                 child: const Icon(Icons.people_outline,
@@ -1452,7 +1452,7 @@ class _ChildProfileCard extends StatelessWidget {
       child: Row(children: [
         CircleAvatar(
           radius: 28,
-          backgroundColor: AppTheme.primary.withOpacity(0.12),
+          backgroundColor: AppTheme.primary.withValues(alpha: 0.12),
           child: Text(
             student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
             style: const TextStyle(
@@ -1572,7 +1572,7 @@ class _GuardianDetailsViewCard extends StatelessWidget {
               Container(
                 width: 34, height: 34,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: AppTheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(9),
                 ),
                 child: const Icon(Icons.badge_outlined,
@@ -1686,9 +1686,9 @@ class _TodayBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(children: [
         Icon(icon, color: color, size: 32),
@@ -1921,10 +1921,15 @@ class _AttendanceCalendarCard extends StatelessWidget {
                 final bool filled = circleFill != Colors.transparent;
 
                 Color textColor;
-                if (filled)       textColor = Colors.white;
-                else if (isFuture) textColor = Colors.grey.shade300;
-                else if (isSun)    textColor = Colors.red.shade200;
-                else               textColor = Colors.grey.shade500;
+                if (filled) {
+                  textColor = Colors.white;
+                } else if (isFuture) {
+                  textColor = Colors.grey.shade300;
+                } else if (isSun) {
+                  textColor = Colors.red.shade200;
+                } else {
+                  textColor = Colors.grey.shade500;
+                }
 
                 return Center(
                   child: Container(
@@ -2200,7 +2205,7 @@ class _HomeworkSection extends StatelessWidget {
               Container(
                 width: 32, height: 32,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: AppTheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.assignment_outlined,
@@ -2261,7 +2266,7 @@ class _HomeworkSection extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
-                          color: sc.withOpacity(0.1),
+                          color: sc.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(_statusLabel(hw),

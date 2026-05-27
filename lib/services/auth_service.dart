@@ -3,7 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'base_firestore_service.dart';
 
 import 'audit_log_service.dart';
-import 'base_firestore_service.dart';
 
 /// Manages authentication (Firebase Auth) and local session persistence
 /// (SharedPreferences for role-specific data like teacherId, studentLinks).

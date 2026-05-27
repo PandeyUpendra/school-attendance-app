@@ -301,13 +301,13 @@ class _StudentLeaveCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: statusColor.withOpacity(0.25)),
+          border: Border.all(color: statusColor.withValues(alpha: 0.25)),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             CircleAvatar(
               radius: 20,
-              backgroundColor: AppTheme.primary.withOpacity(0.1),
+              backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
               child: Text(
                 name.isNotEmpty ? name[0].toUpperCase() : '?',
                 style: const TextStyle(
@@ -395,9 +395,9 @@ class _StudentLeaveCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Text(label,
           style: TextStyle(
@@ -411,7 +411,7 @@ class _StudentLeaveCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -460,7 +460,7 @@ class _ActionBtn extends StatelessWidget {
       label: Text(label, style: const TextStyle(fontSize: 10)),
       style: OutlinedButton.styleFrom(
         foregroundColor: color,
-        side: BorderSide(color: color.withOpacity(0.6)),
+        side: BorderSide(color: color.withValues(alpha: 0.6)),
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8)),
@@ -561,9 +561,9 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.07),
+                color: statusColor.withValues(alpha: 0.07),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: statusColor.withOpacity(0.3)),
+                border: Border.all(color: statusColor.withValues(alpha: 0.3)),
               ),
               child: Row(children: [
                 Icon(
@@ -634,7 +634,7 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.primaryMid,
                     side: BorderSide(
-                        color: AppTheme.primaryMid.withOpacity(0.6)),
+                        color: AppTheme.primaryMid.withValues(alpha: 0.6)),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
@@ -651,7 +651,7 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.primaryDark,
                     side: BorderSide(
-                        color: AppTheme.primaryDark.withOpacity(0.6)),
+                        color: AppTheme.primaryDark.withValues(alpha: 0.6)),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),

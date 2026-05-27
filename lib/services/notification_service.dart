@@ -258,10 +258,14 @@ class NotificationService {
             if (aud == 'teachers'  && role == 'teacher')                  return true;
             if (aud == 'guardians' && role == 'guardian')                 return true;
             if (aud.startsWith('teacher:')  && role == 'teacher'  &&
-                teacherId != null && aud == 'teacher:$teacherId')         return true;
+                teacherId != null && aud == 'teacher:$teacherId') {
+              return true;
+            }
             if (aud.startsWith('guardian:') && role == 'guardian' &&
                 studentClass != null && studentRoll != null &&
-                aud == 'guardian:$studentClass:$studentRoll')             return true;
+                aud == 'guardian:$studentClass:$studentRoll') {
+              return true;
+            }
             return false;
           })
           .toList();
@@ -292,10 +296,14 @@ class NotificationService {
       if (aud == 'teachers'  && role == 'teacher')                 return true;
       if (aud == 'guardians' && role == 'guardian')                return true;
       if (aud.startsWith('teacher:')  && role == 'teacher'  &&
-          teacherId != null && aud == 'teacher:$teacherId')         return true;
+          teacherId != null && aud == 'teacher:$teacherId') {
+        return true;
+      }
       if (aud.startsWith('guardian:') && role == 'guardian' &&
           studentClass != null && studentRoll != null &&
-          aud == 'guardian:$studentClass:$studentRoll')             return true;
+          aud == 'guardian:$studentClass:$studentRoll') {
+        return true;
+      }
       return false;
     }).toList();
 

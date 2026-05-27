@@ -209,7 +209,7 @@ class _FullscreenPhotoViewerState extends State<FullscreenPhotoViewer> {
                   margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                   decoration: BoxDecoration(
-                    color:        Colors.black.withOpacity(0.7),
+                    color:        Colors.black.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
@@ -269,7 +269,7 @@ class _ActionButton extends StatelessWidget {
         Container(
           width: 48, height: 48,
           decoration: BoxDecoration(
-            color:  Colors.white.withOpacity(0.15),
+            color:  Colors.white.withValues(alpha: 0.15),
             shape:  BoxShape.circle,
           ),
           child: Icon(icon, color: Colors.white, size: 22),

@@ -80,8 +80,8 @@ class _ClassBreakdownTable extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Divider(),
-        Row(
-          children: const [
+        const Row(
+          children: [
             Expanded(flex: 3, child: Text('Class', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.grey))),
             Expanded(flex: 2, child: Text('Total', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.grey), textAlign: TextAlign.center)),
             Expanded(flex: 2, child: Text('Done', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.grey), textAlign: TextAlign.center)),

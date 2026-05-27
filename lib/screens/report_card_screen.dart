@@ -124,7 +124,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => _TemplatePicker(
-        templates: templates!,
+        templates: templates,
         onPick: (t) {
           Navigator.pop(ctx);
           onPicked(t);
@@ -343,7 +343,7 @@ class _TemplatePicker extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppTheme.primary.withOpacity(0.08),
+                          color: AppTheme.primary.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(t.board.label,
@@ -574,7 +574,7 @@ class _StudentResultCard extends StatelessWidget {
           Row(children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor: color.withOpacity(0.12),
+              backgroundColor: color.withValues(alpha: 0.12),
               child: Text(
                 s.name.isNotEmpty ? s.name[0].toUpperCase() : '?',
                 style: TextStyle(
@@ -676,7 +676,7 @@ class _StudentResultCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(

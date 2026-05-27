@@ -6,10 +6,9 @@ import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
 import 'coordinator_dashboard.dart';
-import 'guardian_dashboard.dart';
 import 'home_screen.dart';
 import 'principal_dashboard.dart';
-import 'student_selection_screen.dart';
+import 'guardian_login_screen.dart';
 import 'admin_screen.dart';
 import 'forgot_password_screen.dart';
 import 'owner/owner_home.dart';
@@ -94,36 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
         BaseFirestoreService.currentSchoolId = schoolId;
       }
 
-      // Guardian: fetch student links before saving session.
-      if (role == 'guardian') {
-        final links = await TimetableService().getGuardianLinks(email);
-        if (!mounted) return;
-        if (links == null || links.isEmpty) {
-          await AuthService().signOut();
-          setState(() {
-            _loading = false;
-            _error = 'Your guardian account is not linked to any student yet. '
-                'Ask the school admin to set up your child\'s link.';
-          });
-          return;
-        }
-        final sessionLinks = links
-            .map((l) =>
-                '${l['studentClass']}|${l['studentRoll']}|${l['studentName'] ?? ''}')
-            .toList();
-        await AuthService().saveSession(
-          email:        email,
-          role:         role,
-          name:         name,
-          schoolId:     schoolId,
-          studentLinks: sessionLinks,
-        );
-        if (!mounted) return;
-        _routeGuardian(sessionLinks, schoolId);
-        return;
-      }
-
-      // Role-specific data for staff.
+      // Role-specific data.
       List<String>? assignedClasses;
       if (role == 'coordinator' || role == 'principal' || role == 'owner') {
         final loginData = await TimetableService().getAssignedClasses(email);
@@ -131,10 +101,10 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       await AuthService().saveSession(
-        email:           email,
-        role:            role,
-        name:            name,
-        schoolId:        schoolId,
+        email:          email,
+        role:           role,
+        name:           name,
+        schoolId:       schoolId,
         assignedClasses: assignedClasses,
       );
 
@@ -172,6 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
         break;
       case 'teacher':
       case 'subjectTeacher':
+        // Teacher needs to load their full profile — use splash gate routing.
         _loadTeacherAndRoute(email);
         return;
       default:
@@ -183,31 +154,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     Navigator.pushReplacement(
         context, MaterialPageRoute(builder: (_) => destination));
-  }
-
-  void _routeGuardian(List<String> sessionLinks, String schoolId) {
-    if (sessionLinks.length == 1) {
-      final parts = sessionLinks.first.split('|');
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuardianDashboard(
-            studentClass: parts[0],
-            studentRoll:  int.tryParse(parts[1]) ?? 0,
-          ),
-        ),
-      );
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => StudentSelectionScreen(
-            schoolId: schoolId,
-            links:    sessionLinks,
-          ),
-        ),
-      );
-    }
   }
 
   Future<void> _loadTeacherAndRoute(String email) async {
@@ -344,7 +290,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     'Sign in to your account',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 15, color: Colors.white.withOpacity(0.75)),
+                        fontSize: 15, color: Colors.white.withValues(alpha: 0.75)),
                   ),
                   const SizedBox(height: 40),
 
@@ -356,7 +302,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
+                          color: Colors.black.withValues(alpha: 0.15),
                           blurRadius: 24,
                           offset: const Offset(0, 8),
                         ),
@@ -486,32 +432,27 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 28),
 
-                  // Guardian hint
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: Colors.white.withOpacity(0.2)),
+                  // Guardian login
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const GuardianLoginScreen()),
                     ),
-                    child: Row(children: [
-                      const Icon(Icons.family_restroom_outlined,
-                          color: Colors.white70, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Guardians: sign in with your registered email and password above.',
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white.withOpacity(0.7),
-                              height: 1.4),
-                        ),
-                      ),
-                    ]),
+                    icon: const Icon(Icons.family_restroom_outlined,
+                        color: Colors.white70),
+                    label: const Text(
+                      'Guardian? Sign in here',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
 
                   const SizedBox(height: 24),
@@ -524,7 +465,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         'Admin Access',
                         style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white.withOpacity(0.45)),
+                            color: Colors.white.withValues(alpha: 0.45)),
                       ),
                     ),
                   ),

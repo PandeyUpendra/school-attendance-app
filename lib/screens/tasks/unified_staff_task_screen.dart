@@ -99,7 +99,7 @@ class UnifiedStaffTaskScreen extends StatelessWidget {
             children: [
               _AssignTab(assignerEmail: userEmail, assignerName: userName),
               _AllTasksTab(assignerEmail: userEmail),
-              _AnalyticsTab(),
+              const _AnalyticsTab(),
             ],
           ),
         ),
@@ -361,7 +361,7 @@ class _AssignTabState extends State<_AssignTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Task Title Dropdown ──────────────────────────────────────────
-          _Label('Task Title'),
+          const _Label('Task Title'),
           DropdownButtonFormField<String>(
             decoration: InputDecoration(
               contentPadding:
@@ -410,7 +410,7 @@ class _AssignTabState extends State<_AssignTab> {
           const SizedBox(height: 14),
 
           // ── Description ───────────────────────────────────────────────────
-          _Label('Description (auto-filled, editable)'),
+          const _Label('Description (auto-filled, editable)'),
           TextField(
             controller: _descCtrl,
             maxLines: 4,
@@ -425,7 +425,7 @@ class _AssignTabState extends State<_AssignTab> {
           const SizedBox(height: 14),
 
           // ── Assign To ─────────────────────────────────────────────────────
-          _Label('Assign To'),
+          const _Label('Assign To'),
           _loadingPeople
               ? const Center(
                   child: CircularProgressIndicator(
@@ -436,13 +436,13 @@ class _AssignTabState extends State<_AssignTab> {
                   isExpanded: true,
                   decoration: _inputDec(),
                   items: [
-                    DropdownMenuItem<String>(
+                    const DropdownMenuItem<String>(
                       value: _kAllTeachers,
                       child: Row(children: [
-                        const Icon(Icons.groups,
+                        Icon(Icons.groups,
                             color: AppTheme.primary, size: 18),
-                        const SizedBox(width: 8),
-                        const Text('All Teachers',
+                        SizedBox(width: 8),
+                        Text('All Teachers',
                             style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.primary)),
@@ -472,10 +472,10 @@ class _AssignTabState extends State<_AssignTab> {
               padding: const EdgeInsets.symmetric(
                   horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.08),
+                color: AppTheme.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                    color: AppTheme.primary.withOpacity(0.2)),
+                    color: AppTheme.primary.withValues(alpha: 0.2)),
               ),
               child: Row(children: [
                 const Icon(Icons.groups,
@@ -498,7 +498,7 @@ class _AssignTabState extends State<_AssignTab> {
           const SizedBox(height: 14),
 
           // ── Priority ──────────────────────────────────────────────────────
-          _Label('Priority'),
+          const _Label('Priority'),
           Row(children: [
             for (final p in TaskPriority.values)
               Padding(
@@ -506,7 +506,7 @@ class _AssignTabState extends State<_AssignTab> {
                 child: ChoiceChip(
                   label: Text(p.label),
                   selected: _priority == p,
-                  selectedColor: _priorityColor(p).withOpacity(0.15),
+                  selectedColor: _priorityColor(p).withValues(alpha: 0.15),
                   labelStyle: TextStyle(
                     color: _priority == p
                         ? _priorityColor(p)
@@ -528,7 +528,7 @@ class _AssignTabState extends State<_AssignTab> {
           const SizedBox(height: 14),
 
           // ── Due Date ──────────────────────────────────────────────────────
-          _Label('Due Date'),
+          const _Label('Due Date'),
           GestureDetector(
             onTap: _pickDueDate,
             child: Container(
@@ -737,7 +737,7 @@ class _AllTasksTabState extends State<_AllTasksTab> {
           TextButton(
               onPressed: () => Navigator.pop(context, true),
               child:
-                  Text('Delete', style: TextStyle(color: AppTheme.danger))),
+                  const Text('Delete', style: TextStyle(color: AppTheme.danger))),
         ],
       ),
     );
@@ -943,7 +943,7 @@ class _StatCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.25)),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
         ),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Text(value,
@@ -1103,11 +1103,11 @@ class _AdminTaskCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: overdue
             ? Border.all(
-                color: AppTheme.danger.withOpacity(0.4), width: 1.5)
+                color: AppTheme.danger.withValues(alpha: 0.4), width: 1.5)
             : null,
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 6,
               offset: const Offset(0, 2)),
         ],
@@ -1182,16 +1182,16 @@ class _AdminTaskCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(0.1),
+                  color: AppTheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                      color: AppTheme.primary.withOpacity(0.3)),
+                      color: AppTheme.primary.withValues(alpha: 0.3)),
                 ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.groups,
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.groups,
                       size: 12, color: AppTheme.primary),
-                  const SizedBox(width: 4),
-                  const Text('Group Task',
+                  SizedBox(width: 4),
+                  Text('Group Task',
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -1230,11 +1230,11 @@ class _TeacherTaskCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: overdue
             ? Border.all(
-                color: AppTheme.danger.withOpacity(0.4), width: 1.5)
+                color: AppTheme.danger.withValues(alpha: 0.4), width: 1.5)
             : null,
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 6,
               offset: const Offset(0, 2)),
         ],
@@ -1339,9 +1339,9 @@ class _StatusBtn extends StatelessWidget {
           padding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: color.withOpacity(0.4)),
+            border: Border.all(color: color.withValues(alpha: 0.4)),
           ),
           child: Text(label,
               style: TextStyle(

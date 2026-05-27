@@ -114,16 +114,16 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
 
     _leaveSub = TimetableService()
         .streamPendingLeaveCount()
-        .listen((count) {
+        .listen((n) {
       if (!mounted) return;
-      setState(() => _pendingLeaveCount = count);
+      setState(() => _pendingLeaveCount = n);
     });
 
     _taskSub = StaffTaskService()
         .streamAllIncompleteCount()
-        .listen((count) {
+        .listen((n) {
       if (!mounted) return;
-      setState(() => _incompleteTaskCount = count);
+      setState(() => _incompleteTaskCount = n);
     });
   }
 
@@ -245,7 +245,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Staff Tasks ───────────────────────────────────────────────
-            _SectionHeader('STAFF TASKS'),
+            const _SectionHeader('STAFF TASKS'),
             _FeatureTile(
               icon: Icons.assignment_outlined,
               color: _cPurple,
@@ -273,7 +273,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Announcements ──────────────────────────────────────────────
-            _SectionHeader('ANNOUNCEMENTS'),
+            const _SectionHeader('ANNOUNCEMENTS'),
             _FeatureTile(
               icon: Icons.campaign_outlined,
               color: _cPurple,
@@ -286,7 +286,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Fee Management ─────────────────────────────────────────────
-            _SectionHeader('FEE MANAGEMENT'),
+            const _SectionHeader('FEE MANAGEMENT'),
             _FeatureTile(
               icon: Icons.account_balance_wallet_outlined,
               color: AppTheme.success,
@@ -304,7 +304,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Exams & Marks ──────────────────────────────────────────────
-            _SectionHeader('EXAMS & MARKS'),
+            const _SectionHeader('EXAMS & MARKS'),
             _FeatureTile(
               icon: Icons.quiz_outlined,
               color: _cPurple,
@@ -321,7 +321,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Copy Checking ──────────────────────────────────────────────
-            _SectionHeader('COPY CHECKING'),
+            const _SectionHeader('COPY CHECKING'),
             _FeatureTile(
               icon: Icons.menu_book_outlined,
               color: _cPurple,
@@ -331,7 +331,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Homework ───────────────────────────────────────────────────
-            _SectionHeader('HOMEWORK'),
+            const _SectionHeader('HOMEWORK'),
             _FeatureTile(
               icon: Icons.assignment_outlined,
               color: _cPurple,
@@ -341,7 +341,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Timetable ──────────────────────────────────────────────────
-            _SectionHeader('TIMETABLE'),
+            const _SectionHeader('TIMETABLE'),
             _FeatureTile(
               icon: Icons.table_chart_outlined,
               color: _cPurple,
@@ -367,7 +367,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Staff ──────────────────────────────────────────────────────
-            _SectionHeader('STAFF'),
+            const _SectionHeader('STAFF'),
             _FeatureTile(
               icon: Icons.people_outline,
               color: _cPurple,
@@ -377,7 +377,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Students ───────────────────────────────────────────────────
-            _SectionHeader('STUDENTS'),
+            const _SectionHeader('STUDENTS'),
             _FeatureTile(
               icon: Icons.school_outlined,
               color: _cPurple,
@@ -396,7 +396,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Free Bells & Substitution ──────────────────────────────────
-            _SectionHeader('FREE BELLS & SUBSTITUTION'),
+            const _SectionHeader('FREE BELLS & SUBSTITUTION'),
             _FeatureTile(
               icon: Icons.person_off_outlined,
               color: AppTheme.danger,
@@ -425,14 +425,14 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Leave Requests ─────────────────────────────────────────────
-            _SectionHeader('LEAVE REQUESTS'),
+            const _SectionHeader('LEAVE REQUESTS'),
             _LeaveRequestTile(
               pendingCount: _pendingLeaveCount,
               onTap: () => _navigate(const LeaveRequestsScreen(viewerRole: 'coordinator')),
             ),
 
             // ── Analytics ─────────────────────────────────────────────────
-            _SectionHeader('ANALYTICS'),
+            const _SectionHeader('ANALYTICS'),
             _FeatureTile(
               icon: Icons.analytics_outlined,
               color: _cPurpleMid,
@@ -442,7 +442,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Attendance Reports ─────────────────────────────────────────
-            _SectionHeader('REPORTS'),
+            const _SectionHeader('REPORTS'),
             _FeatureTile(
               icon: Icons.bar_chart_outlined,
               color: _cPurpleMid,
@@ -471,7 +471,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Birthdays ──────────────────────────────────────────────────
-            _SectionHeader('BIRTHDAYS'),
+            const _SectionHeader('BIRTHDAYS'),
             BirthdayBanner(
               role: 'coordinator',
               onTap: () => _navigate(const BirthdaysScreen(
@@ -489,7 +489,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── My To-Do List ─────────────────────────────────────────────
-            _SectionHeader('MY TO-DO LIST'),
+            const _SectionHeader('MY TO-DO LIST'),
             _FeatureTile(
               icon: Icons.checklist_outlined,
               color: _cPurple,
@@ -502,7 +502,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
 
             // ── Today's Attendance ─────────────────────────────────────────
-            _SectionHeader("TODAY'S ATTENDANCE"),
+            const _SectionHeader("TODAY'S ATTENDANCE"),
             _buildAttendanceSection(),
 
             const SizedBox(height: 32),
@@ -564,7 +564,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
                 width: 36, height: 36,
                 decoration: BoxDecoration(
                   color: s.marked
-                      ? _classColor(s).withOpacity(0.12)
+                      ? _classColor(s).withValues(alpha: 0.12)
                       : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -714,7 +714,7 @@ class _StudentRow extends StatelessWidget {
         // Avatar
         CircleAvatar(
           radius: 17,
-          backgroundColor: statusClr.withOpacity(0.1),
+          backgroundColor: statusClr.withValues(alpha: 0.1),
           child: Text(
             note.name.isNotEmpty ? note.name[0].toUpperCase() : '?',
             style: TextStyle(
@@ -743,7 +743,7 @@ class _StudentRow extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 7, vertical: 2),
                   decoration: BoxDecoration(
-                    color: statusClr.withOpacity(0.1),
+                    color: statusClr.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(note.status,
@@ -958,7 +958,7 @@ class _HeroInfoCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.12),
+            color: Colors.white.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Row(children: [
@@ -1029,8 +1029,8 @@ class _LeaveRequestTile extends StatelessWidget {
             width: 44, height: 44,
             decoration: BoxDecoration(
               color: hasPending
-                  ? _cPink.withOpacity(0.12)
-                  : AppTheme.warning.withOpacity(0.12),
+                  ? _cPink.withValues(alpha: 0.12)
+                  : AppTheme.warning.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(Icons.event_busy_outlined,
@@ -1127,7 +1127,7 @@ class _FeatureTile extends StatelessWidget {
               Container(
                 width: 44, height: 44,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color, size: 22),

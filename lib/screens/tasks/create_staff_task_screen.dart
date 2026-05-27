@@ -39,12 +39,12 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
   List<String> _selectedUserIds = [];
   List<String> _selectedUserNames = [];
   List<String> _selectedUserRoles = [];
-  List<String> _selectedTargetRoles = [];
+  final List<String> _selectedTargetRoles = [];
 
   List<String> _allClasses = [];
-  List<String> _selectedClasses = [];
+  final List<String> _selectedClasses = [];
 
-  List<Checkpoint> _checkpoints = [];
+  final List<Checkpoint> _checkpoints = [];
   final _checkpointCtrl = TextEditingController();
 
   bool _loading = true;
@@ -252,7 +252,7 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
                     }
                   });
                 },
-                selectedColor: AppTheme.primary.withOpacity(0.2),
+                selectedColor: AppTheme.primary.withValues(alpha: 0.2),
                 checkmarkColor: AppTheme.primary,
               );
             }),
@@ -272,8 +272,11 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
           selected: isSelected,
           onSelected: (val) {
             setState(() {
-              if (val) _selectedClasses.add(c);
-              else _selectedClasses.remove(c);
+              if (val) {
+                _selectedClasses.add(c);
+              } else {
+                _selectedClasses.remove(c);
+              }
             });
           },
         );

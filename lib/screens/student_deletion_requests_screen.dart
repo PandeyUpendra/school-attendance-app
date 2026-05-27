@@ -56,10 +56,10 @@ class _StudentDeletionRequestsScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [
-          const Icon(Icons.check_circle_outline, color: Colors.green),
-          const SizedBox(width: 8),
-          const Text('Approve Deletion', style: TextStyle(fontSize: 17)),
+        title: const Row(children: [
+          Icon(Icons.check_circle_outline, color: Colors.green),
+          SizedBox(width: 8),
+          Text('Approve Deletion', style: TextStyle(fontSize: 17)),
         ]),
         content: Text(
           'Allow $teacher to delete $count '
@@ -108,10 +108,10 @@ class _StudentDeletionRequestsScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [
-          const Icon(Icons.cancel_outlined, color: Colors.red),
-          const SizedBox(width: 8),
-          const Text('Reject Request', style: TextStyle(fontSize: 17)),
+        title: const Row(children: [
+          Icon(Icons.cancel_outlined, color: Colors.red),
+          SizedBox(width: 8),
+          Text('Reject Request', style: TextStyle(fontSize: 17)),
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -389,7 +389,7 @@ class _RequestCardState extends State<_RequestCard> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 3)),
         ],
@@ -416,10 +416,10 @@ class _RequestCardState extends State<_RequestCard> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: _statusColor.withOpacity(0.1),
+                    color: _statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: _statusColor.withOpacity(0.4)),
+                        color: _statusColor.withValues(alpha: 0.4)),
                   ),
                   child: Text(
                     (req['status'] as String).toUpperCase(),
@@ -447,7 +447,7 @@ class _RequestCardState extends State<_RequestCard> {
                       width: 28, height: 28,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: AppTheme.primary.withOpacity(0.08),
+                        color: AppTheme.primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -503,9 +503,9 @@ class _RequestCardState extends State<_RequestCard> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.05),
+                  color: Colors.red.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.withOpacity(0.2)),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,

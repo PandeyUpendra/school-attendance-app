@@ -20,11 +20,10 @@ import 'announcements_screen.dart';
 import 'notifications_screen.dart';
 import 'analytics_screen.dart';
 import 'principal_digest_screen.dart';
-import 'tasks/unified_staff_task_screen.dart';
+import 'staff_task_management_screen.dart';
+import 'create_task_screen.dart';
+import 'task_status_screen.dart';
 import 'coordinator_dashboard.dart';
-import 'coordinator_management_screen.dart';
-import 'owner/edit_school_settings_screen.dart';
-import 'birthdays/birthdays_screen.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
 import '../utils/role_guard.dart';
@@ -102,26 +101,20 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       if (!mounted) return;
       _latestNotifs = items;
       _recomputeUnread();
-    }, onError: (err, stack) {
-      debugPrint('Error in Principal notifications stream: $err\n$stack');
     });
 
     _leaveSub = TimetableService()
         .streamPendingLeaveCount()
-        .listen((count) {
+        .listen((n) {
       if (!mounted) return;
-      setState(() => _pendingLeaveCount = count);
-    }, onError: (err, stack) {
-      debugPrint('Error in Principal leave requests stream: $err\n$stack');
+      setState(() => _pendingLeaveCount = n);
     });
 
     _deletionSub = StudentService()
         .streamPendingDeletionCount()
-        .listen((count) {
+        .listen((n) {
       if (!mounted) return;
-      setState(() => _pendingDeletionCount = count);
-    }, onError: (err, stack) {
-      debugPrint('Error in Principal student deletions stream: $err\n$stack');
+      setState(() => _pendingDeletionCount = n);
     });
   }
 
@@ -145,55 +138,36 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   Future<void> _loadAll() async {
     setState(() => _loading = true);
 
-    try {
-      final session = await AuthService().getSession();
-      final email   = (session?['email'] as String?) ?? '';
-      final role    = (session?['role']  as String?) ?? 'principal';
+    final session = await AuthService().getSession();
+    final email   = (session?['email'] as String?) ?? '';
+    final role    = (session?['role']  as String?) ?? 'principal';
 
-      final settings   = await TimetableService().getSettings();
-      final allClasses = List<String>.from(settings['classes'] as List);
+    final settings   = await TimetableService().getSettings();
+    final allClasses = List<String>.from(settings['classes'] as List);
 
-      // Filter to assigned classes; fall back to all.
-      final assignedRaw = session?['assignedClasses'];
-      final List<String> classes = (assignedRaw is List && assignedRaw.isNotEmpty)
-          ? List<String>.from(assignedRaw).where(allClasses.contains).toList()
-          : allClasses;
+    // Filter to assigned classes; fall back to all.
+    final assignedRaw = session?['assignedClasses'];
+    final List<String> classes = (assignedRaw is List && assignedRaw.isNotEmpty)
+        ? List<String>.from(assignedRaw).where(allClasses.contains).toList()
+        : allClasses;
 
-      // Fire attendance-related reads in parallel (badges handled by streams).
-      final summariesFuture  = StudentService().loadTodayFullSummary(classes: classes);
-      final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo();
+    // Fire attendance-related reads in parallel (badges handled by streams).
+    final summariesFuture  = StudentService().loadTodayFullSummary(classes: classes);
+    final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo();
 
-      final summaries  = await summariesFuture;
-      final absentInfo = await absentInfoFuture;
+    final summaries  = await summariesFuture;
+    final absentInfo = await absentInfoFuture;
 
-      if (!mounted) return;
-      setState(() {
-        _principalEmail  = email;
-        _sessionRole     = role;
-        _summaries       = summaries;
-        _teachersAbsent  = absentInfo['absentCount']    ?? 0;
-        _unassignedBells = absentInfo['unassignedBells'] ?? 0;
-        _loading         = false;
-      });
-    } catch (e, stack) {
-      debugPrint('Error loading Principal Dashboard data: $e\n$stack');
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to load dashboard: $e'),
-          backgroundColor: AppTheme.danger,
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'RETRY',
-            textColor: Colors.white,
-            onPressed: _loadAll,
-          ),
-        ),
-      );
-    }
+    if (!mounted) return;
+    setState(() {
+      _principalEmail  = email;
+      _sessionRole     = role;
+      _summaries       = summaries;
+      _teachersAbsent  = absentInfo['absentCount']    ?? 0;
+      _unassignedBells = absentInfo['unassignedBells'] ?? 0;
+      _loading         = false;
+    });
+
   }
 
   Future<void> _logout() async {
@@ -228,8 +202,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             unassignedBells:  _unassignedBells,
             unreadNotifCount: _unreadNotifCount,
             onNotifTap: () async {
-              await _navigate(const NotificationsScreen(
-                role: 'principal'));
+              await _navigate(const NotificationsScreen(role: 'principal'));
               _refreshLastSeen();
             },
             onLogout: _logout,
@@ -252,30 +225,15 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             ),
             if (!_loading) ...[
               // ── Today's Attendance ─────────────────────────────────────
-              _SectionHeader("TODAY'S ATTENDANCE"),
+              const _SectionHeader("TODAY'S ATTENDANCE"),
               _buildAttendanceSection(),
 
               // ── Active Tasks ───────────────────────────────────────────
-              _SectionHeader('ACTIVE TASKS'),
+              const _SectionHeader('ACTIVE TASKS'),
               _buildTasksSection(),
 
-              // ── Birthdays ─────────────────────────────────────────────
-              _SectionHeader('BIRTHDAYS'),
-              BirthdayBanner(
-                role: 'principal',
-                onTap: () => _navigate(const BirthdaysScreen(role: 'principal')),
-              ),
-              _FeatureTile(
-                icon: Icons.cake_outlined,
-                color: AppTheme.accent,
-                title: 'Birthdays',
-                subtitle: 'Staff and student birthday wishes',
-                onTap: () => _navigate(const BirthdaysScreen(role: 'principal')),
-              ),
-              const Divider(height: 1, indent: 72),
-
               // ── Analytics ─────────────────────────────────────────────
-              _SectionHeader('ANALYTICS'),
+              const _SectionHeader('ANALYTICS'),
               _FeatureTile(
                 icon: Icons.analytics_outlined,
                 color: AppTheme.primary,
@@ -286,7 +244,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               const Divider(height: 1, indent: 72),
 
               // ── Finance ───────────────────────────────────────────────
-              _SectionHeader('FINANCE'),
+              const _SectionHeader('FINANCE'),
               _FeatureTile(
                 icon: Icons.currency_rupee_outlined,
                 color: AppTheme.success,
@@ -297,17 +255,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               const Divider(height: 1, indent: 72),
 
               // ── Tools ─────────────────────────────────────────────────
-              _SectionHeader('TOOLS'),
-              _FeatureTile(
-                icon: Icons.manage_accounts_outlined,
-                color: AppTheme.primary,
-                title: 'Manage Coordinators',
-                subtitle: 'Add, edit or remove coordinator accounts & class assignments',
-                onTap: () => _navigate(CoordinatorManagementScreen(
-                  principalEmail: _principalEmail,
-                )),
-              ),
-              const Divider(height: 1, indent: 72),
+              const _SectionHeader('TOOLS'),
               _FeatureTile(
                 icon: Icons.history_edu_outlined,
                 color: AppTheme.primary,
@@ -320,22 +268,32 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(
-                icon: Icons.tune_outlined,
-                color: AppTheme.primaryMid,
-                title: 'School Settings',
-                subtitle: 'Edit school info, academic, fees & communication',
-                onTap: () => _navigate(const EditSchoolSettingsScreen()),
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
                 icon: Icons.task_outlined,
                 color: AppTheme.primary,
                 title: 'Staff Task Management',
                 subtitle: 'Assign tasks to staff, track status and overdue',
-                onTap: () => _navigate(UnifiedStaffTaskScreen(
-                  role: 'principal',
-                  userEmail: _principalEmail,
-                  userName: _principalEmail,
+                onTap: () => _navigate(const StaffTaskManagementScreen()),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.task_alt_outlined,
+                color: AppTheme.primary,
+                title: 'Task Status',
+                subtitle: 'Check completion status of created tasks',
+                onTap: () => _navigate(TaskStatusScreen(
+                  createdByEmail: _principalEmail,
+                  isAdmin: true,
+                )),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.add_task_outlined,
+                color: AppTheme.primary,
+                title: 'Create Task',
+                subtitle: 'Assign tasks to teachers/classes',
+                onTap: () => _navigate(CreateTaskScreen(
+                  createdBy: _principalEmail,
+                  creatorRole: 'principal',
                 )),
               ),
               const Divider(height: 1, indent: 72),
@@ -425,7 +383,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               // ── Owner-Principal: Coordinator Tools ────────────────────────
               if (_sessionRole == 'ownerPrincipal') ...[
                 const Divider(height: 1, indent: 72),
-                _SectionHeader('COORDINATOR TOOLS'),
+                const _SectionHeader('COORDINATOR TOOLS'),
                 _FeatureTile(
                   icon: Icons.admin_panel_settings_outlined,
                   color: AppTheme.primaryMid,
@@ -436,7 +394,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               ],
 
               // ── My To-Do List ───────────────────────────────────────────
-              _SectionHeader('MY TO-DO LIST'),
+              const _SectionHeader('MY TO-DO LIST'),
               _FeatureTile(
                 icon: Icons.checklist_outlined,
                 color: AppTheme.primary,
@@ -490,7 +448,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 width: 36, height: 36,
                 decoration: BoxDecoration(
                   color: s.marked
-                      ? _classColor(s).withOpacity(0.12)
+                      ? _classColor(s).withValues(alpha: 0.12)
                       : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -812,7 +770,7 @@ class _HeroInfoCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.12),
+                color: Colors.white.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(children: [
@@ -909,7 +867,7 @@ class _FeatureTile extends StatelessWidget {
             Container(
               width: 44, height: 44,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color, size: 22),

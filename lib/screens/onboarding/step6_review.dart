@@ -98,14 +98,14 @@ class Step6Review extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppTheme.success.withOpacity(0.08),
+            color: AppTheme.success.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.success.withOpacity(0.3)),
+            border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
           ),
-          child: Row(children: [
-            const Icon(Icons.check_circle_outline, color: AppTheme.success, size: 20),
-            const SizedBox(width: 10),
-            const Expanded(
+          child: const Row(children: [
+            Icon(Icons.check_circle_outline, color: AppTheme.success, size: 20),
+            SizedBox(width: 10),
+            Expanded(
               child: Text(
                 'Review everything above. Tap "Complete Setup" to save your school configuration.',
                 style: TextStyle(color: AppTheme.success, fontSize: 13),
@@ -135,7 +135,7 @@ class Step6Review extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: AppTheme.primary.withOpacity(0.06),
+            color: AppTheme.primary.withValues(alpha: 0.06),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
           ),
           child: Row(children: [

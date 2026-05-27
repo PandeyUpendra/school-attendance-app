@@ -91,7 +91,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
   String _teacherName(TimetableEntry? e) {
     if (e == null || e.isEmpty) return '—';
     final t = _teachers.firstWhere((t) => t.id == e.teacherId,
-        orElse: () => Teacher(id: '', name: '—', subject: '', email: '', schoolId: ''));
+        orElse: () => const Teacher(id: '', name: '—', subject: '', email: '', schoolId: ''));
     return t.name;
   }
 
@@ -99,7 +99,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
     if (e == null || e.isEmpty) return '';
     if (e.subject?.isNotEmpty == true) return e.subject!;
     final t = _teachers.firstWhere((t) => t.id == e.teacherId,
-        orElse: () => Teacher(id: '', name: '', subject: '', email: '', schoolId: ''));
+        orElse: () => const Teacher(id: '', name: '', subject: '', email: '', schoolId: ''));
     return t.subject;
   }
 
@@ -327,10 +327,10 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  _HeaderCell('Class', width: 90, isCorner: true),
+                  const _HeaderCell('Class', width: 90, isCorner: true),
                   for (int b = 1; b <= _bellCount; b++)
                     _isLunchBell(b - 1)
-                        ? _LunchHeaderCell(width: 110)
+                        ? const _LunchHeaderCell(width: 110)
                         : _HeaderCell(
                             'Bell ${_bellDisplayNumber(b - 1)}',
                             width: 110),
@@ -344,7 +344,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: i % 2 == 0
-                              ? AppTheme.primary.withOpacity(0.06)
+                              ? AppTheme.primary.withValues(alpha: 0.06)
                               : Colors.white,
                           border: Border.all(color: Colors.grey.shade200),
                         ),
@@ -501,9 +501,9 @@ class _PersonalSlotCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppTheme.primary.withOpacity(0.07),
+        color: AppTheme.primary.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.primary.withOpacity(0.18)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.18)),
       ),
       child: Row(children: [
         Container(
@@ -551,7 +551,7 @@ class _Badge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
+          color: Colors.white.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(children: [
@@ -659,11 +659,11 @@ class _ReadCell extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: hasTeacher
-            ? color.withOpacity(0.12)
+            ? color.withValues(alpha: 0.12)
             : (isEven ? Colors.grey.shade50 : Colors.white),
         border: Border.all(
             color: hasTeacher
-                ? color.withOpacity(0.3)
+                ? color.withValues(alpha: 0.3)
                 : Colors.grey.shade200),
       ),
       child: hasTeacher
@@ -683,7 +683,7 @@ class _ReadCell extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
-                        color: color.withOpacity(0.9)),
+                        color: color.withValues(alpha: 0.9)),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                     textAlign: TextAlign.center),
@@ -693,7 +693,7 @@ class _ReadCell extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Text(subject,
                       style: TextStyle(
-                          fontSize: 9, color: color.withOpacity(0.7)),
+                          fontSize: 9, color: color.withValues(alpha: 0.7)),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                       textAlign: TextAlign.center),

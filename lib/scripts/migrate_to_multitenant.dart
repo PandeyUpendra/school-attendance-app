@@ -29,6 +29,7 @@
 /// pubspec. Run it from the project root so imports resolve correctly.
 /// For large collections (>500 docs) the script batches in chunks of 400 to
 /// stay within Firestore's 500-operations-per-batch limit.
+library;
 
 // ignore_for_file: avoid_print
 

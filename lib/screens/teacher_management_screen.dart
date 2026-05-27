@@ -318,7 +318,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
           : row[0].toString().trim();
       if (name.isEmpty) continue;
       teachers.add(Teacher(
-        id: DateTime.now().millisecondsSinceEpoch.toString() + '_$i',
+        id: '${DateTime.now().millisecondsSinceEpoch}_$i',
         name: name,
         subject: get(row, 'subject'),
         email: get(row, 'email'),
@@ -348,7 +348,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                 dense: true,
                 leading: CircleAvatar(
                   radius: 16,
-                  backgroundColor: AppTheme.primary.withOpacity(0.1),
+                  backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                   child: Text(t.name[0].toUpperCase(),
                       style: const TextStyle(
                           fontSize: 13, color: AppTheme.primary)),
@@ -461,7 +461,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                     final selected = _selectedIds.contains(t.id);
                     return Container(
                       color: selected
-                          ? AppTheme.primary.withOpacity(0.08)
+                          ? AppTheme.primary.withValues(alpha: 0.08)
                           : Colors.white,
                       child: InkWell(
                         onTap: _selectMode
@@ -534,12 +534,12 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                                           horizontal: 7, vertical: 3),
                                       decoration: BoxDecoration(
                                         color: AppTheme.primary
-                                            .withOpacity(0.08),
+                                            .withValues(alpha: 0.08),
                                         borderRadius:
                                             BorderRadius.circular(20),
                                         border: Border.all(
                                             color: AppTheme.primary
-                                                .withOpacity(0.3)),
+                                                .withValues(alpha: 0.3)),
                                       ),
                                       child: const Text('Class Teacher',
                                           style: TextStyle(
@@ -656,7 +656,7 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
     if (e.subject?.isNotEmpty == true) return e.subject!;
     final t = _allTeachers.firstWhere((t) => t.id == e.teacherId,
         orElse: () =>
-            Teacher(id: '', name: '', subject: '', email: ''));
+            const Teacher(id: '', name: '', subject: '', email: ''));
     return t.subject;
   }
 
@@ -759,7 +759,7 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
                   child: Column(children: [
                     CircleAvatar(
                       radius: 38,
-                      backgroundColor: Colors.white.withOpacity(0.25),
+                      backgroundColor: Colors.white.withValues(alpha: 0.25),
                       child: Text(
                         t.name[0].toUpperCase(),
                         style: const TextStyle(
@@ -797,7 +797,7 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
                           t.section),
                   ],
                   if (!t.isClassTeacher)
-                    _InfoRow(Icons.person_outline, 'Role',
+                    const _InfoRow(Icons.person_outline, 'Role',
                         'Subject Teacher'),
                 ]),
 
@@ -954,7 +954,7 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 6,
               offset: const Offset(0, 2))
         ],
@@ -1299,12 +1299,12 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                 margin: const EdgeInsets.only(top: 4),
                 decoration: BoxDecoration(
                   color: _isClassTeacher
-                      ? AppTheme.primary.withOpacity(0.07)
+                      ? AppTheme.primary.withValues(alpha: 0.07)
                       : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                       color: _isClassTeacher
-                          ? AppTheme.primary.withOpacity(0.3)
+                          ? AppTheme.primary.withValues(alpha: 0.3)
                           : Colors.grey.shade300),
                 ),
                 child: SwitchListTile(

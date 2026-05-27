@@ -215,8 +215,11 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
                     selectedColor: Colors.red.shade50,
                     onSelected: (_) => setS(() {
                       chipSel = chip;
-                      if (chip != 'Other') ctrl.text = chip;
-                      else ctrl.clear();
+                      if (chip != 'Other') {
+                        ctrl.text = chip;
+                      } else {
+                        ctrl.clear();
+                      }
                     }),
                   );
                 }).toList(),
@@ -576,7 +579,7 @@ class _CallCard extends StatelessWidget {
         Row(children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: color.withOpacity(0.1),
+            backgroundColor: color.withValues(alpha: 0.1),
             backgroundImage: student.photoPath != null
                 ? FileImage(File(student.photoPath!))
                 : null,
@@ -728,9 +731,9 @@ class _ActionButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(icon, size: 14, color: color),
@@ -940,7 +943,7 @@ class _DayCardState extends State<_DayCard> {
                       width: 26, height: 26,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
+                        color: color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -959,7 +962,7 @@ class _DayCardState extends State<_DayCard> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: color.withOpacity(0.12),
+                              color: color.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(status,

@@ -111,7 +111,7 @@ class _CoordinatorMeetingRecordsScreenState
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.15),
+                fillColor: Colors.white.withValues(alpha: 0.15),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide.none,
@@ -358,7 +358,7 @@ class _CoordMeetingCardState extends State<_CoordMeetingCard> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: AppTheme.primaryLight.withOpacity(0.3),
+                color: AppTheme.primaryLight.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(widget.fmtDate(m.date),
@@ -371,7 +371,7 @@ class _CoordMeetingCardState extends State<_CoordMeetingCard> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: _statusColor.withOpacity(0.1),
+                color: _statusColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(m.status.label,
@@ -472,7 +472,7 @@ class _CountBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(6),
         ),
         child: RichText(
@@ -485,7 +485,7 @@ class _CountBadge extends StatelessWidget {
                     fontSize: 13)),
             TextSpan(
                 text: label,
-                style: TextStyle(color: color.withOpacity(0.8), fontSize: 11)),
+                style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11)),
           ]),
         ),
       );

@@ -286,7 +286,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           pw.Text('Date: $dateStr  ·  By: ${m.createdByName} (${m.createdByRole})',
               style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
           pw.Text('Status: ${m.status.label}',
-              style: pw.TextStyle(fontSize: 10, color: purple)),
+              style: const pw.TextStyle(fontSize: 10, color: purple)),
           pw.Divider(),
         ],
       ),
@@ -771,7 +771,7 @@ Future<void> shareMeetingPdf(Meeting m) async {
         pw.Text('Date: $dateStr  ·  By: ${m.createdByName} (${m.createdByRole})',
             style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
         pw.Text('Status: ${m.status.label}',
-            style: pw.TextStyle(fontSize: 10, color: purple)),
+            style: const pw.TextStyle(fontSize: 10, color: purple)),
         pw.Divider(),
       ],
     ),
@@ -893,7 +893,7 @@ class _AssignTeacherDialog extends StatelessWidget {
               final t = teachers[i];
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: AppTheme.primary.withOpacity(0.1),
+                  backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                   child: Text(t.name.isNotEmpty ? t.name[0] : '?',
                       style: const TextStyle(color: AppTheme.primary)),
                 ),
@@ -941,7 +941,7 @@ class _MetaCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.12),
+              color: statusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(meeting.status.label,
@@ -1118,12 +1118,12 @@ class _LivePointCard extends StatelessWidget {
                             : Colors.black87)),
                 if (point.convertedToTask) ...[
                   const SizedBox(height: 4),
-                  Row(children: [
-                    const Icon(Icons.task_alt,
+                  const Row(children: [
+                    Icon(Icons.task_alt,
                         size: 12, color: AppTheme.success),
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     Text('Task assigned',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 11, color: AppTheme.success,
                             fontWeight: FontWeight.w500)),
                   ]),
@@ -1154,9 +1154,9 @@ class _AssignedTeachersCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppTheme.success.withOpacity(0.06),
+          color: AppTheme.success.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.success.withOpacity(0.2)),
+          border: Border.all(color: AppTheme.success.withValues(alpha: 0.2)),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
@@ -1176,7 +1176,7 @@ class _AssignedTeachersCard extends StatelessWidget {
                 .map((n) => Chip(
                       label: Text(n, style: const TextStyle(fontSize: 11)),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      backgroundColor: AppTheme.success.withOpacity(0.08),
+                      backgroundColor: AppTheme.success.withValues(alpha: 0.08),
                       labelStyle: const TextStyle(color: AppTheme.success),
                     ))
                 .toList(),

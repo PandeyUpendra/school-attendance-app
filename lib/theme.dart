@@ -107,8 +107,8 @@ abstract class AppTheme {
 
     // Checkboxes
     checkboxTheme: CheckboxThemeData(
-      fillColor: MaterialStateProperty.resolveWith((states) =>
-          states.contains(MaterialState.selected) ? primary : null),
+      fillColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected) ? primary : null),
     ),
 
     // Dividers

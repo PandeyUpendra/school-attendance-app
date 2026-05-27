@@ -242,9 +242,9 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.08),
+                color: AppTheme.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppTheme.primary.withOpacity(0.25)),
+                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.25)),
               ),
               child: Row(children: [
                 const Icon(Icons.class_, color: AppTheme.primary, size: 18),
@@ -268,7 +268,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               child: Stack(alignment: Alignment.bottomRight, children: [
                 CircleAvatar(
                   radius: 52,
-                  backgroundColor: AppTheme.primary.withOpacity(0.08),
+                  backgroundColor: AppTheme.primary.withValues(alpha: 0.08),
                   backgroundImage: _photoPath != null
                       ? FileImage(File(_photoPath!))
                       : null,

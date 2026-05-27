@@ -270,7 +270,7 @@ class _TeacherDutyRow extends StatelessWidget {
     final hasDuty = currentDuty.isNotEmpty;
 
     return Container(
-      color: hasDuty ? color.withOpacity(0.04) : Colors.white,
+      color: hasDuty ? color.withValues(alpha: 0.04) : Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -346,10 +346,10 @@ class _DutyDropdown extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: hasDuty ? color.withOpacity(0.12) : Colors.grey.shade100,
+          color: hasDuty ? color.withValues(alpha: 0.12) : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: hasDuty ? color.withOpacity(0.4) : Colors.grey.shade300),
+              color: hasDuty ? color.withValues(alpha: 0.4) : Colors.grey.shade300),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(
@@ -437,7 +437,7 @@ class _DutyDropdown extends StatelessWidget {
             ),
           // Custom option
           ListTile(
-            leading: Icon(Icons.add_circle_outline,
+            leading: const Icon(Icons.add_circle_outline,
                 color: AppTheme.primary, size: 20),
             title: const Text('Custom duty…',
                 style: TextStyle(color: AppTheme.primary)),
@@ -464,7 +464,7 @@ class _StatBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
+          color: Colors.white.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(children: [

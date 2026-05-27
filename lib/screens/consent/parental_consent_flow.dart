@@ -352,7 +352,7 @@ class _PrivacyNoticeStep extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          _StepHeader(
+          const _StepHeader(
             icon: Icons.privacy_tip_outlined,
             title: 'Privacy Notice',
             subtitle: 'Please read before consenting',
@@ -422,8 +422,8 @@ class _ScopeSelectionStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
+      const Padding(
+        padding: EdgeInsets.fromLTRB(24, 20, 24, 4),
         child: _StepHeader(
           icon: Icons.checklist_outlined,
           title: 'Choose Consents',
@@ -529,7 +529,7 @@ class _OtpStep extends StatelessWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _StepHeader(
+        const _StepHeader(
           icon: Icons.verified_user_outlined,
           title: 'Verify Identity',
           subtitle: 'Confirm guardian identity before recording consent',

@@ -444,9 +444,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           final card = Ink(
             decoration: BoxDecoration(
               color: selected
-                  ? AppTheme.primary.withOpacity(0.08)
+                  ? AppTheme.primary.withValues(alpha: 0.08)
                   : unread
-                      ? AppTheme.primary.withOpacity(0.05)
+                      ? AppTheme.primary.withValues(alpha: 0.05)
                       : Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border(
@@ -500,7 +500,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         width: 40, height: 40,
                         margin: const EdgeInsets.only(right: 12),
                         decoration: BoxDecoration(
-                          color: color.withOpacity(0.12),
+                          color: color.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(_iconFor(n), color: color, size: 22),
