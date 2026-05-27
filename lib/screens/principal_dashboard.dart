@@ -98,25 +98,37 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
     _notifSub = NotificationService()
         .streamFor(role: 'principal')
-        .listen((items) {
-      if (!mounted) return;
-      _latestNotifs = items;
-      _recomputeUnread();
-    });
+        .listen(
+          (items) {
+            if (!mounted) return;
+            _latestNotifs = items;
+            _recomputeUnread();
+          },
+          // ignore: avoid_print
+          onError: (e) => print('PrincipalDashboard notif stream error: $e'),
+        );
 
     _leaveSub = TimetableService()
         .streamPendingLeaveCount()
-        .listen((n) {
-      if (!mounted) return;
-      setState(() => _pendingLeaveCount = n);
-    });
+        .listen(
+          (n) {
+            if (!mounted) return;
+            setState(() => _pendingLeaveCount = n);
+          },
+          // ignore: avoid_print
+          onError: (e) => print('PrincipalDashboard leave stream error: $e'),
+        );
 
     _deletionSub = StudentService()
         .streamPendingDeletionCount()
-        .listen((n) {
-      if (!mounted) return;
-      setState(() => _pendingDeletionCount = n);
-    });
+        .listen(
+          (n) {
+            if (!mounted) return;
+            setState(() => _pendingDeletionCount = n);
+          },
+          // ignore: avoid_print
+          onError: (e) => print('PrincipalDashboard deletion stream error: $e'),
+        );
   }
 
   void _recomputeUnread() {
