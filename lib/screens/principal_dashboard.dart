@@ -24,6 +24,9 @@ import 'staff_task_management_screen.dart';
 import 'create_task_screen.dart';
 import 'task_status_screen.dart';
 import 'coordinator_dashboard.dart';
+import 'coordinator_management_screen.dart';
+import 'owner/edit_school_settings_screen.dart';
+import 'birthdays/birthdays_screen.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
 import '../utils/role_guard.dart';
@@ -247,6 +250,21 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               const _SectionHeader('ACTIVE TASKS'),
               _buildTasksSection(),
 
+              // ── Birthdays ─────────────────────────────────────────────
+              const _SectionHeader('BIRTHDAYS'),
+              BirthdayBanner(
+                role: 'principal',
+                onTap: () => _navigate(const BirthdaysScreen(role: 'principal')),
+              ),
+              _FeatureTile(
+                icon: Icons.cake_outlined,
+                color: AppTheme.accent,
+                title: 'Birthdays',
+                subtitle: 'Staff and student birthday wishes',
+                onTap: () => _navigate(const BirthdaysScreen(role: 'principal')),
+              ),
+              const Divider(height: 1, indent: 72),
+
               // ── Analytics ─────────────────────────────────────────────
               const _SectionHeader('ANALYTICS'),
               _FeatureTile(
@@ -272,6 +290,16 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               // ── Tools ─────────────────────────────────────────────────
               const _SectionHeader('TOOLS'),
               _FeatureTile(
+                icon: Icons.manage_accounts_outlined,
+                color: AppTheme.primary,
+                title: 'Manage Coordinators',
+                subtitle: 'Add, edit or remove coordinator accounts & class assignments',
+                onTap: () => _navigate(CoordinatorManagementScreen(
+                  principalEmail: _principalEmail,
+                )),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
                 icon: Icons.history_edu_outlined,
                 color: AppTheme.primary,
                 title: 'Meeting Records',
@@ -280,6 +308,14 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   principalEmail: _principalEmail,
                   principalName:  _principalEmail,
                 )),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.tune_outlined,
+                color: AppTheme.primaryMid,
+                title: 'School Settings',
+                subtitle: 'Edit school info, academic, fees & communication',
+                onTap: () => _navigate(const EditSchoolSettingsScreen()),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(
