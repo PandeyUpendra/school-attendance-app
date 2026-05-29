@@ -7,12 +7,14 @@ Generated: 2026-05-11 from Android Studio / Gemini-built codebase.
 
 | Role | Entry Screen | Notes |
 |------|-------------|-------|
-| `teacher` | `HomeScreen(teacher)` | Class teacher or subject teacher |
+| `teacher` / `subjectTeacher` | `HomeScreen(teacher)` | Class teacher or subject teacher |
 | `coordinator` | `CoordinatorDashboard` | Manages teachers, substitutions, announcements |
 | `principal` | `PrincipalDashboard` | Oversight, analytics, staff tasks, digest |
-| `guardian` | `GuardianDashboard(studentClass, studentRoll)` | Parent portal |
+| `owner` | `OwnerHome` | School owner — accounts, school settings |
+| `ownerPrincipal` | `OwnerPrincipalHome` | Combined owner + principal |
+| `guardian` | `GuardianDashboard(studentClass, studentRoll, studentSection)` | Parent portal |
 
-Auth: Firestore-only (`allowed_users` collection), no Firebase Auth. Session persisted to `SharedPreferences` via `AuthService`.
+Auth: **Firebase Auth** — email/password sign-in (`LoginScreen`), phone OTP for guardians (`GuardianLoginScreen` → `PhoneOtpScreen`), and password reset (`forgot_password_screen.dart`). Role/identifier metadata lives in `allowed_users/{uid}` keyed by the Firebase Auth UID (fields: `role`, `schoolId`, `classIds[]`, `studentIds[]`, …). Session is also persisted to `SharedPreferences` via `AuthService` for fast routing; `clearSession()` signs out of Firebase Auth.
 
 ---
 
@@ -21,7 +23,7 @@ Auth: Firestore-only (`allowed_users` collection), no Firebase Auth. Session per
 ### Teacher Screens
 | File | Purpose |
 |------|---------|
-| `home_screen.dart` ⚠️ MERGE CONFLICT | Teacher dashboard home |
+| `home_screen.dart` | Teacher dashboard home |
 | `attendance_screen.dart` | Mark daily attendance (present/absent/leave) |
 | `attendance_history_screen.dart` | Calendar view of past attendance |
 | `homework_screen.dart` | Post & manage homework assignments |
@@ -30,74 +32,88 @@ Auth: Firestore-only (`allowed_users` collection), no Firebase Auth. Session per
 | `leave_application_screen.dart` | Submit leave request to coordinator |
 | `my_timetable_screen.dart` | View personal timetable |
 | `marks_entry_screen.dart` | Enter exam marks for students |
+| `test_marking_screen.dart` | Enter test marks |
+| `task_marking_screen.dart` | Mark task completion |
+| `task_status_screen.dart` | View task status |
 | `daily_calls_screen.dart` | Track parent phone calls (class teacher) |
 | `staff_tasks_screen.dart` | View tasks assigned by principal |
+| `meeting/teacher_meeting_tasks_screen.dart` | View tasks assigned from a meeting |
 | `student_list_screen.dart` | View students in assigned class |
 | `student_details_screen.dart` | View/edit single student detail |
 | `student_remarks_screen.dart` | Add/view remarks for a student |
-| `teacher_profile_screen.dart` | View own teacher profile |
-| `test_creation_screen.dart` | Create a test/assessment |
-| `test_marking_screen.dart` | Enter test marks |
-| `scan_students_screen.dart` | QR/camera scan for student roll |
+| `student_selection_screen.dart` | Pick a student |
 | `notifications_screen.dart` | In-app notification feed |
 
 ### Coordinator Screens
 | File | Purpose |
 |------|---------|
-| `coordinator_dashboard.dart` ⚠️ MERGE CONFLICT | Coordinator home dashboard |
-| `coordinator_home.dart` | Coordinator home tab |
+| `coordinator_dashboard.dart` | Coordinator home dashboard |
 | `substitution_plan_screen.dart` | Auto-suggest + assign substitutions |
 | `substitution_history_screen.dart` | Log of past substitutions |
+| `coordinator/absent_teachers_screen.dart` | Today's absent teachers |
 | `leave_requests_screen.dart` | Approve / reject teacher leave |
+| `student_leave_requests_screen.dart` | Review student leave requests |
 | `assign_duties_screen.dart` | Assign duty roster |
 | `free_bells_screen.dart` | See unassigned bell slots |
 | `teacher_management_screen.dart` | Add/edit/remove teachers |
-| `timetable_editor_screen.dart` | Edit class timetable |
 | `timetable_settings_screen.dart` | Configure bells and class list |
-| `bell_settings_screen.dart` | Bell timing configuration |
 | `announcements_screen.dart` | Post announcements (teachers/guardians) |
-| `class_management_screen.dart` | Manage class notes, chapters, behavior |
 | `class_picker_screen.dart` | Utility: pick a class+section |
-| `class_selection_screen.dart` | Select class for a task |
 | `exam_management_screen.dart` | Create / manage exams |
 | `copy_check_overview_screen.dart` | See copy-checking status across classes |
+| `coordinator/report_card_template_editor.dart` | Edit report-card templates |
 | `analytics_screen.dart` | Charts: attendance trends, absence leaders |
-| `reports_screen.dart` | Attendance/other report generation |
 | `attendance_certificate_screen.dart` | Generate attendance certificate PDF |
-| `attendance_class_detail_screen.dart` | Per-class attendance detail |
 | `fee_collection_screen.dart` | Record fee payments |
 | `fee_structure_screen.dart` | Set fee structure per class |
-| `student_profile_screen.dart` | Full student profile (fees, behavior, tests) |
+| `fee_overview_screen.dart` | Fee overview |
+| `coordinator_staff_tasks_screen.dart` | Coordinator's assigned tasks |
+| `meeting/coordinator_meeting_records_screen.dart` | Coordinator meeting records |
+| `todo_list_screen.dart` | Coordinator to-do list |
 | `add_student_screen.dart` | Add new student |
 
 ### Principal Screens
 | File | Purpose |
 |------|---------|
 | `principal_dashboard.dart` | Principal home dashboard |
-| `principal_home.dart` | Principal home tab |
 | `principal_digest_screen.dart` | End-of-day summary + PDF export |
 | `staff_task_management_screen.dart` | Create & assign tasks to staff |
+| `tasks/create_staff_task_screen.dart` | Create a staff task |
+| `tasks/staff_task_detail_screen.dart` | Staff task detail |
+| `tasks/staff_task_analytics_view.dart` | Staff task analytics |
+| `meeting/principal_meeting_records_screen.dart` | Principal meeting records |
+| `meeting/meeting_detail_screen.dart` | Single meeting detail |
+| `student_deletion_requests_screen.dart` | Review student-deletion requests |
 | `admin_screen.dart` | Admin utilities (delete data, manage users) |
+| `admin/audit_log_screen.dart` | View immutable audit log |
 | `report_card_screen.dart` | Report card with rank/grade/PDF |
 
 ### Guardian Screens
 | File | Purpose |
 |------|---------|
 | `guardian_dashboard.dart` | Guardian home dashboard |
-| `guardian_home.dart` | Guardian home tab |
-| `guardian_portal_screen.dart` | Extended guardian portal |
+| `guardian_login_screen.dart` | Guardian login (email or phone OTP) |
+| `phone_otp_screen.dart` | Phone OTP verification |
+| `guardian_student_details_screen.dart` | View child's details |
+| `guardian_leave_application_screen.dart` | Submit child's leave request |
+| `consent/parental_consent_flow.dart` | Parental consent capture |
+| `birthdays/birthdays_screen.dart` | Student/staff birthdays |
 
 ### Shared / Utility Screens
 | File | Purpose |
 |------|---------|
-| `role_selection_screen.dart` | Login screen (email+password → Firestore check) |
-| `auth_gate.dart` | Auth routing gate |
-| `login_screen.dart` | Alternative login UI |
-| `timetable_screen.dart` | Read-only timetable view |
-| `history_screen.dart` | Generic history view |
+| `login_screen.dart` | Primary login UI (Firebase Auth email/password) |
+| `forgot_password_screen.dart` | Password reset via Firebase Auth |
+| `role_selection_screen.dart` | Role-based login UI (legacy; boot path uses `LoginScreen`) |
 | `notifications_screen.dart` | Notification list |
-| `subject_teacher_home.dart` | Subject teacher (non-class-teacher) home |
-| `teacher_dashboard_screen.dart` | Alternative teacher dashboard |
+
+### Owner / Onboarding Screens
+| File | Purpose |
+|------|---------|
+| `owner/owner_home.dart` | Owner dashboard |
+| `owner/owner_principal_home.dart` | Combined owner + principal home |
+| `owner/edit_school_settings_screen.dart` | Edit school config / branding |
+| `onboarding/school_onboarding_screen.dart` + `step1…step6` | 6-step school setup wizard |
 
 ### Gallery Screens (`lib/screens/gallery/`)
 | File | Purpose |
@@ -167,7 +183,7 @@ Auth: Firestore-only (`allowed_users` collection), no Firebase Auth. Session per
 | Package | Version | Use |
 |---------|---------|-----|
 | `shared_preferences` | ^2.2.2 | Session storage, offline queue, digest cache |
-| `google_sign_in` | ^6.2.1 | (imported but auth is Firestore-only) |
+| `google_sign_in` | ^6.2.1 | (installed but unused; auth is Firebase Auth — email/password + guardian phone OTP) |
 | `image_picker` | ^1.1.2 | Photo uploads for gallery |
 | `url_launcher` | ^6.3.0 | Phone call links in daily calls screen |
 | `font_awesome_flutter` | 10.6.0 | Icons |
@@ -240,18 +256,10 @@ Auth: Firestore-only (`allowed_users` collection), no Firebase Auth. Session per
 
 ## Known Issues / Incomplete Code
 
-1. ⚠️ **MERGE CONFLICTS (critical):** `lib/screens/coordinator_dashboard.dart` and `lib/screens/home_screen.dart` have status `UU` (unresolved git merge conflicts). These files contain `<<<<<<<` markers and **will not compile**. Must be resolved before any build.
+1. ✅ **MERGE CONFLICTS RESOLVED:** The previously-flagged unresolved merge conflicts in `lib/screens/coordinator_dashboard.dart` and `lib/screens/home_screen.dart` have since been resolved — no `<<<<<<<` markers remain and both files are in normal compile-shape.
 
-2. ⚠️ **Untracked new files:** The following Android Studio files are not yet committed to git:
-   - `lib/models/staff_task.dart`
-   - `lib/screens/principal_digest_screen.dart`
-   - `lib/screens/staff_task_management_screen.dart`
-   - `lib/screens/staff_tasks_screen.dart`
-   - `lib/services/principal_digest_service.dart`
-   - `lib/services/staff_task_service.dart`
+2. `google_sign_in` package is installed but not actually used (the guardian login path uses email/password + phone OTP via Firebase Auth; `AuthService.signInWithGoogle()` is a `null` stub).
 
-3. ⚠️ `lib/screens/principal_dashboard.dart` is modified but not staged.
+3. `firestore_service.dart` is legacy/likely-unused: it uses a different attendance schema (`schools/{sid}/classes/{classId}/attendance`) than the live path, and carries dead FCM-token code with no messaging package behind it. Reconcile or remove. (`attendance_service.dart` no longer exists.)
 
-4. `google_sign_in` package is installed but not actually used (auth is Firestore-only).
-
-5. `attendance_service.dart` and `firestore_service.dart` appear to exist but their class/method definitions were not fully visible — may be stubs or utilities.
+4. Multi-tenancy is scaffolded but not fully wired: several services and the owner screens still hardcode `schoolId = 'school_1'` despite the school-scoped (`schools/{sid}/…`) schema and the onboarding wizard.

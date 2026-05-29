@@ -28,20 +28,22 @@ flutter test test/widget_test.dart   # single file
 
 ### Entry point & session routing
 
-`lib/main.dart` initialises Firebase then renders `_SplashGate`, which reads the saved session from `AuthService` and pushes the correct dashboard — no login screen is shown for returning users.
+`lib/main.dart` initialises Firebase then renders `_SplashGate`, which reads the saved session from `AuthService`, verifies the Firebase Auth user is still signed in, and pushes the correct dashboard. Returning users with a valid Firebase Auth session skip the login screen; if the Firebase Auth user is missing, the session is cleared and `LoginScreen` is shown.
 
 ```
 _SplashGate
-  ├── teacher   → HomeScreen(teacher)
-  ├── coordinator → CoordinatorDashboard
-  ├── principal   → PrincipalDashboard
-  ├── guardian    → GuardianDashboard(studentClass, studentRoll)
-  └── (none)    → RoleSelectionScreen
+  ├── teacher / subjectTeacher → HomeScreen(teacher)
+  ├── coordinator     → CoordinatorDashboard
+  ├── principal       → PrincipalDashboard
+  ├── owner           → OwnerHome
+  ├── ownerPrincipal  → OwnerPrincipalHome
+  ├── guardian        → GuardianDashboard(studentClass, studentRoll, studentSection)
+  └── (no valid Firebase Auth session) → LoginScreen
 ```
 
 ### Authentication
 
-There is **no Firebase Auth**. Login is purely Firestore-based: `RoleSelectionScreen` prompts for email + password and checks against the `allowed_users` collection. On success, `AuthService.saveSession()` persists the role and identifiers to `SharedPreferences`. All services are singletons — construct via the factory `ServiceName()`.
+Login uses **Firebase Auth**. `LoginScreen` signs in with email + password via `AuthService.signInWithEmail()`; guardians may instead authenticate with phone OTP (`GuardianLoginScreen` → `PhoneOtpScreen`), and password reset is handled by `forgot_password_screen.dart`. After sign-in, the user's role and identifiers are read from the `allowed_users/{uid}` document (keyed by the Firebase Auth UID, holding `role`, `schoolId`, `classIds[]`, `studentIds[]`, etc.). `AuthService.saveSession()` then persists the role and identifiers to `SharedPreferences` for fast session routing; `AuthService.clearSession()` signs out of Firebase Auth and clears local state. All services are singletons — construct via the factory `ServiceName()`.
 
 ### Theme
 
