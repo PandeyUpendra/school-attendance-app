@@ -1079,7 +1079,8 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
     try {
       // No password needed — auto-generated + setup link emailed.
       await _svc.addAllowedUser(email, '', _createRole,
-          name: name, createdByEmail: widget.email, createdByRole: widget.role);
+          name: name, schoolId: AuthService.currentSchoolId,
+          createdByEmail: widget.email, createdByRole: widget.role);
       _nameCtrl.clear(); _emailCtrl.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
