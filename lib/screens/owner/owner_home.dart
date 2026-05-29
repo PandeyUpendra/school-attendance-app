@@ -117,10 +117,13 @@ class _OwnerHomeState extends State<OwnerHome> {
       ),
       child: Scaffold(
       backgroundColor: AppTheme.background,
-      body: ListView(
-        padding: EdgeInsets.zero,
+      body: Column(
         children: [
           _buildHero(),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
           const SizedBox(height: 4),
 
           const _SectionHeader('OVERVIEW'),
@@ -215,6 +218,9 @@ class _OwnerHomeState extends State<OwnerHome> {
           ),
 
           const SizedBox(height: 32),
+              ],
+            ),
+          ),
         ],
       ),
       ),
