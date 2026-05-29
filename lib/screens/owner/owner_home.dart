@@ -1098,98 +1098,102 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
   Future<void> _deleteUser(String uEmail, String uRole) async {
+    // Capture the messenger from the page context up-front. Resolving it from
+    // the dialog's own context registers the dialog element as a dependent of
+    // the app-root ScaffoldMessenger, which dangles when the dialog tears down
+    // and trips the framework's `_dependents.isEmpty` assertion.
+    final messenger = ScaffoldMessenger.of(context);
     final pwCtrl = TextEditingController();
-    bool obscure = true;
-    bool deleting = false;
 
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDlg) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Confirm Deletion'),
-          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            RichText(text: TextSpan(
-              style: const TextStyle(color: Colors.black87, fontSize: 13, height: 1.4),
-              children: [
-                const TextSpan(text: 'This will permanently delete the '),
-                TextSpan(
-                  text: RolePermissionService.roleDisplayName(uRole),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+      builder: (dialogCtx) {
+        bool obscure = true;
+        bool deleting = false;
+        return StatefulBuilder(
+          builder: (dialogCtx, setDlg) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Confirm Deletion'),
+            content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              RichText(text: TextSpan(
+                style: const TextStyle(color: Colors.black87, fontSize: 13, height: 1.4),
+                children: [
+                  const TextSpan(text: 'This will permanently delete the '),
+                  TextSpan(
+                    text: RolePermissionService.roleDisplayName(uRole),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const TextSpan(text: ' account for\n'),
+                  TextSpan(text: uEmail, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.accent)),
+                  const TextSpan(text: '.\n\nEnter your password to confirm.'),
+                ],
+              )),
+              const SizedBox(height: 16),
+              TextField(
+                controller: pwCtrl,
+                obscureText: obscure,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Your Password',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                    onPressed: () => setDlg(() => obscure = !obscure),
+                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  isDense: true,
                 ),
-                const TextSpan(text: ' account for\n'),
-                TextSpan(text: uEmail, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.accent)),
-                const TextSpan(text: '.\n\nEnter your password to confirm.'),
-              ],
-            )),
-            const SizedBox(height: 16),
-            TextField(
-              controller: pwCtrl,
-              obscureText: obscure,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Your Password',
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                  onPressed: () => setDlg(() => obscure = !obscure),
+              ),
+            ]),
+            actions: [
+              TextButton(
+                onPressed: deleting ? null : () => Navigator.of(dialogCtx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.danger,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                isDense: true,
-              ),
-            ),
-          ]),
-          actions: [
-            TextButton(
-              onPressed: deleting ? null : () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.danger,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: deleting
-                  ? null
-                  : () async {
-                      final pw = pwCtrl.text;
-                      if (pw.isEmpty) return;
-                      setDlg(() => deleting = true);
-                      try {
-                        await AuthService().reauthenticate(widget.email, pw);
-                        if (ctx.mounted) Navigator.pop(ctx, true);
-                      } catch (_) {
-                        setDlg(() => deleting = false);
-                        if (ctx.mounted) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
+                onPressed: deleting
+                    ? null
+                    : () async {
+                        final pw = pwCtrl.text;
+                        if (pw.isEmpty) return;
+                        setDlg(() => deleting = true);
+                        try {
+                          await AuthService().reauthenticate(widget.email, pw);
+                          if (dialogCtx.mounted) Navigator.of(dialogCtx).pop(true);
+                        } catch (_) {
+                          if (dialogCtx.mounted) setDlg(() => deleting = false);
+                          messenger.showSnackBar(
                             const SnackBar(content: Text('Incorrect password')),
                           );
                         }
-                      }
-                    },
-              child: deleting
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Delete Account', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
+                      },
+                child: deleting
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Delete Account', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        );
+      },
     );
     pwCtrl.dispose();
     if (confirmed != true || !mounted) return;
 
     try {
       await _svc.removeAllowedUser(uEmail);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Account deleted'),
-          backgroundColor: AppTheme.danger,
-        ));
-        await _loadUsers();
-      }
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Account deleted'),
+        backgroundColor: AppTheme.danger,
+      ));
+      await _loadUsers();
     } catch (e) {
-      if (mounted) _snack('Error: $e');
+      if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
