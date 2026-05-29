@@ -199,6 +199,12 @@ class TimetableService extends BaseFirestoreService {
     await _settings.doc('main').set(settings);
   }
 
+  /// Drops the in-memory settings cache so the next [getSettings] re-fetches.
+  /// Call this after another service (e.g. SchoolSettingsService, when the
+  /// owner edits the class list) writes to settings/main, so screens reading
+  /// classes through getSettings pick up the change within the same session.
+  static void invalidateSettingsCache() => _settingsCache = null;
+
   // ── Timetable ─────────────────────────────────────────────────────────────
   // Shape: className → day → bell(1-indexed) → TimetableEntry
 
@@ -961,19 +967,24 @@ class TimetableService extends BaseFirestoreService {
     await docRef.update({'studentLinks': links});
   }
 
-  /// Returns all coordinators, optionally filtered by schoolId field.
+  /// Returns all coordinators in [schoolId].
+  ///
+  /// The query is scoped by BOTH role and schoolId. An unscoped
+  /// where('role' == 'coordinator') read is rejected by the security rules
+  /// ("permission-denied"): a non-owner manager may only read allowed_users
+  /// docs whose schoolId matches their own, and Firestore cannot prove that
+  /// for an unscoped list read. Adding the schoolId equality filter lets the
+  /// rules' management branch (userSchoolId() == resource.data.schoolId)
+  /// validate the whole query.
   Future<List<Map<String, dynamic>>> getCoordinators(String schoolId) async {
     final snap = await _allowedUsers
         .where('role', isEqualTo: 'coordinator')
+        .where('schoolId', isEqualTo: schoolId)
         .get();
     return snap.docs.map((d) {
       final data = Map<String, dynamic>.from(d.data());
       data['email'] = d.id;
       return data;
-    }).where((u) {
-      // If records have a schoolId field, filter; otherwise include all
-      final sid = u['schoolId'] as String?;
-      return sid == null || sid.isEmpty || sid == schoolId;
     }).toList();
   }
 
