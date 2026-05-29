@@ -36,6 +36,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
   final _service = AnnouncementService();
 
   bool _loading = true;
+  String? _error;
   List<Announcement> _items = [];
 
   bool _logLoading = false;
@@ -82,29 +83,45 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
-    final items = await _service.getAnnouncements(
-      audience: _filterAudience,
-      viewerClass: widget.viewerClass,
-    );
-    if (!mounted) return;
     setState(() {
-      _items = items;
-      _loading = false;
+      _loading = true;
+      _error = null;
     });
-    if (_canPost) _loadMyLog();
+    try {
+      final items = await _service.getAnnouncements(
+        audience: _filterAudience,
+        viewerClass: widget.viewerClass,
+      );
+      if (!mounted) return;
+      setState(() {
+        _items = items;
+        _loading = false;
+      });
+      if (_canPost) _loadMyLog();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = '$e';
+        _loading = false;
+      });
+    }
   }
 
   Future<void> _loadMyLog() async {
     setState(() => _logLoading = true);
-    final items = (widget.posterName?.isNotEmpty == true)
-        ? await _service.getAnnouncementsByPoster(widget.posterName!)
-        : await _service.getAnnouncementsByRole(widget.viewerRole);
-    if (!mounted) return;
-    setState(() {
-      _myLog = items;
-      _logLoading = false;
-    });
+    try {
+      final items = (widget.posterName?.isNotEmpty == true)
+          ? await _service.getAnnouncementsByPoster(widget.posterName!)
+          : await _service.getAnnouncementsByRole(widget.viewerRole);
+      if (!mounted) return;
+      setState(() {
+        _myLog = items;
+        _logLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _logLoading = false);
+    }
   }
 
   // ── Announcement title → body template map ───────────────────────────────────
@@ -485,7 +502,33 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
               SizedBox(height: 120),
               Center(child: CircularProgressIndicator()),
             ])
-          : _items.isEmpty
+          : _error != null
+              ? ListView(children: [
+                  const SizedBox(height: 100),
+                  Icon(Icons.error_outline,
+                      size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        'Could not load announcements.\n$_error',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.grey.shade600),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: _load,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    ),
+                  ),
+                ])
+              : _items.isEmpty
               ? ListView(children: [
                   const SizedBox(height: 100),
                   Icon(Icons.campaign_outlined,

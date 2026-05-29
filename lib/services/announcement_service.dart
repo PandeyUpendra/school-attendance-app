@@ -1,9 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/announcement.dart';
+import 'auth_service.dart';
 
 class AnnouncementService {
-  static final _db    = FirebaseFirestore.instance;
-  static final _coll  = _db.collection('announcements');
+  final _db = FirebaseFirestore.instance;
+
+  /// School-scoped announcements collection: schools/{sid}/announcements.
+  /// schoolId is read lazily so it always reflects the active session.
+  CollectionReference<Map<String, dynamic>> get _coll =>
+      _db.collection('schools').doc(AuthService.currentSchoolId)
+         .collection('announcements');
 
   static final AnnouncementService _instance = AnnouncementService._();
   AnnouncementService._();

@@ -594,5 +594,67 @@ service cloud.firestore {
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
     }
 
+
+    // ════════════════════════════════════════════════════════════════
+    // MEETINGS  (/schools/{sid}/meetings/{meetingId})
+    //
+    // Coordinator records: agenda, points, assigned teachers.
+    // Read:  any staff member (records screens + assigned teachers).
+    // Write: management (coordinator creates/edits/closes meetings).
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/meetings/{meetingId} {
+      allow read:  if isSignedIn() && inSchool(sid) && isAnyStaff();
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // MEETING TASKS  (/schools/{sid}/meetingTasks/{taskId})
+    //
+    // Tasks spun out of a meeting point onto a teacher.
+    // Read:   assignee (assignedTo == uid) OR management.
+    // Create/Delete: management only.
+    // Update: management (full) or assignee (status field only).
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/meetingTasks/{taskId} {
+
+      allow read: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        request.auth.uid == resource.data.assignedTo
+      );
+
+      allow create, delete: if isSignedIn() && inSchool(sid) && isManagement();
+
+      allow update: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (request.auth.uid == resource.data.assignedTo
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status']))
+      );
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // COLLECTION-GROUP READS — remarks & payments
+    //
+    // The Principal EOD Digest fans out unscoped collectionGroup() queries
+    // over every `remarks` (schools/{sid}/students/{id}/remarks) and
+    // `payments` (fee_payments/{cls}/students/{roll}/payments) subcollection.
+    // A collection-group query needs a rule that matches the leaf collection
+    // at ANY depth via the recursive {path=**} wildcard.
+    //
+    // Restricted to management. NOTE: a collection-group query spans schools,
+    // so these grants are NOT school-isolated. Acceptable while the app is
+    // effectively single-school; revisit (stamp schoolId on each doc and
+    // filter) before true multi-tenant rollout.
+    // ════════════════════════════════════════════════════════════════
+    match /{path=**}/remarks/{remarkId} {
+      allow read: if isSignedIn() && isManagement();
+    }
+
+    match /{path=**}/payments/{paymentId} {
+      allow read: if isSignedIn() && isManagement();
+    }
+
   } // /databases/{database}/documents
 } // service cloud.firestore
