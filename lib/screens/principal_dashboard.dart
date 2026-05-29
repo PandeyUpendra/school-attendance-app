@@ -137,37 +137,52 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
   Future<void> _loadAll() async {
     setState(() => _loading = true);
+    try {
+      final session = await AuthService().getSession();
+      final email   = (session?['email'] as String?) ?? '';
+      final role    = (session?['role']  as String?) ?? 'principal';
 
-    final session = await AuthService().getSession();
-    final email   = (session?['email'] as String?) ?? '';
-    final role    = (session?['role']  as String?) ?? 'principal';
+      final settings   = await TimetableService().getSettings();
+      final allClasses = List<String>.from(settings['classes'] as List);
 
-    final settings   = await TimetableService().getSettings();
-    final allClasses = List<String>.from(settings['classes'] as List);
+      // Filter to assigned classes; fall back to all.
+      final assignedRaw = session?['assignedClasses'];
+      final List<String> classes = (assignedRaw is List && assignedRaw.isNotEmpty)
+          ? List<String>.from(assignedRaw).where(allClasses.contains).toList()
+          : allClasses;
 
-    // Filter to assigned classes; fall back to all.
-    final assignedRaw = session?['assignedClasses'];
-    final List<String> classes = (assignedRaw is List && assignedRaw.isNotEmpty)
-        ? List<String>.from(assignedRaw).where(allClasses.contains).toList()
-        : allClasses;
+      // Fire attendance-related reads in parallel (badges handled by streams).
+      final summariesFuture  = StudentService().loadTodayFullSummary(classes: classes);
+      final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo();
 
-    // Fire attendance-related reads in parallel (badges handled by streams).
-    final summariesFuture  = StudentService().loadTodayFullSummary(classes: classes);
-    final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo();
+      final summaries  = await summariesFuture;
+      final absentInfo = await absentInfoFuture;
 
-    final summaries  = await summariesFuture;
-    final absentInfo = await absentInfoFuture;
-
-    if (!mounted) return;
-    setState(() {
-      _principalEmail  = email;
-      _sessionRole     = role;
-      _summaries       = summaries;
-      _teachersAbsent  = absentInfo['absentCount']    ?? 0;
-      _unassignedBells = absentInfo['unassignedBells'] ?? 0;
-      _loading         = false;
-    });
-
+      if (!mounted) return;
+      setState(() {
+        _principalEmail  = email;
+        _sessionRole     = role;
+        _summaries       = summaries;
+        _teachersAbsent  = absentInfo['absentCount']    ?? 0;
+        _unassignedBells = absentInfo['unassignedBells'] ?? 0;
+        _loading         = false;
+      });
+    } catch (e) {
+      // ignore: avoid_print
+      print('PrincipalDashboard._loadAll failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _summaries       = [];
+        _teachersAbsent  = 0;
+        _unassignedBells = 0;
+        _loading         = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not load dashboard: $e'),
+        backgroundColor: Colors.red.shade700,
+        duration: const Duration(seconds: 8),
+      ));
+    }
   }
 
   Future<void> _logout() async {

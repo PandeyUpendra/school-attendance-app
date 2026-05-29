@@ -20,6 +20,7 @@ class EditSchoolSettingsScreen extends StatefulWidget {
 class _EditSchoolSettingsScreenState extends State<EditSchoolSettingsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
+  bool _editing = false;
 
   @override
   void initState() {
@@ -33,6 +34,8 @@ class _EditSchoolSettingsScreenState extends State<EditSchoolSettingsScreen>
     super.dispose();
   }
 
+  void _onTabSaved() => setState(() => _editing = false);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,6 +45,24 @@ class _EditSchoolSettingsScreenState extends State<EditSchoolSettingsScreen>
         foregroundColor: Colors.white,
         elevation: 0,
         title: const Text('School Settings'),
+        actions: [
+          if (!_editing)
+            TextButton.icon(
+              icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 18),
+              label: const Text(
+                'Edit',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+              onPressed: () => setState(() => _editing = true),
+            )
+          else
+            TextButton.icon(
+              icon: const Icon(Icons.close, color: Colors.white, size: 18),
+              label: const Text('Cancel', style: TextStyle(color: Colors.white)),
+              onPressed: () => setState(() => _editing = false),
+            ),
+          const SizedBox(width: 4),
+        ],
         bottom: TabBar(
           controller: _tab,
           isScrollable: true,
@@ -58,14 +79,38 @@ class _EditSchoolSettingsScreenState extends State<EditSchoolSettingsScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tab,
-        children: const [
-          _BasicInfoTab(),
-          _AddressTab(),
-          _AcademicTab(),
-          _FeesTab(),
-          _CommunicationTab(),
+      body: Column(
+        children: [
+          if (!_editing)
+            Container(
+              color: AppTheme.warning.withValues(alpha: 0.12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: const Row(children: [
+                Icon(Icons.lock_outline, size: 16, color: AppTheme.warning),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'View only — tap Edit to make changes',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.warning,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ]),
+            ),
+          Expanded(
+            child: TabBarView(
+              controller: _tab,
+              children: [
+                _BasicInfoTab(editing: _editing, onSaved: _onTabSaved),
+                _AddressTab(editing: _editing, onSaved: _onTabSaved),
+                _AcademicTab(editing: _editing, onSaved: _onTabSaved),
+                _FeesTab(editing: _editing, onSaved: _onTabSaved),
+                _CommunicationTab(editing: _editing, onSaved: _onTabSaved),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -75,7 +120,10 @@ class _EditSchoolSettingsScreenState extends State<EditSchoolSettingsScreen>
 // ── Basic Info Tab ────────────────────────────────────────────────────────────
 
 class _BasicInfoTab extends StatefulWidget {
-  const _BasicInfoTab();
+  final bool editing;
+  final VoidCallback onSaved;
+
+  const _BasicInfoTab({required this.editing, required this.onSaved});
 
   @override
   State<_BasicInfoTab> createState() => _BasicInfoTabState();
@@ -172,7 +220,10 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
         final newVal = data[k]?.toString() ?? '';
         if (oldVal != newVal) await p.logChange(k, oldVal, newVal, uid);
       }
-      if (mounted) _snack('Settings updated', success: true);
+      if (mounted) {
+        _snack('Settings updated', success: true);
+        widget.onSaved();
+      }
     } catch (e) {
       if (mounted) _snack('Error: $e');
     }
@@ -187,27 +238,33 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
       child: Column(children: [
         _logoPicker(),
         const SizedBox(height: 16),
-        _field(_nameCtrl, 'School Name *', Icons.school_outlined),
+        _field(_nameCtrl, 'School Name *', Icons.school_outlined, readOnly: !widget.editing),
         const SizedBox(height: 12),
         _dropdown('School Type', _type, _types, Icons.business_outlined,
-            (v) => setState(() => _type = v!)),
+            (v) => setState(() => _type = v!), enabled: widget.editing),
         const SizedBox(height: 12),
         _dropdown('Board', _board, _boards, Icons.menu_book_outlined,
-            (v) => setState(() => _board = v!)),
+            (v) => setState(() => _board = v!), enabled: widget.editing),
         const SizedBox(height: 12),
-        _field(_phoneCtrl, 'Phone', Icons.phone_outlined, type: TextInputType.phone),
+        _field(_phoneCtrl, 'Phone', Icons.phone_outlined,
+            type: TextInputType.phone, readOnly: !widget.editing),
         const SizedBox(height: 12),
-        _field(_emailCtrl, 'Email', Icons.email_outlined, type: TextInputType.emailAddress),
+        _field(_emailCtrl, 'Email', Icons.email_outlined,
+            type: TextInputType.emailAddress, readOnly: !widget.editing),
         const SizedBox(height: 12),
-        _field(_principalCtrl, 'Principal Name', Icons.person_outline),
+        _field(_principalCtrl, 'Principal Name', Icons.person_outline,
+            readOnly: !widget.editing),
         const SizedBox(height: 12),
-        _field(_yearCtrl, 'Established Year', Icons.calendar_today_outlined, type: TextInputType.number),
+        _field(_yearCtrl, 'Established Year', Icons.calendar_today_outlined,
+            type: TextInputType.number, readOnly: !widget.editing),
         const SizedBox(height: 12),
-        _field(_tagCtrl, 'School Tagline', Icons.format_quote_outlined),
+        _field(_tagCtrl, 'School Tagline', Icons.format_quote_outlined,
+            readOnly: !widget.editing),
         const SizedBox(height: 12),
-        _field(_websiteCtrl, 'Website', Icons.language_outlined, type: TextInputType.url),
+        _field(_websiteCtrl, 'Website', Icons.language_outlined,
+            type: TextInputType.url, readOnly: !widget.editing),
         const SizedBox(height: 20),
-        _saveBtn(_saving, _save),
+        if (widget.editing) _saveBtn(_saving, _save),
         const SizedBox(height: 16),
         _changeLogSection(),
         const SizedBox(height: 32),
@@ -218,7 +275,7 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
   Widget _logoPicker() {
     return Center(
       child: GestureDetector(
-        onTap: _pickLogo,
+        onTap: widget.editing ? _pickLogo : null,
         child: Stack(children: [
           CircleAvatar(
             radius: 44,
@@ -235,14 +292,15 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
                   backgroundColor: Colors.black38,
                   child: CircularProgressIndicator(color: Colors.white)),
             ),
-          Positioned(
-            bottom: 0, right: 0,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(color: AppTheme.primary, shape: BoxShape.circle),
-              child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
+          if (widget.editing)
+            Positioned(
+              bottom: 0, right: 0,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(color: AppTheme.primary, shape: BoxShape.circle),
+                child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
+              ),
             ),
-          ),
         ]),
       ),
     );
@@ -252,7 +310,10 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
 // ── Address Tab ───────────────────────────────────────────────────────────────
 
 class _AddressTab extends StatefulWidget {
-  const _AddressTab();
+  final bool editing;
+  final VoidCallback onSaved;
+
+  const _AddressTab({required this.editing, required this.onSaved});
 
   @override
   State<_AddressTab> createState() => _AddressTabState();
@@ -310,7 +371,10 @@ class _AddressTabState extends State<_AddressTab>
         'state': _state,
         'pinCode': _pinCtrl.text.trim(),
       });
-      if (mounted) _snack('Settings updated', success: true);
+      if (mounted) {
+        _snack('Settings updated', success: true);
+        widget.onSaved();
+      }
     } catch (e) {
       if (mounted) _snack('Error: $e');
     }
@@ -323,9 +387,11 @@ class _AddressTabState extends State<_AddressTab>
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(children: [
-        _field(_addrCtrl, 'Full Address', Icons.location_on_outlined, maxLines: 3),
+        _field(_addrCtrl, 'Full Address', Icons.location_on_outlined,
+            maxLines: 3, readOnly: !widget.editing),
         const SizedBox(height: 12),
-        _field(_cityCtrl, 'City', Icons.location_city_outlined),
+        _field(_cityCtrl, 'City', Icons.location_city_outlined,
+            readOnly: !widget.editing),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           value: _state.isEmpty ? null : _state,
@@ -337,12 +403,13 @@ class _AddressTabState extends State<_AddressTab>
             isDense: true,
           ),
           items: _states.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-          onChanged: (v) => setState(() => _state = v ?? ''),
+          onChanged: widget.editing ? (v) => setState(() => _state = v ?? '') : null,
         ),
         const SizedBox(height: 12),
-        _field(_pinCtrl, 'PIN Code', Icons.pin_drop_outlined, type: TextInputType.number, maxLength: 6),
+        _field(_pinCtrl, 'PIN Code', Icons.pin_drop_outlined,
+            type: TextInputType.number, maxLength: 6, readOnly: !widget.editing),
         const SizedBox(height: 20),
-        _saveBtn(_saving, _save),
+        if (widget.editing) _saveBtn(_saving, _save),
         const SizedBox(height: 32),
       ]),
     );
@@ -352,7 +419,10 @@ class _AddressTabState extends State<_AddressTab>
 // ── Academic Tab ──────────────────────────────────────────────────────────────
 
 class _AcademicTab extends StatefulWidget {
-  const _AcademicTab();
+  final bool editing;
+  final VoidCallback onSaved;
+
+  const _AcademicTab({required this.editing, required this.onSaved});
 
   @override
   State<_AcademicTab> createState() => _AcademicTabState();
@@ -397,7 +467,6 @@ class _AcademicTabState extends State<_AcademicTab>
     final p = context.read<SchoolSettingsProvider>();
     final oldClasses = List<String>.from(p.classList);
 
-    // Check for period count change — warn if timetable might exist
     final periodsChanged = p.periodsPerDay != _periods;
     if (periodsChanged && mounted) {
       final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
@@ -416,7 +485,6 @@ class _AcademicTabState extends State<_AcademicTab>
 
     final newClasses = _generateClassList();
 
-    // Warn about removed classes
     final removed = oldClasses.where((c) => !newClasses.contains(c)).toList();
     if (removed.isNotEmpty && mounted) {
       final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
@@ -449,12 +517,14 @@ class _AcademicTabState extends State<_AcademicTab>
         'lunchAfterPeriod': _lunch,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      // Create documents for new classes
       final added = newClasses.where((c) => !oldClasses.contains(c)).toList();
       for (final c in added) {
         await svc.createClassDocument(c);
       }
-      if (mounted) _snack('Settings updated', success: true);
+      if (mounted) {
+        _snack('Settings updated', success: true);
+        widget.onSaved();
+      }
     } catch (e) {
       if (mounted) _snack('Error: $e');
     }
@@ -496,11 +566,13 @@ class _AcademicTabState extends State<_AcademicTab>
               label: Text(s),
               selected: sel,
               selectedColor: AppTheme.primaryLight,
-              onSelected: (v) => setState(() {
-                if (v) { _sections.add(s); _sections.sort(); } else {
-                  _sections.remove(s);
-                }
-              }),
+              onSelected: widget.editing
+                  ? (v) => setState(() {
+                        if (v) { _sections.add(s); _sections.sort(); } else {
+                          _sections.remove(s);
+                        }
+                      })
+                  : null,
             );
           }).toList(),
         ),
@@ -522,7 +594,7 @@ class _AcademicTabState extends State<_AcademicTab>
         Slider(
           value: _periods.toDouble(), min: 4, max: 10, divisions: 6,
           label: '$_periods', activeColor: AppTheme.primary,
-          onChanged: (v) => setState(() => _periods = v.round()),
+          onChanged: widget.editing ? (v) => setState(() => _periods = v.round()) : null,
         ),
         const SizedBox(height: 8),
         _intDropdown('Period Duration', _duration, _durations, suffix: ' min',
@@ -532,7 +604,7 @@ class _AcademicTabState extends State<_AcademicTab>
             List.generate(maxLunch, (i) => i + 1), prefix: 'After period ',
             onChanged: (v) => setState(() => _lunch = v)),
         const SizedBox(height: 20),
-        _saveBtn(_saving, _save),
+        if (widget.editing) _saveBtn(_saving, _save),
         const SizedBox(height: 32),
       ]),
     );
@@ -549,7 +621,7 @@ class _AcademicTabState extends State<_AcademicTab>
         items: List.generate(12, (i) => i + 1)
             .map((n) => DropdownMenuItem(value: n, child: Text('Class $n')))
             .toList(),
-        onChanged: (v) { if (v != null) onChanged(v); },
+        onChanged: widget.editing ? (v) { if (v != null) onChanged(v); } : null,
       );
 
   Widget _segmented(List<String> opts, String sel, void Function(String) onSel) =>
@@ -558,7 +630,7 @@ class _AcademicTabState extends State<_AcademicTab>
           final s = o == sel;
           return Expanded(
             child: GestureDetector(
-              onTap: () => onSel(o),
+              onTap: widget.editing ? () => onSel(o) : null,
               child: Container(
                 margin: EdgeInsets.only(right: o == opts.last ? 0 : 8),
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -588,14 +660,17 @@ class _AcademicTabState extends State<_AcademicTab>
           isDense: true,
         ),
         items: items.map((n) => DropdownMenuItem(value: n, child: Text('$prefix$n$suffix'))).toList(),
-        onChanged: (v) { if (v != null) onChanged(v); },
+        onChanged: widget.editing ? (v) { if (v != null) onChanged(v); } : null,
       );
 }
 
 // ── Fees Tab ──────────────────────────────────────────────────────────────────
 
 class _FeesTab extends StatefulWidget {
-  const _FeesTab();
+  final bool editing;
+  final VoidCallback onSaved;
+
+  const _FeesTab({required this.editing, required this.onSaved});
 
   @override
   State<_FeesTab> createState() => _FeesTabState();
@@ -645,7 +720,10 @@ class _FeesTabState extends State<_FeesTab>
         'reminderDaysBefore': _reminder,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      if (mounted) _snack('Settings updated', success: true);
+      if (mounted) {
+        _snack('Settings updated', success: true);
+        widget.onSaved();
+      }
     } catch (e) { if (mounted) _snack('Error: $e'); }
     if (mounted) setState(() => _saving = false);
   }
@@ -662,7 +740,7 @@ class _FeesTabState extends State<_FeesTab>
           return ChoiceChip(
             label: Text(f), selected: sel,
             selectedColor: AppTheme.primaryLight,
-            onSelected: (_) => setState(() => _freq = f),
+            onSelected: widget.editing ? (_) => setState(() => _freq = f) : null,
           );
         }).toList()),
         const SizedBox(height: 16),
@@ -677,20 +755,21 @@ class _FeesTabState extends State<_FeesTab>
           items: List.generate(28, (i) => i + 1)
               .map((n) => DropdownMenuItem(value: n, child: Text('${_ordinal(n)} of month')))
               .toList(),
-          onChanged: (v) { if (v != null) setState(() => _dueDate = v); },
+          onChanged: widget.editing ? (v) { if (v != null) setState(() => _dueDate = v); } : null,
         ),
         const SizedBox(height: 16),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           const Text('Late Fee Applicable',
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
           Switch(value: _lateEnabled, activeColor: AppTheme.primary,
-              onChanged: (v) => setState(() => _lateEnabled = v)),
+              onChanged: widget.editing ? (v) => setState(() => _lateEnabled = v) : null),
         ]),
         if (_lateEnabled) ...[
           const SizedBox(height: 12),
           TextField(
             controller: _lateCtrl,
             keyboardType: TextInputType.number,
+            readOnly: !widget.editing,
             decoration: InputDecoration(
               labelText: 'Late Fee Per Day (₹)',
               prefixIcon: const Icon(Icons.currency_rupee_outlined),
@@ -703,9 +782,9 @@ class _FeesTabState extends State<_FeesTab>
         _sectionLabel('Reminder Days Before Due  ($_reminder days)'),
         Slider(value: _reminder.toDouble(), min: 1, max: 14, divisions: 13,
             label: '$_reminder', activeColor: AppTheme.primary,
-            onChanged: (v) => setState(() => _reminder = v.round())),
+            onChanged: widget.editing ? (v) => setState(() => _reminder = v.round()) : null),
         const SizedBox(height: 20),
-        _saveBtn(_saving, _save),
+        if (widget.editing) _saveBtn(_saving, _save),
         const SizedBox(height: 32),
       ]),
     );
@@ -723,7 +802,10 @@ class _FeesTabState extends State<_FeesTab>
 // ── Communication Tab ─────────────────────────────────────────────────────────
 
 class _CommunicationTab extends StatefulWidget {
-  const _CommunicationTab();
+  final bool editing;
+  final VoidCallback onSaved;
+
+  const _CommunicationTab({required this.editing, required this.onSaved});
 
   @override
   State<_CommunicationTab> createState() => _CommunicationTabState();
@@ -773,7 +855,10 @@ class _CommunicationTabState extends State<_CommunicationTab>
         'busRouteCount': _routes,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      if (mounted) _snack('Settings updated', success: true);
+      if (mounted) {
+        _snack('Settings updated', success: true);
+        widget.onSaved();
+      }
     } catch (e) { if (mounted) _snack('Error: $e'); }
     if (mounted) setState(() => _saving = false);
   }
@@ -792,6 +877,7 @@ class _CommunicationTabState extends State<_CommunicationTab>
             controller: _waCtrl,
             keyboardType: TextInputType.phone,
             maxLength: 10,
+            readOnly: !widget.editing,
             decoration: InputDecoration(
               labelText: 'WhatsApp Number',
               prefixText: '+91 ',
@@ -809,7 +895,7 @@ class _CommunicationTabState extends State<_CommunicationTab>
           return ChoiceChip(
             label: Text(l), selected: sel,
             selectedColor: AppTheme.primaryLight,
-            onSelected: (_) => setState(() => _lang = l),
+            onSelected: widget.editing ? (_) => setState(() => _lang = l) : null,
           );
         }).toList()),
         const SizedBox(height: 16),
@@ -819,10 +905,10 @@ class _CommunicationTabState extends State<_CommunicationTab>
           _sectionLabel('Number of Routes  ($_routes)'),
           Slider(value: _routes.clamp(1, 50).toDouble(), min: 1, max: 50,
               activeColor: AppTheme.primary,
-              onChanged: (v) => setState(() => _routes = v.round())),
+              onChanged: widget.editing ? (v) => setState(() => _routes = v.round()) : null),
         ],
         const SizedBox(height: 20),
-        _saveBtn(_saving, _save),
+        if (widget.editing) _saveBtn(_saving, _save),
         const SizedBox(height: 16),
         _changeLogSection(),
         const SizedBox(height: 32),
@@ -833,7 +919,11 @@ class _CommunicationTabState extends State<_CommunicationTab>
   Widget _toggleRow(String label, bool value, void Function(bool) onChanged) =>
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-        Switch(value: value, activeColor: AppTheme.primary, onChanged: onChanged),
+        Switch(
+          value: value,
+          activeColor: AppTheme.primary,
+          onChanged: widget.editing ? onChanged : null,
+        ),
       ]);
 }
 
@@ -851,12 +941,14 @@ Widget _field(
   TextInputType type = TextInputType.text,
   int? maxLength,
   int maxLines = 1,
+  bool readOnly = false,
 }) =>
     TextField(
       controller: ctrl,
       keyboardType: type,
       maxLength: maxLength,
       maxLines: maxLines,
+      readOnly: readOnly,
       textCapitalization: TextCapitalization.sentences,
       decoration: InputDecoration(
         labelText: label,
@@ -872,8 +964,9 @@ Widget _dropdown(
   String value,
   List<String> items,
   IconData icon,
-  void Function(String?) onChanged,
-) =>
+  void Function(String?) onChanged, {
+  bool enabled = true,
+}) =>
     DropdownButtonFormField<String>(
       value: value,
       decoration: InputDecoration(
@@ -883,7 +976,7 @@ Widget _dropdown(
         isDense: true,
       ),
       items: items.map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(),
-      onChanged: onChanged,
+      onChanged: enabled ? onChanged : null,
     );
 
 Widget _saveBtn(bool saving, VoidCallback onSave) => SizedBox(
