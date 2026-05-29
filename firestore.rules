@@ -56,9 +56,11 @@ service cloud.firestore {
       return getUserData() != null ? getUserData().role : null;
     }
 
-    /// Caller's schoolId.
+    /// Caller's schoolId. Defaults to 'school_1' when the field is absent so
+    /// that staff accounts created before schoolId was stamped (single-school
+    /// deployment) are not locked out of school-scoped reads.
     function userSchoolId() {
-      return getUserData() != null && 'schoolId' in getUserData() ? getUserData().schoolId : null;
+      return getUserData() != null && 'schoolId' in getUserData() ? getUserData().schoolId : 'school_1';
     }
 
     /// Caller's teacherId.
