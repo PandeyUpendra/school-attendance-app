@@ -50,12 +50,12 @@ class _AdminScreenState extends State<AdminScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final allUsers = await _service.getAllowedUsers();
+      // Admin sees only Owner accounts. Query owners directly with
+      // where('role' == 'owner') — an unscoped allowed_users read is rejected
+      // by the security rules (non-owner managers may only read docs in their
+      // own school), whereas the owner-scoped query satisfies the owner rule.
+      final owners = await _service.getAllowedOwners();
       if (!mounted) return;
-      // Admin sees only Owner accounts.
-      final owners = allUsers
-          .where((u) => (u['role'] as String) == 'owner')
-          .toList();
       setState(() {
         _users   = owners;
         _loading = false;
