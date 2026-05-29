@@ -118,6 +118,7 @@ class _OwnerHomeState extends State<OwnerHome> {
       child: Scaffold(
       backgroundColor: AppTheme.background,
       body: ListView(
+        padding: EdgeInsets.zero,
         children: [
           _buildHero(),
           const SizedBox(height: 4),
@@ -177,18 +178,36 @@ class _OwnerHomeState extends State<OwnerHome> {
 
           const _SectionHeader('MANAGE'),
           _FeatureTile(
-            icon: Icons.settings_outlined,
-            color: AppTheme.primary,
-            title: 'Manage School',
-            subtitle: 'Accounts, school settings & announcements',
+            icon: Icons.person_add_outlined,
+            color: AppTheme.accent,
+            title: 'Create Accounts',
+            subtitle: 'Add principal, coordinator & other staff logins',
             onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => _ManagePage(email: _myEmail, role: _myRole),
+              builder: (_) => _CreateAccountsPage(email: _myEmail, role: _myRole),
+            )),
+          ),
+          _FeatureTile(
+            icon: Icons.school_outlined,
+            color: AppTheme.primary,
+            title: 'School Settings',
+            subtitle: 'Name, phone, address & academic year',
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const _SchoolSettingsPage(),
+            )),
+          ),
+          _FeatureTile(
+            icon: Icons.campaign_outlined,
+            color: AppTheme.primaryMid,
+            title: 'Announcements',
+            subtitle: 'Broadcast messages to staff, guardians or everyone',
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => _AnnouncementsPage(email: _myEmail, role: _myRole),
             )),
           ),
           _FeatureTile(
             icon: Icons.tune_outlined,
             color: AppTheme.primaryMid,
-            title: 'School Settings',
+            title: 'Advanced Settings',
             subtitle: 'Edit basic info, academic, fees & communication',
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const EditSchoolSettingsScreen(),
@@ -994,63 +1013,6 @@ class _FinancePageState extends State<_FinancePage> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Sub-page: Manage — menu
-// ══════════════════════════════════════════════════════════════════════════════
-
-class _ManagePage extends StatelessWidget {
-  final String email;
-  final String role;
-
-  const _ManagePage({required this.email, required this.role});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        backgroundColor: AppTheme.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: const Text('Manage School'),
-      ),
-      body: ListView(
-        children: [
-          const _SectionHeader('MANAGE'),
-          _FeatureTile(
-            icon: Icons.person_add_outlined,
-            color: AppTheme.accent,
-            title: 'Create Accounts',
-            subtitle: 'Add principal, coordinator & other staff logins',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => _CreateAccountsPage(email: email, role: role),
-            )),
-          ),
-          _FeatureTile(
-            icon: Icons.school_outlined,
-            color: AppTheme.primary,
-            title: 'School Settings',
-            subtitle: 'Name, phone, address & academic year',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const _SchoolSettingsPage(),
-            )),
-          ),
-          _FeatureTile(
-            icon: Icons.campaign_outlined,
-            color: AppTheme.primaryMid,
-            title: 'Announcements',
-            subtitle: 'Broadcast messages to staff, guardians or everyone',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => _AnnouncementsPage(email: email, role: role),
-            )),
-          ),
-          const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
 // Sub-page: Create Accounts
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -1128,6 +1090,102 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
 
   void _snack(String msg) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+
+  Future<void> _deleteUser(String uEmail, String uRole) async {
+    final pwCtrl = TextEditingController();
+    bool obscure = true;
+    bool deleting = false;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Confirm Deletion'),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            RichText(text: TextSpan(
+              style: const TextStyle(color: Colors.black87, fontSize: 13, height: 1.4),
+              children: [
+                const TextSpan(text: 'This will permanently delete the '),
+                TextSpan(
+                  text: RolePermissionService.roleDisplayName(uRole),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const TextSpan(text: ' account for\n'),
+                TextSpan(text: uEmail, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.accent)),
+                const TextSpan(text: '.\n\nEnter your password to confirm.'),
+              ],
+            )),
+            const SizedBox(height: 16),
+            TextField(
+              controller: pwCtrl,
+              obscureText: obscure,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Your Password',
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                  onPressed: () => setDlg(() => obscure = !obscure),
+                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                isDense: true,
+              ),
+            ),
+          ]),
+          actions: [
+            TextButton(
+              onPressed: deleting ? null : () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.danger,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: deleting
+                  ? null
+                  : () async {
+                      final pw = pwCtrl.text;
+                      if (pw.isEmpty) return;
+                      setDlg(() => deleting = true);
+                      try {
+                        await AuthService().reauthenticate(widget.email, pw);
+                        if (ctx.mounted) Navigator.pop(ctx, true);
+                      } catch (_) {
+                        setDlg(() => deleting = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(content: Text('Incorrect password')),
+                          );
+                        }
+                      }
+                    },
+              child: deleting
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Delete Account', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+    pwCtrl.dispose();
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _svc.removeAllowedUser(uEmail);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Account deleted'),
+          backgroundColor: AppTheme.danger,
+        ));
+        await _loadUsers();
+      }
+    } catch (e) {
+      if (mounted) _snack('Error: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1262,6 +1320,12 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                         style: const TextStyle(
                             fontSize: 10, fontWeight: FontWeight.w700, color: _primary),
                       ),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: AppTheme.danger, size: 20),
+                      tooltip: 'Delete account',
+                      onPressed: () => _deleteUser(uEmail, uRole),
                     ),
                   ]),
                 );
