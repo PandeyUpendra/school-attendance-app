@@ -69,6 +69,24 @@ class TimetableService extends BaseFirestoreService {
     return list;
   }
 
+  /// Returns the classIds[] array that should be stamped on a teacher's
+  /// allowed_users doc. The Firestore rules' `isClassTeacher(cls)` predicate
+  /// reads from this array — without it teachers cannot write students /
+  /// attendance / homework / exam results / copy_checks for their classes.
+  ///
+  /// Composition:
+  ///   - if isClassTeacher == true, include `classTeacherOf` (if non-empty);
+  ///   - plus everything in `assignedClasses` (for subject teachers).
+  /// Duplicates are de-duplicated.
+  List<String> _classIdsFor(Teacher t) {
+    final s = <String>{};
+    if (t.isClassTeacher && (t.classTeacherOf ?? '').isNotEmpty) {
+      s.add(t.classTeacherOf!);
+    }
+    s.addAll(t.assignedClasses.where((c) => c.isNotEmpty));
+    return s.toList();
+  }
+
   Future<void> addTeacher(String schoolId, Teacher teacher) async {
     await _teachers.doc(teacher.id).set(teacher.toJson());
 
@@ -77,12 +95,15 @@ class TimetableService extends BaseFirestoreService {
     if (normEmail.isEmpty || !normEmail.contains('@')) return;
 
     // Write allowed_users entry so login's role lookup succeeds.
+    // classIds is stamped so the firestore.rules class-teacher checks pass
+    // (otherwise teachers can't write students/attendance for their class).
     await _allowedUsers.doc(normEmail).set({
       'role':      'teacher',
       'email':     normEmail,
       'name':      teacher.name,
       'teacherId': teacher.id,
       'schoolId':  schoolId,
+      'classIds':  _classIdsFor(teacher),
       'status':    'pending',
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -121,11 +142,17 @@ class TimetableService extends BaseFirestoreService {
   Future<void> updateTeacher(String schoolId, Teacher teacher) async {
     await _teachers.doc(teacher.id).set(teacher.toJson());
 
-    // Keep allowed_users name in sync (email is the doc ID so can't change).
+    // Keep allowed_users in sync (email is the doc ID so can't change).
+    // classIds is re-stamped here so changing a teacher's class assignment
+    // immediately propagates to the rule-evaluation path; otherwise edits
+    // would silently fail to grant/revoke per-class access.
     final normEmail = teacher.email.trim().toLowerCase();
     if (normEmail.isEmpty || !normEmail.contains('@')) return;
     try {
-      await _allowedUsers.doc(normEmail).update({'name': teacher.name});
+      await _allowedUsers.doc(normEmail).update({
+        'name':     teacher.name,
+        'classIds': _classIdsFor(teacher),
+      });
     } catch (_) {}
   }
 
@@ -543,12 +570,15 @@ class TimetableService extends BaseFirestoreService {
     final effectiveSchoolId = _schoolId.isNotEmpty ? _schoolId : teacher.schoolId;
 
     // Ensure allowed_users doc exists with the correct role.
+    // classIds is included so the rule-side isClassTeacher(cls) check passes
+    // for teachers provisioned through the Send Login Invite path.
     await _allowedUsers.doc(normEmail).set({
       'role':      'teacher',
       'email':     normEmail,
       'name':      teacher.name,
       'teacherId': teacher.id,
       'schoolId':  effectiveSchoolId,
+      'classIds':  _classIdsFor(teacher),
       'status':    'pending',
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
