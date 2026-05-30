@@ -199,6 +199,26 @@ class TimetableService extends BaseFirestoreService {
     await _settings.doc('main').set(settings);
   }
 
+  /// Drops the in-memory settings cache so the next [getSettings] re-fetches.
+  /// Call this after another service (e.g. SchoolSettingsService, when the
+  /// owner edits the class list) writes to settings/main, so screens reading
+  /// classes through getSettings pick up the change within the same session.
+  static void invalidateSettingsCache() => _settingsCache = null;
+
+  /// Adds [className] to the school's class list (if not already present) and
+  /// returns the updated, de-duplicated list. Lets admins create classes on the
+  /// fly without opening the full Timetable Settings screen.
+  Future<List<String>> addClassToSettings(String className) async {
+    final name = className.trim();
+    final settings = Map<String, dynamic>.from(await getSettings());
+    final classes = List<String>.from(settings['classes'] ?? []);
+    if (name.isEmpty || classes.contains(name)) return classes;
+    classes.add(name);
+    settings['classes'] = classes;
+    await saveSettings(_schoolId, settings);
+    return classes;
+  }
+
   // ── Timetable ─────────────────────────────────────────────────────────────
   // Shape: className → day → bell(1-indexed) → TimetableEntry
 
@@ -513,12 +533,22 @@ class TimetableService extends BaseFirestoreService {
     final normEmail = teacher.email.trim().toLowerCase();
     if (normEmail.isEmpty || !normEmail.contains('@')) return;
 
+    // The allowed_users write MUST include schoolId — both the principal- and
+    // admin-scoped firestore rule branches require 'schoolId' in
+    // request.resource.data and that it matches userSchoolId(). Without this
+    // field the merge-set is denied as "permission-denied", which is the bug
+    // that broke the Send Login Invite button. Prefer the caller's current
+    // school (matches the rules' userSchoolId() check); fall back to the
+    // teacher's own schoolId only when no session-scoped school is set.
+    final effectiveSchoolId = _schoolId.isNotEmpty ? _schoolId : teacher.schoolId;
+
     // Ensure allowed_users doc exists with the correct role.
     await _allowedUsers.doc(normEmail).set({
       'role':      'teacher',
       'email':     normEmail,
       'name':      teacher.name,
       'teacherId': teacher.id,
+      'schoolId':  effectiveSchoolId,
       'status':    'pending',
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -961,19 +991,23 @@ class TimetableService extends BaseFirestoreService {
     await docRef.update({'studentLinks': links});
   }
 
-  /// Returns all coordinators, optionally filtered by schoolId field.
+  /// Returns coordinators for the given school.
+  ///
+  /// The query MUST constrain on `schoolId` as well as `role`: the Firestore
+  /// rules only allow management to read coordinator docs in their own school
+  /// (`resource.data.schoolId == userSchoolId()`). Because rules are not
+  /// filters, an unconstrained list query is rejected wholesale with
+  /// permission-denied — the query has to prove every returned doc is readable.
+  /// Two equality filters use a zigzag merge join, so no composite index needed.
   Future<List<Map<String, dynamic>>> getCoordinators(String schoolId) async {
     final snap = await _allowedUsers
         .where('role', isEqualTo: 'coordinator')
+        .where('schoolId', isEqualTo: schoolId)
         .get();
     return snap.docs.map((d) {
       final data = Map<String, dynamic>.from(d.data());
       data['email'] = d.id;
       return data;
-    }).where((u) {
-      // If records have a schoolId field, filter; otherwise include all
-      final sid = u['schoolId'] as String?;
-      return sid == null || sid.isEmpty || sid == schoolId;
     }).toList();
   }
 

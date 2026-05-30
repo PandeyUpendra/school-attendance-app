@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'timetable_service.dart';
 
 class SchoolSettingsService {
   static const String schoolId = 'school_1';
@@ -21,16 +22,18 @@ class SchoolSettingsService {
 
   Future<void> updateSchoolSettings(Map<String, dynamic> data) async {
     await _settings.doc('school').set(data, SetOptions(merge: true));
-    // Sync school name to legacy settings/main
+    // Sync school name to the shared school-scoped settings/main doc that
+    // TimetableService.getSettings() (and every screen) reads.
     if (data['schoolName'] != null) {
-      await _db.collection('settings').doc('main')
+      await _settings.doc('main')
           .set({'schoolName': data['schoolName']}, SetOptions(merge: true));
     }
   }
 
   Future<void> updateAcademicSettings(Map<String, dynamic> data) async {
     await _settings.doc('academic').set(data, SetOptions(merge: true));
-    // Sync to legacy settings/main so all existing screens pick up changes
+    // Sync to the shared school-scoped settings/main so all screens (coordinator
+    // class chips, principal, teacher mgmt, etc.) pick up the owner's changes.
     final syncData = <String, dynamic>{};
     if (data['classList'] != null) syncData['classes'] = data['classList'];
     if (data['periodsPerDay'] != null) syncData['periodsPerDay'] = data['periodsPerDay'];
@@ -38,7 +41,10 @@ class SchoolSettingsService {
     if (data['lunchAfterPeriod'] != null) syncData['lunchAfterPeriod'] = data['lunchAfterPeriod'];
     if (data['periodDuration'] != null) syncData['periodDuration'] = data['periodDuration'];
     if (syncData.isNotEmpty) {
-      await _db.collection('settings').doc('main').set(syncData, SetOptions(merge: true));
+      await _settings.doc('main').set(syncData, SetOptions(merge: true));
+      // Drop TimetableService's cached settings so screens reading the class
+      // list through getSettings() reflect this change in the same session.
+      TimetableService.invalidateSettingsCache();
     }
   }
 
@@ -139,8 +145,9 @@ class SchoolSettingsService {
 
     await batch.commit();
 
-    // Sync classList to legacy settings/main so all existing screens pick it up
-    await _db.collection('settings').doc('main').set({
+    // Sync classList to the shared school-scoped settings/main so all screens
+    // (coordinator class chips, principal, teacher mgmt, etc.) pick it up.
+    await _settings.doc('main').set({
       'classes': classList,
       'schoolName': d['schoolName'] ?? '',
       'periodsPerDay': d['periodsPerDay'] ?? 8,
@@ -148,6 +155,7 @@ class SchoolSettingsService {
       'lunchAfterPeriod': d['lunchAfterPeriod'] ?? 4,
       'periodDuration': d['periodDuration'] ?? 45,
     }, SetOptions(merge: true));
+    TimetableService.invalidateSettingsCache();
 
     // Create class documents
     for (final classId in classList) {

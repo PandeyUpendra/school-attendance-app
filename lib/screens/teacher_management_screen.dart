@@ -434,23 +434,38 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
             ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _teachers.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.people_outline,
-                          size: 72, color: Colors.grey[300]),
-                      const SizedBox(height: 16),
-                      Text('No teachers yet',
-                          style: TextStyle(
-                              fontSize: 16, color: Colors.grey[500])),
-                      const SizedBox(height: 6),
-                      const Text('Tap the button below to add one'),
-                    ],
-                  ),
-                )
-              : ListView.separated(
+          : RefreshIndicator(
+              onRefresh: _load,
+              color: AppTheme.primary,
+              child: _teachers.isEmpty
+                  // AlwaysScrollableScrollPhysics + a single LayoutBuilder-sized
+                  // box make the empty state participate in the pull gesture
+                  // (a non-scrollable Column would swallow it).
+                  ? LayoutBuilder(
+                      builder: (_, c) => SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minHeight: c.maxHeight),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.people_outline,
+                                    size: 72, color: Colors.grey[300]),
+                                const SizedBox(height: 16),
+                                Text('No teachers yet',
+                                    style: TextStyle(
+                                        fontSize: 16, color: Colors.grey[500])),
+                                const SizedBox(height: 6),
+                                const Text('Tap the button below to add one'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
                   itemCount: _teachers.length,
                   separatorBuilder: (_, __) =>
@@ -578,6 +593,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                     );
                   },
                 ),
+            ),
     );
   }
 }

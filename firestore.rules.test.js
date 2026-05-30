@@ -212,14 +212,17 @@ beforeEach(async () => {
       status: 'pending',
     });
 
-    // Notifications
+    // Notifications — guardian-targeted docs must include `targetStudentId`
+    // (matches allowed_users.studentIds[] format: classNameUnderscored_section_roll).
     await setDoc(doc(adb, schoolPath('notifications', 'notif-9a')), {
-      audience: 'guardian:Class 9-A:42',
+      audience:        'guardian:Class 9-A:42',
+      targetStudentId: STUDENT_ID_9A,   // 'Class_9-A_A_42'
       title: 'Absent today',
       body: 'Alice was absent.',
     });
     await setDoc(doc(adb, schoolPath('notifications', 'notif-10b')), {
-      audience: 'guardian:Class 10-B:15',
+      audience:        'guardian:Class 10-B:15',
+      targetStudentId: STUDENT_ID_10B,  // 'Class_10-B_B_15'
       title: 'Absent today',
       body: 'Bob was absent.',
     });

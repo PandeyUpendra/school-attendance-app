@@ -152,10 +152,19 @@ service cloud.firestore {
 
       // ③ Only strict admin; new document must belong to caller's school.
       // OR any owner globally.
+      // OR a principal creating a non-management staff account (coordinator
+      //    or teacher) in their own school — this powers the Manage
+      //    Coordinators / Manage Teachers screens. Principals may NOT create
+      //    other principals, admins, owners, or guardians via this branch.
       // OR unauthenticated create if the new document's role is 'owner' (for bootstrapping).
       allow create: if (isSignedIn() && (
         isRole('owner') ||
-        (isStrictAdmin() && 'schoolId' in request.resource.data && userSchoolId() == request.resource.data.schoolId)
+        (isStrictAdmin() && 'schoolId' in request.resource.data && userSchoolId() == request.resource.data.schoolId) ||
+        (isRole('principal')
+          && 'schoolId' in request.resource.data
+          && userSchoolId() == request.resource.data.schoolId
+          && 'role' in request.resource.data
+          && request.resource.data.role in ['coordinator', 'teacher', 'subjectTeacher'])
       )) || (
         'role' in request.resource.data && request.resource.data.role == 'owner'
       );
@@ -164,6 +173,17 @@ service cloud.firestore {
         isRole('owner') ||
         // Admin: full update power within own school.
         (isStrictAdmin() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId) ||
+
+        // Principal: may update non-management staff (coordinator/teacher) in
+        // their own school. No privilege escalation: target role before AND
+        // after must stay in the allowed staff set.
+        (isRole('principal')
+          && 'schoolId' in resource.data
+          && userSchoolId() == resource.data.schoolId
+          && 'role' in resource.data
+          && resource.data.role in ['coordinator', 'teacher', 'subjectTeacher']
+          && 'role' in request.resource.data
+          && request.resource.data.role in ['coordinator', 'teacher', 'subjectTeacher']) ||
 
         // ③ Non-admin self-update: role and schoolId MUST remain unchanged.
         (userEmail() == email
@@ -178,7 +198,13 @@ service cloud.firestore {
 
       allow delete: if (isSignedIn() && (
         isRole('owner') ||
-        (isStrictAdmin() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId)
+        (isStrictAdmin() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId) ||
+        // Principal: may delete non-management staff in their own school.
+        (isRole('principal')
+          && 'schoolId' in resource.data
+          && userSchoolId() == resource.data.schoolId
+          && 'role' in resource.data
+          && resource.data.role in ['coordinator', 'teacher', 'subjectTeacher'])
       )) || (
         'role' in resource.data && resource.data.role == 'owner'
       );
@@ -191,6 +217,37 @@ service cloud.firestore {
     match /schools/{sid} {
       allow read:  if isSignedIn() && inSchool(sid);
       allow write: if isSignedIn() && inSchool(sid) && isStrictAdmin();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // CLASSES  (/schools/{sid}/classes/{classId})
+    //
+    // Per-class container created by SchoolSettingsService during school
+    // onboarding (Complete Setup), and by the on-the-fly class creator.
+    // Document body is metadata only ({classId, createdAt}).
+    //
+    // Subcollections under this path (used by FirestoreService):
+    //   /attendance      – class-day attendance docs
+    //   /studentProfiles – per-roll profile blobs
+    //   /tests           – per-class tests
+    //
+    // Reads: any school member (teachers, guardians need basic class info).
+    // Writes: management for the class doc itself (onboarding, edits) AND
+    //         any staff member for the subcollections (teachers writing
+    //         attendance, profiles, tests for their classes).
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/classes/{classId} {
+      allow read:  if isSignedIn() && inSchool(sid);
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+
+      // Subcollections (attendance, studentProfiles, tests). Recursive {sub=**}
+      // covers any depth below /classes/{classId}/. Staff-only — guardians
+      // get their child-scoped views via the existing top-level rules
+      // (/schools/{sid}/attendance/{cls} etc.).
+      match /{sub=**} {
+        allow read, write: if isSignedIn() && inSchool(sid) && isAnyStaff();
+      }
     }
 
 
@@ -389,8 +446,9 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     // EXAMS  (/schools/{sid}/exams/{examId})
     //
-    // Readable by every school member (including guardians).
-    // Write: class teacher of the exam's className, or management.
+    // Exam definitions (schedule, maxMarks, className) — no student PII.
+    // Readable by every school member including guardians (they see the
+    // exam schedule for their child's class). Write: class teacher or mgmt.
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/exams/{examId} {
       allow read: if isSignedIn() && inSchool(sid);
@@ -412,10 +470,26 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     // EXAM RESULTS  (/schools/{sid}/exam_results/{resultId})
     //
-    // Same access pattern as exams.
+    // Per-student marks — PERSONAL DATA (roll, studentName, marks).
+    //
+    // Guardian read: REQUIRES a `studentId` field on each result document
+    // (composite format "{className with spaces→underscores}_{section}_{roll}",
+    // e.g. "Class_9-A_A_42") matching the allowed_users.studentIds[] format.
+    // Without this field the guardian read is denied — no benefit of the
+    // doubt for PII. See ExamResult schema proposal in CLAUDE.md.
+    //
+    // Staff (teachers + management) may read all results in their school.
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/exam_results/{resultId} {
-      allow read: if isSignedIn() && inSchool(sid);
+
+      allow read: if isSignedIn() && inSchool(sid) && (
+        isAnyStaff() ||
+        // Guardian: only their own child's result.
+        // Requires `studentId` field on the document (see note above).
+        (isRole('guardian')
+          && 'studentId' in resource.data
+          && resource.data.studentId in userStudentIds())
+      );
 
       allow create: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
@@ -434,10 +508,19 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     // COPY CHECKS  (/schools/{sid}/copy_checks/{checkId})
     //
-    // Same access pattern as exams.
+    // Parent doc: teacher/session metadata (className, subject, teacherId).
+    // No student PII — but guardians have no use-case for this data and
+    // the statuses subcollection contains per-student PII. Restrict all
+    // reads to staff only.
+    //
+    // Statuses subcollection (/statuses/{rollId}):
+    //   Per-student data (roll, studentName, guardianPhone, status).
+    //   Staff read/write only — no guardian access.
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/copy_checks/{checkId} {
-      allow read: if isSignedIn() && inSchool(sid);
+
+      // Staff-only read: copy-checking is a teacher/management workflow.
+      allow read: if isSignedIn() && inSchool(sid) && isAnyStaff();
 
       allow create: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
@@ -450,6 +533,12 @@ service cloud.firestore {
       );
 
       allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+
+      // Per-student statuses — staff only, no guardian access.
+      match /statuses/{rollId} {
+        allow read:  if isSignedIn() && inSchool(sid) && isAnyStaff();
+        allow write: if isSignedIn() && inSchool(sid) && isAnyStaff();
+      }
     }
 
 
@@ -491,12 +580,23 @@ service cloud.firestore {
     //   'coordinator'             → coordinator role
     //   'principal'               → principal role
     //   'teacher:{uid}'           → a specific teacher (UID match)
-    //   'guardian:{class}:{roll}' → class-level check; client query filters roll
+    //   'guardian:{class}:{roll}' → student-specific guardian notification
     //   'class_teacher:{class}'   → the class teacher of the named class
     //
-    // split(':')[1] is safe here because class names in this app do not
-    // contain colon characters. If that assumption changes, switch to
-    // audience.replace('class_teacher:', '') or store audience parts separately.
+    // Guardian-specific notifications ('guardian:{class}:{roll}'):
+    //   The rule enforces student-level access via a `targetStudentId` field
+    //   that MUST be written by NotificationService onto each guardian-targeted
+    //   document. Format: "{className spaces→underscores}_{section}_{roll}",
+    //   e.g. "Class_9-A_A_42" — identical to allowed_users.studentIds[] format.
+    //   Notifications that lack this field are DENIED to guardians (no fallback
+    //   to class-only check). This prevents a guardian reading another parent's
+    //   notification in the same class.
+    //
+    //   Required app-side change: NotificationService must set
+    //     targetStudentId: studentId  when audience = 'guardian:{class}:{roll}'
+    //
+    // split(':')[1] is safe because class names in this app do not contain
+    // colon characters.
     //
     // Write: any authenticated school member for now.
     // TODO: lock down to Cloud Function / Admin SDK service account.
@@ -516,13 +616,21 @@ service cloud.firestore {
         (resource.data.audience == 'principal'   && isRole('principal'))   ||
 
         // Direct teacher — 'teacher:{teacherId}'
-        resource.data.audience == ('teacher:' + userTeacherId()) ||
+        // Guard against null: userTeacherId() returns null for non-teacher roles;
+        // concatenating string + null throws an evaluation error in the emulator.
+        (userTeacherId() != null
+          && resource.data.audience == ('teacher:' + userTeacherId())) ||
 
         // Guardian — 'guardian:{class}:{roll}'
-        // Rules enforce class-level access; client must filter by exact roll.
+        // AUDIT FIX: roll-level enforcement via targetStudentId field.
+        // The `targetStudentId` field (e.g. "Class_9-A_A_42") must be present
+        // on the notification document and match the guardian's studentIds[].
+        // Without targetStudentId the document is denied — no fallback to
+        // class-only check to prevent intra-class leaks.
         (isRole('guardian')
           && resource.data.audience.matches('guardian:.*')
-          && resource.data.audience.split(':')[1] in userClassIds()) ||
+          && 'targetStudentId' in resource.data
+          && resource.data.targetStudentId in userStudentIds()) ||
 
         // Class teacher — 'class_teacher:{className}'
         (isAnyTeacher()

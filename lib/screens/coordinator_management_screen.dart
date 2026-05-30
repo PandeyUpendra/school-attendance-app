@@ -314,15 +314,16 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _emailCtrl;
-  late final TextEditingController _passCtrl;
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _desigCtrl;
 
   late Set<String> _selectedClasses;
   bool _saving = false;
-  bool _obscure = true;
 
   bool get _isEdit => widget.existing != null;
+
+  /// Classes/sections configured by the owner or principal in School Settings.
+  List<String> get _allClasses => widget.allClasses;
 
   @override
   void initState() {
@@ -330,7 +331,6 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
     final e = widget.existing;
     _nameCtrl  = TextEditingController(text: e?['name']        as String? ?? '');
     _emailCtrl = TextEditingController(text: e?['email']       as String? ?? '');
-    _passCtrl  = TextEditingController();
     _phoneCtrl = TextEditingController(text: e?['phone']       as String? ?? '');
     _desigCtrl = TextEditingController(text: e?['designation'] as String? ?? '');
     _selectedClasses = e?['assignedClasses'] != null
@@ -340,7 +340,7 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
 
   @override
   void dispose() {
-    _nameCtrl.dispose(); _emailCtrl.dispose(); _passCtrl.dispose();
+    _nameCtrl.dispose(); _emailCtrl.dispose();
     _phoneCtrl.dispose(); _desigCtrl.dispose();
     super.dispose();
   }
@@ -351,7 +351,6 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
 
     final email = _emailCtrl.text.trim().toLowerCase();
     final name  = _nameCtrl.text.trim();
-    final pass  = _passCtrl.text.trim();
     final phone = _phoneCtrl.text.trim();
     final desig = _desigCtrl.text.trim();
     final classes = _selectedClasses.toList();
@@ -362,7 +361,6 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
         await svc.updateAllowedUser(
           email,
           role: 'coordinator',
-          newPassword: pass.isNotEmpty ? pass : null,
           assignedClasses: classes,
         );
         // Update extra fields
@@ -376,8 +374,10 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
             .doc(email)
             .update(extraData);
       } else {
+        // Empty password → service generates a temp credential and emails the
+        // coordinator an invite link so they set their own password.
         await svc.addAllowedUser(
-          email, pass, 'coordinator',
+          email, '', 'coordinator',
           name: name,
           schoolId: 'school_1',
           assignedClasses: classes,
@@ -461,26 +461,6 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                           return null;
                         }),
                     const SizedBox(height: 14),
-                    TextFormField(
-                      controller: _passCtrl,
-                      obscureText: _obscure,
-                      decoration: InputDecoration(
-                        labelText: _isEdit ? 'New Password (leave blank to keep)' : 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                        ),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        filled: true,
-                        fillColor: Colors.grey.shade50,
-                      ),
-                      validator: (v) {
-                        if (!_isEdit && (v == null || v.trim().isEmpty)) return 'Password is required';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 14),
                     _Field(controller: _phoneCtrl, label: 'Phone Number (optional)', icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone),
                     const SizedBox(height: 14),
@@ -492,16 +472,16 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                     Text('Assigned Classes',
                         style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
                     const SizedBox(height: 4),
-                    Text('Select all classes this coordinator will manage',
+                    Text('Select the classes this coordinator will manage.',
                         style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                     const SizedBox(height: 10),
-                    if (widget.allClasses.isEmpty)
-                      Text('No classes configured in school settings',
+                    if (_allClasses.isEmpty)
+                      Text('No classes found. Add classes in School Settings first.',
                           style: TextStyle(color: Colors.orange.shade600, fontSize: 13))
                     else
                       Wrap(
                         spacing: 8, runSpacing: 8,
-                        children: widget.allClasses.map((cls) {
+                        children: _allClasses.map((cls) {
                           final selected = _selectedClasses.contains(cls);
                           return FilterChip(
                             label: Text(cls),
@@ -524,12 +504,12 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                       ),
                     const SizedBox(height: 8),
                     // Select all / none shortcuts
-                    if (widget.allClasses.isNotEmpty)
+                    if (_allClasses.isNotEmpty)
                       Row(children: [
                         TextButton.icon(
                           icon: const Icon(Icons.select_all, size: 16),
                           label: const Text('Select All'),
-                          onPressed: () => setState(() => _selectedClasses = Set.from(widget.allClasses)),
+                          onPressed: () => setState(() => _selectedClasses = Set.from(_allClasses)),
                           style: TextButton.styleFrom(foregroundColor: AppTheme.primary, padding: EdgeInsets.zero),
                         ),
                         const SizedBox(width: 12),
@@ -540,6 +520,31 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                           style: TextButton.styleFrom(foregroundColor: Colors.grey, padding: EdgeInsets.zero),
                         ),
                       ]),
+
+                    if (!_isEdit) ...[
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.mark_email_unread_outlined, size: 18, color: AppTheme.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'The coordinator will receive an email invite to set their own password — no password needed here.',
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     const SizedBox(height: 24),
                     SizedBox(
