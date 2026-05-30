@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
 
@@ -102,7 +102,7 @@ class AuditService extends BaseFirestoreService {
           after:    after,
           reason:   reason,
         )
-        .catchError((Object e) => debugPrint('[AuditService] emit failed: $e'));
+        .catchError((Object e) => AppLogger.e('AuditService', 'emit failed: $e', e));
   }
 
   // ── Awaitable core ─────────────────────────────────────────────────────────
@@ -144,7 +144,7 @@ class AuditService extends BaseFirestoreService {
         'timestamp': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      debugPrint('[AuditService] log failed: $e');
+      AppLogger.e('AuditService', 'log failed: $e', e);
     }
   }
 

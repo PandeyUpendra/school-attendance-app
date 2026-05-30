@@ -13,6 +13,7 @@ import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_queue_service.dart';
+import '../utils/app_logger.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/student_remark.dart';
 
@@ -239,12 +240,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final pending = await _offlineQueue.pendingCount();
 
     // Debug: verify section correctness before committing to state
-    debugPrint('Teacher: (id=$_teacherId)');
-    debugPrint('Class: $_className');
-    debugPrint('Section: $_section');
-    debugPrint('Students loaded: ${students.length}');
+    AppLogger.d('Attendance', 'Teacher: (id=$_teacherId)');
+    AppLogger.d('Attendance', 'Class: $_className');
+    AppLogger.d('Attendance', 'Section: $_section');
+    AppLogger.d('Attendance', 'Students loaded: ${students.length}');
     if (students.isNotEmpty) {
-      debugPrint('First student section: ${students.first.section}');
+      AppLogger.d('Attendance', 'First student section: ${students.first.section}');
     }
     assert(
       students.every((s) => s.section == _section),
@@ -321,7 +322,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading extra data: $e');
+      AppLogger.e('Attendance', 'Error loading extra data: $e', e);
     }
   }
 

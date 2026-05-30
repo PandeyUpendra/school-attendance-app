@@ -233,9 +233,6 @@ class AuthService {
     await prefs.remove(_keyStudentLinks);
   }
 
-  /// Stub: Google Sign-In is handled in GuardianLoginScreen.
-  Future<Map<String, dynamic>?> signInWithGoogle() async => null;
-
   /// Returns a human-readable message for a [FirebaseAuthException].
   static String friendlyAuthError(FirebaseAuthException e) {
     switch (e.code) {

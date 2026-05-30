@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/student.dart';
 import '../models/teacher.dart';
 import '../services/student_service.dart';
+import '../utils/app_logger.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  DailyCallsScreen — permanent calls tracking for class teacher
@@ -129,7 +130,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
     final students = results[0] as List<Student>;
     assert(students.length == {for (final s in students) s.roll: s}.length,
         'Duplicate rolls detected in class ${widget.className}');
-    debugPrint('[StudentList][${widget.className}] count=${students.length}');
+    AppLogger.d('StudentList', '[${widget.className}] count=${students.length}');
 
     if (!mounted) return;
     setState(() {
