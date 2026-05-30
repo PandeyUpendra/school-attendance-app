@@ -88,32 +88,21 @@ service cloud.firestore {
       return userSchoolId() == sid || isRole('owner');
     }
 
-    /// True when the caller (teacher or subjectTeacher) is authorized for [cls].
+    /// True when cls is listed in the caller's classIds array.
     ///
-    /// Primary source: allowed_users.classIds[] (stamped by addTeacher /
-    /// updateTeacher / provisionTeacherLoginAccess since commit 7810932).
-    ///
-    /// Fallback: the live teachers/{teacherId} document. This makes the rule
-    /// self-healing for teacher accounts created BEFORE the classIds stamp
-    /// landed — those docs still have an empty classIds[] but the teachers
-    /// collection has the source-of-truth (classTeacherOf for class teachers,
-    /// assignedClasses[] for subject teachers). Without this fallback an
-    /// older teacher cannot create/update students for their own class until
-    /// a principal/owner manually re-saves their teacher record.
-    ///
-    /// Cost: when classIds[] already contains cls the fallback short-circuits
-    /// (no extra read). When it doesn't, one extra get() is issued, memoised
-    /// across the three references below to a single document read.
+    /// IMPORTANT — keep this cheap (a single field test, no get()/exists()).
+    /// An earlier version added a cross-document fallback that read the
+    /// teachers/{teacherId} doc when classIds was empty. Because every identity
+    /// helper (userRole/userSchoolId/userTeacherId) re-invokes getUserData()
+    /// (= a get()), and Firestore caps each request at 1000 expression
+    /// evaluations (NOT cached like billed reads), that fallback's extra
+    /// getUserData()-derived calls blew past the 1000-expression ceiling for
+    /// teachers with empty classIds — which Firestore treats as an error and
+    /// DENIES. The correct fix is to keep classIds populated on allowed_users
+    /// (addTeacher / updateTeacher stamp it; existing docs were backfilled)
+    /// rather than reading the teachers doc from inside the rule.
     function isClassTeacher(cls) {
-      return cls in userClassIds()
-        || (
-          userTeacherId() != null
-          && exists(/databases/$(database)/documents/schools/$(userSchoolId())/teachers/$(userTeacherId()))
-          && (
-            get(/databases/$(database)/documents/schools/$(userSchoolId())/teachers/$(userTeacherId())).data.get('classTeacherOf', '') == cls
-            || cls in get(/databases/$(database)/documents/schools/$(userSchoolId())/teachers/$(userTeacherId())).data.get('assignedClasses', [])
-          )
-        );
+      return cls in userClassIds();
     }
 
     /// True when caller's role is one of the given list literal.
