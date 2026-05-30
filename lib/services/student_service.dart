@@ -164,10 +164,19 @@ class StudentService extends BaseFirestoreService {
     String?         schoolId,
   }) async {
     final svc = TimetableService();
+    // schoolId must be stamped on every allowed_users write — the security
+    // rules require it on each role-scoped branch. Caller may pass a school
+    // explicitly (e.g. when acting cross-school); fall back to the current
+    // session's school. Without this the guardian-create from Add Student
+    // got rejected as permission-denied and the form locked at "Saving…".
+    final effectiveSchoolId =
+        (schoolId != null && schoolId.isNotEmpty)
+            ? schoolId
+            : (BaseFirestoreService.currentSchoolId ?? 'school_1');
     await svc.addAllowedUser(
       email, 'TmpParent@2024!', 'guardian',
       name:         name,
-      schoolId:     schoolId,
+      schoolId:     effectiveSchoolId,
       studentClass: className,
       studentRoll:  roll,
     );

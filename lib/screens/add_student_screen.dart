@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/student.dart';
+import '../services/base_firestore_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
@@ -149,62 +150,76 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     );
 
     final service = StudentService();
-    if (_isEdit) {
-      final oldEmail = widget.existing?.guardianEmail?.trim().toLowerCase() ?? '';
-      final newEmail = student.guardianEmail?.trim().toLowerCase() ?? '';
-      await service.updateStudent(updated: student);
-      if (!mounted) return;
-      if (newEmail.isNotEmpty && newEmail != oldEmail) {
-        await TimetableService().addAllowedUser(
-          newEmail, 'TmpParent@2024!', 'guardian',
-          name: student.name,
-          studentClass: student.className,
-          studentRoll:  student.roll,
-        );
-        await TimetableService().linkGuardianEmail(
-          email: newEmail,
-          studentClass: student.className,
-          studentRoll:  student.roll,
-          studentName:  student.name,
-        );
-      }
-      if (mounted) Navigator.pop(context, student);
-    } else {
-      final error = await service.addStudent(student: student);
-      if (!mounted) return;
-      if (error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error), backgroundColor: Colors.red));
-        setState(() => _saving = false);
-        return;
-      }
+    try {
+      if (_isEdit) {
+        final oldEmail = widget.existing?.guardianEmail?.trim().toLowerCase() ?? '';
+        final newEmail = student.guardianEmail?.trim().toLowerCase() ?? '';
+        await service.updateStudent(updated: student);
+        if (!mounted) return;
+        if (newEmail.isNotEmpty && newEmail != oldEmail) {
+          await TimetableService().addAllowedUser(
+            newEmail, 'TmpParent@2024!', 'guardian',
+            name: student.name,
+            schoolId: BaseFirestoreService.currentSchoolId,
+            studentClass: student.className,
+            studentRoll:  student.roll,
+          );
+          await TimetableService().linkGuardianEmail(
+            email: newEmail,
+            studentClass: student.className,
+            studentRoll:  student.roll,
+            studentName:  student.name,
+          );
+        }
+        if (mounted) Navigator.pop(context, student);
+      } else {
+        final error = await service.addStudent(student: student);
+        if (!mounted) return;
+        if (error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(error), backgroundColor: Colors.red));
+          setState(() => _saving = false);
+          return;
+        }
 
-      // ── Parental consent flow ───────────────────────────────────────────
-      // Build the canonical student doc ID that StudentService uses.
-      final cls        = widget.className.replaceAll(' ', '_');
-      final sec        = widget.section.replaceAll(' ', '_');
-      final studentDocId = '${cls}_${sec}_${student.roll}';
+        // ── Parental consent flow ─────────────────────────────────────────
+        // Build the canonical student doc ID that StudentService uses.
+        final cls        = widget.className.replaceAll(' ', '_');
+        final sec        = widget.section.replaceAll(' ', '_');
+        final studentDocId = '${cls}_${sec}_${student.roll}';
 
-      if (!mounted) return;
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ParentalConsentFlow(
-            studentDocId:        studentDocId,
-            studentName:         student.name,
-            prefillGuardianName: student.fatherName.isNotEmpty
-                                     ? student.fatherName
-                                     : null,
-            prefillGuardianPhone: (student.parentPhone?.isNotEmpty == true)
-                                      ? student.parentPhone
-                                      : (student.phone.isNotEmpty
-                                            ? student.phone
-                                            : null),
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ParentalConsentFlow(
+              studentDocId:        studentDocId,
+              studentName:         student.name,
+              prefillGuardianName: student.fatherName.isNotEmpty
+                                       ? student.fatherName
+                                       : null,
+              prefillGuardianPhone: (student.parentPhone?.isNotEmpty == true)
+                                        ? student.parentPhone
+                                        : (student.phone.isNotEmpty
+                                              ? student.phone
+                                              : null),
+            ),
+            fullscreenDialog: true,
           ),
-          fullscreenDialog: true,
-        ),
-      );
-      if (mounted) Navigator.pop(context, student);
+        );
+        if (mounted) Navigator.pop(context, student);
+      }
+    } catch (e) {
+      // Any exception (permission-denied, network, etc.) used to leave the
+      // form stuck on "Saving..." with the AppBar spinner forever. Surface
+      // the cause and reset the button so the user can correct + retry.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not save student: $e'),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 6),
+      ));
+      setState(() => _saving = false);
     }
   }
 

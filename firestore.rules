@@ -166,12 +166,12 @@ service cloud.firestore {
           && 'schoolId' in request.resource.data
           && userSchoolId() == request.resource.data.schoolId
           && 'role' in request.resource.data
-          && request.resource.data.role in ['coordinator', 'teacher', 'subjectTeacher']) ||
+          && request.resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian']) ||
         (isRole('coordinator')
           && 'schoolId' in request.resource.data
           && userSchoolId() == request.resource.data.schoolId
           && 'role' in request.resource.data
-          && request.resource.data.role in ['teacher', 'subjectTeacher'])
+          && request.resource.data.role in ['teacher', 'subjectTeacher', 'guardian'])
       )) || (
         'role' in request.resource.data && request.resource.data.role == 'owner'
       );
@@ -188,9 +188,9 @@ service cloud.firestore {
           && 'schoolId' in resource.data
           && userSchoolId() == resource.data.schoolId
           && 'role' in resource.data
-          && resource.data.role in ['coordinator', 'teacher', 'subjectTeacher']
+          && resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian']
           && 'role' in request.resource.data
-          && request.resource.data.role in ['coordinator', 'teacher', 'subjectTeacher']) ||
+          && request.resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian']) ||
 
         // Coordinator: may update teacher / subjectTeacher in their own
         // school (edit, Send Login Invite). Cannot promote anyone.
@@ -198,9 +198,9 @@ service cloud.firestore {
           && 'schoolId' in resource.data
           && userSchoolId() == resource.data.schoolId
           && 'role' in resource.data
-          && resource.data.role in ['teacher', 'subjectTeacher']
+          && resource.data.role in ['teacher', 'subjectTeacher', 'guardian']
           && 'role' in request.resource.data
-          && request.resource.data.role in ['teacher', 'subjectTeacher']) ||
+          && request.resource.data.role in ['teacher', 'subjectTeacher', 'guardian']) ||
 
         // ③ Non-admin self-update: role and schoolId MUST remain unchanged.
         (userEmail() == email
@@ -221,7 +221,7 @@ service cloud.firestore {
           && 'schoolId' in resource.data
           && userSchoolId() == resource.data.schoolId
           && 'role' in resource.data
-          && resource.data.role in ['coordinator', 'teacher', 'subjectTeacher'])
+          && resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian'])
       )) || (
         'role' in resource.data && resource.data.role == 'owner'
       );
