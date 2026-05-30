@@ -102,7 +102,15 @@ service cloud.firestore {
     /// (addTeacher / updateTeacher stamp it; existing docs were backfilled)
     /// rather than reading the teachers doc from inside the rule.
     function isClassTeacher(cls) {
-      return cls in userClassIds();
+      return cls in userClassIds() ||
+             (cls.split('-')[0] in userClassIds()) ||
+             ("Class " + cls.split('-')[0] in userClassIds()) ||
+             (request.resource != null && 'data' in request.resource && 'section' in request.resource.data && (
+               (cls + "-" + request.resource.data.section) in userClassIds() ||
+               (cls + "_" + request.resource.data.section) in userClassIds() ||
+               (cls.split(' ')[1] + "-" + request.resource.data.section) in userClassIds() ||
+               (cls.split(' ')[1] + "_" + request.resource.data.section) in userClassIds()
+             ));
     }
 
     /// True when caller's role is one of the given list literal.

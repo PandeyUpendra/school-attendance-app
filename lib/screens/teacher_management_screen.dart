@@ -1368,6 +1368,7 @@ class _TeacherDialogState extends State<_TeacherDialog> {
   late final TextEditingController _subjectCtrl;  // used for "Other" custom input
   late final TextEditingController _emailCtrl;
   late final TextEditingController _phoneCtrl;
+  late final TextEditingController _sectionCtrl;  // Section input for class teacher
   final TextEditingController _newClassCtrl = TextEditingController();
   late bool _isClassTeacher;
   String? _classTeacherOf;
@@ -1387,6 +1388,7 @@ class _TeacherDialogState extends State<_TeacherDialog> {
     _nameCtrl       = TextEditingController(text: t?.name ?? '');
     _emailCtrl      = TextEditingController(text: t?.email ?? '');
     _phoneCtrl      = TextEditingController(text: t?.phone ?? '');
+    _sectionCtrl    = TextEditingController(text: t?.section ?? '');
     _isClassTeacher = t?.isClassTeacher ?? false;
     _classTeacherOf = t?.classTeacherOf;
     _dateOfBirth    = t?.dateOfBirth?.toDate();
@@ -1451,6 +1453,7 @@ class _TeacherDialogState extends State<_TeacherDialog> {
     _subjectCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
+    _sectionCtrl.dispose();
     _newClassCtrl.dispose();
     super.dispose();
   }
@@ -1583,9 +1586,9 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                   ),
                   child: Text(
                     _dateOfBirth != null
-                        ? '${_dateOfBirth!.day.toString().padLeft(2,'0')} / '
-                          '${_dateOfBirth!.month.toString().padLeft(2,'0')} / '
-                          '${_dateOfBirth!.year}'
+                        ? '${_dateOfBirth!.day.toString().padLeft(2, '0')} / '
+                            '${_dateOfBirth!.month.toString().padLeft(2, '0')} / '
+                            '${_dateOfBirth!.year}'
                         : 'Tap to select',
                     style: TextStyle(
                         fontSize: 15,
@@ -1614,7 +1617,10 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                   value: _isClassTeacher,
                   onChanged: (v) => setState(() {
                     _isClassTeacher = v;
-                    if (!v) _classTeacherOf = null;
+                    if (!v) {
+                      _classTeacherOf = null;
+                      _sectionCtrl.clear();
+                    }
                   }),
                   activeColor: AppTheme.primary,
                   title: Text(
@@ -1655,30 +1661,65 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                   )
                 else ...[
                   if (_classes.isNotEmpty && !_showAddClass)
-                    DropdownButtonFormField<String>(
-                      value: _classTeacherOf,
-                      decoration: InputDecoration(
-                        labelText: 'Class Teacher of',
-                        prefixIcon: const Icon(Icons.class_outlined),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 12),
-                      ),
-                      hint: const Text('Select class'),
-                      items: _classes
-                          .map((c) => DropdownMenuItem(
-                              value: c, child: Text(c)))
-                          .toList(),
-                      onChanged: (v) =>
-                          setState(() => _classTeacherOf = v),
-                      validator: (_) =>
-                          _isClassTeacher &&
-                                  _classTeacherOf == null &&
-                                  _classes.isNotEmpty &&
-                                  !_showAddClass
-                              ? 'Select a class'
-                              : null,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: DropdownButtonFormField<String>(
+                            value: _classTeacherOf,
+                            decoration: InputDecoration(
+                              labelText: 'Class Teacher of',
+                              prefixIcon: const Icon(Icons.class_outlined),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 12),
+                            ),
+                            hint: const Text('Select class'),
+                            items: _classes
+                                .map((c) => DropdownMenuItem(
+                                    value: c, child: Text(c)))
+                                .toList(),
+                            onChanged: (v) =>
+                                setState(() => _classTeacherOf = v),
+                            validator: (_) =>
+                                _isClassTeacher &&
+                                        _classTeacherOf == null &&
+                                        _classes.isNotEmpty &&
+                                        !_showAddClass
+                                    ? 'Select a class'
+                                    : null,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 1,
+                          child: TextFormField(
+                            controller: _sectionCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'Section',
+                              prefixIcon: const Icon(Icons.group_work_outlined),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 12),
+                              counterText: '',
+                            ),
+                            textCapitalization: TextCapitalization.characters,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]')),
+                            ],
+                            maxLength: 3,
+                            maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                            validator: (v) =>
+                                _isClassTeacher &&
+                                        (v == null || v.trim().isEmpty)
+                                    ? 'Required'
+                                    : null,
+                          ),
+                        ),
+                      ],
                     ),
 
                   if (_showAddClass || _classes.isEmpty) ...[
@@ -1755,7 +1796,7 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                     : (_selectedSubject ?? ''),
                 email:
                     _emailCtrl.text.trim().toLowerCase(),
-                section: '',
+                section: _isClassTeacher ? _sectionCtrl.text.trim().toUpperCase() : '',
                 isClassTeacher: _isClassTeacher,
                 classTeacherOf:
                     _isClassTeacher ? _classTeacherOf : null,
