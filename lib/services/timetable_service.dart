@@ -157,6 +157,47 @@ class TimetableService extends BaseFirestoreService {
     } catch (_) {}
   }
 
+  /// Self-heal a teacher's own `allowed_users.classIds` from their
+  /// authoritative `teachers/{id}` record.
+  ///
+  /// WHY: the firestore.rules `isClassTeacher(cls)` predicate reads
+  /// `allowed_users.classIds[]`. Teachers provisioned before classIds was
+  /// stamped — or whose class assignment changed without a re-stamp — end up
+  /// with empty/stale classIds and hit `permission-denied` when creating
+  /// students / attendance / homework for their OWN class. Calling this on
+  /// teacher login (HomeScreen) repairs the doc transparently.
+  ///
+  /// This is a SELF-update: the rules permit a user to update their own
+  /// allowed_users doc as long as `role` and `schoolId` are unchanged. We only
+  /// touch `classIds` (+ `teacherId`), so the write is allowed. Idempotent —
+  /// skips the write when the doc is already in sync.
+  Future<void> syncTeacherClassIds(Teacher teacher) async {
+    final normEmail = teacher.email.trim().toLowerCase();
+    if (normEmail.isEmpty || !normEmail.contains('@')) return;
+    final desired = _classIdsFor(teacher);
+    if (desired.isEmpty) return; // nothing to grant (e.g. unassigned teacher)
+    try {
+      final docRef = _allowedUsers.doc(normEmail);
+      final snap = await docRef.get();
+      if (!snap.exists) return;
+      final data = snap.data() as Map<String, dynamic>;
+      final current = (data['classIds'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const <String>[];
+      final inSync = current.length == desired.length &&
+          desired.every(current.contains) &&
+          data['teacherId'] == teacher.id;
+      if (inSync) return;
+      await docRef.update({
+        'classIds':  desired,
+        'teacherId': teacher.id,
+      });
+    } catch (_) {
+      // Non-fatal — if it fails, the original permission-denied still surfaces.
+    }
+  }
+
   Future<void> removeTeacher(String schoolId, String id) async {
     await _teachers.doc(id).delete();
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/auth_service.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
 
@@ -35,6 +36,8 @@ class _StudentDeletionRequestsScreenState
 
   Stream<List<Map<String, dynamic>>> _stream(String status) =>
       FirebaseFirestore.instance
+          .collection('schools')
+          .doc(AuthService.currentSchoolId)
           .collection('student_deletion_requests')
           .where('status', isEqualTo: status)
           .orderBy('requestedAt', descending: true)

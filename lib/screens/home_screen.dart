@@ -57,6 +57,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _initStreams();
+    // Self-heal allowed_users.classIds so the class-teacher firestore rules
+    // pass for this teacher's own class (fixes student/attendance/homework
+    // permission-denied for teachers provisioned before classIds stamping).
+    if (widget.teacher != null) {
+      TimetableService().syncTeacherClassIds(widget.teacher!);
+    }
   }
 
   @override
