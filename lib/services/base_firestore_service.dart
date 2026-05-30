@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../utils/app_logger.dart';
+
 /// Provides a shared school identifier and common Firestore helpers.
 class BaseFirestoreService {
   static String? currentSchoolId;
@@ -12,7 +14,6 @@ class BaseFirestoreService {
       db.collection('schools').doc(schoolId).collection(collectionName);
 
   void handleError(Object e, StackTrace stack) {
-    // ignore: avoid_print
-    print('Firestore error: $e\n$stack');
+    AppLogger.e('Firestore', 'error: $e', e, stack);
   }
 }

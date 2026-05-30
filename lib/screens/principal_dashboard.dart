@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
+import '../utils/app_logger.dart';
 import 'attendance_history_screen.dart';
 import 'class_picker_screen.dart';
 import 'free_bells_screen.dart';
@@ -86,8 +87,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
         }
         _knownStudentIds = ids;
       },
-      // ignore: avoid_print
-      onError: (e) => print('PrincipalDashboard student stream error: $e'),
+      onError: (e) => AppLogger.e('PrincipalDashboard', 'student stream error: $e', e),
     );
   }
 
@@ -114,8 +114,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             _latestNotifs = items;
             _recomputeUnread();
           },
-          // ignore: avoid_print
-          onError: (e) => print('PrincipalDashboard notif stream error: $e'),
+          onError: (e) => AppLogger.e('PrincipalDashboard', 'notif stream error: $e', e),
         );
 
     _leaveSub = TimetableService()
@@ -125,8 +124,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             if (!mounted) return;
             setState(() => _pendingLeaveCount = n);
           },
-          // ignore: avoid_print
-          onError: (e) => print('PrincipalDashboard leave stream error: $e'),
+          onError: (e) => AppLogger.e('PrincipalDashboard', 'leave stream error: $e', e),
         );
 
     _deletionSub = StudentService()
@@ -136,8 +134,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             if (!mounted) return;
             setState(() => _pendingDeletionCount = n);
           },
-          // ignore: avoid_print
-          onError: (e) => print('PrincipalDashboard deletion stream error: $e'),
+          onError: (e) => AppLogger.e('PrincipalDashboard', 'deletion stream error: $e', e),
         );
 
     final sid = BaseFirestoreService.currentSchoolId ?? 'default_school';
@@ -204,8 +201,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
         _loading         = false;
       });
     } catch (e) {
-      // ignore: avoid_print
-      print('PrincipalDashboard._loadAll failed: $e');
+      AppLogger.e('PrincipalDashboard', '_loadAll failed: $e', e);
       if (!mounted) return;
       setState(() {
         _summaries       = [];

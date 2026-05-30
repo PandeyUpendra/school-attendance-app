@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
+import '../utils/app_logger.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
 
@@ -124,8 +125,8 @@ class TimetableService extends BaseFirestoreService {
       final body    = jsonDecode(res.body) as Map<String, dynamic>;
       final errCode = (body['error'] as Map?)?['message'] as String? ?? '';
       if (errCode != 'EMAIL_EXISTS' && body['localId'] == null) {
-        // ignore: avoid_print
-        print('Firebase Auth creation warning for $normEmail: $errCode');
+        AppLogger.d('TimetableService',
+            'Firebase Auth creation warning for $normEmail: $errCode');
       }
     } catch (_) {
       // Network error — non-fatal; Firestore record is written.
@@ -480,8 +481,8 @@ class TimetableService extends BaseFirestoreService {
       if (body['localId'] == null && errCode != 'EMAIL_EXISTS') {
         // Log but don't rethrow — Firestore write succeeded; Auth failure is
         // non-fatal and the admin can resend the invite.
-        // ignore: avoid_print
-        print('Firebase Auth creation warning for $normEmail: $errCode');
+        AppLogger.d('TimetableService',
+            'Firebase Auth creation warning for $normEmail: $errCode');
       }
     } catch (_) {
       // Network error — non-fatal; Firestore record is written.
@@ -599,8 +600,8 @@ class TimetableService extends BaseFirestoreService {
       final body    = jsonDecode(res.body) as Map<String, dynamic>;
       final errCode = (body['error'] as Map?)?['message'] as String? ?? '';
       if (errCode != 'EMAIL_EXISTS' && body['localId'] == null) {
-        // ignore: avoid_print
-        print('Firebase Auth creation warning for $normEmail: $errCode');
+        AppLogger.d('TimetableService',
+            'Firebase Auth creation warning for $normEmail: $errCode');
       }
     } catch (_) {}
 
@@ -649,8 +650,8 @@ class TimetableService extends BaseFirestoreService {
       final body    = jsonDecode(res.body) as Map<String, dynamic>;
       final errCode = (body['error'] as Map?)?['message'] as String? ?? '';
       if (errCode != 'EMAIL_EXISTS' && body['localId'] == null) {
-        // ignore: avoid_print
-        print('Firebase Auth creation warning for guardian $normEmail: $errCode');
+        AppLogger.d('TimetableService',
+            'Firebase Auth creation warning for guardian $normEmail: $errCode');
       }
     } catch (_) {}
 

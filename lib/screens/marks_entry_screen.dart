@@ -5,6 +5,7 @@ import '../models/student.dart';
 import '../services/exam_service.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
+import '../utils/app_logger.dart';
 
 /// Teacher/Coordinator enters marks per student per subject for an exam.
 class MarksEntryScreen extends StatefulWidget {
@@ -46,7 +47,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
 
     assert(students.length == {for (final s in students) s.roll: s}.length,
         'Duplicate rolls detected in class ${exam.className}');
-    debugPrint('[StudentList][${exam.className}] count=${students.length}');
+    AppLogger.d('StudentList', '[${exam.className}] count=${students.length}');
 
     // Map results by roll
     final savedMap = <int, ExamResult>{};

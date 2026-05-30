@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../services/timetable_service.dart';
+import '../utils/app_logger.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -61,8 +62,7 @@ class _AdminScreenState extends State<AdminScreen> {
         _loading = false;
       });
     } catch (e) {
-      // ignore: avoid_print
-      print('AdminScreen._load failed: $e');
+      AppLogger.e('AdminScreen', '_load failed: $e', e);
       if (!mounted) return;
       setState(() {
         _users   = [];
@@ -106,8 +106,7 @@ class _AdminScreenState extends State<AdminScreen> {
         duration: const Duration(seconds: 3),
       ));
     } catch (e) {
-      // ignore: avoid_print
-      print('AdminScreen._add failed for $email: $e');
+      AppLogger.e('AdminScreen', '_add failed for $email: $e', e);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Could not add $email: $e'),

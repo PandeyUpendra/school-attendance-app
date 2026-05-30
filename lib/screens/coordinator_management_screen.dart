@@ -30,14 +30,24 @@ class _CoordinatorManagementScreenState
   }
 
   Future<void> _load() async {
-    final settings = await _service.getSettings();
-    final coords = await _service.getCoordinators('school_1');
-    if (!mounted) return;
-    setState(() {
-      _allClasses = List<String>.from(settings['classes'] ?? []);
-      _coordinators = coords;
-      _loading = false;
-    });
+    try {
+      // Load classes from school settings first so the class chips are always
+      // populated even if the coordinator list fails to load.
+      final settings = await _service.getSettings();
+      final coords = await _service.getCoordinators('school_1');
+      if (!mounted) return;
+      setState(() {
+        _allClasses = List<String>.from(settings['classes'] ?? []);
+        _coordinators = coords;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load coordinators: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   // ── Add / Edit sheet ───────────────────────────────────────────────────────

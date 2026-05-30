@@ -1,4 +1,4 @@
-package com.example.school_app
+package com.upendrapandey.schoolapp
 
 import android.os.Bundle
 import androidx.core.view.WindowCompat

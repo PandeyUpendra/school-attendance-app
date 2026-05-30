@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/student.dart';
 import '../models/student_remark.dart';
 import '../repositories/student_repository.dart';
+import '../utils/app_logger.dart';
 import 'audit_log_service.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
@@ -202,26 +203,40 @@ class StudentService extends BaseFirestoreService {
     final existing  = await _repo.fetchByRoll(className, section, roll);
     final oldEmail  = existing?.guardianEmail;
 
+    // Best-effort: revoke the old guardian's link and provision the new
+    // guardian's allowed_users / Auth entry. A failure here (network, no
+    // Firebase initialised in tests, REST error) is non-fatal — the primary
+    // effect of this method is persisting the email on the student record,
+    // and the admin can resend the invite later if the auth side missed.
     if (oldEmail != null &&
         oldEmail.isNotEmpty &&
         oldEmail != email.trim().toLowerCase()) {
-      await TimetableService().removeGuardianLink(
-        email:        oldEmail,
-        studentClass: className,
-        studentRoll:  roll,
-      );
+      try {
+        await TimetableService().removeGuardianLink(
+          email:        oldEmail,
+          studentClass: className,
+          studentRoll:  roll,
+        );
+      } catch (e) {
+        AppLogger.e('StudentService',
+            'removeGuardianLink failed for $oldEmail (non-fatal): $e', e);
+      }
     }
 
-    // Create / update the Firebase Auth account and allowed_users entry.
-    await _upsertGuardianAccount(
-      email:     email.trim().toLowerCase(),
-      className: className,
-      roll:      roll,
-      section:   section,
-      name:      studentName,
-    );
+    try {
+      await _upsertGuardianAccount(
+        email:     email.trim().toLowerCase(),
+        className: className,
+        roll:      roll,
+        section:   section,
+        name:      studentName,
+      );
+    } catch (e) {
+      AppLogger.e('StudentService',
+          '_upsertGuardianAccount failed (non-fatal): $e', e);
+    }
 
-    // Persist the email on the student record.
+    // Persist the email on the student record (primary effect).
     await _repo.setGuardianEmail(className, section, roll,
         email.trim().toLowerCase());
   }

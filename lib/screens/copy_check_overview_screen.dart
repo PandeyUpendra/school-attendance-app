@@ -5,6 +5,7 @@ import '../services/copy_check_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
+import '../utils/app_logger.dart';
 
 /// Coordinator screen — view copy-checking status across all classes.
 class CopyCheckOverviewScreen extends StatefulWidget {
@@ -251,7 +252,7 @@ class _CoordCheckDetailScreenState extends State<_CoordCheckDetailScreen>
 
     assert(students.length == {for (final s in students) s.roll: s}.length,
         'Duplicate rolls detected in class ${widget.check.className}');
-    debugPrint('[StudentList][${widget.check.className}] count=${students.length}');
+    AppLogger.d('StudentList', '[${widget.check.className}] count=${students.length}');
 
     // Build lookup from saved statuses; ignore any entry whose roll is not in students.
     final savedMap = {for (final s in saved) s.roll: s};
