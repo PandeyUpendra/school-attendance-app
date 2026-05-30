@@ -100,14 +100,20 @@ service cloud.firestore {
 
     // ── Convenience role groups ──────────────────────────────────────────
 
-    /// coordinator | principal | admin | owner
+    // `ownerPrincipal` is the combined owner+principal role created when the
+    // owner of a single-school deployment also acts as principal (see
+    // main.dart router, login_screen.dart, OwnerPrincipalHome). It MUST
+    // appear in every group below or that user is denied across the board
+    // after onboarding completes.
+
+    /// coordinator | principal | admin | owner | ownerPrincipal
     function isManagement() {
-      return hasAnyRole(['coordinator', 'principal', 'admin', 'owner']);
+      return hasAnyRole(['coordinator', 'principal', 'admin', 'owner', 'ownerPrincipal']);
     }
 
-    /// admin | owner  (user-lifecycle / privileged operations)
+    /// admin | owner | ownerPrincipal  (user-lifecycle / privileged operations)
     function isStrictAdmin() {
-      return hasAnyRole(['admin', 'owner']);
+      return hasAnyRole(['admin', 'owner', 'ownerPrincipal']);
     }
 
     /// teacher | subjectTeacher
@@ -118,7 +124,8 @@ service cloud.firestore {
     /// Any staff member (teachers + management).
     function isAnyStaff() {
       return hasAnyRole(['teacher', 'subjectTeacher',
-                         'coordinator', 'principal', 'admin', 'owner']);
+                         'coordinator', 'principal',
+                         'admin', 'owner', 'ownerPrincipal']);
     }
 
 
@@ -387,7 +394,7 @@ service cloud.firestore {
 
         // Principal / admin / owner: approve or reject. May only touch
         // status + reviewer-stamp fields.
-        (hasAnyRole(['principal', 'admin', 'owner'])
+        (hasAnyRole(['principal', 'admin', 'owner', 'ownerPrincipal'])
           && resource.data.status == 'pending'
           && request.resource.data.status in ['approved', 'rejected']
           && request.resource.data.diff(resource.data).affectedKeys()
