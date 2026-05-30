@@ -88,9 +88,32 @@ service cloud.firestore {
       return userSchoolId() == sid || isRole('owner');
     }
 
-    /// True when cls is listed in the caller's classIds array.
+    /// True when the caller (teacher or subjectTeacher) is authorized for [cls].
+    ///
+    /// Primary source: allowed_users.classIds[] (stamped by addTeacher /
+    /// updateTeacher / provisionTeacherLoginAccess since commit 7810932).
+    ///
+    /// Fallback: the live teachers/{teacherId} document. This makes the rule
+    /// self-healing for teacher accounts created BEFORE the classIds stamp
+    /// landed — those docs still have an empty classIds[] but the teachers
+    /// collection has the source-of-truth (classTeacherOf for class teachers,
+    /// assignedClasses[] for subject teachers). Without this fallback an
+    /// older teacher cannot create/update students for their own class until
+    /// a principal/owner manually re-saves their teacher record.
+    ///
+    /// Cost: when classIds[] already contains cls the fallback short-circuits
+    /// (no extra read). When it doesn't, one extra get() is issued, memoised
+    /// across the three references below to a single document read.
     function isClassTeacher(cls) {
-      return cls in userClassIds();
+      return cls in userClassIds()
+        || (
+          userTeacherId() != null
+          && exists(/databases/$(database)/documents/schools/$(userSchoolId())/teachers/$(userTeacherId()))
+          && (
+            get(/databases/$(database)/documents/schools/$(userSchoolId())/teachers/$(userTeacherId())).data.get('classTeacherOf', '') == cls
+            || cls in get(/databases/$(database)/documents/schools/$(userSchoolId())/teachers/$(userTeacherId())).data.get('assignedClasses', [])
+          )
+        );
     }
 
     /// True when caller's role is one of the given list literal.
