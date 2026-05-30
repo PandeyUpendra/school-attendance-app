@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/student.dart';
+import '../services/auth_service.dart';
 import '../services/base_firestore_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
@@ -149,14 +150,28 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       dateOfBirth: _dateOfBirth != null ? Timestamp.fromDate(_dateOfBirth!) : null,
     );
 
+    // Diagnostic context: capture the caller's role + schoolId so a
+    // permission-denied surfaces enough info to fix the actual rule path.
+    // This block is cheap (SharedPreferences) and runs before any write.
+    final session = await AuthService().getSession();
+    final role    = (session?['role']     as String?) ?? '(no role)';
+    final sid     = BaseFirestoreService.currentSchoolId ?? '(null)';
+    // ignore: avoid_print
+    print('[AddStudent] starting save · role=$role · schoolId=$sid · '
+          'class=${widget.className} · section=${widget.section} · '
+          'roll=${student.roll} · guardian=${student.guardianEmail ?? "—"}');
+
+    String? failedStep;
     final service = StudentService();
     try {
       if (_isEdit) {
         final oldEmail = widget.existing?.guardianEmail?.trim().toLowerCase() ?? '';
         final newEmail = student.guardianEmail?.trim().toLowerCase() ?? '';
+        failedStep = 'update student record';
         await service.updateStudent(updated: student);
         if (!mounted) return;
         if (newEmail.isNotEmpty && newEmail != oldEmail) {
+          failedStep = 'create guardian login account';
           await TimetableService().addAllowedUser(
             newEmail, 'TmpParent@2024!', 'guardian',
             name: student.name,
@@ -164,6 +179,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
             studentClass: student.className,
             studentRoll:  student.roll,
           );
+          failedStep = 'link guardian to student';
           await TimetableService().linkGuardianEmail(
             email: newEmail,
             studentClass: student.className,
@@ -173,6 +189,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         }
         if (mounted) Navigator.pop(context, student);
       } else {
+        failedStep = 'create student record';
         final error = await service.addStudent(student: student);
         if (!mounted) return;
         if (error != null) {
@@ -189,6 +206,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         final studentDocId = '${cls}_${sec}_${student.roll}';
 
         if (!mounted) return;
+        failedStep = 'open parental consent';
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -210,14 +228,19 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         if (mounted) Navigator.pop(context, student);
       }
     } catch (e) {
-      // Any exception (permission-denied, network, etc.) used to leave the
-      // form stuck on "Saving..." with the AppBar spinner forever. Surface
-      // the cause and reset the button so the user can correct + retry.
+      // Surface BOTH which step failed and the caller context so the next
+      // diagnosis is one shot. `failedStep` tells us the exact write whose
+      // rule branch is the culprit.
+      // ignore: avoid_print
+      print('[AddStudent] FAILED at step "${failedStep ?? "unknown"}" · '
+            'role=$role · schoolId=$sid · error=$e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not save student: $e'),
+        content: Text(
+          'Failed at "${failedStep ?? "save"}" (role=$role): $e',
+        ),
         backgroundColor: Colors.red,
-        duration: const Duration(seconds: 6),
+        duration: const Duration(seconds: 10),
       ));
       setState(() => _saving = false);
     }
