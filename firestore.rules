@@ -339,6 +339,58 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
+    // TEACHER DELETION REQUESTS
+    // (/schools/{sid}/teacher_deletion_requests/{requestId})
+    //
+    // Workflow: a coordinator cannot directly remove a teacher; they file
+    // a request here that a principal or owner must approve before the
+    // actual delete runs. Mirrors the student_deletion_requests pattern.
+    //
+    // Read:    any management member (coordinator sees their own + the
+    //          list; principal/owner sees everything in their school).
+    // Create:  coordinator in their own school. status MUST be 'pending'
+    //          and requestedBy MUST equal the caller's email — no
+    //          impersonation, no self-approving.
+    // Update:  principal/admin/owner — to approve or reject (status +
+    //          reviewer fields only) OR the original requesting
+    //          coordinator — to cancel their own pending request
+    //          (status only, set to 'cancelled').
+    // Delete:  admin/owner only (archival/cleanup).
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/teacher_deletion_requests/{requestId} {
+
+      allow read: if isSignedIn() && inSchool(sid) && isManagement();
+
+      allow create: if isSignedIn() && inSchool(sid)
+        && isRole('coordinator')
+        && request.resource.data.status == 'pending'
+        && request.resource.data.requestedBy == userEmail();
+
+      allow update: if isSignedIn() && inSchool(sid) && (
+
+        // Principal / admin / owner: approve or reject. May only touch
+        // status + reviewer-stamp fields.
+        (hasAnyRole(['principal', 'admin', 'owner'])
+          && resource.data.status == 'pending'
+          && request.resource.data.status in ['approved', 'rejected']
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'reviewedBy', 'reviewedByRole',
+                         'reviewedByName', 'reviewedAt', 'rejectionNote'])) ||
+
+        // Original requester: cancel their own pending request.
+        (isRole('coordinator')
+          && resource.data.requestedBy == userEmail()
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'cancelled'
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'cancelledAt']))
+      );
+
+      allow delete: if isSignedIn() && inSchool(sid) && isStrictAdmin();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
     // ATTENDANCE  (/schools/{sid}/attendance/{cls})
     //
     // Document ID = class name string, e.g. "Class 9-A".

@@ -13,6 +13,9 @@ import 'class_picker_screen.dart';
 import 'free_bells_screen.dart';
 import 'leave_requests_screen.dart';
 import 'student_deletion_requests_screen.dart';
+import 'teacher_deletion_requests_screen.dart';
+import '../services/teacher_deletion_service.dart';
+import '../services/base_firestore_service.dart';
 import 'my_timetable_screen.dart';
 import 'student_details_screen.dart';
 import 'role_selection_screen.dart';
@@ -48,6 +51,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   List<ClassSummary>         _summaries      = [];
   int  _pendingLeaveCount       = 0;
   int  _pendingDeletionCount    = 0;
+  int  _pendingTeacherDelCount  = 0;
   int  _teachersAbsent          = 0;
   int  _unassignedBells         = 0;
   int  _unreadNotifCount        = 0;
@@ -58,6 +62,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   StreamSubscription? _notifSub;
   StreamSubscription? _leaveSub;
   StreamSubscription? _deletionSub;
+  StreamSubscription? _teacherDelSub;
   int _lastSeenMs = 0;
   List<Map<String, dynamic>> _latestNotifs = [];
 
@@ -91,6 +96,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     _notifSub?.cancel();
     _leaveSub?.cancel();
     _deletionSub?.cancel();
+    _teacherDelSub?.cancel();
     _studentSub?.cancel();
     super.dispose();
   }
@@ -132,6 +138,19 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
           },
           // ignore: avoid_print
           onError: (e) => print('PrincipalDashboard deletion stream error: $e'),
+        );
+
+    final sid = BaseFirestoreService.currentSchoolId ?? 'default_school';
+    _teacherDelSub = TeacherDeletionService()
+        .streamPendingCount(sid)
+        .listen(
+          (n) {
+            if (!mounted) return;
+            setState(() => _pendingTeacherDelCount = n);
+          },
+          onError: (e) =>
+              // ignore: avoid_print
+              print('PrincipalDashboard teacher-deletion stream error: $e'),
         );
   }
 
@@ -379,6 +398,18 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 subtitle: 'Review & approve teacher requests to remove student records',
                 badge: _pendingDeletionCount > 0 ? '$_pendingDeletionCount' : null,
                 onTap: () => _navigate(const StudentDeletionRequestsScreen()),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.no_accounts_outlined,
+                color: AppTheme.danger,
+                title: 'Teacher Deletion Requests',
+                subtitle: 'Review & approve coordinator requests to remove teachers',
+                badge: _pendingTeacherDelCount > 0
+                    ? '$_pendingTeacherDelCount'
+                    : null,
+                onTap: () =>
+                    _navigate(const TeacherDeletionRequestsScreen()),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(

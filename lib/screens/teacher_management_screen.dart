@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:csv/csv.dart';
@@ -7,6 +8,7 @@ import 'package:flutter/services.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../services/timetable_service.dart';
+import '../services/teacher_deletion_service.dart';
 import '../services/base_firestore_service.dart';
 import '../theme.dart';
 
@@ -58,12 +60,30 @@ class TeacherManagementScreen extends StatefulWidget {
 }
 
 class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
-  final _service = TimetableService();
+  final _service          = TimetableService();
+  final _deletionService  = TeacherDeletionService();
   List<Teacher> _teachers = [];
   bool _loading = true;
 
+  // Current session — drives the coordinator-needs-approval vs principal/
+  // owner-can-delete-direct UX branch. Loaded async on init; until it lands
+  // we hide destructive actions to avoid acting under the wrong role.
+  String _role  = '';
+  String _email = '';
+  String _name  = '';
+
+  // teacherId → requestId for currently-pending deletion requests. Drives
+  // the orange "Deletion requested" badge on each card, and powers the
+  // "Cancel request" affordance for the coordinator who filed it.
+  Map<String, String> _pendingByTeacherId = const {};
+  StreamSubscription<Map<String, String>>? _pendingSub;
+
   Set<String> _selectedIds = {};
   bool        _selectMode  = false;
+
+  bool get _isCoordinator => _role == 'coordinator';
+  String get _schoolId =>
+      BaseFirestoreService.currentSchoolId ?? 'default_school';
 
   static const _colors = [
     AppTheme.primary, AppTheme.primaryDark, AppTheme.primaryMid, AppTheme.accent,
@@ -74,7 +94,36 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _bootstrap();
+  }
+
+  @override
+  void dispose() {
+    _pendingSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _bootstrap() async {
+    final session = await TeacherDeletionService.sessionUser();
+    if (!mounted) return;
+    setState(() {
+      _role  = session['role']  ?? '';
+      _email = session['email'] ?? '';
+      _name  = session['name']  ?? '';
+    });
+    // Subscribe to pending requests so badges update live as principal/owner
+    // approves or rejects.
+    _pendingSub = _deletionService
+        .streamPendingByTeacherId(_schoolId)
+        .listen((m) {
+      if (!mounted) return;
+      setState(() => _pendingByTeacherId = m);
+    }, onError: (e) {
+      // Non-fatal — badge just won't update. Surface in console for debugging.
+      // ignore: avoid_print
+      print('TeacherManagementScreen pending stream error: $e');
+    });
+    await _load();
   }
 
   Future<void> _load() async {
@@ -108,6 +157,15 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   }
 
   Future<void> _deleteSelected() async {
+    // Coordinator flow: each selected teacher becomes a pending deletion
+    // request. We collect a single shared reason in one dialog, then file
+    // N requests so the approval queue stays itemised (the principal can
+    // approve/reject each on its own merits).
+    if (_isCoordinator) {
+      await _requestDeletionForSelected();
+      return;
+    }
+
     final count = _selectedIds.length;
     final ok = await showDialog<bool>(
       context: context,
@@ -130,7 +188,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     );
     if (ok != true || !mounted) return;
     for (final id in _selectedIds) {
-      await _service.removeTeacher(BaseFirestoreService.currentSchoolId ?? 'default_school', id);
+      await _service.removeTeacher(_schoolId, id);
     }
     if (!mounted) return;
     setState(() { _selectMode = false; _selectedIds = {}; });
@@ -141,6 +199,98 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
           content: Text(
               '$count teacher${count == 1 ? '' : 's'} removed')),
     );
+  }
+
+  /// Coordinator multi-select → file one deletion request per selected
+  /// teacher (skipping any that already have a pending request).
+  Future<void> _requestDeletionForSelected() async {
+    final selected = _teachers
+        .where((t) => _selectedIds.contains(t.id))
+        .where((t) => !_pendingByTeacherId.containsKey(t.id))
+        .toList();
+    if (selected.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('All selected teachers already have pending requests.'),
+      ));
+      return;
+    }
+    final reason = await _promptReason(
+      title: 'Request Deletion (${selected.length})',
+      message:
+          'These ${selected.length} teacher accounts will be queued for the '
+          'principal or owner to review. Add an optional reason:',
+    );
+    if (reason == null || !mounted) return;
+    var ok = 0;
+    var fail = 0;
+    for (final t in selected) {
+      try {
+        await _deletionService.requestDeletion(
+          schoolId:        _schoolId,
+          teacher:         t,
+          requestedBy:     _email,
+          requestedByName: _name,
+          reason:          reason,
+        );
+        ok++;
+      } catch (_) {
+        fail++;
+      }
+    }
+    if (!mounted) return;
+    setState(() { _selectMode = false; _selectedIds = {}; });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(fail == 0
+          ? '$ok deletion request${ok == 1 ? '' : 's'} sent for approval.'
+          : '$ok sent · $fail failed.'),
+      backgroundColor: fail == 0 ? AppTheme.success : AppTheme.warning,
+    ));
+  }
+
+  /// Shared bottom prompt for "Reason for deletion". Returns the entered
+  /// text (possibly empty), or null if the user cancelled.
+  Future<String?> _promptReason({
+    required String title,
+    required String message,
+  }) async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(title),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(message,
+              style: const TextStyle(fontSize: 13, color: Colors.black54)),
+          const SizedBox(height: 10),
+          TextField(
+            controller: ctrl,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: 'e.g. left the school, duplicate account…',
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              contentPadding: const EdgeInsets.all(10),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Send for Approval'),
+          ),
+        ],
+      ),
+    );
+    final text = ctrl.text.trim();
+    ctrl.dispose();
+    return ok == true ? text : null;
   }
 
   // ── Open the Add/Edit dialog ─────────────────────────────────────────────
@@ -246,6 +396,50 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   // ── Confirm + remove ─────────────────────────────────────────────────────
 
   Future<void> _confirmRemove(Teacher teacher) async {
+    // Coordinator: file a deletion request instead of removing directly.
+    // If they already have a pending request for this teacher, the badge
+    // path handles cancel; this method is reached only when no pending
+    // request exists yet.
+    if (_isCoordinator) {
+      if (_pendingByTeacherId.containsKey(teacher.id)) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'A deletion request for ${teacher.name} is already pending.'),
+        ));
+        return;
+      }
+      final reason = await _promptReason(
+        title: 'Request Deletion',
+        message:
+            '${teacher.name} will be queued for the principal or owner to '
+            'review. Add an optional reason:',
+      );
+      if (reason == null || !mounted) return;
+      try {
+        await _deletionService.requestDeletion(
+          schoolId:        _schoolId,
+          teacher:         teacher,
+          requestedBy:     _email,
+          requestedByName: _name,
+          reason:          reason,
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Deletion request sent for ${teacher.name}. The principal will review it.'),
+          backgroundColor: AppTheme.success,
+        ));
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not send request: $e'),
+          backgroundColor: Colors.red,
+        ));
+      }
+      return;
+    }
+
+    // Principal / admin / owner: direct delete as before.
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -265,8 +459,52 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
       ),
     );
     if (ok == true) {
-      await _service.removeTeacher(BaseFirestoreService.currentSchoolId ?? 'default_school', teacher.id);
+      await _service.removeTeacher(_schoolId, teacher.id);
       _load();
+    }
+  }
+
+  /// Coordinator-only: cancel the caller's own pending request for [teacher].
+  /// Triggered from the pending badge on the teacher card.
+  Future<void> _cancelMyRequest(Teacher teacher) async {
+    final requestId = _pendingByTeacherId[teacher.id];
+    if (requestId == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Cancel Deletion Request'),
+        content: Text(
+            'Withdraw your deletion request for ${teacher.name}? '
+            'The principal will no longer see it in their queue.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Keep Request')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.warning,
+                foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Withdraw'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await _deletionService.cancelMyRequest(
+          schoolId: _schoolId, requestId: requestId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Request for ${teacher.name} withdrawn.'),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not cancel: $e'),
+        backgroundColor: Colors.red,
+      ));
     }
   }
 
@@ -561,6 +799,55 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                                               fontSize: 10,
                                               fontWeight: FontWeight.w600,
                                               color: AppTheme.primary)),
+                                    ),
+                                  // Deletion-requested pill — visible to all
+                                  // management so principal/owner know which
+                                  // cards already have a request in flight.
+                                  // For the requesting coordinator it doubles
+                                  // as a tap target to withdraw the request.
+                                  if (_pendingByTeacherId.containsKey(t.id))
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 4),
+                                      child: InkWell(
+                                        borderRadius:
+                                            BorderRadius.circular(20),
+                                        onTap: _isCoordinator
+                                            ? () => _cancelMyRequest(t)
+                                            : null,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 7, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.warning
+                                                .withValues(alpha: 0.10),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                                color: AppTheme.warning
+                                                    .withValues(alpha: 0.4)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(
+                                                  Icons.hourglass_top_outlined,
+                                                  size: 11,
+                                                  color: AppTheme.warning),
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                _isCoordinator
+                                                    ? 'Pending · tap to cancel'
+                                                    : 'Deletion requested',
+                                                style: const TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight:
+                                                        FontWeight.w600,
+                                                    color: AppTheme.warning),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                 ]),
                                 const SizedBox(height: 2),
