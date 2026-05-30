@@ -152,10 +152,12 @@ service cloud.firestore {
 
       // ③ Only strict admin; new document must belong to caller's school.
       // OR any owner globally.
-      // OR a principal creating a non-management staff account (coordinator
-      //    or teacher) in their own school — this powers the Manage
-      //    Coordinators / Manage Teachers screens. Principals may NOT create
-      //    other principals, admins, owners, or guardians via this branch.
+      // OR a principal creating a non-management staff account (coordinator,
+      //    teacher, or subjectTeacher) in their own school.
+      // OR a coordinator creating a teacher / subjectTeacher account in
+      //    their own school (Manage Teachers add-flow + Send Login Invite).
+      //    Coordinators may NOT create coordinators (no peer creation),
+      //    principals, admins, owners, or guardians.
       // OR unauthenticated create if the new document's role is 'owner' (for bootstrapping).
       allow create: if (isSignedIn() && (
         isRole('owner') ||
@@ -164,7 +166,12 @@ service cloud.firestore {
           && 'schoolId' in request.resource.data
           && userSchoolId() == request.resource.data.schoolId
           && 'role' in request.resource.data
-          && request.resource.data.role in ['coordinator', 'teacher', 'subjectTeacher'])
+          && request.resource.data.role in ['coordinator', 'teacher', 'subjectTeacher']) ||
+        (isRole('coordinator')
+          && 'schoolId' in request.resource.data
+          && userSchoolId() == request.resource.data.schoolId
+          && 'role' in request.resource.data
+          && request.resource.data.role in ['teacher', 'subjectTeacher'])
       )) || (
         'role' in request.resource.data && request.resource.data.role == 'owner'
       );
@@ -174,9 +181,9 @@ service cloud.firestore {
         // Admin: full update power within own school.
         (isStrictAdmin() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId) ||
 
-        // Principal: may update non-management staff (coordinator/teacher) in
-        // their own school. No privilege escalation: target role before AND
-        // after must stay in the allowed staff set.
+        // Principal: may update non-management staff in their own school.
+        // No privilege escalation: target role before AND after must stay
+        // in the allowed staff set.
         (isRole('principal')
           && 'schoolId' in resource.data
           && userSchoolId() == resource.data.schoolId
@@ -184,6 +191,16 @@ service cloud.firestore {
           && resource.data.role in ['coordinator', 'teacher', 'subjectTeacher']
           && 'role' in request.resource.data
           && request.resource.data.role in ['coordinator', 'teacher', 'subjectTeacher']) ||
+
+        // Coordinator: may update teacher / subjectTeacher in their own
+        // school (edit, Send Login Invite). Cannot promote anyone.
+        (isRole('coordinator')
+          && 'schoolId' in resource.data
+          && userSchoolId() == resource.data.schoolId
+          && 'role' in resource.data
+          && resource.data.role in ['teacher', 'subjectTeacher']
+          && 'role' in request.resource.data
+          && request.resource.data.role in ['teacher', 'subjectTeacher']) ||
 
         // ③ Non-admin self-update: role and schoolId MUST remain unchanged.
         (userEmail() == email
