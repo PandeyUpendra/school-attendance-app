@@ -6,6 +6,7 @@ import '../services/base_firestore_service.dart';
 import 'free_bells_screen.dart';
 import 'substitution_plan_screen.dart';
 import '../theme.dart';
+import '../widgets/refreshable_data.dart';
 
 class LeaveRequestsScreen extends StatefulWidget {
   /// 'principal' | 'coordinator'
@@ -191,7 +192,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : TabBarView(
               controller: _tabCtrl,
               children: [

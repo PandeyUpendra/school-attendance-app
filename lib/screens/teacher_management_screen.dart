@@ -11,6 +11,7 @@ import '../services/timetable_service.dart';
 import '../services/teacher_deletion_service.dart';
 import '../services/base_firestore_service.dart';
 import '../theme.dart';
+import '../widgets/refreshable_data.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Predefined subject list for teacher dialog
@@ -671,7 +672,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
               foregroundColor: Colors.white,
             ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : RefreshIndicator(
               onRefresh: _load,
               color: AppTheme.primary,
@@ -1051,7 +1052,7 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : ListView(
               padding: const EdgeInsets.fromLTRB(0, 0, 0, 32),
               children: [

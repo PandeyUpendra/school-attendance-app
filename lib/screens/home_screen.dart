@@ -133,6 +133,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _recomputeUnread();
   }
 
+  /// Pull-to-refresh handler for the dashboard. Re-reads the notification
+  /// count (and lets any descendant streams re-settle).
+  Future<void> _refreshAll() async {
+    await _loadNotifCount();
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -339,7 +346,11 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _buildHero(),
           Expanded(
-            child: ListView(
+            child: RefreshIndicator(
+              onRefresh: _refreshAll,
+              color: AppTheme.primary,
+              child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: EdgeInsets.zero,
               children: [
           const SizedBox(height: 4),
@@ -650,6 +661,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 32),
               ],
             ),
+            ),
           ),
         ],
       );
@@ -660,7 +672,11 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         _buildHero(),
         Expanded(
-          child: ListView(
+          child: RefreshIndicator(
+            onRefresh: _refreshAll,
+            color: AppTheme.primary,
+            child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.zero,
             children: [
         const SizedBox(height: 4),
@@ -911,6 +927,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         const SizedBox(height: 32),
             ],
+          ),
           ),
         ),
       ],

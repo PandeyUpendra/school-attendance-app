@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../services/principal_digest_service.dart';
+import '../widgets/refreshable_data.dart';
 
 /// One-screen end-of-day summary for the principal.
 /// Markers viewed-today via SharedPreferences so the dashboard auto-prompt
@@ -108,7 +109,7 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : _error != null
               ? _ErrorView(message: _error!, onRetry: _load)
               : _snap == null

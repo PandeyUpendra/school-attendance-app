@@ -6,6 +6,7 @@ import '../services/homework_service.dart';
 import '../services/copy_check_service.dart'; // for getClassesForTeacher
 import '../services/base_firestore_service.dart';
 import '../theme.dart';
+import '../widgets/refreshable_data.dart';
 
 class HomeworkScreen extends StatefulWidget {
   final Teacher teacher;
@@ -197,7 +198,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
           const Divider(height: 1),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const LoadingState()
                 : _filteredList.isEmpty
                     ? Center(
                         child: Column(

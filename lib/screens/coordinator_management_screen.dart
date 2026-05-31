@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
+import '../widgets/refreshable_data.dart';
 
 /// Principal-only screen to create, edit, and delete coordinator accounts.
 class CoordinatorManagementScreen extends StatefulWidget {
@@ -131,7 +132,7 @@ class _CoordinatorManagementScreenState
         onPressed: () => _openForm(),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : _coordinators.isEmpty
               ? _emptyState()
               : RefreshIndicator(

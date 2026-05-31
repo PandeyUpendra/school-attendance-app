@@ -5,6 +5,7 @@ import '../services/fee_service.dart';
 import '../services/timetable_service.dart';
 import 'fee_collection_screen.dart';
 import 'fee_structure_screen.dart';
+import '../widgets/refreshable_data.dart';
 
 /// Top-level fee screen shown to principal / owner / coordinator.
 /// Displays school-wide collection stats and one card per class.
@@ -91,7 +92,7 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : _classes.isEmpty
               ? _emptyState()
               : RefreshIndicator(

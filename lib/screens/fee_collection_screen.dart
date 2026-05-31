@@ -9,6 +9,7 @@ import '../models/student.dart';
 import '../services/fee_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
+import '../widgets/refreshable_data.dart';
 
 /// Class-level fee collection screen.
 /// Pass [initialClass] to pre-select a class (from FeeOverviewScreen).
@@ -135,7 +136,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : _classes.isEmpty
               ? Center(
                   child: Text('No classes configured.',
@@ -872,7 +873,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
         label: const Text('Record Payment'),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [

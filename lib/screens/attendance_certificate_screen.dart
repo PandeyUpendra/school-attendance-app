@@ -6,6 +6,7 @@ import '../models/student.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
+import '../widgets/refreshable_data.dart';
 
 /// One-click attendance certificate for a student.
 /// Can be opened from the guardian dashboard or student list.
@@ -474,11 +475,9 @@ class _AttendanceCertificateScreenState
               border: Border.all(color: Colors.grey.shade200),
             ),
             child: _loading
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: CircularProgressIndicator(),
-                    ),
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: LoadingState(message: 'Computing attendance…'),
                   )
                 : _computed
                     ? Column(

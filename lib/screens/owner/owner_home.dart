@@ -22,6 +22,7 @@ import '../onboarding/school_onboarding_screen.dart';
 import '../role_selection_screen.dart';
 import '../fee_overview_screen.dart';
 import 'edit_school_settings_screen.dart';
+import '../../widgets/refreshable_data.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Owner Home — menu-list entry point
@@ -104,7 +105,7 @@ class _OwnerHomeState extends State<OwnerHome> {
   @override
   Widget build(BuildContext context) {
     if (!_loaded) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: LoadingState());
     }
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -1284,7 +1285,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
             if (_usersLoading)
               const Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Center(child: CircularProgressIndicator()))
+                  child: LoadingState())
             else if (_createdUsers.isEmpty)
               _emptyCard(Icons.group_outlined, 'No accounts created yet')
             else
@@ -1460,7 +1461,7 @@ class _SchoolSettingsPageState extends State<_SchoolSettingsPage> {
         title: const Text('School Settings'),
       ),
       body: !_loaded
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 32),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1693,7 +1694,7 @@ class _AnnouncementsPageState extends State<_AnnouncementsPage> {
             if (_loading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(child: CircularProgressIndicator()),
+                child: LoadingState(),
               )
             else if (_announcements.isEmpty)
               _emptyCard(Icons.campaign_outlined, 'No announcements yet')

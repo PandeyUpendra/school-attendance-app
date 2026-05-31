@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/staff_task.dart';
 import '../../services/staff_task_service.dart';
+import '../../widgets/refreshable_data.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class StaffTaskAnalyticsView extends StatelessWidget {
@@ -13,11 +14,14 @@ class StaffTaskAnalyticsView extends StatelessWidget {
       stream: StaffTaskService().getAllStaffTasks(schoolId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const LoadingState(message: 'Loading task analytics…');
         }
         final tasks = snapshot.data ?? [];
         if (tasks.isEmpty) {
-          return const Center(child: Text('No task data available'));
+          return const EmptyState(
+            message: 'No task data available',
+            icon: Icons.analytics_outlined,
+          );
         }
 
         final completed = tasks.where((t) => t.status == TaskStatus.completed).length;

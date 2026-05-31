@@ -6,6 +6,7 @@ import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
 import '../utils/app_logger.dart';
+import '../widgets/refreshable_data.dart';
 
 /// Coordinator screen — view copy-checking status across all classes.
 class CopyCheckOverviewScreen extends StatefulWidget {
@@ -75,7 +76,7 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : _classes.isEmpty
               ? Center(
                   child: Text('No classes configured.',
@@ -311,7 +312,7 @@ class _CoordCheckDetailScreenState extends State<_CoordCheckDetailScreen>
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : TabBarView(
               controller: _tab,
               children: [

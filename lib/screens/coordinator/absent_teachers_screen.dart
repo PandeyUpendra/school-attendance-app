@@ -12,6 +12,7 @@ import '../../services/notification_service.dart';
 import '../../services/substitution_history_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
+import '../../widgets/refreshable_data.dart';
 
 class AbsentTeachersScreen extends StatefulWidget {
   const AbsentTeachersScreen({super.key});
@@ -639,7 +640,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : RefreshIndicator(
               onRefresh: _load,
               color: AppTheme.primary,

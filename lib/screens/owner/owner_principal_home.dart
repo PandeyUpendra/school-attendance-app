@@ -21,6 +21,7 @@ import '../onboarding/school_onboarding_screen.dart';
 import '../principal_dashboard.dart';
 import '../role_selection_screen.dart';
 import 'edit_school_settings_screen.dart';
+import '../../widgets/refreshable_data.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Owner-Principal Home — menu-list entry point
@@ -103,7 +104,7 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
   @override
   Widget build(BuildContext context) {
     if (!_loaded) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: LoadingState());
     }
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -929,7 +930,7 @@ class _OPManagePageState extends State<_OPManagePage> {
                 onPressed: _saving ? null : _createUser)),
             ])),
             const SizedBox(height: 8),
-            if (_usersLoading) const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Center(child: CircularProgressIndicator()))
+            if (_usersLoading) const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: LoadingState())
             else if (_users.isEmpty) _opEmpty(Icons.group_outlined, 'No accounts created yet')
             else Column(children: _users.map((u) {
               final email = u['email'] as String? ?? '';

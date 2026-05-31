@@ -16,6 +16,7 @@ import '../services/offline_queue_service.dart';
 import '../utils/app_logger.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/student_remark.dart';
+import '../widgets/refreshable_data.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  AttendanceScreen
@@ -519,7 +520,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         backgroundColor: AppTheme.background,
         appBar: _buildAppBar(),
         body: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const LoadingState(message: 'Loading students…')
             : _noAssignment
                 ? _noAssignmentState()
                 : _students.isEmpty

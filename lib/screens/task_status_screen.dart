@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
 import '../theme.dart';
+import '../widgets/refreshable_data.dart';
 
 class TaskStatusScreen extends StatelessWidget {
   final String createdByEmail;
@@ -26,25 +27,27 @@ class TaskStatusScreen extends StatelessWidget {
             ? TaskService().getAllTasks()
             : TaskService().getTasksCreatedBy(createdByEmail),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
+          final waiting =
+              snapshot.connectionState == ConnectionState.waiting;
           final tasks = snapshot.data ?? [];
-          if (tasks.isEmpty) {
-            return const Center(child: Text('No tasks created yet.'));
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: tasks.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final task = tasks[index];
-              return _TaskProgressCard(task: task);
-            },
+          return RefreshableData(
+            loading: waiting,
+            isEmpty: tasks.isEmpty,
+            hasError: snapshot.hasError,
+            // Stream is live; pull-to-refresh just gives tactile feedback.
+            onRefresh: () async =>
+                Future<void>.delayed(const Duration(milliseconds: 400)),
+            loadingMessage: 'Loading task status…',
+            emptyMessage: 'No tasks created yet.',
+            emptyIcon: Icons.task_alt_outlined,
+            errorMessage: 'Error: ${snapshot.error}',
+            builder: (context) => ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: tasks.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) =>
+                  _TaskProgressCard(task: tasks[index]),
+            ),
           );
         },
       ),

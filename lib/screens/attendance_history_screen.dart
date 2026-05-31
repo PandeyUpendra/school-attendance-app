@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
+import '../widgets/refreshable_data.dart';
 
 // ── Top-level helpers ──────────────────────────────────────────────────────────
 
@@ -371,7 +372,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
         // ── Student list ───────────────────────────────────────────────────
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const LoadingState()
               : _students.isEmpty
                   ? _emptyState(
                       Icons.group_outlined,

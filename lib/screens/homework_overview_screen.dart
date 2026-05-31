@@ -4,6 +4,7 @@ import '../services/homework_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
 import '../theme.dart';
+import '../widgets/refreshable_data.dart';
 
 /// Coordinator screen — view all homework across classes.
 class HomeworkOverviewScreen extends StatefulWidget {
@@ -99,7 +100,7 @@ class _HomeworkOverviewScreenState extends State<HomeworkOverviewScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : Column(
               children: [
                 // Class filter chips

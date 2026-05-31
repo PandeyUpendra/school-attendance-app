@@ -14,6 +14,7 @@ import '../services/timetable_service.dart';
 import '../theme.dart';
 import 'add_student_screen.dart';
 import 'attendance_certificate_screen.dart';
+import '../widgets/refreshable_data.dart';
 
 /// Pre-defined reasons shown in the deletion-request dropdown.
 const _kDeletionReasons = [
@@ -522,7 +523,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
             )
           : null,
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : _students.isEmpty
               ? Center(
                   child: Column(

@@ -4,6 +4,7 @@ import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
 import 'student_list_screen.dart';
+import '../widgets/refreshable_data.dart';
 
 // ── Level 1 — class picker ─────────────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
       backgroundColor: AppTheme.background,
       appBar: AppBar(title: const Text('Student Details')),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : _classes.isEmpty
               ? Center(
                   child: Column(

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
+import '../widgets/refreshable_data.dart';
 
 /// Principal-only screen to review, approve or reject teacher-submitted
 /// student deletion requests.
@@ -230,37 +231,29 @@ class _RequestList extends StatelessWidget {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: stream,
       builder: (ctx, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+        final waiting = snap.connectionState == ConnectionState.waiting;
         final items = snap.data ?? [];
-        if (items.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.inbox_outlined,
-                    size: 64, color: Colors.grey.shade300),
-                const SizedBox(height: 12),
-                Text(
-                  isPending
-                      ? 'No pending deletion requests'
-                      : 'No resolved requests',
-                  style: TextStyle(
-                      fontSize: 16, color: Colors.grey.shade400),
-                ),
-              ],
+        return RefreshableData(
+          loading: waiting,
+          isEmpty: items.isEmpty,
+          hasError: snap.hasError,
+          // Stream is live; pull just gives tactile feedback.
+          onRefresh: () async =>
+              Future<void>.delayed(const Duration(milliseconds: 400)),
+          loadingMessage: 'Loading deletion requests…',
+          emptyMessage: isPending
+              ? 'No pending deletion requests'
+              : 'No resolved requests',
+          errorMessage: 'Could not load deletion requests',
+          builder: (context) => ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: items.length,
+            itemBuilder: (_, i) => _RequestCard(
+              request: items[i],
+              onApprove: onApprove,
+              onReject: onReject,
+              isPending: isPending,
             ),
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: items.length,
-          itemBuilder: (_, i) => _RequestCard(
-            request: items[i],
-            onApprove: onApprove,
-            onReject: onReject,
-            isPending: isPending,
           ),
         );
       },

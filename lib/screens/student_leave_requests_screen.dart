@@ -4,6 +4,7 @@ import '../services/timetable_service.dart';
 import '../services/student_service.dart';
 import '../services/notification_service.dart';
 import '../services/base_firestore_service.dart';
+import '../widgets/refreshable_data.dart';
 
 /// Shown to the class teacher — lists leave applications submitted by guardians.
 /// Teacher can Approve (auto-marks attendance), Reject, or Forward to Coordinator/Principal.
@@ -189,7 +190,7 @@ class _StudentLeaveRequestsScreenState
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : TabBarView(
               controller: _tabCtrl,
               children: [

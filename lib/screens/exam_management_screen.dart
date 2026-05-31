@@ -6,6 +6,7 @@ import '../services/timetable_service.dart';
 import '../theme.dart';
 import 'marks_entry_screen.dart';
 import 'report_card_screen.dart';
+import '../widgets/refreshable_data.dart';
 
 /// Coordinator screen: create & manage exams per class,
 /// and navigate to marks entry / report cards.
@@ -383,7 +384,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
             )
           : null,
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState()
           : _classes.isEmpty
               ? Center(
                   child: Text('No classes configured.',

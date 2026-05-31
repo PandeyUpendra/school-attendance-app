@@ -5,6 +5,7 @@ import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/fee_service.dart';
 import '../theme.dart';
+import '../widgets/refreshable_data.dart';
 
 /// Analytics Dashboard — coordinator / principal only.
 /// Tabs: Overview · Attendance · Absences · Fee
@@ -68,7 +69,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
         ),
       ),
       body: _classesLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState(message: 'Loading analytics…')
           : _classes.isEmpty
               ? Center(
                   child: Text('No classes configured.',
@@ -118,17 +119,16 @@ class _OverviewTabState extends State<_OverviewTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_summaries.isEmpty || _summaries.every((s) => !s.marked)) {
-      return const _EmptyState(
-        icon: Icons.bar_chart_outlined,
-        message: 'No attendance marked today yet.',
-      );
-    }
-
     final markedSummaries = _summaries.where((s) => s.marked).toList();
 
-    return ListView(
+    return RefreshableData(
+      loading: _loading,
+      isEmpty: _summaries.isEmpty || _summaries.every((s) => !s.marked),
+      onRefresh: _load,
+      loadingMessage: 'Loading today\'s snapshot…',
+      emptyMessage: 'No attendance marked today yet.',
+      emptyIcon: Icons.bar_chart_outlined,
+      builder: (context) => ListView(
       padding: const EdgeInsets.all(16),
       children: [
         // ── Stats row ───────────────────────────────────────────────────────
@@ -329,6 +329,7 @@ class _OverviewTabState extends State<_OverviewTab>
         }),
         const SizedBox(height: 24),
       ],
+    ),
     );
   }
 }
@@ -400,7 +401,13 @@ class _AttendanceTrendTabState extends State<_AttendanceTrendTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return ListView(
+    return RefreshIndicator(
+      onRefresh: () async {
+        if (_selectedClass != null) await _load(_selectedClass!);
+      },
+      color: AppTheme.primary,
+      child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
         // Class picker
@@ -431,11 +438,10 @@ class _AttendanceTrendTabState extends State<_AttendanceTrendTab>
         const SizedBox(height: 16),
 
         if (_loading)
-          const Center(
-              child: Padding(
+          const Padding(
             padding: EdgeInsets.symmetric(vertical: 60),
-            child: CircularProgressIndicator(),
-          ))
+            child: LoadingState(message: 'Loading attendance trend…'),
+          )
         else if (_spots.isEmpty)
           const _EmptyState(
             icon: Icons.show_chart,
@@ -559,6 +565,7 @@ class _AttendanceTrendTabState extends State<_AttendanceTrendTab>
         ],
         const SizedBox(height: 24),
       ],
+    ),
     );
   }
 
@@ -681,7 +688,13 @@ class _AbsenceLeaderboardTabState extends State<_AbsenceLeaderboardTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return ListView(
+    return RefreshIndicator(
+      onRefresh: () async {
+        if (_selectedClass != null) await _load(_selectedClass!);
+      },
+      color: AppTheme.primary,
+      child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
         // Class picker
@@ -712,11 +725,10 @@ class _AbsenceLeaderboardTabState extends State<_AbsenceLeaderboardTab>
         const SizedBox(height: 16),
 
         if (_loading)
-          const Center(
-              child: Padding(
+          const Padding(
             padding: EdgeInsets.symmetric(vertical: 60),
-            child: CircularProgressIndicator(),
-          ))
+            child: LoadingState(message: 'Loading absence leaderboard…'),
+          )
         else if (_leaderboard.isEmpty)
           const _EmptyState(
             icon: Icons.emoji_events_outlined,
@@ -818,6 +830,7 @@ class _AbsenceLeaderboardTabState extends State<_AbsenceLeaderboardTab>
         ],
         const SizedBox(height: 24),
       ],
+    ),
     );
   }
 }
@@ -897,7 +910,6 @@ class _FeeTabState extends State<_FeeTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    if (_loading) return const Center(child: CircularProgressIndicator());
 
     final totalFeeAll  = _entries.fold<double>(0, (a, b) => a + b.totalFee);
     final totalPaidAll = _entries.fold<double>(0, (a, b) => a + b.totalPaid);
@@ -908,14 +920,15 @@ class _FeeTabState extends State<_FeeTab>
     final configured =
         _entries.where((e) => e.totalFee > 0).toList();
 
-    if (configured.isEmpty) {
-      return const _EmptyState(
-        icon: Icons.account_balance_wallet_outlined,
-        message: 'No fee structures set up yet.\nGo to Fee Management to configure.',
-      );
-    }
-
-    return ListView(
+    return RefreshableData(
+      loading: _loading,
+      isEmpty: configured.isEmpty,
+      onRefresh: _load,
+      loadingMessage: 'Loading fee summary…',
+      emptyMessage:
+          'No fee structures set up yet.\nGo to Fee Management to configure.',
+      emptyIcon: Icons.account_balance_wallet_outlined,
+      builder: (context) => ListView(
       padding: const EdgeInsets.all(16),
       children: [
         // ── School-wide summary card ───────────────────────────────────────
@@ -1129,6 +1142,7 @@ class _FeeTabState extends State<_FeeTab>
         }),
         const SizedBox(height: 24),
       ],
+    ),
     );
   }
 
