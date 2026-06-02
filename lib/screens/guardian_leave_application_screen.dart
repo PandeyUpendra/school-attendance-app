@@ -5,6 +5,7 @@ import '../theme.dart';
 import '../models/student.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
+import '../widgets/index_building_notice.dart';
 
 /// Guardian applies for leave on behalf of their child.
 /// The request is sent to the class teacher who can approve / reject / forward.
@@ -468,6 +469,9 @@ class _GuardianLeaveApplicationScreenState
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: CircularProgressIndicator(),
                 ));
+              }
+              if (snapshot.hasError && isIndexBuildingError(snapshot.error)) {
+                return IndexBuildingNotice(onRetry: () => setState(() {}));
               }
               final docs = snapshot.hasData
                   ? snapshot.data!.docs.toList()

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../models/todo_item.dart';
 import '../services/todo_service.dart';
+import '../widgets/index_building_notice.dart';
 import 'todo_list_screen.dart';
 
 /// Shows a compact card on the home screen when there are reminder-enabled
@@ -23,6 +24,11 @@ class TodoReminderBanner extends StatelessWidget {
     return StreamBuilder<List<TodoItem>>(
       stream: TodoService().streamTodayReminders(userId),
       builder: (context, snap) {
+        // Optional banner — while the composite index is still building, stay
+        // hidden rather than pushing a notice into the top of the home feed.
+        if (snap.hasError && isIndexBuildingError(snap.error)) {
+          return const SizedBox.shrink();
+        }
         final items = snap.data ?? [];
         if (items.isEmpty) return const SizedBox.shrink();
 

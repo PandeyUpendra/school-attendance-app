@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../models/staff_task.dart';
 import '../services/staff_task_service.dart';
+import '../widgets/index_building_notice.dart';
 import 'task_badge_widgets.dart';
 
 /// Teacher's personal task list — shows tasks assigned to this teacher only.
@@ -41,6 +42,10 @@ class _StaffTasksScreenState extends State<StaffTasksScreen> {
                   return const Center(
                       child: CircularProgressIndicator(
                           color: AppTheme.primary));
+                }
+                if (snap.hasError && isIndexBuildingError(snap.error)) {
+                  return IndexBuildingNotice(
+                      onRetry: () => setState(() => _refreshTick++));
                 }
                 if (snap.hasError) {
                   return Center(

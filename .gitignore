@@ -41,3 +41,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Sensitive credentials & signing material — never commit
+**/google-services.json
+**/GoogleService-Info.plist
+*.keystore
+key.properties
+android/key.properties

@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
 import '../widgets/refreshable_data.dart';
+import '../widgets/index_building_notice.dart';
 
 /// Principal-only screen to review, approve or reject teacher-submitted
 /// student deletion requests.
@@ -275,6 +276,10 @@ class _MergedList extends StatelessWidget {
         return StreamBuilder<List<Map<String, dynamic>>>(
           stream: stream2,
           builder: (_, snap2) {
+            if ((snap1.hasError && isIndexBuildingError(snap1.error)) ||
+                (snap2.hasError && isIndexBuildingError(snap2.error))) {
+              return const IndexBuildingNotice();
+            }
             final list1 = snap1.data ?? [];
             final list2 = snap2.data ?? [];
             final combined = [...list1, ...list2]

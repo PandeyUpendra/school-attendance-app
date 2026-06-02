@@ -1074,7 +1074,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                   radius: 54,
                   backgroundColor: Colors.white.withValues(alpha: 0.2),
                   backgroundImage: _student.photoUrl != null
-                      ? NetworkImage(_student.photoUrl!)
+                      ? CachedNetworkImageProvider(_student.photoUrl!)
                       : (_student.photoPath != null
                           ? FileImage(File(_student.photoPath!))
                           : null) as ImageProvider?,

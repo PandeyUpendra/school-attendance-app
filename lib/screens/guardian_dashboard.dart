@@ -19,6 +19,7 @@ import '../services/homework_service.dart';
 import '../services/notification_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
+import '../utils/role_guard.dart';
 import 'role_selection_screen.dart';
 import 'announcements_screen.dart';
 import 'guardian_leave_application_screen.dart';
@@ -97,6 +98,10 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   @override
   void initState() {
     super.initState();
+    // Guard: only a session with the guardian role may stay here.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      RoleGuard.verify(context, ['guardian']);
+    });
     _loadAll();
     _initNotifStream();
   }

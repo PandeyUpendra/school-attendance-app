@@ -3,6 +3,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../models/meeting.dart';
 import '../../services/meeting_service.dart';
 import '../../theme.dart';
+import '../../widgets/index_building_notice.dart';
 
 class TeacherMeetingTasksScreen extends StatefulWidget {
   final String teacherId;
@@ -96,6 +97,9 @@ class _TeacherMeetingTasksScreenState
                 if (snap.connectionState == ConnectionState.waiting &&
                     !snap.hasData) {
                   return _buildShimmer();
+                }
+                if (snap.hasError && isIndexBuildingError(snap.error)) {
+                  return IndexBuildingNotice(onRetry: () => setState(() {}));
                 }
                 if (snap.hasError) {
                   return Center(
@@ -392,6 +396,12 @@ class _TaskCardState extends State<_TaskCard> {
           StreamBuilder<Meeting?>(
             stream: widget.meetingStream,
             builder: (context, snap) {
+              if (snap.hasError && isIndexBuildingError(snap.error)) {
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: IndexBuildingNotice(onRetry: () => setState(() {})),
+                );
+              }
               if (!snap.hasData) {
                 return const Padding(
                   padding: EdgeInsets.all(16),

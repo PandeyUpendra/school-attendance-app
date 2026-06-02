@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../models/school_onboarding.dart';
 import '../../theme.dart';
@@ -26,7 +27,7 @@ class Step6Review extends StatelessWidget {
               Center(
                 child: CircleAvatar(
                   radius: 36,
-                  backgroundImage: NetworkImage(data.logoUrl),
+                  backgroundImage: CachedNetworkImageProvider(data.logoUrl),
                 ),
               ),
             if (data.logoUrl.isNotEmpty) const SizedBox(height: 10),

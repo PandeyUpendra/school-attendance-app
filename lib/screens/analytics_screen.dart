@@ -867,9 +867,9 @@ class _FeeTabState extends State<_FeeTab>
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final entries = <_FeeClassEntry>[];
 
-    for (final cls in widget.classes) {
+    // Compute every class in parallel; order is preserved by Future.wait.
+    final entries = await Future.wait(widget.classes.map((cls) async {
       final results = await Future.wait([
         _feeService.getFeeStructure(className: cls),
         _studentService.getStudentsByClass(className: cls),
@@ -878,13 +878,12 @@ class _FeeTabState extends State<_FeeTab>
       final students  = results[1] as List<Student>;
 
       if (structure.totalAnnualFee <= 0 || students.isEmpty) {
-        entries.add(_FeeClassEntry(
+        return _FeeClassEntry(
           className: cls,
           totalFee: 0,
           totalPaid: 0,
           studentCount: students.length,
-        ));
-        continue;
+        );
       }
 
       // Load paid per student in parallel
@@ -895,13 +894,13 @@ class _FeeTabState extends State<_FeeTab>
       final totalFee  =
           (structure.totalAnnualFee as double) * students.length;
 
-      entries.add(_FeeClassEntry(
+      return _FeeClassEntry(
         className:    cls,
         totalFee:     totalFee,
         totalPaid:    totalPaid,
         studentCount: students.length,
-      ));
-    }
+      );
+    }));
 
     if (!mounted) return;
     setState(() { _entries = entries; _loading = false; });

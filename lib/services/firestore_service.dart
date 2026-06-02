@@ -339,13 +339,20 @@ class FirestoreService {
       result[key] = null;
     }
 
-    // Fetch each day's attendance (cache-first due to offline persistence)
-    for (final date in result.keys.toList()) {
+    // Fetch each day's attendance in parallel (cache-first due to offline
+    // persistence).
+    final dateKeys = result.keys.toList();
+    final attDocs = await Future.wait(dateKeys.map((date) async {
       try {
-        final att = await loadAttendance(
+        return await loadAttendance(
             schoolId: schoolId, classId: classId, date: date);
-        if (att != null) result[date] = att[studentRoll];
-      } catch (_) {}
+      } catch (_) {
+        return null;
+      }
+    }));
+    for (var i = 0; i < dateKeys.length; i++) {
+      final att = attDocs[i];
+      if (att != null) result[dateKeys[i]] = att[studentRoll];
     }
     return result;
   }

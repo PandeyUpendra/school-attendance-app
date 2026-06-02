@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/student.dart';
+import 'auth_service.dart';
 
 /// Describes the current fee reminder state for a student.
 class FeeReminderStatus {
@@ -112,7 +113,8 @@ class FeeReminderService {
         body = 'Fee reminder for $studentName.';
     }
 
-    await _db.collection('notifications').add({
+    await _db.collection('schools').doc(AuthService.currentSchoolId)
+        .collection('notifications').add({
       'type': 'fee_reminder',
       'title': 'Fee Reminder',
       'body': body,

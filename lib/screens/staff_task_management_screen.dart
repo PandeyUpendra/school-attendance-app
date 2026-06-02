@@ -6,6 +6,7 @@ import '../services/staff_task_service.dart';
 import '../services/timetable_service.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
+import '../widgets/index_building_notice.dart';
 import 'task_badge_widgets.dart';
 
 /// Principal's school-wide task overview.
@@ -65,6 +66,10 @@ class _StaffTaskManagementScreenState
             return const Center(
                 child: CircularProgressIndicator(
                     color: AppTheme.primary));
+          }
+          if (snap.hasError && isIndexBuildingError(snap.error)) {
+            return IndexBuildingNotice(
+                onRetry: () => setState(() => _refreshTick++));
           }
           final allTasks = snap.data ?? [];
           var filtered   = _applyFilters(allTasks);

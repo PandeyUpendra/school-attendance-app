@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/student.dart';
@@ -173,7 +174,7 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
                       backgroundImage: _imageFile != null
                           ? FileImage(_imageFile!)
                           : (widget.student.photoUrl != null
-                              ? NetworkImage(widget.student.photoUrl!)
+                              ? CachedNetworkImageProvider(widget.student.photoUrl!)
                               : (widget.student.photoPath != null
                                   ? FileImage(File(widget.student.photoPath!))
                                   : null)) as ImageProvider?,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/staff_task.dart';
 import '../../services/staff_task_service.dart';
 import '../../widgets/refreshable_data.dart';
+import '../../widgets/index_building_notice.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class StaffTaskAnalyticsView extends StatelessWidget {
@@ -15,6 +16,9 @@ class StaffTaskAnalyticsView extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const LoadingState(message: 'Loading task analytics…');
+        }
+        if (snapshot.hasError && isIndexBuildingError(snapshot.error)) {
+          return const IndexBuildingNotice();
         }
         final tasks = snapshot.data ?? [];
         if (tasks.isEmpty) {

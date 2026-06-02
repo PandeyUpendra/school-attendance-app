@@ -11,6 +11,7 @@ import '../../services/meeting_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
+import '../../widgets/index_building_notice.dart';
 
 class MeetingDetailScreen extends StatefulWidget {
   /// Pass null to create a new meeting.
@@ -580,6 +581,10 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator(color: AppTheme.primary)),
           );
+        }
+        if (snap.hasError && isIndexBuildingError(snap.error)) {
+          return Scaffold(
+              body: IndexBuildingNotice(onRetry: () => setState(() {})));
         }
         final m = snap.data;
         if (m == null) {

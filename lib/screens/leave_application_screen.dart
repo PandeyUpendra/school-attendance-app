@@ -5,6 +5,7 @@ import '../theme.dart';
 import '../models/teacher.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
+import '../widgets/index_building_notice.dart';
 
 class LeaveApplicationScreen extends StatefulWidget {
   final Teacher teacher;
@@ -453,6 +454,9 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
                     child: CircularProgressIndicator(),
                   ),
                 );
+              }
+              if (snapshot.hasError && isIndexBuildingError(snapshot.error)) {
+                return IndexBuildingNotice(onRetry: () => setState(() {}));
               }
               final docs = snapshot.hasData
                   ? snapshot.data!.docs.toList()

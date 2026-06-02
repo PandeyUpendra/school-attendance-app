@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
 
@@ -14,8 +13,8 @@ import 'base_firestore_service.dart';
 ///   3. Unread tracking is done locally via SharedPreferences (last-seen
 ///      timestamp per category).
 ///
-/// Schema:
-///   notifications/{auto} = {
+/// Schema (school-scoped):
+///   schools/{sid}/notifications/{auto} = {
 ///     type:      'absent' | 'leave_submitted' | 'leave_resolved' |
 ///                'announcement',
 ///     title:     string,
