@@ -1,18 +1,24 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/staff_task.dart';
+import 'auth_service.dart';
 
 class StaffTaskService {
   static final StaffTaskService _instance = StaffTaskService._();
   factory StaffTaskService() => _instance;
   StaffTaskService._();
 
-  static final _db    = FirebaseFirestore.instance;
-  static final _tasks = _db.collection('staff_tasks');
+  static final _db = FirebaseFirestore.instance;
 
   // ── School-scoped collection helper ───────────────────────────────────────
 
   CollectionReference<Map<String, dynamic>> _col(String schoolId) =>
       _db.collection('schools').doc(schoolId).collection('staff_tasks');
+
+  /// Default school-scoped tasks collection for the active session. Methods
+  /// that don't receive an explicit schoolId resolve it lazily here, so reads
+  /// and writes always hit the same schools/{sid}/staff_tasks path.
+  CollectionReference<Map<String, dynamic>> get _tasks =>
+      _col(AuthService.currentSchoolId);
 
   // ── Writers ───────────────────────────────────────────────────────────────
 

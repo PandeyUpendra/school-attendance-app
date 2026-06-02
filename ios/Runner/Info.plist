@@ -41,6 +41,16 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera is used to take student photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Photo library is used to select images.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Photos are saved when downloading gallery.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Microphone is used for voice attendance.</string>
+	<key>FirebaseMessagingAutoInitEnabled</key>
+	<false/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

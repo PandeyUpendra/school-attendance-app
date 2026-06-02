@@ -1,21 +1,33 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/fee.dart';
 import 'audit_log_service.dart';
+import 'auth_service.dart';
 
 /// Firestore-backed fee management service.
 ///
-/// Schema:
-///   fee_structures/{className}  → FeeStructure doc (components + installments)
-///   fee_payments/{className}/students/{roll}/payments/{auto} → Payment doc
+/// Schema (school-scoped):
+///   schools/{sid}/fee_structures/{className}  → FeeStructure doc
+///   schools/{sid}/fee_payments/{className}/students/{roll}/payments/{auto} → Payment
 class FeeService {
-  static final _db            = FirebaseFirestore.instance;
-  static final _feeStructures = _db.collection('fee_structures');
+  static final _db = FirebaseFirestore.instance;
 
   static final FeeService _instance = FeeService._();
   FeeService._();
   factory FeeService() => _instance;
 
+  /// School-scoped collections (schools/{sid}/...). schoolId is read lazily so
+  /// it always reflects the active session.
+  CollectionReference<Map<String, dynamic>> get _feeStructures =>
+      _db.collection('schools').doc(AuthService.currentSchoolId)
+         .collection('fee_structures');
+
+  CollectionReference<Map<String, dynamic>> get _students =>
+      _db.collection('schools').doc(AuthService.currentSchoolId)
+         .collection('students');
+
   CollectionReference _paymentsCol(String className, int roll) => _db
+      .collection('schools')
+      .doc(AuthService.currentSchoolId)
       .collection('fee_payments')
       .doc(className.replaceAll(' ', '_'))
       .collection('students')
@@ -139,7 +151,7 @@ class FeeService {
     if (classes.isEmpty) return [];
 
     // Load all students once
-    final studentSnap = await _db.collection('students').get();
+    final studentSnap = await _students.get();
     final byClass = <String, List<Map<String, dynamic>>>{};
     for (final doc in studentSnap.docs) {
       final data = Map<String, dynamic>.from(doc.data() as Map);
@@ -189,7 +201,7 @@ class FeeService {
 
   /// Aggregates fee data across all students.
   Future<Map<String, dynamic>> getFeesSummary() async {
-    final studentSnap = await _db.collection('students').get();
+    final studentSnap = await _students.get();
 
     final byClass = <String, List<Map<String, dynamic>>>{};
     for (final doc in studentSnap.docs) {

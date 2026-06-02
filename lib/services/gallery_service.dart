@@ -6,6 +6,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image/image.dart' as img;
 import '../models/gallery_album.dart';
 import '../models/gallery_photo.dart';
+import 'auth_service.dart';
 
 /// Gallery service — Firestore + Firebase Storage backend.
 ///
@@ -18,7 +19,8 @@ import '../models/gallery_photo.dart';
 ///   schools/{schoolId}/gallery/{albumId}/compressed/{photoId}.jpg
 ///   schools/{schoolId}/gallery/{albumId}/watermarked/{photoId}.jpg
 class GalleryService {
-  static const _schoolId  = 'school_1';
+  /// Active school id, read lazily so it always reflects the signed-in session.
+  static String get _schoolId => AuthService.currentSchoolId;
   static const _schoolName = 'Our School';
   static const _pageSize  = 20;
   static const _albumPage = 10;
@@ -33,7 +35,7 @@ class GalleryService {
       _db.collection('schools').doc(_schoolId).collection('photos');
 
   static CollectionReference get _notifColl =>
-      _db.collection('notifications');
+      _db.collection('schools').doc(_schoolId).collection('notifications');
 
   static final GalleryService _instance = GalleryService._();
   GalleryService._();

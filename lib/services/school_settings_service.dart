@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'auth_service.dart';
 import 'timetable_service.dart';
 
 class SchoolSettingsService {
-  static const String schoolId = 'school_1';
+  /// Active school id, read lazily so it always reflects the signed-in session.
+  static String get schoolId => AuthService.currentSchoolId;
   static final _db = FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _settings =>

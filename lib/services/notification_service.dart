@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_service.dart';
 
 /// Firestore-backed notification / real-time alert system.
 ///
@@ -11,8 +12,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///   3. Unread tracking is done locally via SharedPreferences (last-seen
 ///      timestamp per category).
 ///
-/// Schema:
-///   notifications/{auto} = {
+/// Schema (school-scoped):
+///   schools/{sid}/notifications/{auto} = {
 ///     type:      'absent' | 'leave_submitted' | 'leave_resolved' |
 ///                'announcement',
 ///     title:     string,
@@ -23,11 +24,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///   }
 class NotificationService {
   static final _db   = FirebaseFirestore.instance;
-  static final _coll = _db.collection('notifications');
 
   static final NotificationService _instance = NotificationService._();
   NotificationService._();
   factory NotificationService() => _instance;
+
+  /// School-scoped notifications collection: schools/{sid}/notifications.
+  /// schoolId is read lazily so it always reflects the active session.
+  CollectionReference<Map<String, dynamic>> get _coll =>
+      _db.collection('schools').doc(AuthService.currentSchoolId)
+         .collection('notifications');
 
   // ── Writers ────────────────────────────────────────────────────────────────
 
