@@ -79,11 +79,16 @@ class TimetableService extends BaseFirestoreService {
     if (normEmail.isEmpty || !normEmail.contains('@')) return;
 
     // Write allowed_users entry so login's role lookup succeeds.
+    // classIds is denormalised here (class-teacher class + assigned classes) so
+    // the Firestore rules' isClassTeacher()/userClassIds() can do a cheap field
+    // test — reading the teachers doc from inside a rule blows the
+    // 1000-expression-per-request ceiling. Keep this in sync with updateTeacher.
     await _allowedUsers.doc(normEmail).set({
       'role':      'teacher',
       'email':     normEmail,
       'name':      teacher.name,
       'teacherId': teacher.id,
+      'classIds':  _teacherClassIds(teacher),
       'schoolId':  schoolId,
       'status':    'pending',
       'createdAt': FieldValue.serverTimestamp(),
@@ -123,12 +128,29 @@ class TimetableService extends BaseFirestoreService {
   Future<void> updateTeacher(String schoolId, Teacher teacher) async {
     await _teachers.doc(teacher.id).set(teacher.toJson());
 
-    // Keep allowed_users name in sync (email is the doc ID so can't change).
+    // Keep allowed_users name + classIds in sync (email is the doc ID so can't
+    // change). classIds must track the teacher's class assignments so the
+    // Firestore rules can authorise class-scoped writes (see addTeacher).
     final normEmail = teacher.email.trim().toLowerCase();
     if (normEmail.isEmpty || !normEmail.contains('@')) return;
     try {
-      await _allowedUsers.doc(normEmail).update({'name': teacher.name});
+      await _allowedUsers.doc(normEmail).update({
+        'name':     teacher.name,
+        'classIds': _teacherClassIds(teacher),
+      });
     } catch (_) {}
+  }
+
+  /// Classes a teacher is authorised for: their class-teacher class (if any)
+  /// plus any subject-teacher assigned classes. Denormalised onto allowed_users
+  /// as classIds[] for the Firestore rules. De-duplicated, order-insensitive.
+  List<String> _teacherClassIds(Teacher teacher) {
+    final ids = <String>{
+      if (teacher.classTeacherOf != null && teacher.classTeacherOf!.isNotEmpty)
+        teacher.classTeacherOf!,
+      ...teacher.assignedClasses,
+    };
+    return ids.toList();
   }
 
   Future<void> removeTeacher(String schoolId, String id) async {

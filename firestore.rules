@@ -78,6 +78,22 @@ service cloud.firestore {
       return getUserData() != null && 'studentIds' in getUserData() ? getUserData().studentIds : [];
     }
 
+    /// Guardian linkage fields actually stamped on allowed_users by the app
+    /// (addAllowedUser): studentClass / studentRoll / studentSection. These are
+    /// the source of truth for guardian scoping — classIds/studentIds are not
+    /// populated by the app and must NOT be relied on here.
+    function userStudentClass() {
+      return getUserData() != null && 'studentClass' in getUserData() ? getUserData().studentClass : null;
+    }
+
+    function userStudentRoll() {
+      return getUserData() != null && 'studentRoll' in getUserData() ? getUserData().studentRoll : null;
+    }
+
+    function userStudentSection() {
+      return getUserData() != null && 'studentSection' in getUserData() ? getUserData().studentSection : '';
+    }
+
     /// True when caller's role exactly equals r.
     function isRole(r) {
       return userRole() == r;
@@ -91,16 +107,13 @@ service cloud.firestore {
     /// True when cls is listed in the caller's classIds array.
     ///
     /// IMPORTANT — keep this cheap (a single field test, no get()/exists()).
-    /// An earlier version added a cross-document fallback that read the
-    /// teachers/{teacherId} doc when classIds was empty. Because every identity
-    /// helper (userRole/userSchoolId/userTeacherId) re-invokes getUserData()
-    /// (= a get()), and Firestore caps each request at 1000 expression
-    /// evaluations (NOT cached like billed reads), that fallback's extra
-    /// getUserData()-derived calls blew past the 1000-expression ceiling for
-    /// teachers with empty classIds — which Firestore treats as an error and
-    /// DENIES. The correct fix is to keep classIds populated on allowed_users
-    /// (addTeacher / updateTeacher stamp it; existing docs were backfilled)
-    /// rather than reading the teachers doc from inside the rule.
+    /// A get()-based fallback that reads teachers/{teacherId} was tried and
+    /// measurably blows past Firestore's 1000-expression-per-request ceiling
+    /// (every identity helper re-invokes getUserData()), which Firestore treats
+    /// as an error and DENIES. The class list MUST therefore be denormalised
+    /// onto the teacher's allowed_users doc as classIds[] — TimetableService
+    /// addTeacher()/updateTeacher() now stamp it (= classTeacherOf +
+    /// assignedClasses). Existing teacher docs need a one-time backfill.
     function isClassTeacher(cls) {
       return cls in userClassIds();
     }
@@ -139,7 +152,63 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     match /tasks/{taskId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && isAnyStaff();
+
+      // Staff create/delete and fully edit tasks.
+      allow create, delete: if isSignedIn() && isAnyStaff();
+
+      // Staff may update any field. A guardian may update ONLY the
+      // studentStatuses map (marking their child's task done) — nothing else.
+      // (Rules cannot constrain which key inside the map changes; the client
+      //  scopes to the guardian's own child.)
+      allow update: if isSignedIn() && (
+        isAnyStaff() ||
+        (isRole('guardian')
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['studentStatuses']))
+      );
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // HOMEWORK  (/homework — ROOT collection, see HomeworkService)
+    //
+    // The live HomeworkService reads/writes the root `homework` collection,
+    // not schools/{sid}/homework. Cross-school by path (acceptable while the
+    // app is single-school, same as /tasks). A school-scoped homework rule
+    // also exists below for forward-compatibility but matches no live docs.
+    //
+    // Read:   any authenticated member (teachers, management, guardians).
+    // Create: teacher (own teacherId, no impersonation) or management.
+    // Update/Delete: teacher or management.
+    // ════════════════════════════════════════════════════════════════
+    match /homework/{docId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && (isManagement() || isAnyTeacher())
+        && request.resource.data.teacherId == userTeacherId();
+
+      allow update, delete: if isSignedIn() && (isManagement() || isAnyTeacher());
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // COPY CHECKS  (/copy_checks — ROOT collection, see CopyCheckService)
+    //
+    // Live CopyCheckService uses the root `copy_checks` collection (+ a
+    // `statuses` subcollection), not schools/{sid}/copy_checks.
+    //
+    // Read:   staff only (teachers + management).
+    // Write:  teacher or management.
+    // ════════════════════════════════════════════════════════════════
+    match /copy_checks/{checkId} {
+      allow read:  if isSignedIn() && isAnyStaff();
+      allow write: if isSignedIn() && (isManagement() || isAnyTeacher());
+
+      match /statuses/{statusId} {
+        allow read:  if isSignedIn() && isAnyStaff();
+        allow write: if isSignedIn() && (isManagement() || isAnyTeacher());
+      }
     }
 
 
@@ -217,7 +286,13 @@ service cloud.firestore {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isAnyStaff() ||
-        (isRole('guardian') && studentId in userStudentIds())
+        // Guardian's own child — matched on real student fields (className +
+        // section + roll), since the app does not populate studentIds[] on
+        // allowed_users. className/section/roll are always present on a student.
+        (isRole('guardian')
+          && resource.data.className == userStudentClass()
+          && resource.data.section == userStudentSection()
+          && resource.data.roll == userStudentRoll())
       );
 
       allow create: if isSignedIn() && inSchool(sid) && (
@@ -230,7 +305,9 @@ service cloud.firestore {
         (isAnyTeacher() && isClassTeacher(resource.data.className)) ||
         // Guardian: only guardianDetails / guardianEmail for their own child.
         (isRole('guardian')
-          && studentId in userStudentIds()
+          && resource.data.className == userStudentClass()
+          && resource.data.section == userStudentSection()
+          && resource.data.roll == userStudentRoll()
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['guardianDetails', 'guardianEmail']))
       );
@@ -250,16 +327,22 @@ service cloud.firestore {
 
         allow read: if isSignedIn() && inSchool(sid) && (
           isManagement() ||
-          (isRole('guardian') && studentId in userStudentIds())
+          // Guardian's own child — studentId is "{class}_{section}_{roll}".
+          (isRole('guardian')
+            && studentId == userStudentClass().replace(' ', '_')
+                          + '_' + userStudentSection().replace(' ', '_')
+                          + '_' + string(userStudentRoll()))
         );
 
         allow create: if isSignedIn() && inSchool(sid);
 
         allow update: if isSignedIn() && inSchool(sid) && (
           isManagement() ||
-          // Guardian may only stamp withdrawal fields
+          // Guardian may only stamp withdrawal fields, for their own child.
           (isRole('guardian')
-            && studentId in userStudentIds()
+            && studentId == userStudentClass().replace(' ', '_')
+                          + '_' + userStudentSection().replace(' ', '_')
+                          + '_' + string(userStudentRoll())
             && request.resource.data.diff(resource.data).affectedKeys()
                  .hasOnly(['withdrawnAt', 'withdrawnReason', 'withdrawnBy']))
         );
@@ -304,7 +387,8 @@ service cloud.firestore {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isAnyStaff() ||
-        (isRole('guardian') && cls in userClassIds())
+        // Attendance doc ID == class name; guardian reads only their child's class.
+        (isRole('guardian') && cls == userStudentClass())
       );
 
       allow write: if isSignedIn() && inSchool(sid) && (
@@ -365,16 +449,17 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
-    // FEES  (/schools/{sid}/fees/{feeId})
+    // FEE STRUCTURES  (/schools/{sid}/fee_structures/{className})
     //
-    // Class-level FeeStructure documents.
-    // Guardian reads limited to their children's class (via classIds[]).
+    // Class-level FeeStructure documents. (FeeService writes `fee_structures`,
+    // keyed by the underscored class name — NOT a collection called `fees`.)
+    // Guardian reads limited to their child's class.
     // ════════════════════════════════════════════════════════════════
-    match /schools/{sid}/fees/{feeId} {
+    match /schools/{sid}/fee_structures/{feeId} {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isRole('guardian') && resource.data.className in userClassIds())
+        (isRole('guardian') && resource.data.className == userStudentClass())
       );
 
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
@@ -382,16 +467,18 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
-    // FEE PAYMENTS  (/schools/{sid}/fee_payments/{paymentId})
+    // FEE PAYMENTS
+    //   /schools/{sid}/fee_payments/{cls}/students/{roll}/payments/{paymentId}
     //
-    // Per-student payment records.
-    // Guardian reads limited to their own children (via studentIds[]).
+    // Per-student payment records (deeply nested — FeeService layout).
+    // {cls} is the underscored class name; {roll} is the student roll string.
+    // Guardian reads limited to their own child's roll.
     // ════════════════════════════════════════════════════════════════
-    match /schools/{sid}/fee_payments/{paymentId} {
+    match /schools/{sid}/fee_payments/{cls}/students/{roll}/payments/{paymentId} {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isRole('guardian') && resource.data.studentId in userStudentIds())
+        (isRole('guardian') && roll == string(userStudentRoll()))
       );
 
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
@@ -528,13 +615,17 @@ service cloud.firestore {
         (resource.data.audience == 'principal'   && isRole('principal'))   ||
 
         // Direct teacher — 'teacher:{teacherId}'
-        resource.data.audience == ('teacher:' + userTeacherId()) ||
+        // Guard userTeacherId() != null: for a guardian it is null and
+        // ('teacher:' + null) raises a string+null type error → whole rule
+        // errors → deny, even for notifications they SHOULD be able to read.
+        (userTeacherId() != null
+          && resource.data.audience == ('teacher:' + userTeacherId())) ||
 
         // Guardian — 'guardian:{class}:{roll}'
         // Rules enforce class-level access; client must filter by exact roll.
         (isRole('guardian')
           && resource.data.audience.matches('guardian:.*')
-          && resource.data.audience.split(':')[1] in userClassIds()) ||
+          && resource.data.audience.split(':')[1] == userStudentClass()) ||
 
         // Class teacher — 'class_teacher:{className}'
         (isAnyTeacher()
