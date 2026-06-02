@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
+import '../widgets/index_building_notice.dart';
 
 /// Principal-only screen to review, approve or reject teacher-submitted
 /// student deletion requests.
@@ -230,6 +231,9 @@ class _RequestList extends StatelessWidget {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
+        if (snap.hasError && isIndexBuildingError(snap.error)) {
+          return const IndexBuildingNotice();
+        }
         final items = snap.data ?? [];
         if (items.isEmpty) {
           return Center(
@@ -279,6 +283,10 @@ class _MergedList extends StatelessWidget {
         return StreamBuilder<List<Map<String, dynamic>>>(
           stream: stream2,
           builder: (_, snap2) {
+            if ((snap1.hasError && isIndexBuildingError(snap1.error)) ||
+                (snap2.hasError && isIndexBuildingError(snap2.error))) {
+              return const IndexBuildingNotice();
+            }
             final list1 = snap1.data ?? [];
             final list2 = snap2.data ?? [];
             final combined = [...list1, ...list2]

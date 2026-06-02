@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/meeting.dart';
 import '../../services/meeting_service.dart';
 import '../../theme.dart';
+import '../../widgets/index_building_notice.dart';
 import 'meeting_detail_screen.dart';
 
 class CoordinatorMeetingRecordsScreen extends StatefulWidget {
@@ -155,6 +156,9 @@ class _CoordinatorMeetingRecordsScreenState
                 if (snap.connectionState == ConnectionState.waiting &&
                     !snap.hasData) {
                   return _buildShimmer();
+                }
+                if (snap.hasError && isIndexBuildingError(snap.error)) {
+                  return IndexBuildingNotice(onRetry: () => setState(() {}));
                 }
                 if (snap.hasError) {
                   return Center(

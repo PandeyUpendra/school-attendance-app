@@ -4,6 +4,7 @@ import '../../models/staff_task.dart';
 import '../../services/staff_task_service.dart';
 import '../../services/auth_service.dart';
 import '../../theme.dart';
+import '../../widgets/index_building_notice.dart';
 
 class StaffTaskDetailScreen extends StatefulWidget {
   final String schoolId;
@@ -50,6 +51,10 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
 
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        if (snapshot.hasError && isIndexBuildingError(snapshot.error)) {
+          return Scaffold(
+              body: IndexBuildingNotice(onRetry: () => setState(() {})));
         }
         if (!snapshot.hasData || !snapshot.data!.exists) {
           return const Scaffold(body: Center(child: Text('Task not found')));

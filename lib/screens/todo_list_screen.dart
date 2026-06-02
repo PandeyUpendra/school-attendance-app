@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../models/todo_item.dart';
 import '../services/todo_service.dart';
+import '../widgets/index_building_notice.dart';
 
 class TodoListScreen extends StatefulWidget {
   final String userId;
@@ -60,6 +61,9 @@ class _TodoListScreenState extends State<TodoListScreen>
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(
                 child: CircularProgressIndicator(color: AppTheme.primary));
+          }
+          if (snap.hasError && isIndexBuildingError(snap.error)) {
+            return IndexBuildingNotice(onRetry: () => setState(() {}));
           }
           final all = snap.data ?? [];
           final pending   = all.where((t) => !t.isCompleted).toList();

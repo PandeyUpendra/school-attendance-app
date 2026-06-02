@@ -5,6 +5,7 @@ import '../models/teacher.dart';
 import '../services/staff_task_service.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
+import '../widgets/index_building_notice.dart';
 import 'task_badge_widgets.dart';
 
 const Map<String, String> _kTemplates = {
@@ -912,6 +913,10 @@ class _AllTasksTabState extends State<_AllTasksTab> {
                 return const Center(
                     child: CircularProgressIndicator(
                         color: AppTheme.primary));
+              }
+              if (snap.hasError && isIndexBuildingError(snap.error)) {
+                return IndexBuildingNotice(
+                    onRetry: () => setState(() => _refreshTick++));
               }
               var tasks = snap.data ?? [];
 

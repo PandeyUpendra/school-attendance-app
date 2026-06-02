@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import '../../providers/school_settings_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/school_settings_service.dart';
 import '../../theme.dart';
+import '../../widgets/index_building_notice.dart';
 
 class EditSchoolSettingsScreen extends StatefulWidget {
   const EditSchoolSettingsScreen({super.key});
@@ -280,7 +282,7 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
           CircleAvatar(
             radius: 44,
             backgroundColor: AppTheme.primaryLight.withValues(alpha: 0.3),
-            backgroundImage: _logoUrl.isNotEmpty ? NetworkImage(_logoUrl) : null,
+            backgroundImage: _logoUrl.isNotEmpty ? CachedNetworkImageProvider(_logoUrl) : null,
             child: _logoUrl.isEmpty
                 ? const Icon(Icons.school, size: 36, color: AppTheme.primary)
                 : null,
@@ -1023,6 +1025,11 @@ Widget _changeLogSection() {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: p.watchChangeLog(),
       builder: (context, snap) {
+        // Optional section — stay hidden while the composite index builds
+        // rather than pushing a notice into the settings form.
+        if (snap.hasError && isIndexBuildingError(snap.error)) {
+          return const SizedBox.shrink();
+        }
         final logs = snap.data ?? [];
         if (logs.isEmpty) return const SizedBox.shrink();
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

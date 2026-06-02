@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
 import '../theme.dart';
+import '../widgets/index_building_notice.dart';
 
 class TaskStatusScreen extends StatelessWidget {
   final String createdByEmail;
@@ -28,6 +29,9 @@ class TaskStatusScreen extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError && isIndexBuildingError(snapshot.error)) {
+            return const IndexBuildingNotice();
           }
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));

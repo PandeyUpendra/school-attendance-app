@@ -6,6 +6,7 @@ import '../../models/teacher.dart';
 import '../../services/staff_task_service.dart';
 import '../../services/timetable_service.dart';
 import '../../services/notification_service.dart';
+import '../../widgets/index_building_notice.dart';
 import '../task_badge_widgets.dart';
 
 const String _kAllTeachers = 'ALL_TEACHERS';
@@ -681,6 +682,10 @@ class _AllTasksTabState extends State<_AllTasksTab> {
                     child: CircularProgressIndicator(
                         color: AppTheme.primary));
               }
+              if (snap.hasError && isIndexBuildingError(snap.error)) {
+                return IndexBuildingNotice(
+                    onRetry: () => setState(() => _refreshTick++));
+              }
               var tasks = snap.data ?? [];
               if (_filterStatus != null) {
                 tasks = tasks
@@ -760,6 +765,9 @@ class _AnalyticsTab extends StatelessWidget {
         if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
           return const Center(
               child: CircularProgressIndicator(color: AppTheme.primary));
+        }
+        if (snap.hasError && isIndexBuildingError(snap.error)) {
+          return const IndexBuildingNotice();
         }
         final tasks = snap.data ?? [];
         if (tasks.isEmpty) {
@@ -1011,6 +1019,10 @@ class _TeacherTaskTabState extends State<_TeacherTaskTab> {
             !snap.hasData) {
           return const Center(
               child: CircularProgressIndicator(color: AppTheme.primary));
+        }
+        if (snap.hasError && isIndexBuildingError(snap.error)) {
+          return IndexBuildingNotice(
+              onRetry: () => setState(() => _refreshTick++));
         }
         final all = snap.data ?? [];
         final tasks = widget.showCompleted

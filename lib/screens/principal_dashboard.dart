@@ -9,6 +9,7 @@ import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import '../utils/app_logger.dart';
+import '../widgets/index_building_notice.dart';
 import 'attendance_history_screen.dart';
 import 'class_picker_screen.dart';
 import 'free_bells_screen.dart';
@@ -541,6 +542,9 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     return StreamBuilder<List<Task>>(
       stream: TaskService().getAllTasks(),
       builder: (context, snapshot) {
+        if (snapshot.hasError && isIndexBuildingError(snapshot.error)) {
+          return IndexBuildingNotice(onRetry: () => setState(() {}));
+        }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return _emptyInfo('No active tasks');
         }

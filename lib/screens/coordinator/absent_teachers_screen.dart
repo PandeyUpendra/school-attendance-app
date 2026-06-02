@@ -10,6 +10,7 @@ import '../../models/timetable_entry.dart';
 import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/substitution_history_service.dart';
+import '../../widgets/index_building_notice.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
 
@@ -649,6 +650,9 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                     .doc(_todayKey)
                     .snapshots(),
                 builder: (context, snap) {
+                  if (snap.hasError && isIndexBuildingError(snap.error)) {
+                    return IndexBuildingNotice(onRetry: () => _load());
+                  }
                   final subs = <String, String>{};
                   if (snap.hasData && snap.data!.exists) {
                     (snap.data!.data() as Map<String, dynamic>)

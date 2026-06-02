@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -205,7 +206,7 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
                 radius: 52,
                 backgroundColor: AppTheme.primaryLight.withValues(alpha: 0.3),
                 backgroundImage:
-                    _logoUrl.isNotEmpty ? NetworkImage(_logoUrl) : null,
+                    _logoUrl.isNotEmpty ? CachedNetworkImageProvider(_logoUrl) : null,
                 child: _logoUrl.isEmpty
                     ? const Icon(Icons.school, size: 40, color: AppTheme.primary)
                     : null,

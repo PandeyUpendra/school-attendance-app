@@ -175,9 +175,9 @@ class FirestoreService {
     final Map<int, int> absentCount = {};
     final Map<int, int> leaveCount = {};
 
-    for (final date in dates) {
-      final att = await loadAttendance(
-          schoolId: schoolId, classId: classId, date: date);
+    final attDocs = await Future.wait(dates.map((date) =>
+        loadAttendance(schoolId: schoolId, classId: classId, date: date)));
+    for (final att in attDocs) {
       if (att == null) continue;
       for (final e in att.entries) {
         if (e.value.isPresent) {
@@ -219,9 +219,9 @@ class FirestoreService {
       if (dates.isEmpty) return {'totalDays': 0, 'presentRate': 0.0};
 
       int totalPresent = 0, totalRecords = 0;
-      for (final date in dates) {
-        final att = await loadAttendance(
-            schoolId: schoolId, classId: classId, date: date);
+      final attDocs = await Future.wait(dates.map((date) =>
+          loadAttendance(schoolId: schoolId, classId: classId, date: date)));
+      for (final att in attDocs) {
         if (att == null) continue;
         totalPresent += att.values.where((v) => v.isPresent).length;
         totalRecords += att.length;
@@ -249,13 +249,14 @@ class FirestoreService {
         await getAttendanceDates(schoolId: schoolId, classId: classId);
     final List<Map<String, dynamic>> history = [];
 
-    for (final date in dates) {
-      final att = await loadAttendance(
-          schoolId: schoolId, classId: classId, date: date);
+    final attDocs = await Future.wait(dates.map((date) =>
+        loadAttendance(schoolId: schoolId, classId: classId, date: date)));
+    for (var i = 0; i < dates.length; i++) {
+      final att = attDocs[i];
       if (att == null) continue;
       final status = att[studentRoll];
       if (status != null) {
-        history.add({'date': date, 'status': status});
+        history.add({'date': dates[i], 'status': status});
       }
     }
     return history;
@@ -330,13 +331,20 @@ class FirestoreService {
       result[key] = null;
     }
 
-    // Fetch each day's attendance (cache-first due to offline persistence)
-    for (final date in result.keys.toList()) {
+    // Fetch each day's attendance in parallel (cache-first due to offline
+    // persistence).
+    final dateKeys = result.keys.toList();
+    final attDocs = await Future.wait(dateKeys.map((date) async {
       try {
-        final att = await loadAttendance(
+        return await loadAttendance(
             schoolId: schoolId, classId: classId, date: date);
-        if (att != null) result[date] = att[studentRoll];
-      } catch (_) {}
+      } catch (_) {
+        return null;
+      }
+    }));
+    for (var i = 0; i < dateKeys.length; i++) {
+      final att = attDocs[i];
+      if (att != null) result[dateKeys[i]] = att[studentRoll];
     }
     return result;
   }

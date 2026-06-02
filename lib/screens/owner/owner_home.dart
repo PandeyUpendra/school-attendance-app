@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -276,7 +277,7 @@ class _OwnerHomeState extends State<OwnerHome> {
                   if (logoUrl.isNotEmpty) ...[
                     CircleAvatar(
                       radius: 18,
-                      backgroundImage: NetworkImage(logoUrl),
+                      backgroundImage: CachedNetworkImageProvider(logoUrl),
                       backgroundColor: Colors.white24,
                     ),
                     const SizedBox(width: 10),
