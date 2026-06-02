@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../firebase_options.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../utils/app_logger.dart';
@@ -369,9 +370,12 @@ class TimetableService extends BaseFirestoreService {
     await docRef.update(data);
   }
 
-  // Firebase Web API key — used only to create Auth accounts server-side
-  // without displacing the currently signed-in user's session.
-  static const _firebaseApiKey = 'AIzaSyB9dyjWRfwMeq8-J6juhYdizI-584MCkBE';
+  // Firebase Web API key — used only to provision Auth accounts via the REST
+  // signUp endpoint, which (unlike the SDK's createUser) does NOT displace the
+  // currently signed-in admin's session. Sourced from the generated
+  // firebase_options config instead of a hardcoded literal in source.
+  static String get _firebaseApiKey =>
+      DefaultFirebaseOptions.currentPlatform.apiKey;
 
   /// Creates a profile in [allowed_users] and provisions a Firebase Auth account.
   ///

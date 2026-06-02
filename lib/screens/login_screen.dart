@@ -188,61 +188,143 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _openAdminPin() async {
-    final pinCtrl  = TextEditingController();
-    bool  obscure  = true;
+  /// Admin access via real Firebase Auth (replaces the old hardcoded PIN).
+  /// Authenticates email + password, then verifies the account holds the
+  /// `admin` role in allowed_users before opening [AdminScreen].
+  Future<void> _openAdminLogin() async {
+    final emailCtrl = TextEditingController();
+    final passCtrl  = TextEditingController();
+    bool    obscure = true;
+    bool    busy    = false;
+    String? dlgError;
 
-    final confirmed = await showDialog<bool>(
+    await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Admin Access'),
-          content: TextField(
-            controller: pinCtrl,
-            obscureText: obscure,
-            autofocus: true,
-            keyboardType: TextInputType.visiblePassword,
-            decoration: InputDecoration(
-              labelText: 'PIN',
-              prefixIcon: const Icon(Icons.lock_outline),
-              suffixIcon: IconButton(
-                icon: Icon(obscure ? Icons.visibility : Icons.visibility_off,
-                    size: 18),
-                onPressed: () => setS(() => obscure = !obscure),
+        builder: (ctx, setS) {
+          Future<void> attempt() async {
+            final email = emailCtrl.text.trim().toLowerCase();
+            final pass  = passCtrl.text;
+            if (email.isEmpty || !email.contains('@')) {
+              setS(() => dlgError = 'Enter a valid email address.');
+              return;
+            }
+            if (pass.isEmpty) {
+              setS(() => dlgError = 'Enter your password.');
+              return;
+            }
+
+            setS(() { busy = true; dlgError = null; });
+            try {
+              // 1. Firebase Auth sign-in.
+              await AuthService().signInWithEmail(email, pass);
+              // 2. Verify the account holds the admin role.
+              final userData =
+                  await TimetableService().getAllowedUserDoc(email);
+              final role = userData?['role'] as String? ?? '';
+              if (role != 'admin') {
+                await AuthService().signOut();
+                setS(() {
+                  busy = false;
+                  dlgError = 'Not an admin account.';
+                });
+                return;
+              }
+              // 3. Admin verified — open the admin screen.
+              if (!ctx.mounted) return;
+              Navigator.pop(ctx);
+              if (!mounted) return;
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const AdminScreen()));
+            } on FirebaseAuthException catch (e) {
+              setS(() {
+                busy = false;
+                dlgError = AuthService.friendlyAuthError(e);
+              });
+            } catch (_) {
+              setS(() {
+                busy = false;
+                dlgError =
+                    'Login failed. Check your internet connection and try again.';
+              });
+            }
+          }
+
+          return AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Admin Access'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: emailCtrl,
+                  enabled: !busy,
+                  autofocus: true,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: 'Email Address',
+                    prefixIcon: const Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: passCtrl,
+                  enabled: !busy,
+                  obscureText: obscure,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => busy ? null : attempt(),
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                          obscure ? Icons.visibility : Icons.visibility_off,
+                          size: 18),
+                      onPressed: () => setS(() => obscure = !obscure),
+                    ),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                if (dlgError != null) ...[
+                  const SizedBox(height: 12),
+                  Text(dlgError!,
+                      style:
+                          TextStyle(color: Colors.red.shade700, fontSize: 13)),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: busy ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
               ),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: Colors.white),
-              child: const Text('Continue'),
-            ),
-          ],
-        ),
+              ElevatedButton(
+                onPressed: busy ? null : attempt,
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white),
+                child: busy
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Text('Login'),
+              ),
+            ],
+          );
+        },
       ),
     );
 
-    if (!mounted || confirmed != true) return;
-    if (pinCtrl.text == 'admin@1234') {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const AdminScreen()));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Incorrect PIN'),
-        backgroundColor: Colors.red,
-      ));
-    }
+    emailCtrl.dispose();
+    passCtrl.dispose();
   }
 
   @override
@@ -460,7 +542,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Admin access (small, unobtrusive)
                   Center(
                     child: TextButton(
-                      onPressed: _openAdminPin,
+                      onPressed: _openAdminLogin,
                       child: Text(
                         'Admin Access',
                         style: TextStyle(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../services/timetable_service.dart';
 import '../utils/app_logger.dart';
+import '../utils/role_guard.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -37,6 +38,10 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   void initState() {
     super.initState();
+    // Guard: only a signed-in Firebase user with the admin role may stay here.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      RoleGuard.verify(context, ['admin']);
+    });
     _load();
   }
 

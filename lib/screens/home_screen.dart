@@ -9,6 +9,7 @@ import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/staff_task_service.dart';
 import '../services/timetable_service.dart';
+import '../utils/role_guard.dart';
 import 'attendance_screen.dart';
 import 'student_list_screen.dart';
 import 'my_timetable_screen.dart';
@@ -56,6 +57,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Guard: only a signed-in teacher / subject-teacher may stay here.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      RoleGuard.verify(context, ['teacher', 'subjectTeacher']);
+    });
     _initStreams();
   }
 
