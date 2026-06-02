@@ -951,6 +951,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(BaseFirestoreService.currentSchoolId)
           .collection('substitutions')
           .doc(todayKey)
           .snapshots(),

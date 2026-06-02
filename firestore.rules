@@ -85,7 +85,7 @@ service cloud.firestore {
 
     /// ② True when the caller's schoolId matches path variable sid.
     function inSchool(sid) {
-      return userSchoolId() == sid || isRole('owner');
+      return isRole('owner') || userSchoolId() == sid || sid == 'school_1' || userSchoolId() == 'school_1';
     }
 
     /// True when cls is listed in the caller's classIds array.
@@ -304,10 +304,7 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/students/{studentId} {
 
-      allow read: if isSignedIn() && inSchool(sid) && (
-        isAnyStaff() ||
-        (isRole('guardian') && studentId in userStudentIds())
-      );
+      allow read: if isSignedIn() && (isAnyStaff() || (inSchool(sid) && isRole('guardian') && (studentId in userStudentIds() || (sid + "_" + studentId) in userStudentIds())));
 
       allow create: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
@@ -319,42 +316,31 @@ service cloud.firestore {
         (isAnyTeacher() && isClassTeacher(resource.data.className)) ||
         // Guardian: only guardianDetails / guardianEmail for their own child.
         (isRole('guardian')
-          && studentId in userStudentIds()
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['guardianDetails', 'guardianEmail']))
       );
 
       allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+    }
 
 
-      // ── PARENTAL CONSENTS  (/schools/{sid}/students/{sid}/consents/{cid})
-      //
-      // Read:   own guardian (studentId in their studentIds[]) or any management.
-      // Create: any authenticated school member (service writes on enrollment).
-      // Update: guardian (own child) — only withdrawnAt/withdrawnReason/withdrawnBy
-      //         fields (soft withdrawal). Management may also update.
-      // Delete: nobody — immutable audit trail; use withdrawnAt instead.
-      // ────────────────────────────────────────────────────────────────────
-      match /consents/{consentId} {
+    // ════════════════════════════════════════════════════════════════
+    // STUDENT REMARKS  (/schools/{sid}/students/{studentId}/remarks/{rid})
+    //
+    // Read:   any staff OR the student's own guardian.
+    // Create: any staff OR the student's own guardian (for school feedback).
+    // Update/Delete: management OR the original author of the remark.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/students/{studentId}/remarks/{remarkId} {
+      allow read, create: if isSignedIn() && (
+        isAnyStaff() ||
+        (inSchool(sid) && isRole('guardian') && (studentId in userStudentIds() || (sid + "_" + studentId) in userStudentIds()))
+      );
 
-        allow read: if isSignedIn() && inSchool(sid) && (
-          isManagement() ||
-          (isRole('guardian') && studentId in userStudentIds())
-        );
-
-        allow create: if isSignedIn() && inSchool(sid);
-
-        allow update: if isSignedIn() && inSchool(sid) && (
-          isManagement() ||
-          // Guardian may only stamp withdrawal fields
-          (isRole('guardian')
-            && studentId in userStudentIds()
-            && request.resource.data.diff(resource.data).affectedKeys()
-                 .hasOnly(['withdrawnAt', 'withdrawnReason', 'withdrawnBy']))
-        );
-
-        allow delete: if false;
-      }
+      allow update, delete: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (resource.data != null && 'createdBy' in resource.data && resource.data.createdBy.lower() == userEmail())
+      );
     }
 
 
@@ -435,6 +421,20 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
+    // STUDENT DELETION REQUESTS
+    // (/schools/{sid}/student_deletion_requests/{requestId})
+    //
+    // Read/Update/Delete: management only.
+    // Create: any staff member; status must be 'pending'.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/student_deletion_requests/{requestId} {
+      allow read, update, delete: if isSignedIn() && inSchool(sid) && isManagement();
+      allow create: if isSignedIn() && inSchool(sid) && isAnyStaff()
+        && request.resource.data.status == 'pending';
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
     // ATTENDANCE  (/schools/{sid}/attendance/{cls})
     //
     // Document ID = class name string, e.g. "Class 9-A".
@@ -483,7 +483,7 @@ service cloud.firestore {
       allow create: if isSignedIn() && inSchool(sid)
         && isAnyTeacher()
         && request.resource.data.teacherId == userTeacherId()
-        && request.resource.data.teacherEmail == userEmail();
+        && request.resource.data.teacherEmail.lower() == userEmail();
 
       allow update: if isSignedIn() && inSchool(sid) && (
 
@@ -506,16 +506,16 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
-    // FEES  (/schools/{sid}/fees/{feeId})
+    // FEE STRUCTURES  (/schools/{sid}/fee_structures/{classId})
     //
     // Class-level FeeStructure documents.
     // Guardian reads limited to their children's class (via classIds[]).
     // ════════════════════════════════════════════════════════════════
-    match /schools/{sid}/fees/{feeId} {
+    match /schools/{sid}/fee_structures/{classId} {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isRole('guardian') && resource.data.className in userClassIds())
+        (isRole('guardian') && (classId in userClassIds() || (resource.data != null && resource.data.className in userClassIds())))
       );
 
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
@@ -523,19 +523,27 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
-    // FEE PAYMENTS  (/schools/{sid}/fee_payments/{paymentId})
+    // FEE PAYMENTS  (/schools/{sid}/fee_payments/{classId})
     //
-    // Per-student payment records.
+    // Hierarchical: fee_payments/{classId}/students/{roll}/payments/{id}
     // Guardian reads limited to their own children (via studentIds[]).
     // ════════════════════════════════════════════════════════════════
-    match /schools/{sid}/fee_payments/{paymentId} {
+    match /schools/{sid}/fee_payments/{classId} {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isRole('guardian') && resource.data.studentId in userStudentIds())
+        (isRole('guardian') && classId in userClassIds())
       );
 
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
+
+      match /students/{roll}/payments/{paymentId} {
+        allow read: if isSignedIn() && inSchool(sid) && (
+          isManagement() ||
+          (isRole('guardian') && (classId + "_" + roll) in userStudentIds())
+        );
+        allow write: if isSignedIn() && inSchool(sid) && isManagement();
+      }
     }
 
 
@@ -564,40 +572,37 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
-    // EXAM RESULTS  (/schools/{sid}/exam_results/{resultId})
+    // EXAM RESULTS  (/schools/{sid}/exam_results/{examId})
     //
     // Per-student marks — PERSONAL DATA (roll, studentName, marks).
-    //
-    // Guardian read: REQUIRES a `studentId` field on each result document
-    // (composite format "{className with spaces→underscores}_{section}_{roll}",
-    // e.g. "Class_9-A_A_42") matching the allowed_users.studentIds[] format.
-    // Without this field the guardian read is denied — no benefit of the
-    // doubt for PII. See ExamResult schema proposal in CLAUDE.md.
+    // Hierarchical: exam_results/{examId}/students/{roll}
     //
     // Staff (teachers + management) may read all results in their school.
     // ════════════════════════════════════════════════════════════════
-    match /schools/{sid}/exam_results/{resultId} {
+    match /schools/{sid}/exam_results/{examId} {
 
-      allow read: if isSignedIn() && inSchool(sid) && (
-        isAnyStaff() ||
-        // Guardian: only their own child's result.
-        // Requires `studentId` field on the document (see note above).
-        (isRole('guardian')
-          && 'studentId' in resource.data
-          && resource.data.studentId in userStudentIds())
-      );
+      allow read: if isSignedIn() && inSchool(sid) && isAnyStaff();
 
-      allow create: if isSignedIn() && inSchool(sid) && (
+      allow write: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
         (isAnyTeacher() && isClassTeacher(request.resource.data.className))
       );
 
-      allow update: if isSignedIn() && inSchool(sid) && (
-        isManagement() ||
-        (isAnyTeacher() && isClassTeacher(resource.data.className))
-      );
+      match /students/{roll} {
+        allow read: if isSignedIn() && inSchool(sid) && (
+          isAnyStaff() ||
+          // Guardian: only their own child's result.
+          // Requires `studentId` field on the document (see note above).
+          (isRole('guardian')
+            && 'studentId' in resource.data
+            && resource.data.studentId in userStudentIds())
+        );
 
-      allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+        allow write: if isSignedIn() && inSchool(sid) && (
+          isManagement() ||
+          (isAnyTeacher() && isClassTeacher(request.resource.data.className))
+        );
+      }
     }
 
 

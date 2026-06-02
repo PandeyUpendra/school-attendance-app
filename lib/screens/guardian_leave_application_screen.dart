@@ -52,6 +52,8 @@ class _GuardianLeaveApplicationScreenState
     final end = _startDate.add(Duration(days: _numberOfDays - 1));
     try {
       final snap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(BaseFirestoreService.currentSchoolId)
           .collection('leave_applications')
           .where('applicantType', isEqualTo: 'guardian')
           .where('studentClass',  isEqualTo: widget.student.className)
@@ -119,66 +121,76 @@ class _GuardianLeaveApplicationScreenState
 
     setState(() => _submitting = true);
 
-    final overlap = await _hasOverlappingLeave();
-    if (overlap) {
+    try {
+      final overlap = await _hasOverlappingLeave();
+      if (overlap) {
+        if (!mounted) return;
+        setState(() => _submitting = false);
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Row(children: [
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFF57F17)),
+              SizedBox(width: 8),
+              Text('Leave Already Applied'),
+            ]),
+            content: const Text(
+                'A pending or approved leave already exists for these dates.\n\n'
+                'Please choose different dates or check the history below.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK',
+                    style: TextStyle(color: AppTheme.primary)),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      final dateStr =
+          '${_startDate.year}-${_startDate.month.toString().padLeft(2, '0')}-'
+          '${_startDate.day.toString().padLeft(2, '0')}';
+
+      await _service.submitStudentLeaveApplication(
+        studentClass:  widget.student.className,
+        studentRoll:   widget.student.roll,
+        studentName:   widget.student.name,
+        guardianName:  widget.student.fatherName.isNotEmpty
+            ? widget.student.fatherName
+            : widget.student.motherName,
+        startDate:     dateStr,
+        numberOfDays:  _numberOfDays,
+        reason:        finalReason,
+      );
+
+      // Notify the teacher's dashboard (sent to role 'teacher' audience for the class)
+      NotificationService().addStudentLeaveSubmitted(
+        studentName:  widget.student.name,
+        studentClass: widget.student.className,
+        days:         _numberOfDays,
+        startDate:    dateStr,
+      );
+
       if (!mounted) return;
       setState(() => _submitting = false);
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Row(children: [
-            Icon(Icons.warning_amber_rounded, color: Color(0xFFF57F17)),
-            SizedBox(width: 8),
-            Text('Leave Already Applied'),
-          ]),
-          content: const Text(
-              'A pending or approved leave already exists for these dates.\n\n'
-              'Please choose different dates or check the history below.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK',
-                  style: TextStyle(color: AppTheme.primary)),
-            ),
-          ],
-        ),
-      );
-      return;
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Leave application submitted to class teacher ✓'),
+        backgroundColor: Colors.green.shade700,
+        duration: const Duration(seconds: 3),
+      ));
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to submit: $e'),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 5),
+      ));
     }
-
-    final dateStr =
-        '${_startDate.year}-${_startDate.month.toString().padLeft(2, '0')}-'
-        '${_startDate.day.toString().padLeft(2, '0')}';
-
-    await _service.submitStudentLeaveApplication(
-      studentClass:  widget.student.className,
-      studentRoll:   widget.student.roll,
-      studentName:   widget.student.name,
-      guardianName:  widget.student.fatherName.isNotEmpty
-          ? widget.student.fatherName
-          : widget.student.motherName,
-      startDate:     dateStr,
-      numberOfDays:  _numberOfDays,
-      reason:        finalReason,
-    );
-
-    // Notify the teacher's dashboard (sent to role 'teacher' audience for the class)
-    NotificationService().addStudentLeaveSubmitted(
-      studentName:  widget.student.name,
-      studentClass: widget.student.className,
-      days:         _numberOfDays,
-      startDate:    dateStr,
-    );
-
-    if (!mounted) return;
-    setState(() => _submitting = false);
-
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: const Text('Leave application submitted to class teacher ✓'),
-      backgroundColor: Colors.green.shade700,
-      duration: const Duration(seconds: 3),
-    ));
-    Navigator.pop(context);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -457,6 +469,8 @@ class _GuardianLeaveApplicationScreenState
           ),
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
+                .collection('schools')
+                .doc(BaseFirestoreService.currentSchoolId)
                 .collection('leave_applications')
                 .where('applicantType', isEqualTo: 'guardian')
                 .where('studentClass',  isEqualTo: widget.student.className)

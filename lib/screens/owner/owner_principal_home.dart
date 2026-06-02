@@ -316,9 +316,10 @@ class _OPDashPageState extends State<_OPDashPage> {
       final db = FirebaseFirestore.instance;
       final days = List.generate(7, (i) => DateTime.now().subtract(Duration(days: 6 - i)));
       final futures = <Future<DocumentSnapshot<Map<String, dynamic>>>>[];
+      final sid = BaseFirestoreService.currentSchoolId ?? 'school_1';
       for (final day in days) {
         for (final cls in classes) {
-          futures.add(db.collection('attendance').doc('${cls.replaceAll(' ', '_')}_${day.year}-${day.month}-${day.day}').get());
+          futures.add(db.collection('schools').doc(sid).collection('attendance').doc('${cls.replaceAll(' ', '_')}_${day.year}-${day.month}-${day.day}').get());
         }
       }
       final results = await Future.wait(futures);
@@ -666,7 +667,8 @@ class _OPFinancePageState extends State<_OPFinancePage> {
   Future<void> _load() async {
     if (mounted) setState(() => _loading = true);
     try {
-      final snap = await FirebaseFirestore.instance.collection('students').get();
+      final sid = BaseFirestoreService.currentSchoolId ?? 'school_1';
+      final snap = await FirebaseFirestore.instance.collection('schools').doc(sid).collection('students').get();
       final students = snap.docs.map((d) => Student.fromJson(Map<String, dynamic>.from(d.data()))).toList();
       double col = 0, pen = 0, ov = 0;
       final defaulters = <Map<String, dynamic>>[];
@@ -823,7 +825,8 @@ class _OPManagePageState extends State<_OPManagePage> {
   Future<void> _loadSchoolSettings() async {
     if (_settingsLoaded) return;
     try {
-      final doc = await FirebaseFirestore.instance.collection('schools').doc('school_1').collection('settings').doc('school').get();
+      final sid = BaseFirestoreService.currentSchoolId ?? 'school_1';
+      final doc = await FirebaseFirestore.instance.collection('schools').doc(sid).collection('settings').doc('school').get();
       if (doc.exists && doc.data() != null) {
         final d = doc.data()!;
         _schoolNameCtrl.text = d['name'] as String? ?? '';
@@ -838,7 +841,8 @@ class _OPManagePageState extends State<_OPManagePage> {
   Future<void> _saveSchoolSettings() async {
     setState(() => _settingsSaving = true);
     try {
-      await FirebaseFirestore.instance.collection('schools').doc('school_1').collection('settings').doc('school').set({
+      final sid = BaseFirestoreService.currentSchoolId ?? 'school_1';
+      await FirebaseFirestore.instance.collection('schools').doc(sid).collection('settings').doc('school').set({
         'name': _schoolNameCtrl.text.trim(), 'phone': _schoolPhoneCtrl.text.trim(),
         'address': _schoolAddressCtrl.text.trim(), 'academicYear': _academicYearCtrl.text.trim(),
         'updatedAt': FieldValue.serverTimestamp(),

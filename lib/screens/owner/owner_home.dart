@@ -380,10 +380,11 @@ class _DashPageState extends State<_DashPage> {
       final db = FirebaseFirestore.instance;
       final days = List.generate(7, (i) => DateTime.now().subtract(Duration(days: 6 - i)));
       final futures = <Future<DocumentSnapshot<Map<String, dynamic>>>>[];
+      final sid = AuthService.currentSchoolId;
       for (final day in days) {
         for (final cls in classes) {
           final key = '${cls.replaceAll(' ', '_')}_${day.year}-${day.month}-${day.day}';
-          futures.add(db.collection('attendance').doc(key).get());
+          futures.add(db.collection('schools').doc(sid).collection('attendance').doc(key).get());
         }
       }
       final results = await Future.wait(futures);
@@ -1402,9 +1403,10 @@ class _SchoolSettingsPageState extends State<_SchoolSettingsPage> {
 
   Future<void> _load() async {
     try {
+      final sid = AuthService.currentSchoolId;
       final doc = await FirebaseFirestore.instance
           .collection('schools')
-          .doc('school_1')
+          .doc(sid)
           .collection('settings')
           .doc('school')
           .get();
@@ -1424,9 +1426,10 @@ class _SchoolSettingsPageState extends State<_SchoolSettingsPage> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
+      final sid = AuthService.currentSchoolId;
       await FirebaseFirestore.instance
           .collection('schools')
-          .doc('school_1')
+          .doc(sid)
           .collection('settings')
           .doc('school')
           .set({
