@@ -295,9 +295,8 @@ class LeaderboardService extends BaseFirestoreService {
     final newTop3 = badged
         .where((e) => e.rank <= 3 && !prevTop3.contains(e.roll))
         .toList();
-    for (final entry in newTop3) {
-      await _notifyGuardian(sId, entry, name ?? _defaultName(category));
-    }
+    await Future.wait(newTop3
+        .map((entry) => _notifyGuardian(sId, entry, name ?? _defaultName(category))));
 
     return leaderboardId;
   }

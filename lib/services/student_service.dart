@@ -407,15 +407,19 @@ class StudentService extends BaseFirestoreService {
     required DateTime startDate,
     required int numberOfDays,
   }) async {
+    // Each date writes to a distinct attendance document, so the writes are
+    // independent — fire them in parallel instead of awaiting each in turn.
+    final futures = <Future<void>>[];
     for (int i = 0; i < numberOfDays; i++) {
       final date = startDate.add(Duration(days: i));
       if (date.weekday == DateTime.sunday) continue;
-      await saveAttendanceForDate(
+      futures.add(saveAttendanceForDate(
         className: className,
         attendance: {roll: 'Leave'},
         date: date,
-      );
+      ));
     }
+    await Future.wait(futures);
   }
 
   // ── Reasons (call notes after follow-up) ───────────────────────────────────
@@ -755,8 +759,7 @@ class StudentService extends BaseFirestoreService {
       String className, int roll) async {
     try {
       final audience = 'guardian:$className:$roll';
-      final snap = await FirebaseFirestore.instance
-          .collection('notifications')
+      final snap = await schoolCollection(_schoolId, 'notifications')
           .where('audience', isEqualTo: audience)
           .get();
       if (snap.docs.isEmpty) return;
@@ -772,15 +775,13 @@ class StudentService extends BaseFirestoreService {
   Future<void> _cascadeDeleteExamResults(
       String className, int roll) async {
     try {
-      final examsSnap = await FirebaseFirestore.instance
-          .collection('exams')
+      final examsSnap = await schoolCollection(_schoolId, 'exams')
           .where('className', isEqualTo: className)
           .get();
       if (examsSnap.docs.isEmpty) return;
       final batch = FirebaseFirestore.instance.batch();
       for (final examDoc in examsSnap.docs) {
-        batch.delete(FirebaseFirestore.instance
-            .collection('exam_results')
+        batch.delete(schoolCollection(_schoolId, 'exam_results')
             .doc(examDoc.id)
             .collection('students')
             .doc('$roll'));
@@ -793,9 +794,8 @@ class StudentService extends BaseFirestoreService {
   Future<void> _cascadeDeleteFeePayments(
       String className, int roll) async {
     try {
-      final studentNode = FirebaseFirestore.instance
-          .collection('fee_payments')
-          .doc(className)
+      final studentNode = schoolCollection(_schoolId, 'fee_payments')
+          .doc(className.replaceAll(' ', '_'))
           .collection('students')
           .doc('$roll');
       final paymentsSnap =

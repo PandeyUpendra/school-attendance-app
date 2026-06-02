@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/teacher.dart';
+import 'auth_service.dart';
 import 'student_service.dart';
 import 'timetable_service.dart';
 import 'copy_check_service.dart';
@@ -7,9 +8,10 @@ import 'copy_check_service.dart';
 /// Aggregates one day's school-wide signals into a single `DigestSnapshot`
 /// for the Principal EOD Digest screen.
 ///
-/// All sub-queries fan out in parallel.  CollectionGroup queries for
-/// `remarks` and `payments` fetch all documents and filter client-side
-/// to avoid requiring Firestore Collection Group composite indexes.
+/// All sub-queries fan out in parallel.  Remarks and fee payments are read
+/// from the CURRENT school's subtree only (never a cross-school
+/// `collectionGroup`), with a server-side date filter so just today's
+/// documents are fetched.
 class PrincipalDigestService {
   static final _db = FirebaseFirestore.instance;
 
@@ -25,21 +27,24 @@ class PrincipalDigestService {
     final classes       = List<String>.from(settings['classes'] as List);
     final schoolName    = (settings['schoolName'] as String?) ?? 'School';
 
+    // School-scoped: read only the signed-in user's school subtree.
+    final sid           = AuthService.currentSchoolId;
+
     // Fan out everything in parallel.
     final summariesF    = StudentService().loadTodayFullSummary(classes: classes);
     final teachersF     = TimetableService().getTeachers();
     final allLeavesF    = TimetableService().getLeaveApplications();
     final pendingLeavesF= TimetableService().getLeaveApplications(status: 'pending');
-    final remarksTodayF = _db.collectionGroup('remarks').get();
-    final paymentsTodayF= _db.collectionGroup('payments').get();
+    final remarksTodayF = _fetchTodayRemarks(sid, dayStart);
+    final paymentsTodayF= _fetchTodayPayments(sid, classes, dayStart);
     final copyChecksF   = CopyCheckService().getAllChecks();
 
     final summaries     = await summariesF;
     final teachers      = await teachersF;
     final allLeaves     = await allLeavesF;
     final pendingLeaves = await pendingLeavesF;
-    final remarksSnap   = await remarksTodayF;
-    final paymentsSnap  = await paymentsTodayF;
+    final remarks       = await remarksTodayF;
+    final payments      = await paymentsTodayF;
     final allChecks     = await copyChecksF;
 
     // ── Attendance roll-up ──────────────────────────────────────────────────
@@ -91,34 +96,13 @@ class PrincipalDigestService {
       }
     }
 
-    // ── Remarks today (client-side date filter) ─────────────────────────────
-    final remarks = <RemarkItem>[];
-    for (final doc in remarksSnap.docs) {
-      final data = doc.data();
-      final ts = data['timestamp'];
-      if (ts is! Timestamp) continue;
-      final dt = ts.toDate();
-      if (dt.isBefore(dayStart)) continue; // skip older remarks
-      // Doc path: students/{studentId}/remarks/{id}
-      final studentId = doc.reference.parent.parent?.id ?? '';
-      remarks.add(RemarkItem(
-        studentId:  studentId,
-        remark:     (data['remark']    as String?) ?? '',
-        role:       (data['role']      as String?) ?? '',
-        createdBy:  (data['createdBy'] as String?) ?? '',
-        timestamp:  dt,
-      ));
-    }
-    remarks.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    // ── Remarks today (already filtered + sorted in _fetchTodayRemarks) ──────
 
-    // ── Fees collected today (client-side date filter) ──────────────────────
+    // ── Fees collected today ────────────────────────────────────────────────
     double feesTotal = 0;
     int    paymentsCount = 0;
     final feesByMode = <String, double>{};
-    for (final doc in paymentsSnap.docs) {
-      final data = doc.data();
-      final paidOn = data['paidOn'];
-      if (paidOn is Timestamp && paidOn.toDate().isBefore(dayStart)) continue;
+    for (final data in payments) {
       final amt  = (data['amount'] as num?)?.toDouble() ?? 0;
       final mode = (data['mode']   as String?) ?? 'Cash';
       feesTotal += amt;
@@ -170,6 +154,71 @@ class PrincipalDigestService {
       copyBacklog:     copyBacklog,
       copyBacklogByTeacher: backlogByTeacher,
     );
+  }
+
+  /// Today's student remarks for [sid] only.
+  ///
+  /// Walks `schools/{sid}/students/*` and reads each student's `remarks`
+  /// subcollection with a server-side `timestamp >= dayStart` filter, so we
+  /// never touch another school's data and only fetch today's documents.
+  Future<List<RemarkItem>> _fetchTodayRemarks(
+      String sid, DateTime dayStart) async {
+    final cutoff = Timestamp.fromDate(dayStart);
+    final studentsSnap =
+        await _db.collection('schools').doc(sid).collection('students').get();
+
+    final perStudent = await Future.wait(studentsSnap.docs.map((sdoc) async {
+      final rs = await sdoc.reference
+          .collection('remarks')
+          .where('timestamp', isGreaterThanOrEqualTo: cutoff)
+          .get();
+      return rs.docs.map((doc) {
+        final data = doc.data();
+        final ts = data['timestamp'];
+        final dt = ts is Timestamp ? ts.toDate() : dayStart;
+        return RemarkItem(
+          studentId:  sdoc.id,
+          remark:     (data['remark']    as String?) ?? '',
+          role:       (data['role']      as String?) ?? '',
+          createdBy:  (data['createdBy'] as String?) ?? '',
+          timestamp:  dt,
+        );
+      }).toList();
+    }));
+
+    final remarks = perStudent.expand((e) => e).toList();
+    remarks.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    return remarks;
+  }
+
+  /// Today's fee payments for [sid] only.
+  ///
+  /// Walks `schools/{sid}/fee_payments/{class}/students/*/payments` (the path
+  /// [FeeService] writes to) with a server-side `paidOn >= dayStart` filter.
+  /// Returns each payment's raw data map for aggregation by the caller.
+  Future<List<Map<String, dynamic>>> _fetchTodayPayments(
+      String sid, List<String> classes, DateTime dayStart) async {
+    final cutoff = Timestamp.fromDate(dayStart);
+    final feePayments =
+        _db.collection('schools').doc(sid).collection('fee_payments');
+
+    final perClass = await Future.wait(classes.map((className) async {
+      final classDocId = className.replaceAll(' ', '_');
+      final studentsSnap =
+          await feePayments.doc(classDocId).collection('students').get();
+      final perStudent = await Future.wait(studentsSnap.docs.map((sd) {
+        return sd.reference
+            .collection('payments')
+            .where('paidOn', isGreaterThanOrEqualTo: cutoff)
+            .get();
+      }));
+      return perStudent
+          .expand((snap) => snap.docs)
+          .map((d) => d.data())
+          .toList();
+    }));
+
+    return perClass.expand((e) => e).toList();
   }
 }
 

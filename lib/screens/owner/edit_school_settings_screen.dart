@@ -184,7 +184,7 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
     setState(() => _uploadingLogo = true);
     try {
       final ref = FirebaseStorage.instance
-          .ref('schools/${SchoolSettingsService.schoolId}/logo.jpg');
+          .ref('schools/${AuthService.currentSchoolId}/logo.jpg');
       await ref.putFile(File(file.path));
       final url = await ref.getDownloadURL();
       setState(() { _logoUrl = url; _uploadingLogo = false; });
@@ -535,7 +535,7 @@ class _AcademicTabState extends State<_AcademicTab>
         'updatedAt': FieldValue.serverTimestamp(),
       });
       final added = newClasses.where((c) => !oldClasses.contains(c)).toList();
-      for (final c in added) { await svc.createClassDocument(c); }
+      await Future.wait(added.map((c) => svc.createClassDocument(c)));
       if (mounted) {
         _snack('Settings updated', success: true);
         widget.onSaved();

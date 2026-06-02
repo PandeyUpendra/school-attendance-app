@@ -3,7 +3,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/school_onboarding.dart';
-import '../../services/school_settings_service.dart';
+import '../../services/auth_service.dart';
 import '../../theme.dart';
 
 class Step1BasicInfo extends StatefulWidget {
@@ -83,7 +83,7 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
     setState(() => _uploadingLogo = true);
     try {
       final ref = FirebaseStorage.instance
-          .ref('schools/${SchoolSettingsService.schoolId}/logo.jpg');
+          .ref('schools/${AuthService.currentSchoolId}/logo.jpg');
       await ref.putFile(File(file.path));
       final url = await ref.getDownloadURL();
       setState(() {

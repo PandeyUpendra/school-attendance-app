@@ -6,6 +6,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image/image.dart' as img;
 import '../models/gallery_album.dart';
 import '../models/gallery_photo.dart';
+import 'auth_service.dart';
 
 /// Gallery service — Firestore + Firebase Storage backend.
 ///
@@ -18,7 +19,6 @@ import '../models/gallery_photo.dart';
 ///   schools/{schoolId}/gallery/{albumId}/compressed/{photoId}.jpg
 ///   schools/{schoolId}/gallery/{albumId}/watermarked/{photoId}.jpg
 class GalleryService {
-  static const _schoolId  = 'school_1';
   static const _schoolName = 'Our School';
   static const _pageSize  = 20;
   static const _albumPage = 10;
@@ -26,14 +26,17 @@ class GalleryService {
   static final _db      = FirebaseFirestore.instance;
   static final _storage = FirebaseStorage.instance;
 
-  static CollectionReference get _albumsColl =>
+  /// Active school, resolved from the signed-in session.
+  String get _schoolId => AuthService.currentSchoolId;
+
+  CollectionReference get _albumsColl =>
       _db.collection('schools').doc(_schoolId).collection('albums');
 
-  static CollectionReference get _photosColl =>
+  CollectionReference get _photosColl =>
       _db.collection('schools').doc(_schoolId).collection('photos');
 
-  static CollectionReference get _notifColl =>
-      _db.collection('notifications');
+  CollectionReference get _notifColl =>
+      _db.collection('schools').doc(_schoolId).collection('notifications');
 
   static final GalleryService _instance = GalleryService._();
   GalleryService._();
@@ -126,9 +129,8 @@ class GalleryService {
     final photosSnap = await _photosColl
         .where('albumId', isEqualTo: albumId)
         .get();
-    for (final doc in photosSnap.docs) {
-      await _deletePhotoDoc(doc.id, albumId);
-    }
+    await Future.wait(
+        photosSnap.docs.map((doc) => _deletePhotoDoc(doc.id, albumId)));
     await _albumsColl.doc(albumId).delete();
   }
 

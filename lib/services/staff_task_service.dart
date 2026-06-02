@@ -1,18 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/staff_task.dart';
+import 'auth_service.dart';
+import 'base_firestore_service.dart';
 
-class StaffTaskService {
+class StaffTaskService extends BaseFirestoreService {
   static final StaffTaskService _instance = StaffTaskService._();
   factory StaffTaskService() => _instance;
   StaffTaskService._();
 
-  static final _db    = FirebaseFirestore.instance;
-  static final _tasks = _db.collection('staff_tasks');
+  // ── School-scoped collection helpers ──────────────────────────────────────
+  // All tasks live at schools/{schoolId}/staff_tasks. The single-arg [_tasks]
+  // getter resolves the school from the active session; [_col] is used by the
+  // call sites that already thread an explicit schoolId.
 
-  // ── School-scoped collection helper ───────────────────────────────────────
+  CollectionReference<Map<String, dynamic>> get _tasks =>
+      schoolCollection(AuthService.currentSchoolId, 'staff_tasks');
 
   CollectionReference<Map<String, dynamic>> _col(String schoolId) =>
-      _db.collection('schools').doc(schoolId).collection('staff_tasks');
+      schoolCollection(schoolId, 'staff_tasks');
 
   // ── Writers ───────────────────────────────────────────────────────────────
 
@@ -28,7 +33,7 @@ class StaffTaskService {
 
   Future<void> createTasksBatch(List<StaffTask> tasks) async {
     for (int i = 0; i < tasks.length; i += 500) {
-      final batch = _db.batch();
+      final batch = db.batch();
       final end   = (i + 500 < tasks.length) ? i + 500 : tasks.length;
       for (int j = i; j < end; j++) {
         batch.set(_tasks.doc(), tasks[j].toJson());

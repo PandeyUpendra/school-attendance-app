@@ -15,22 +15,18 @@ class AnnouncementService {
   AnnouncementService._();
   factory AnnouncementService() => _instance;
 
-  /// Fetches announcements visible to the given audience.
-  /// Returns pinned first, then newest first.
-  Future<List<Announcement>> getAnnouncements(
-      {String? audience, String? viewerClass}) async {
-    final snap = await _coll.get();
-    final list = snap.docs
-        .map((d) => Announcement.fromDoc(d.id, d.data()))
-        .where((a) {
-      if (a.audience == 'all') return true;
-      if (audience != null && a.audience == audience) return true;
-      if (viewerClass != null && a.audience == 'class:$viewerClass') {
-        return true;
-      }
-      return false;
-    }).toList();
-    // Pinned first, then newest posted
+  /// Builds the set of `audience` values visible to this viewer so the filter
+  /// runs server-side (`whereIn`) instead of fetching the whole collection.
+  List<String> _audiencesFor(String? audience, String? viewerClass) {
+    final audiences = <String>{'all'};
+    if (audience != null) audiences.add(audience);
+    if (viewerClass != null) audiences.add('class:$viewerClass');
+    return audiences.toList();
+  }
+
+  /// Pinned first, then newest posted. Sorting stays client-side (Firestore
+  /// can't order by isPinned+postedAt without a composite index).
+  void _sortPinnedThenNewest(List<Announcement> list) {
     list.sort((a, b) {
       if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
       final ta = a.postedAt;
@@ -40,32 +36,33 @@ class AnnouncementService {
       if (tb == null) return -1;
       return tb.compareTo(ta);
     });
+  }
+
+  /// Fetches announcements visible to the given audience.
+  /// Returns pinned first, then newest first.
+  Future<List<Announcement>> getAnnouncements(
+      {String? audience, String? viewerClass}) async {
+    final snap = await _coll
+        .where('audience', whereIn: _audiencesFor(audience, viewerClass))
+        .get();
+    final list = snap.docs
+        .map((d) => Announcement.fromDoc(d.id, d.data()))
+        .toList();
+    _sortPinnedThenNewest(list);
     return list;
   }
 
   /// Real-time stream of announcements (for notification badges).
   Stream<List<Announcement>> watchAnnouncements(
       {String? audience, String? viewerClass}) {
-    return _coll.snapshots().map((snap) {
+    return _coll
+        .where('audience', whereIn: _audiencesFor(audience, viewerClass))
+        .snapshots()
+        .map((snap) {
       final list = snap.docs
           .map((d) => Announcement.fromDoc(d.id, d.data()))
-          .where((a) {
-        if (a.audience == 'all') return true;
-        if (audience != null && a.audience == audience) return true;
-        if (viewerClass != null && a.audience == 'class:$viewerClass') {
-          return true;
-        }
-        return false;
-      }).toList();
-      list.sort((a, b) {
-        if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
-        final ta = a.postedAt;
-        final tb = b.postedAt;
-        if (ta == null && tb == null) return 0;
-        if (ta == null) return 1;
-        if (tb == null) return -1;
-        return tb.compareTo(ta);
-      });
+          .toList();
+      _sortPinnedThenNewest(list);
       return list;
     });
   }

@@ -175,9 +175,11 @@ class FirestoreService {
     final Map<int, int> absentCount = {};
     final Map<int, int> leaveCount = {};
 
-    for (final date in dates) {
-      final att = await loadAttendance(
-          schoolId: schoolId, classId: classId, date: date);
+    final attDocs = await Future.wait(
+      dates.map((date) =>
+          loadAttendance(schoolId: schoolId, classId: classId, date: date)),
+    );
+    for (final att in attDocs) {
       if (att == null) continue;
       for (final e in att.entries) {
         if (e.value.isPresent) {
@@ -219,9 +221,11 @@ class FirestoreService {
       if (dates.isEmpty) return {'totalDays': 0, 'presentRate': 0.0};
 
       int totalPresent = 0, totalRecords = 0;
-      for (final date in dates) {
-        final att = await loadAttendance(
-            schoolId: schoolId, classId: classId, date: date);
+      final attDocs = await Future.wait(
+        dates.map((date) =>
+            loadAttendance(schoolId: schoolId, classId: classId, date: date)),
+      );
+      for (final att in attDocs) {
         if (att == null) continue;
         totalPresent += att.values.where((v) => v.isPresent).length;
         totalRecords += att.length;
@@ -249,13 +253,18 @@ class FirestoreService {
         await getAttendanceDates(schoolId: schoolId, classId: classId);
     final List<Map<String, dynamic>> history = [];
 
-    for (final date in dates) {
-      final att = await loadAttendance(
-          schoolId: schoolId, classId: classId, date: date);
+    // Fetch every date's attendance in parallel; Future.wait preserves the
+    // input order, so the resulting history stays chronologically ordered.
+    final attDocs = await Future.wait(
+      dates.map((date) =>
+          loadAttendance(schoolId: schoolId, classId: classId, date: date)),
+    );
+    for (var i = 0; i < dates.length; i++) {
+      final att = attDocs[i];
       if (att == null) continue;
       final status = att[studentRoll];
       if (status != null) {
-        history.add({'date': date, 'status': status});
+        history.add({'date': dates[i], 'status': status});
       }
     }
     return history;

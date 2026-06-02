@@ -1,12 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'auth_service.dart';
+import 'base_firestore_service.dart';
 import 'timetable_service.dart';
 
-class SchoolSettingsService {
-  static const String schoolId = 'school_1';
-  static final _db = FirebaseFirestore.instance;
+class SchoolSettingsService extends BaseFirestoreService {
+  String get _sid => AuthService.currentSchoolId;
 
   CollectionReference<Map<String, dynamic>> get _settings =>
-      _db.collection('schools').doc(schoolId).collection('settings');
+      schoolCollection(_sid, 'settings');
 
   Stream<Map<String, dynamic>> getSchoolSettings() =>
       _settings.doc('school').snapshots().map((s) => s.data() ?? {});
@@ -79,7 +80,7 @@ class SchoolSettingsService {
       _settings.doc('onboarding').set(data, SetOptions(merge: true));
 
   Future<void> completeOnboarding(Map<String, dynamic> d) async {
-    final batch = _db.batch();
+    final batch = db.batch();
 
     batch.set(_settings.doc('school'), {
       'schoolName': d['schoolName'] ?? '',
@@ -157,19 +158,16 @@ class SchoolSettingsService {
     }, SetOptions(merge: true));
     TimetableService.invalidateSettingsCache();
 
-    // Create class documents
-    for (final classId in classList) {
-      await _db.collection('schools').doc(schoolId)
-          .collection('classes').doc(classId).set({
-        'classId': classId,
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    }
+    // Create class documents (each write is independent — run in parallel)
+    await Future.wait(classList.map((classId) =>
+        schoolCollection(_sid, 'classes').doc(classId).set({
+          'classId': classId,
+          'createdAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true))));
   }
 
   Future<void> createClassDocument(String classId) =>
-      _db.collection('schools').doc(schoolId)
-          .collection('classes').doc(classId).set({
+      schoolCollection(_sid, 'classes').doc(classId).set({
         'classId': classId,
         'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));

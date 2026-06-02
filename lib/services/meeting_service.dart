@@ -1,14 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/meeting.dart';
 import '../models/staff_task.dart';
+import 'auth_service.dart';
 
 class MeetingService {
   static final MeetingService _instance = MeetingService._();
   factory MeetingService() => _instance;
   MeetingService._();
 
-  static const String _schoolId = 'school_1';
   static final _db = FirebaseFirestore.instance;
+
+  /// Active school, resolved from the signed-in session.
+  String get _schoolId => AuthService.currentSchoolId;
 
   CollectionReference<Map<String, dynamic>> get _meetings =>
       _db.collection('schools').doc(_schoolId).collection('meetings');
@@ -16,8 +19,10 @@ class MeetingService {
   CollectionReference<Map<String, dynamic>> get _meetingTasks =>
       _db.collection('schools').doc(_schoolId).collection('meetingTasks');
 
+  // Mirrors StaffTaskService's school-scoped staff_tasks collection so meeting-
+  // derived tasks appear in the regular staff task lists.
   CollectionReference<Map<String, dynamic>> get _staffTasks =>
-      _db.collection('staff_tasks');
+      _db.collection('schools').doc(_schoolId).collection('staff_tasks');
 
   // ── Create ────────────────────────────────────────────────────────────────
 

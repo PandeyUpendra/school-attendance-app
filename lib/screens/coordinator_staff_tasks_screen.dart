@@ -321,15 +321,13 @@ class _AssignTabState extends State<_AssignTab> {
       await StaffTaskService().createTasksBatch(tasks);
     }
 
-    for (final t in targets) {
-      await NotificationService().addStaffTaskNotice(
-        taskTitle:         title,
-        assignedTeacherId: t.id,
-        assignedByName:    widget.coordinatorEmail,
-        dueDateStr:        _dueDate != null ? _fmtDate(_dueDate!) : null,
-        priority:          _priority.label,
-      );
-    }
+    await Future.wait(targets.map((t) => NotificationService().addStaffTaskNotice(
+          taskTitle:         title,
+          assignedTeacherId: t.id,
+          assignedByName:    widget.coordinatorEmail,
+          dueDateStr:        _dueDate != null ? _fmtDate(_dueDate!) : null,
+          priority:          _priority.label,
+        )));
 
     if (!mounted) return;
     setState(() => _saving = false);

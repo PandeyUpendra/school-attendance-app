@@ -76,10 +76,15 @@ class CopyCheckService {
       }
     }
 
-    // 3. For each newest check, fetch its statuses and build a summary
+    // 3. For each newest check, fetch its statuses and build a summary.
+    //    Fetch every check's statuses in parallel rather than serially.
+    final checks = newestMap.values.toList();
+    final statusesList =
+        await Future.wait(checks.map((check) => getStatuses(check.id)));
     final summaries = <CopyCheckSummary>[];
-    for (final check in newestMap.values) {
-      final statuses = await getStatuses(check.id);
+    for (var i = 0; i < checks.length; i++) {
+      final check    = checks[i];
+      final statuses = statusesList[i];
       final checked    = statuses.where((s) => s.status == 'checked').length;
       final uncheckedNames = statuses
           .where((s) => s.status != 'checked')

@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'auth_service.dart';
+import 'base_firestore_service.dart';
+
 /// Firestore-backed notification / real-time alert system.
 ///
 /// Works WITHOUT a backend server by:
@@ -21,13 +24,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///                'teacher:{teacherId}' | 'all' | 'teachers' | 'guardians',
 ///     createdAt: Timestamp,
 ///   }
-class NotificationService {
-  static final _db   = FirebaseFirestore.instance;
-  static final _coll = _db.collection('notifications');
-
+class NotificationService extends BaseFirestoreService {
   static final NotificationService _instance = NotificationService._();
   NotificationService._();
   factory NotificationService() => _instance;
+
+  String get _sid => AuthService.currentSchoolId;
+
+  CollectionReference<Map<String, dynamic>> get _coll =>
+      schoolCollection(_sid, 'notifications');
 
   // ── Writers ────────────────────────────────────────────────────────────────
 
@@ -221,7 +226,7 @@ class NotificationService {
 
   /// Deletes all notifications whose IDs are in [ids].
   Future<void> deleteAll(List<String> ids) async {
-    final batch = _db.batch();
+    final batch = db.batch();
     for (final id in ids) {
       batch.delete(_coll.doc(id));
     }
@@ -230,8 +235,38 @@ class NotificationService {
 
   // ── Readers ────────────────────────────────────────────────────────────────
 
+  /// Builds the exact set of `audience` values this viewer is allowed to see,
+  /// so the filter can run **server-side** via a single `whereIn` query rather
+  /// than pulling the whole collection and filtering in Dart.
+  ///
+  /// The candidate set mirrors the writers above exactly:
+  ///   • everyone sees `'all'` and their own role string;
+  ///   • teachers also see `'teachers'` and their `'teacher:{id}'` channel;
+  ///   • guardians also see `'guardians'` and their `'guardian:{class}:{roll}'`.
+  List<String> _audiencesFor({
+    required String role,
+    String? teacherId,
+    String? studentClass,
+    int?    studentRoll,
+  }) {
+    final audiences = <String>{'all', role};
+    if (role == 'teacher') {
+      audiences.add('teachers');
+      if (teacherId != null && teacherId.isNotEmpty) {
+        audiences.add('teacher:$teacherId');
+      }
+    }
+    if (role == 'guardian') {
+      audiences.add('guardians');
+      if (studentClass != null && studentRoll != null) {
+        audiences.add('guardian:$studentClass:$studentRoll');
+      }
+    }
+    return audiences.toList();
+  }
+
   /// Real-time stream of notifications visible to this viewer, newest first,
-  /// capped at 30 days.  Audience filter mirrors [getFor].
+  /// capped at 30 days. Filtering is done server-side by `audience`.
   Stream<List<Map<String, dynamic>>> streamFor({
     required String role,
     String? teacherId,
@@ -239,7 +274,15 @@ class NotificationService {
     int?    studentRoll,
   }) {
     return _coll
+        .where('audience',
+            whereIn: _audiencesFor(
+              role: role,
+              teacherId: teacherId,
+              studentClass: studentClass,
+              studentRoll: studentRoll,
+            ))
         .orderBy('createdAt', descending: true)
+        .limit(50)
         .snapshots()
         .map((snap) {
       final cutoff = DateTime.now().subtract(const Duration(days: 30));
@@ -251,29 +294,15 @@ class NotificationService {
           })
           .where((n) {
             final ts = n['createdAt'];
-            if (ts is Timestamp && ts.toDate().isBefore(cutoff)) return false;
-            final aud = (n['audience'] as String?) ?? '';
-            if (aud == 'all')                                              return true;
-            if (aud == role)                                               return true;
-            if (aud == 'teachers'  && role == 'teacher')                  return true;
-            if (aud == 'guardians' && role == 'guardian')                 return true;
-            if (aud.startsWith('teacher:')  && role == 'teacher'  &&
-                teacherId != null && aud == 'teacher:$teacherId') {
-              return true;
-            }
-            if (aud.startsWith('guardian:') && role == 'guardian' &&
-                studentClass != null && studentRoll != null &&
-                aud == 'guardian:$studentClass:$studentRoll') {
-              return true;
-            }
-            return false;
+            return !(ts is Timestamp && ts.toDate().isBefore(cutoff));
           })
           .toList();
     });
   }
 
   /// Returns all notifications visible to this viewer, newest first.
-  /// The audience filter logic matches the writers above.
+  /// Filtering is done server-side by `audience`; only the 30-day recency
+  /// cap remains a (cheap) client-side trim.
   Future<List<Map<String, dynamic>>> getFor({
     required String role,
     String? teacherId,
@@ -282,46 +311,30 @@ class NotificationService {
     String? userEmail,
     String? schoolId,
   }) async {
-    final snap = await _coll.get();
-    final now  = DateTime.now();
-    final list = snap.docs.map((d) {
-      final data = Map<String, dynamic>.from(d.data());
-      data['id'] = d.id;
-      return data;
-    }).where((n) {
-      final aud = (n['audience'] as String?) ?? '';
-      if (aud == 'all') return true;
-      // Role-matched
-      if (aud == role)                                             return true;
-      if (aud == 'teachers'  && role == 'teacher')                 return true;
-      if (aud == 'guardians' && role == 'guardian')                return true;
-      if (aud.startsWith('teacher:')  && role == 'teacher'  &&
-          teacherId != null && aud == 'teacher:$teacherId') {
-        return true;
-      }
-      if (aud.startsWith('guardian:') && role == 'guardian' &&
-          studentClass != null && studentRoll != null &&
-          aud == 'guardian:$studentClass:$studentRoll') {
-        return true;
-      }
-      return false;
-    }).toList();
-
-    // Sort newest first. Keep recent notifications (last 30 days max) to
-    // avoid pulling a giant history.
-    list.sort((a, b) {
-      final ta = a['createdAt'];
-      final tb = b['createdAt'];
-      if (ta is! Timestamp && tb is! Timestamp) return 0;
-      if (ta is! Timestamp) return 1;
-      if (tb is! Timestamp) return -1;
-      return (tb).compareTo(ta);
-    });
-    return list.where((n) {
-      final ts = n['createdAt'];
-      if (ts is! Timestamp) return true;
-      return now.difference(ts.toDate()).inDays <= 30;
-    }).toList();
+    final snap = await _coll
+        .where('audience',
+            whereIn: _audiencesFor(
+              role: role,
+              teacherId: teacherId,
+              studentClass: studentClass,
+              studentRoll: studentRoll,
+            ))
+        .orderBy('createdAt', descending: true)
+        .limit(50)
+        .get();
+    final now = DateTime.now();
+    return snap.docs
+        .map((d) {
+          final data = Map<String, dynamic>.from(d.data());
+          data['id'] = d.id;
+          return data;
+        })
+        .where((n) {
+          final ts = n['createdAt'];
+          if (ts is! Timestamp) return true;
+          return now.difference(ts.toDate()).inDays <= 30;
+        })
+        .toList();
   }
 
   /// Counts unread notifications (those newer than the last-seen marker).

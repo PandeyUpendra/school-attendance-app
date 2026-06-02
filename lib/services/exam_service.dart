@@ -1,22 +1,29 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/exam.dart';
 import 'audit_log_service.dart';
+import 'auth_service.dart';
+import 'base_firestore_service.dart';
 
 /// Firestore-backed exam & marks service.
 ///
-/// Schema:
-///   exams/{examId}                         → Exam doc
-///   exam_results/{examId}/students/{roll}  → ExamResult doc
-class ExamService {
-  static final _db    = FirebaseFirestore.instance;
-  static final _exams = _db.collection('exams');
-
+/// Schema (school-scoped):
+///   schools/{schoolId}/exams/{examId}                        → Exam doc
+///   schools/{schoolId}/exam_results/{examId}/students/{roll} → ExamResult doc
+class ExamService extends BaseFirestoreService {
   static final ExamService _instance = ExamService._();
   ExamService._();
   factory ExamService() => _instance;
 
+  String get _sid => AuthService.currentSchoolId;
+
+  CollectionReference<Map<String, dynamic>> get _exams =>
+      schoolCollection(_sid, 'exams');
+
+  CollectionReference<Map<String, dynamic>> get _examResults =>
+      schoolCollection(_sid, 'exam_results');
+
   CollectionReference _resultsCol(String examId) =>
-      _db.collection('exam_results').doc(examId).collection('students');
+      _examResults.doc(examId).collection('students');
 
   // ── Exams ──────────────────────────────────────────────────────────────────
 
@@ -67,16 +74,12 @@ class ExamService {
         ? Map<String, dynamic>.from(prev.data()!)
         : null;
 
-    final resultsSnap = await _db
-        .collection('exam_results')
-        .doc(examId)
-        .collection('students')
-        .get();
-    final batch = _db.batch();
+    final resultsSnap = await _resultsCol(examId).get();
+    final batch = db.batch();
     for (final doc in resultsSnap.docs) {
       batch.delete(doc.reference);
     }
-    batch.delete(_db.collection('exam_results').doc(examId));
+    batch.delete(_examResults.doc(examId));
     batch.delete(_exams.doc(examId));
     await batch.commit();
 
