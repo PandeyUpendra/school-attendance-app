@@ -1248,17 +1248,20 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             if (_student.guardianEmail == null || _student.guardianEmail!.isEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.people_outlined),
-                  label: const Text('Set Guardian Email'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primary,
-                    side: const BorderSide(color: AppTheme.primary),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.people_outlined),
+                    label: const Text('Set Guardian Email'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primary,
+                      side: const BorderSide(color: AppTheme.primary),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () => _setGuardianEmail(context),
                   ),
-                  onPressed: () => _setGuardianEmail(context),
                 ),
               )
             else
