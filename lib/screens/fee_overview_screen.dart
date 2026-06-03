@@ -34,16 +34,30 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
-    final settings = await TimetableService().getSettings();
-    final classes  = List<String>.from(settings['classes'] as List? ?? []);
-    final summaries = await _feeService.getClassSummaries(classes: classes);
     if (!mounted) return;
-    setState(() {
-      _classes   = classes;
-      _summaries = summaries;
-      _loading   = false;
-    });
+    setState(() => _loading = true);
+    try {
+      final settings = await TimetableService().getSettings();
+      final classes  = List<String>.from(settings['classes'] as List? ?? []);
+      final summaries = await _feeService.getClassSummaries(classes: classes);
+      if (!mounted) return;
+      setState(() {
+        _classes   = classes;
+        _summaries = summaries;
+        _loading   = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading   = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading fee details: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   // ── Aggregated school-wide numbers ────────────────────────────────────────

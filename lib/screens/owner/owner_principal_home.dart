@@ -11,6 +11,7 @@ import '../../models/student.dart';
 import '../../providers/school_settings_provider.dart';
 import '../../services/announcement_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/base_firestore_service.dart';
 import '../../services/exam_service.dart';
 import '../../services/role_permission_service.dart';
 import '../../services/school_settings_service.dart';

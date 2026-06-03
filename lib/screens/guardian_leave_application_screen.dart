@@ -5,6 +5,7 @@ import '../theme.dart';
 import '../models/student.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
+import '../services/base_firestore_service.dart';
 import '../widgets/index_building_notice.dart';
 
 /// Guardian applies for leave on behalf of their child.
