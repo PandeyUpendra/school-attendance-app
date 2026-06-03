@@ -49,18 +49,19 @@ const UID = {
 
 // ── allowed_users documents ──────────────────────────────────────────────────
 const USERS = {
+  // Guardians are keyed to their child by studentClass / studentRoll /
+  // studentSection (what TimetableService.addAllowedUser writes) — the app
+  // never populates classIds/studentIds for guardians.
   [UID.guardian]: {
     role: 'guardian', schoolId: SCHOOL_ID,
     name: 'Parent One', email: 'parent1@school.test',
-    classIds: ['Class 9-A'],
-    studentIds: ['Class_9-A_A_42'],
+    studentClass: 'Class 9-A', studentSection: 'A', studentRoll: 42,
     status: 'active',
   },
   [UID.guardian2]: {
     role: 'guardian', schoolId: SCHOOL_ID,
     name: 'Parent Two', email: 'parent2@school.test',
-    classIds: ['Class 10-B'],
-    studentIds: ['Class_10-B_B_15'],
+    studentClass: 'Class 10-B', studentSection: 'B', studentRoll: 15,
     status: 'active',
   },
   [UID.teacher9A]: {
@@ -233,7 +234,7 @@ beforeEach(async () => {
     });
 
     // Fee structure
-    await setDoc(doc(adb, schoolPath('fees', 'fee-9a')), {
+    await setDoc(doc(adb, schoolPath('fee_structures', 'fee-9a')), {
       className: 'Class 9-A',
       totalAnnualFee: 50000,
     });
@@ -588,27 +589,27 @@ describe('Firestore Security Rules', () => {
   describe('9. Fees — guardian scope', () => {
     test('ALLOW — guardian can read fee structure for their child\'s class', async () => {
       await assertSucceeds(
-        getDoc(doc(db(UID.guardian), schoolPath('fees', 'fee-9a'))),
+        getDoc(doc(db(UID.guardian), schoolPath('fee_structures', 'fee-9a'))),
       );
     });
 
     test('DENY — CRITICAL: guardian cannot read fee structure for another class', async () => {
       // Seed fee doc for Class 10-B
       await testEnv.withSecurityRulesDisabled(async (ctx) => {
-        await setDoc(doc(ctx.firestore(), schoolPath('fees', 'fee-10b')), {
+        await setDoc(doc(ctx.firestore(), schoolPath('fee_structures', 'fee-10b')), {
           className: 'Class 10-B', totalAnnualFee: 55000,
         });
       });
 
       await assertFails(
-        getDoc(doc(db(UID.guardian), schoolPath('fees', 'fee-10b'))),
+        getDoc(doc(db(UID.guardian), schoolPath('fee_structures', 'fee-10b'))),
       );
     });
 
     test('DENY — teacher cannot write fee documents', async () => {
       await assertFails(
         setDoc(
-          doc(db(UID.teacher9A), schoolPath('fees', 'fee-hack')),
+          doc(db(UID.teacher9A), schoolPath('fee_structures', 'fee-hack')),
           { className: 'Class 9-A', totalAnnualFee: 0 },
         ),
       );

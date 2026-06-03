@@ -78,6 +78,33 @@ service cloud.firestore {
       return getUserData() != null && 'studentIds' in getUserData() ? getUserData().studentIds : [];
     }
 
+    /// Guardian linkage fields actually stamped on allowed_users by the app
+    /// (TimetableService.addAllowedUser): studentClass / studentRoll /
+    /// studentSection. These are the SOURCE OF TRUTH for guardian scoping —
+    /// the app never populates classIds[]/studentIds[] for guardians, so those
+    /// must NOT be relied on for guardian access.
+    function userStudentClass() {
+      return getUserData() != null && 'studentClass' in getUserData() ? getUserData().studentClass : null;
+    }
+
+    function userStudentRoll() {
+      return getUserData() != null && 'studentRoll' in getUserData() ? getUserData().studentRoll : null;
+    }
+
+    function userStudentSection() {
+      return getUserData() != null && 'studentSection' in getUserData() ? getUserData().studentSection : '';
+    }
+
+    /// The student document ID for the caller's own child:
+    /// "{studentClass}_{studentSection}_{studentRoll}" (spaces → underscores),
+    /// matching how the app builds student doc IDs. Used to scope guardian
+    /// access to subcollections that carry no className/roll fields.
+    function guardianStudentId() {
+      return userStudentClass().replace(' ', '_')
+           + '_' + userStudentSection().replace(' ', '_')
+           + '_' + string(userStudentRoll());
+    }
+
     /// True when caller's role exactly equals r.
     function isRole(r) {
       return userRole() == r;
@@ -154,7 +181,60 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     match /tasks/{taskId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && isAnyStaff();
+
+      // Staff create/delete and fully edit tasks.
+      allow create, delete: if isSignedIn() && isAnyStaff();
+
+      // Staff may update any field. A guardian may update ONLY the
+      // studentStatuses map (marking their child's task done). The client
+      // scopes which key inside the map changes to their own child.
+      allow update: if isSignedIn() && (
+        isAnyStaff() ||
+        (isRole('guardian')
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['studentStatuses']))
+      );
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // HOMEWORK  (/homework — ROOT collection, see HomeworkService)
+    //
+    // The live HomeworkService reads/writes the ROOT `homework` collection
+    // (not schools/{sid}/homework). Cross-school by path, acceptable while the
+    // app is single-school (same precedent as /tasks). A school-scoped homework
+    // rule also exists below for forward-compatibility.
+    //
+    // Read:   any authenticated member (teachers, management, guardians).
+    // Create: teacher (own teacherId, no impersonation) or management.
+    // Update/Delete: teacher or management.
+    // ════════════════════════════════════════════════════════════════
+    match /homework/{docId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && (isManagement() || isAnyTeacher())
+        && request.resource.data.teacherId == userTeacherId();
+
+      allow update, delete: if isSignedIn() && (isManagement() || isAnyTeacher());
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // COPY CHECKS  (/copy_checks — ROOT collection, see CopyCheckService)
+    //
+    // Live CopyCheckService uses the ROOT `copy_checks` collection (+ a
+    // `statuses` subcollection). Staff-only — contains per-student PII, no
+    // guardian use-case.
+    // ════════════════════════════════════════════════════════════════
+    match /copy_checks/{checkId} {
+      allow read:  if isSignedIn() && isAnyStaff();
+      allow write: if isSignedIn() && (isManagement() || isAnyTeacher());
+
+      match /statuses/{statusId} {
+        allow read:  if isSignedIn() && isAnyStaff();
+        allow write: if isSignedIn() && (isManagement() || isAnyTeacher());
+      }
     }
 
 
@@ -304,20 +384,33 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/students/{studentId} {
 
-      allow read: if isSignedIn() && (isAnyStaff() || (inSchool(sid) && isRole('guardian') && (studentId in userStudentIds() || (sid + "_" + studentId) in userStudentIds())));
+      allow read: if isSignedIn() && (isAnyStaff() || (
+        inSchool(sid) && isRole('guardian')
+        // Own child — matched on real student fields (className/section/roll),
+        // since the app does not populate studentIds[] on allowed_users.
+        && resource.data.className == userStudentClass()
+        && resource.data.section == userStudentSection()
+        && resource.data.roll == userStudentRoll()
+      ));
 
       allow create: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
         (isAnyTeacher() && isClassTeacher(request.resource.data.className))
       );
 
+      // Guardian branch FIRST so a guardian short-circuits before the heavier
+      // isManagement()/isAnyTeacher()/isClassTeacher() chain — keeps this rule
+      // under Firestore's 1000-expression-per-request ceiling.
       allow update: if isSignedIn() && inSchool(sid) && (
-        isManagement() ||
-        (isAnyTeacher() && isClassTeacher(resource.data.className)) ||
-        // Guardian: only guardianDetails / guardianEmail for their own child.
+        // Guardian: only guardianDetails / guardianEmail, for their OWN child.
         (isRole('guardian')
+          && resource.data.className == userStudentClass()
+          && resource.data.section == userStudentSection()
+          && resource.data.roll == userStudentRoll()
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['guardianDetails', 'guardianEmail']))
+               .hasOnly(['guardianDetails', 'guardianEmail'])) ||
+        isManagement() ||
+        (isAnyTeacher() && isClassTeacher(resource.data.className))
       );
 
       allow delete: if isSignedIn() && inSchool(sid) && isManagement();
@@ -334,7 +427,9 @@ service cloud.firestore {
     match /schools/{sid}/students/{studentId}/remarks/{remarkId} {
       allow read, create: if isSignedIn() && (
         isAnyStaff() ||
-        (inSchool(sid) && isRole('guardian') && (studentId in userStudentIds() || (sid + "_" + studentId) in userStudentIds()))
+        // Own child — studentId is "{class}_{section}_{roll}". Remark docs carry
+        // no className/roll fields, so match the parent doc ID instead.
+        (inSchool(sid) && isRole('guardian') && studentId == guardianStudentId())
       );
 
       allow update, delete: if isSignedIn() && inSchool(sid) && (
@@ -445,7 +540,8 @@ service cloud.firestore {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isAnyStaff() ||
-        (isRole('guardian') && cls in userClassIds())
+        // Attendance doc ID == class name; guardian reads only their child's class.
+        (isRole('guardian') && cls == userStudentClass())
       );
 
       allow write: if isSignedIn() && inSchool(sid) && (
@@ -515,7 +611,9 @@ service cloud.firestore {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isRole('guardian') && (classId in userClassIds() || (resource.data != null && resource.data.className in userClassIds())))
+        // Guardian reads the fee structure for their child's class only.
+        (isRole('guardian') && resource.data != null
+          && resource.data.className == userStudentClass())
       );
 
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
@@ -530,17 +628,22 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/fee_payments/{classId} {
 
+      // {classId} is the underscored class name (e.g. "Class_9-A").
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isRole('guardian') && classId in userClassIds())
+        (isRole('guardian') && classId == userStudentClass().replace(' ', '_'))
       );
 
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
 
       match /students/{roll}/payments/{paymentId} {
+        // Guardian reads only their own child's payments — scoped by both the
+        // class node and the roll, so no intra-class or cross-class leak.
         allow read: if isSignedIn() && inSchool(sid) && (
           isManagement() ||
-          (isRole('guardian') && (classId + "_" + roll) in userStudentIds())
+          (isRole('guardian')
+            && classId == userStudentClass().replace(' ', '_')
+            && roll == string(userStudentRoll()))
         );
         allow write: if isSignedIn() && inSchool(sid) && isManagement();
       }
@@ -591,11 +694,13 @@ service cloud.firestore {
       match /students/{roll} {
         allow read: if isSignedIn() && inSchool(sid) && (
           isAnyStaff() ||
-          // Guardian: only their own child's result.
-          // Requires `studentId` field on the document (see note above).
+          // Guardian: only their own child's result. Scoped by the {roll} path
+          // node matching their child's roll, and (when present) the studentId
+          // field matching their child's doc ID — no cross-student leak.
           (isRole('guardian')
-            && 'studentId' in resource.data
-            && resource.data.studentId in userStudentIds())
+            && roll == string(userStudentRoll())
+            && (!('studentId' in resource.data)
+                || resource.data.studentId == guardianStudentId()))
         );
 
         allow write: if isSignedIn() && inSchool(sid) && (
@@ -723,15 +828,13 @@ service cloud.firestore {
           && resource.data.audience == ('teacher:' + userTeacherId())) ||
 
         // Guardian — 'guardian:{class}:{roll}'
-        // AUDIT FIX: roll-level enforcement via targetStudentId field.
-        // The `targetStudentId` field (e.g. "Class_9-A_A_42") must be present
-        // on the notification document and match the guardian's studentIds[].
-        // Without targetStudentId the document is denied — no fallback to
-        // class-only check to prevent intra-class leaks.
+        // Roll-level enforcement parsed directly from the audience string
+        // (class names contain no ':'). Matching BOTH class and roll prevents
+        // intra-class leaks without depending on a separate field.
         (isRole('guardian')
-          && resource.data.audience.matches('guardian:.*')
-          && 'targetStudentId' in resource.data
-          && resource.data.targetStudentId in userStudentIds()) ||
+          && resource.data.audience.matches('guardian:.*:.*')
+          && resource.data.audience.split(':')[1] == userStudentClass()
+          && resource.data.audience.split(':')[2] == string(userStudentRoll())) ||
 
         // Class teacher — 'class_teacher:{className}'
         (isAnyTeacher()
