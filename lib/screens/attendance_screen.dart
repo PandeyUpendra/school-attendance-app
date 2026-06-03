@@ -55,6 +55,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool   _alreadySaved   = false; // today's attendance doc exists
   bool   _isMarking      = false; // user is actively marking attendance
   bool   _noAssignment   = false; // teacher has no assigned class/section
+  bool   _saving         = false; // a _save() is in flight (guards double-tap)
 
   // Feedback settings
   bool _soundEnabled = true;
@@ -374,18 +375,72 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Future<void> _save() async {
-    // Re-check connectivity
-    final results = await _connectivity.checkConnectivity();
-    final online  = results.any((r) => r != ConnectivityResult.none);
-    setState(() => _isOnline = online);
+    // Guard against double-taps / re-entry while a save is already running.
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      // Re-check connectivity
+      final results = await _connectivity.checkConnectivity();
+      final online  = results.any((r) => r != ConnectivityResult.none);
+      if (mounted) setState(() => _isOnline = online);
 
-    if (!online) {
-      final toQueue = Map<int, String>.fromEntries(
+      final toSave = Map<int, String>.fromEntries(
           _attendance.entries.where((e) => e.value.isNotEmpty));
-      await _offlineQueue.enqueue(
-        className:  _attendanceKey,
-        attendance: toQueue,
-      );
+
+      if (online) {
+        try {
+          if (widget.date == null) {
+            await _service.saveAttendance(className: _attendanceKey, attendance: toSave);
+          } else {
+            await _service.saveAttendanceForDate(className: _attendanceKey, attendance: toSave, date: widget.date!);
+          }
+
+          // Absence notices are secondary — a failure here must NEVER block the
+          // save confirmation, so each is awaited inside its own guard.
+          for (final s in _students) {
+            final status = _attendance[s.roll];
+            if (status == 'Absent' || status == 'Leave') {
+              try {
+                await NotificationService().addAbsenceNotice(
+                  className:   _className,
+                  roll:        s.roll,
+                  studentName: s.name,
+                  status:      status!,
+                );
+              } catch (_) {/* non-fatal */}
+            }
+          }
+
+          if (!mounted) return;
+          setState(() {
+            _dirty        = false;
+            _alreadySaved = true;
+            _isMarking    = false;
+          });
+          await _showSavedDialog();
+          return;
+        } catch (e) {
+          // The online write failed (e.g. permission-denied or a network/DNS
+          // drop). Previously this threw out of _save with no feedback AND
+          // without persisting anything, so the button looked dead and the
+          // marks were lost. Fall back to the offline queue so the marks are
+          // preserved and will sync later, and tell the teacher what happened.
+          await _offlineQueue.enqueue(className: _attendanceKey, attendance: toSave);
+          final pending = await _offlineQueue.pendingCount();
+          if (!mounted) return;
+          setState(() {
+            _dirty        = false;
+            _pendingCount = pending;
+            _alreadySaved = true;
+            _isMarking    = false;
+          });
+          await _showSaveFallbackDialog(e);
+          return;
+        }
+      }
+
+      // Offline from the start — queue locally.
+      await _offlineQueue.enqueue(className: _attendanceKey, attendance: toSave);
       final pending = await _offlineQueue.pendingCount();
       if (!mounted) return;
       setState(() {
@@ -394,7 +449,44 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _alreadySaved = true;
         _isMarking    = false;
       });
-      await showDialog(
+      await _showOfflineDialog();
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _showSavedDialog() => showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Row(children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 24),
+            SizedBox(width: 10),
+            Text('Attendance Saved', style: TextStyle(fontSize: 16)),
+          ]),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            _SummaryRow('Total Students', '$_total', Colors.grey),
+            _SummaryRow('Present', '$_present', const Color(0xFF2E7D32)),
+            _SummaryRow('On Leave', '$_leave', const Color(0xFFF57F17)),
+            _SummaryRow('Absent', '$_absent', const Color(0xFFC62828)),
+          ]),
+          actions: [
+            if (_absent + _leave > 0)
+              TextButton.icon(
+                onPressed: () { Navigator.pop(ctx); _showWhatsAppSheet(); },
+                icon: const Icon(FontAwesomeIcons.whatsapp, size: 16, color: Colors.green),
+                label: const Text('Notify via WhatsApp', style: TextStyle(color: Colors.green)),
+              ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+      );
+
+  Future<void> _showOfflineDialog() => showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -404,7 +496,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             Text('Saved Offline', style: TextStyle(fontSize: 16)),
           ]),
           content: const Text(
-            'No internet connection. Attendance has been saved locally.',
+            'No internet connection. Attendance has been saved locally and '
+            'will sync automatically when you are back online.',
             style: TextStyle(fontSize: 13),
           ),
           actions: [
@@ -416,68 +509,30 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ],
         ),
       );
-      return;
-    }
 
-    final toSave = Map<int, String>.fromEntries(
-        _attendance.entries.where((e) => e.value.isNotEmpty));
-    
-    if (widget.date == null) {
-      await _service.saveAttendance(className: _attendanceKey, attendance: toSave);
-    } else {
-      await _service.saveAttendanceForDate(className: _attendanceKey, attendance: toSave, date: widget.date!);
-    }
-
-    for (final s in _students) {
-      final status = _attendance[s.roll];
-      if (status == 'Absent' || status == 'Leave') {
-        NotificationService().addAbsenceNotice(
-          className:   _className,
-          roll:        s.roll,
-          studentName: s.name,
-          status:      status!,
-        );
-      }
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _dirty        = false;
-      _alreadySaved = true;
-      _isMarking    = false;
-    });
-
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Row(children: [
-          Icon(Icons.check_circle, color: Colors.green, size: 24),
-          SizedBox(width: 10),
-          Text('Attendance Saved', style: TextStyle(fontSize: 16)),
-        ]),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          _SummaryRow('Total Students', '$_total', Colors.grey),
-          _SummaryRow('Present', '$_present', const Color(0xFF2E7D32)),
-          _SummaryRow('On Leave', '$_leave', const Color(0xFFF57F17)),
-          _SummaryRow('Absent', '$_absent', const Color(0xFFC62828)),
-        ]),
-        actions: [
-          if (_absent + _leave > 0)
-            TextButton.icon(
-              onPressed: () { Navigator.pop(ctx); _showWhatsAppSheet(); },
-              icon: const Icon(FontAwesomeIcons.whatsapp, size: 16, color: Colors.green),
-              label: const Text('Notify via WhatsApp', style: TextStyle(color: Colors.green)),
-            ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-            child: const Text('Done'),
+  Future<void> _showSaveFallbackDialog(Object error) => showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Row(children: [
+            Icon(Icons.cloud_sync_outlined, color: Colors.orange, size: 24),
+            SizedBox(width: 10),
+            Expanded(child: Text('Saved Locally', style: TextStyle(fontSize: 16))),
+          ]),
+          content: Text(
+            'Attendance is saved on this device and will sync when the server '
+            'is reachable.\n\nThe live save did not go through:\n$error',
+            style: const TextStyle(fontSize: 12),
           ),
-        ],
-      ),
-    );
-  }
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
 
   void _showWhatsAppSheet() {
     final followUp = _students
@@ -651,6 +706,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     leave: _leave,
                     onSave: _save,
                     onNotify: _showWhatsAppSheet,
+                    saving: _saving,
                   );
                 }
 
@@ -1388,6 +1444,7 @@ class _VerticalStudentCard extends StatelessWidget {
 class _AttendanceSummaryCard extends StatelessWidget {
   final int total, present, absent, leave;
   final VoidCallback onSave, onNotify;
+  final bool saving;
 
   const _AttendanceSummaryCard({
     required this.total,
@@ -1396,6 +1453,7 @@ class _AttendanceSummaryCard extends StatelessWidget {
     required this.leave,
     required this.onSave,
     required this.onNotify,
+    this.saving = false,
   });
 
   @override
@@ -1429,15 +1487,21 @@ class _AttendanceSummaryCard extends StatelessWidget {
             const SizedBox(height: 48),
             
             ElevatedButton(
-              onPressed: onSave,
+              onPressed: saving ? null : onSave,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: AppTheme.primary,
+                disabledBackgroundColor: Colors.white70,
                 minimumSize: const Size(double.infinity, 56),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
               ),
-              child: const Text('SAVE ATTENDANCE', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+              child: saving
+                  ? const SizedBox(
+                      width: 22, height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: AppTheme.primary))
+                  : const Text('SAVE ATTENDANCE',
+                      style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
             ),
             if (absent > 0 || leave > 0) ...[
               const SizedBox(height: 16),
