@@ -248,7 +248,21 @@ class NotificationService extends BaseFirestoreService {
     String? studentClass,
     int?    studentRoll,
   }) {
-    final audiences = <String>{'all', role};
+    final audiences = <String>{'all'};
+
+    // Bare-role channel. Only 'coordinator' and 'principal' are ever addressed
+    // by their bare role string (addLeaveSubmitted's toRole is only ever those
+    // two). Adding the bare role for any OTHER role — 'teacher', 'guardian',
+    // 'owner', … — requests an audience that is never written AND is not
+    // permitted by firestore.rules. Firestore rules are not filters, so a
+    // single unreadable candidate in a whereIn rejects the ENTIRE query, which
+    // is why the whole notifications feed was failing with permission-denied
+    // for teachers (and guardians). Keep this set to exactly what the writers
+    // emit and the rules allow.
+    if (role == 'coordinator' || role == 'principal') {
+      audiences.add(role);
+    }
+
     if (role == 'teacher') {
       audiences.add('teachers');
       if (teacherId != null && teacherId.isNotEmpty) {
