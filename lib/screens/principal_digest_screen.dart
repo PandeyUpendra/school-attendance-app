@@ -111,7 +111,7 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
       body: _loading
           ? const LoadingState()
           : _error != null
-              ? _ErrorView(message: _error!, onRetry: _load)
+              ? _ErrorView(onRetry: _load)
               : _snap == null
                   ? const SizedBox.shrink()
                   : RefreshIndicator(
@@ -864,9 +864,8 @@ class _StatColumn extends StatelessWidget {
 }
 
 class _ErrorView extends StatelessWidget {
-  final String message;
   final VoidCallback onRetry;
-  const _ErrorView({required this.message, required this.onRetry});
+  const _ErrorView({required this.onRetry});
 
   @override
   Widget build(BuildContext context) => Center(
@@ -875,16 +874,18 @@ class _ErrorView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline,
-                  size: 40, color: Colors.grey.shade400),
+              Icon(Icons.summarize_outlined,
+                  size: 44, color: Colors.grey.shade400),
               const SizedBox(height: 12),
-              Text('Could not build digest',
+              Text("No digest to show yet",
                   style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       color: Colors.grey.shade700,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
-              Text(message,
+              Text(
+                  "There's no end-of-day activity to summarise right now. "
+                  'Pull to refresh once the day gets going.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 12, color: Colors.grey.shade500)),
@@ -892,7 +893,7 @@ class _ErrorView extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: const Text('Refresh'),
               ),
             ],
           ),

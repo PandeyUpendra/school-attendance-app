@@ -60,6 +60,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 return;
               }
               if (!ctx.mounted) return;
+              FocusManager.instance.primaryFocus?.unfocus();
               Navigator.pop(ctx);
               if (!context.mounted) return;
               Navigator.push(context,
@@ -128,7 +129,12 @@ class RoleSelectionScreen extends StatelessWidget {
             ),
             actions: [
               TextButton(
-                onPressed: busy ? null : () => Navigator.pop(ctx),
+                onPressed: busy
+                    ? null
+                    : () {
+                        FocusManager.instance.primaryFocus?.unfocus();
+                        Navigator.pop(ctx);
+                      },
                 child: const Text('Cancel'),
               ),
               ElevatedButton(

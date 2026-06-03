@@ -163,6 +163,7 @@ class PrincipalDigestService {
   /// never touch another school's data and only fetch today's documents.
   Future<List<RemarkItem>> _fetchTodayRemarks(
       String sid, DateTime dayStart) async {
+   try {
     final cutoff = Timestamp.fromDate(dayStart);
     final studentsSnap =
         await _db.collection('schools').doc(sid).collection('students').get();
@@ -189,6 +190,11 @@ class PrincipalDigestService {
     final remarks = perStudent.expand((e) => e).toList();
     remarks.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return remarks;
+   } catch (_) {
+     // A missing index or access hiccup on one subtree must not sink the whole
+     // digest — degrade this section to empty so the rest still renders.
+     return [];
+   }
   }
 
   /// Today's fee payments for [sid] only.
@@ -198,6 +204,7 @@ class PrincipalDigestService {
   /// Returns each payment's raw data map for aggregation by the caller.
   Future<List<Map<String, dynamic>>> _fetchTodayPayments(
       String sid, List<String> classes, DateTime dayStart) async {
+   try {
     final cutoff = Timestamp.fromDate(dayStart);
     final feePayments =
         _db.collection('schools').doc(sid).collection('fee_payments');
@@ -219,6 +226,10 @@ class PrincipalDigestService {
     }));
 
     return perClass.expand((e) => e).toList();
+   } catch (_) {
+     // Degrade fees-collected-today to empty rather than failing the digest.
+     return [];
+   }
   }
 }
 

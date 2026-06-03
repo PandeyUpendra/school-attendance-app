@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../providers/school_settings_provider.dart';
 import '../theme.dart';
 import '../models/exam.dart';
 import '../models/guardian_student_details.dart';
@@ -338,6 +340,9 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         ),
       ),
     ),
+    const SizedBox(height: 16),
+    // ── School information (read-only, managed by owner/principal) ─
+    const _SchoolInfoCard(),
     const SizedBox(height: 16),
     // ── Today's status banner ────────────────────────────────────
     _TodayBanner(status: _todayStatus),
@@ -1647,6 +1652,130 @@ class _GDRow {
   final String   label;
   final String   value;
   const _GDRow(this.icon, this.label, this.value);
+}
+
+// ─── School information read-only card ───────────────────────────────────────
+// Sourced from SchoolSettingsProvider (the same data the owner/principal edit
+// under School Settings). Guardians can view but never edit it.
+
+class _SchoolInfoCard extends StatelessWidget {
+  const _SchoolInfoCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<SchoolSettingsProvider>();
+
+    // Until the settings stream has delivered data, render nothing rather than
+    // a card full of placeholder defaults.
+    if (!s.isLoaded) return const SizedBox.shrink();
+
+    final name = s.schoolName.trim();
+    final hasName = name.isNotEmpty && name != 'My School';
+
+    final addressParts = [
+      s.schoolAddress.trim(),
+      s.schoolCity.trim(),
+      s.schoolState.trim(),
+      s.schoolPinCode.trim(),
+    ].where((p) => p.isNotEmpty).toList();
+
+    final rows = <_GDRow>[
+      if (addressParts.isNotEmpty)
+        _GDRow(Icons.location_on_outlined, 'Address', addressParts.join(', ')),
+      if (s.schoolPhone.trim().isNotEmpty)
+        _GDRow(Icons.phone_outlined, 'Phone', s.schoolPhone.trim()),
+      if (s.schoolEmail.trim().isNotEmpty)
+        _GDRow(Icons.email_outlined, 'Email', s.schoolEmail.trim()),
+      if (s.schoolWebsite.trim().isNotEmpty)
+        _GDRow(Icons.language_outlined, 'Website', s.schoolWebsite.trim()),
+      if (s.board.trim().isNotEmpty)
+        _GDRow(Icons.menu_book_outlined, 'Board', s.board.trim()),
+      if (s.principalName.trim().isNotEmpty)
+        _GDRow(Icons.person_outline, 'Principal', s.principalName.trim()),
+      if (s.establishedYear.trim().isNotEmpty)
+        _GDRow(Icons.calendar_today_outlined, 'Established', s.establishedYear.trim()),
+    ];
+
+    // Nothing meaningful to show yet.
+    if (!hasName && rows.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header — logo + school name + tagline
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Row(children: [
+              Container(
+                width: 34, height: 34,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: const Icon(Icons.school_outlined,
+                    color: AppTheme.primary, size: 19),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(hasName ? name : 'School Information',
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.bold)),
+                    if (s.schoolTagline.trim().isNotEmpty)
+                      Text(s.schoolTagline.trim(),
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade500)),
+                  ],
+                ),
+              ),
+            ]),
+          ),
+          if (rows.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            const Divider(height: 1),
+            ...rows.asMap().entries.map((e) {
+              final r = e.value;
+              return Column(children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(children: [
+                    Icon(r.icon, size: 18, color: Colors.grey.shade400),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(r.label,
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade500)),
+                          const SizedBox(height: 2),
+                          Text(r.value,
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w500)),
+                        ],
+                      ),
+                    ),
+                  ]),
+                ),
+                if (e.key < rows.length - 1)
+                  const Divider(height: 1, indent: 46),
+              ]);
+            }),
+          ],
+          const SizedBox(height: 10),
+        ],
+      ),
+    );
+  }
 }
 
 // ─── Today's status banner ───────────────────────────────────────────────────

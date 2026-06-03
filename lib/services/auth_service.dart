@@ -231,6 +231,10 @@ class AuthService {
     await prefs.remove(_keyName);
     await prefs.remove(_keySchoolId);
     await prefs.remove(_keyStudentLinks);
+
+    // Drop the in-memory school so it can't leak into the next session and
+    // leave school-scoped streams bound to the previous user's school.
+    BaseFirestoreService.currentSchoolId = null;
   }
 
   /// Returns a human-readable message for a [FirebaseAuthException].

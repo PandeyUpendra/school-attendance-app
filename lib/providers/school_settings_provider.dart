@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../services/base_firestore_service.dart';
 import '../services/school_settings_service.dart';
 
 class SchoolSettingsProvider extends ChangeNotifier {
@@ -11,12 +13,42 @@ class SchoolSettingsProvider extends ChangeNotifier {
   Map<String, dynamic> _comm = {};
   bool _loaded = false;
 
+  /// School id the live streams are currently bound to. Tracked so we only
+  /// rebind when the active school actually changes.
+  String? _boundSchoolId;
+
   StreamSubscription? _schoolSub;
   StreamSubscription? _academicSub;
   StreamSubscription? _feesSub;
   StreamSubscription? _commSub;
 
   SchoolSettingsProvider() {
+    _bind();
+    // Rebind whenever the signed-in school changes (login / session restore /
+    // logout). Without this the provider stays locked to the school that was
+    // active when it was first created — so owner edits saved under the real
+    // school never surface for the principal/guardian reading afterwards.
+    BaseFirestoreService.schoolIdNotifier.addListener(_onActiveSchoolChanged);
+  }
+
+  void _onActiveSchoolChanged() {
+    if (AuthService.currentSchoolId == _boundSchoolId) return;
+    _bind();
+  }
+
+  /// (Re)subscribes the live streams to the currently active school, clearing
+  /// any data carried over from a previously bound school.
+  void _bind() {
+    _boundSchoolId = AuthService.currentSchoolId;
+    _schoolSub?.cancel();
+    _academicSub?.cancel();
+    _feesSub?.cancel();
+    _commSub?.cancel();
+    _school = {};
+    _academic = {};
+    _fees = {};
+    _comm = {};
+    _loaded = false;
     _init();
   }
 
@@ -43,6 +75,7 @@ class SchoolSettingsProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    BaseFirestoreService.schoolIdNotifier.removeListener(_onActiveSchoolChanged);
     _schoolSub?.cancel();
     _academicSub?.cancel();
     _feesSub?.cancel();

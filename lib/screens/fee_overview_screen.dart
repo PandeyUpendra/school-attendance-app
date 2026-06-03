@@ -46,17 +46,13 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
         _summaries = summaries;
         _loading   = false;
       });
-    } catch (e) {
+    } catch (_) {
+      // Don't surface raw Firestore errors here — fall back to the calm empty
+      // state below (the "No classes configured yet." view, with a Refresh).
       if (!mounted) return;
       setState(() {
-        _loading   = false;
+        _loading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading fee details: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 

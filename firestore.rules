@@ -198,6 +198,31 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
+    // PERSONAL TO-DOS  (/personal_todos/{todoId} — ROOT collection)
+    //
+    // Private per-user task list (TodoService). Each doc carries a `userId`
+    // the app sets to the caller's IDENTITY — email for coordinator/principal,
+    // teacherId for teachers (with an email fallback). It is NOT the auth UID,
+    // so ownership is matched against userEmail() OR userTeacherId().
+    //
+    // A user may only read/write their own todos. (String == null comparisons
+    // return false in rules, so the userTeacherId() branch is safe for callers
+    // without a teacherId.)
+    // ════════════════════════════════════════════════════════════════
+    match /personal_todos/{todoId} {
+      allow read, update, delete: if isSignedIn() && (
+        resource.data.userId == userEmail() ||
+        resource.data.userId == userTeacherId()
+      );
+
+      allow create: if isSignedIn() && (
+        request.resource.data.userId == userEmail() ||
+        request.resource.data.userId == userTeacherId()
+      );
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
     // HOMEWORK  (/homework — ROOT collection, see HomeworkService)
     //
     // The live HomeworkService reads/writes the ROOT `homework` collection
@@ -635,6 +660,20 @@ service cloud.firestore {
       );
 
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
+
+      // Intermediate student node — lets management LIST the students that have
+      // payments under a class (PrincipalDigestService fans out across
+      // fee_payments/{classId}/students/* to total today's collection). Without
+      // this the list query is denied: the payments rule below only covers the
+      // payment leaf docs, not the students collection that contains them.
+      match /students/{roll} {
+        allow read: if isSignedIn() && inSchool(sid) && (
+          isManagement() ||
+          (isRole('guardian')
+            && classId == userStudentClass().replace(' ', '_')
+            && roll == string(userStudentRoll()))
+        );
+      }
 
       match /students/{roll}/payments/{paymentId} {
         // Guardian reads only their own child's payments — scoped by both the
