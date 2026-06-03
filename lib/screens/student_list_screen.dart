@@ -943,8 +943,6 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 } catch (_) {}
                 savedEmail = email;
                 if (dCtx.mounted) Navigator.pop(dCtx);
-                savedEmail = email;
-                if (dCtx.mounted) Navigator.pop(dCtx);
               },
               child: const Text('Save'),
             ),

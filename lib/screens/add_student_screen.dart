@@ -199,6 +199,48 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
           return;
         }
 
+        // ── Guardian portal login ─────────────────────────────────────────
+        // If a guardian email was provided, provision a Firebase Auth account
+        // and send the password-setup / invite email so the parent can log in.
+        // Without this, the email typed into the form never receives anything
+        // (the edit path does this via addAllowedUser; the add path used to
+        // skip it entirely). Kept non-fatal: the student record is already
+        // saved, so an invite failure must not lose the student or block the
+        // consent flow — it surfaces a non-blocking warning the admin can act
+        // on (resend invite) instead.
+        final guardianEmail = student.guardianEmail?.trim().toLowerCase() ?? '';
+        if (guardianEmail.isNotEmpty) {
+          try {
+            await TimetableService().provisionGuardianLoginAccess(
+              email:        guardianEmail,
+              studentClass: student.className,
+              studentRoll:  student.roll,
+              studentName:  student.name,
+              schoolId:     BaseFirestoreService.currentSchoolId,
+            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text('Login invite sent to $guardianEmail'),
+                backgroundColor: AppTheme.success,
+              ));
+            }
+          } catch (e) {
+            // ignore: avoid_print
+            print('[AddStudent] guardian invite failed for $guardianEmail · '
+                  'role=$role · schoolId=$sid · error=$e');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(
+                  'Student saved, but the login invite to $guardianEmail '
+                  'could not be sent. Resend it from the student profile.',
+                ),
+                backgroundColor: AppTheme.warning,
+                duration: const Duration(seconds: 8),
+              ));
+            }
+          }
+        }
+
         // ── Parental consent flow ─────────────────────────────────────────
         // Build the canonical student doc ID that StudentService uses.
         final cls        = widget.className.replaceAll(' ', '_');

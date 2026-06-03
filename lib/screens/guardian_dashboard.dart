@@ -65,6 +65,15 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   Map<int, Map<int, String>> _monthData = {};
   String? _todayStatus;
 
+  // Attendance is stored by the teacher under a section-scoped key
+  // ('$className $section' when a section exists). The guardian MUST read with
+  // the identical key or the lookup misses every doc and history shows blank —
+  // matches AttendanceScreen._attendanceKey / AttendanceHistoryScreen._attendanceKey.
+  String get _attendanceKey =>
+      widget.studentSection.trim().isEmpty
+          ? widget.studentClass
+          : '${widget.studentClass} ${widget.studentSection.trim()}';
+
   // Fee
   FeeStructure? _feeStructure;
   double        _totalPaid = 0;
@@ -167,8 +176,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       final coreResults = await Future.wait([
         _service.getStudentByRoll(widget.studentClass, widget.studentRoll, section: widget.studentSection),  // 0
         _service.loadMonthAttendance(
-            className: widget.studentClass, year: _month.year, month: _month.month),  // 1
-        _service.loadTodayAttendance(className: widget.studentClass),                 // 2
+            className: _attendanceKey, year: _month.year, month: _month.month),  // 1
+        _service.loadTodayAttendance(className: _attendanceKey),                  // 2
       ]);
       if (!mounted) return;
 
@@ -242,7 +251,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     setState(() { _month = newMonth; _loading = true; _error = null; });
     try {
       final data = await _service.loadMonthAttendance(
-          className: widget.studentClass, year: newMonth.year, month: newMonth.month);
+          className: _attendanceKey, year: newMonth.year, month: newMonth.month);
       if (!mounted) return;
       setState(() { _monthData = data; _loading = false; });
     } catch (e) {

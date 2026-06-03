@@ -41,6 +41,15 @@ class _AttendanceCertificateScreenState
   // School name from timetable settings
   String _schoolName = 'The School';
 
+  // Attendance docs are keyed by the teacher's section-scoped key
+  // ('$className $section' when a section exists). Reading with the class name
+  // alone misses every doc, so the certificate would report 0 days. Mirror
+  // AttendanceScreen._attendanceKey exactly.
+  String get _attendanceKey =>
+      widget.student.section.trim().isEmpty
+          ? widget.student.className
+          : '${widget.student.className} ${widget.student.section.trim()}';
+
   @override
   void initState() {
     super.initState();
@@ -69,7 +78,7 @@ class _AttendanceCertificateScreenState
     DateTime cursor = DateTime(_from.year, _from.month);
     while (!cursor.isAfter(DateTime(_to.year, _to.month))) {
       final monthData = await _service.loadMonthAttendance(
-          className: widget.student.className, year: cursor.year, month: cursor.month);
+          className: _attendanceKey, year: cursor.year, month: cursor.month);
 
       for (final entry in monthData.entries) {
         final day  = entry.key;
