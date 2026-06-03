@@ -175,14 +175,22 @@ class _GuardianLeaveApplicationScreenState
       );
 
       if (!mounted) return;
-      setState(() => _submitting = false);
+      // Stay on the screen so the new request shows up in the history below;
+      // reset the form for a possible next request.
+      setState(() {
+        _submitting   = false;
+        _reason       = _reasonOptions.first;
+        _numberOfDays = 1;
+        _startDate    = DateTime.now().add(const Duration(days: 1));
+        _overlapping  = false;
+      });
+      _customReasonCtrl.clear();
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('Leave application submitted to class teacher ✓'),
         backgroundColor: Colors.green.shade700,
         duration: const Duration(seconds: 3),
       ));
-      Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);

@@ -592,12 +592,11 @@ class TimetableService extends BaseFirestoreService {
 
   /// Resends the invitation / password-setup email for an existing account.
   Future<void> resendInvitationEmail(String email) async {
-    try {
-      await FirebaseAuth.instance
-          .sendPasswordResetEmail(email: email.toLowerCase().trim());
-    } catch (_) {
-      // Ignored — caller can surface a success message; failure is non-critical.
-    }
+    // Let failures propagate so callers can report truthfully and offer a
+    // retry — swallowing this is what caused "invite sent" to be shown when no
+    // email actually went out.
+    await FirebaseAuth.instance
+        .sendPasswordResetEmail(email: email.toLowerCase().trim());
   }
 
   /// Provisions Firebase Auth + allowed_users for a teacher who was added

@@ -12,6 +12,7 @@ import '../models/student.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
+import '../utils/app_logger.dart';
 import 'add_student_screen.dart';
 import 'attendance_certificate_screen.dart';
 import '../widgets/refreshable_data.dart';
@@ -888,6 +889,8 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
   Future<void> _setGuardianEmail(BuildContext ctx) async {
     final ctrl = TextEditingController(text: _student.guardianEmail ?? '');
     String? savedEmail;
+    bool    inviteSent  = false;
+    Object? inviteError;
 
     await showDialog<void>(
       context: ctx,
@@ -928,20 +931,22 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
               onPressed: () async {
                 final email = ctrl.text.trim().toLowerCase();
                 if (email.isEmpty || !email.contains('@')) return;
+                // Persist the email on the student record + provision the
+                // guardian's allowed_users / Firebase Auth account.
                 await StudentService().setGuardianEmail(
                   _student.className, _student.roll, email,
                   section: _student.section,
                   studentName: _student.name,
                 );
-                try {
-                  await TimetableService().provisionGuardianLoginAccess(
-                    email:        email,
-                    studentClass: _student.className,
-                    studentRoll:  _student.roll,
-                    studentName:  _student.name,
-                  );
-                } catch (_) {}
                 savedEmail = email;
+                // Actually send the password-setup / invite email and capture
+                // the real result — do NOT assume success.
+                try {
+                  await TimetableService().resendInvitationEmail(email);
+                  inviteSent = true;
+                } catch (e) {
+                  inviteError = e;
+                }
                 if (dCtx.mounted) Navigator.pop(dCtx);
               },
               child: const Text('Save'),
@@ -957,12 +962,26 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
       setState(() {
         _student = _student.copyWith(guardianEmail: savedEmail);
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Invite email sent to $savedEmail'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
-      ));
+      if (inviteSent) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Invite email sent to $savedEmail'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Guardian saved, but the invite email to $savedEmail could not '
+              'be sent. Use "Resend Invite" to try again.'),
+          backgroundColor: AppTheme.warning,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 8),
+        ));
+        AppLogger.e('StudentList',
+            'Guardian invite send failed for $savedEmail: $inviteError',
+            inviteError);
+      }
     }
   }
 

@@ -232,6 +232,11 @@ class _RequestList extends StatelessWidget {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: stream,
       builder: (ctx, snap) {
+        // Newly-deployed composite index (status + requestedAt) can take a few
+        // minutes to build — show a friendly notice instead of a generic error.
+        if (snap.hasError && isIndexBuildingError(snap.error)) {
+          return const IndexBuildingNotice();
+        }
         final waiting = snap.connectionState == ConnectionState.waiting;
         final items = snap.data ?? [];
         return RefreshableData(
@@ -246,18 +251,110 @@ class _RequestList extends StatelessWidget {
               ? 'No pending deletion requests'
               : 'No resolved requests',
           errorMessage: 'Could not load deletion requests',
-          builder: (context) => ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: items.length,
-            itemBuilder: (_, i) => _RequestCard(
-              request: items[i],
-              onApprove: onApprove,
-              onReject: onReject,
-              isPending: isPending,
-            ),
-          ),
+          builder: (context) => _buildGroupedByClass(items),
         );
       },
+    );
+  }
+
+  /// Groups the requests under per-class section headers so the principal can
+  /// review them class-by-class. Each request's class is derived from the
+  /// students it targets.
+  Widget _buildGroupedByClass(List<Map<String, dynamic>> items) {
+    final groups = <String, List<Map<String, dynamic>>>{};
+    for (final req in items) {
+      groups.putIfAbsent(_classLabel(req), () => []).add(req);
+    }
+    final classKeys = groups.keys.toList()..sort(_compareClasses);
+
+    final children = <Widget>[];
+    for (final cls in classKeys) {
+      final reqs = groups[cls]!;
+      final studentCount = reqs.fold<int>(
+          0, (n, r) => n + ((r['students'] as List?)?.length ?? 0));
+      children.add(_ClassHeader(className: cls, studentCount: studentCount));
+      for (final r in reqs) {
+        children.add(_RequestCard(
+          request: r,
+          onApprove: onApprove,
+          onReject: onReject,
+          isPending: isPending,
+        ));
+      }
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: children,
+    );
+  }
+
+  /// The class a request belongs to, taken from its target students.
+  static String _classLabel(Map<String, dynamic> req) {
+    final students =
+        (req['students'] as List?)?.whereType<Map<String, dynamic>>() ?? [];
+    final classes = students
+        .map((s) => (s['className'] as String?)?.trim() ?? '')
+        .where((c) => c.isNotEmpty)
+        .toSet();
+    if (classes.isEmpty) return 'Unknown class';
+    if (classes.length == 1) return classes.first;
+    return 'Multiple classes';
+  }
+
+  /// Natural compare so "Class 2" sorts before "Class 10".
+  static int _compareClasses(String a, String b) {
+    int? numIn(String s) {
+      final m = RegExp(r'\d+').firstMatch(s);
+      return m == null ? null : int.tryParse(m.group(0)!);
+    }
+
+    final na = numIn(a), nb = numIn(b);
+    if (na != null && nb != null && na != nb) return na.compareTo(nb);
+    return a.toLowerCase().compareTo(b.toLowerCase());
+  }
+}
+
+// ── Per-class section header ────────────────────────────────────────────────────
+
+class _ClassHeader extends StatelessWidget {
+  final String className;
+  final int studentCount;
+
+  const _ClassHeader({required this.className, required this.studentCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 8, left: 2, right: 2),
+      child: Row(
+        children: [
+          const Icon(Icons.class_outlined, size: 18, color: AppTheme.primary),
+          const SizedBox(width: 8),
+          Text(
+            className,
+            style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primary),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$studentCount student${studentCount == 1 ? '' : 's'}',
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.primary),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

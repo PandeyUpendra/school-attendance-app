@@ -162,14 +162,22 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
       );
 
       if (!mounted) return;
-      setState(() => _submitting = false);
+      // Stay on the screen so the teacher can see the new entry appear in
+      // "My Leave History" below; reset the form for a possible next request.
+      setState(() {
+        _submitting     = false;
+        _reason         = _reasonOptions.first;
+        _numberOfDays   = 1;
+        _startDate      = DateTime.now().add(const Duration(days: 1));
+        _overlapping    = false;
+      });
+      _customReasonCtrl.clear();
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('Leave application submitted successfully ✓'),
         backgroundColor: Colors.green.shade700,
         duration: const Duration(seconds: 3),
       ));
-      Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);

@@ -6,10 +6,12 @@ import '../../models/teacher.dart';
 import '../../services/staff_task_service.dart';
 import '../../services/timetable_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/index_building_notice.dart';
 import '../task_badge_widgets.dart';
 
 const String _kAllTeachers = 'ALL_TEACHERS';
+const String _kCoordPrefix = 'coord:';
 
 const Map<String, String> _kTemplates = {
   'PTM Preparation':
@@ -98,8 +100,11 @@ class UnifiedStaffTaskScreen extends StatelessWidget {
           ),
           body: TabBarView(
             children: [
-              _AssignTab(assignerEmail: userEmail, assignerName: userName),
-              _AllTasksTab(assignerEmail: userEmail),
+              _AssignTab(
+                  assignerEmail: userEmail,
+                  assignerName: userName,
+                  assignerRole: role),
+              _AllTasksTab(viewerRole: role, assignerEmail: userEmail),
               const _AnalyticsTab(),
             ],
           ),
@@ -151,7 +156,12 @@ class UnifiedStaffTaskScreen extends StatelessWidget {
 class _AssignTab extends StatefulWidget {
   final String assignerEmail;
   final String assignerName;
-  const _AssignTab({required this.assignerEmail, required this.assignerName});
+  final String assignerRole; // 'principal' or 'coordinator'
+  const _AssignTab({
+    required this.assignerEmail,
+    required this.assignerName,
+    required this.assignerRole,
+  });
 
   @override
   State<_AssignTab> createState() => _AssignTabState();
@@ -161,10 +171,12 @@ class _AssignTabState extends State<_AssignTab> {
   final _descCtrl        = TextEditingController();
   final _customTitleCtrl = TextEditingController();
 
-  String?       _selectedTaskTitle;
-  List<Teacher> _teachers          = [];
+  String?                    _selectedTaskTitle;
+  List<Teacher>              _teachers          = [];
+  List<Map<String, dynamic>> _coordinators      = [];
   String?       _selectedTeacherId;
-  String        _selectedTeacherName = '';
+  String        _selectedTeacherName  = '';
+  bool          _selectedIsCoordinator = false;
   TaskPriority  _priority             = TaskPriority.medium;
   DateTime?     _dueDate;
   bool          _loadingPeople        = true;
@@ -173,7 +185,7 @@ class _AssignTabState extends State<_AssignTab> {
   @override
   void initState() {
     super.initState();
-    _loadTeachers();
+    _loadPeople();
   }
 
   @override
@@ -183,11 +195,19 @@ class _AssignTabState extends State<_AssignTab> {
     super.dispose();
   }
 
-  Future<void> _loadTeachers() async {
+  Future<void> _loadPeople() async {
     final teachers = await TimetableService().getTeachers();
+    // Only principals can delegate tasks to coordinators.
+    final coords = widget.assignerRole == 'principal'
+        ? await TimetableService().getCoordinators(AuthService.currentSchoolId)
+        : <Map<String, dynamic>>[];
     if (!mounted) return;
     setState(() {
       _teachers      = teachers..sort((a, b) => a.name.compareTo(b.name));
+      _coordinators  = coords
+        ..sort((a, b) => (a['name'] ?? a['email'] ?? '')
+            .toString()
+            .compareTo((b['name'] ?? b['email'] ?? '').toString()));
       _loadingPeople = false;
     });
   }
@@ -225,7 +245,7 @@ class _AssignTabState extends State<_AssignTab> {
       return;
     }
     if (_selectedTeacherId == null) {
-      _snack('Please select a teacher');
+      _snack('Please select an assignee');
       return;
     }
     if (_selectedTeacherId == _kAllTeachers) {
@@ -235,31 +255,39 @@ class _AssignTabState extends State<_AssignTab> {
 
     setState(() => _saving = true);
 
+    final isCoord = _selectedIsCoordinator;
+    final assigneeId = isCoord
+        ? _selectedTeacherId!.substring(_kCoordPrefix.length)
+        : _selectedTeacherId!;
+
     final title = _actualTitle;
     final task = StaffTask(
-      id:             '',
-      title:          title,
-      description:    _descCtrl.text.trim(),
-      assignedTo:     _selectedTeacherId!,
-      assignedToName: _selectedTeacherName,
-      assignedBy:     widget.assignerEmail,
-      assignedByRole: 'coordinator',
-      dueDate:        _dueDate,
-      status:         TaskStatus.pending,
-      priority:       _priority,
-      createdAt:      DateTime.now(),
+      id:              '',
+      title:           title,
+      description:     _descCtrl.text.trim(),
+      assignedTo:      assigneeId,
+      assignedToName:  _selectedTeacherName,
+      assignedToRoles: [isCoord ? 'coordinator' : 'teacher'],
+      assignedBy:      widget.assignerEmail,
+      assignedByRole:  widget.assignerRole,
+      creatorName:     widget.assignerName,
+      dueDate:         _dueDate,
+      status:          TaskStatus.pending,
+      priority:        _priority,
+      createdAt:       DateTime.now(),
     );
 
     await StaffTaskService().createTask(task);
 
     await NotificationService().addStaffTaskNotice(
       taskTitle:         title,
-      assignedTeacherId: _selectedTeacherId!,
+      assignedTeacherId: assigneeId,
       assignedByName:    widget.assignerName.isNotEmpty
                              ? widget.assignerName
                              : widget.assignerEmail,
       dueDateStr:        _dueDate != null ? _fmtDate(_dueDate!) : null,
       priority:          _priority.label,
+      audience:          isCoord ? 'coordinator' : 'teacher:$assigneeId',
     );
 
     if (!mounted) return;
@@ -306,7 +334,9 @@ class _AssignTabState extends State<_AssignTab> {
               assignedTo:     t.id,
               assignedToName: t.name,
               assignedBy:     widget.assignerEmail,
-              assignedByRole: 'coordinator',
+              assignedByRole: widget.assignerRole,
+              creatorName:    widget.assignerName,
+              assignedToRoles: const ['teacher'],
               dueDate:        _dueDate,
               status:         TaskStatus.pending,
               priority:       _priority,
@@ -338,11 +368,12 @@ class _AssignTabState extends State<_AssignTab> {
     _descCtrl.clear();
     _customTitleCtrl.clear();
     setState(() {
-      _selectedTaskTitle   = null;
-      _selectedTeacherId   = null;
-      _selectedTeacherName = '';
-      _priority            = TaskPriority.medium;
-      _dueDate             = null;
+      _selectedTaskTitle    = null;
+      _selectedTeacherId    = null;
+      _selectedTeacherName  = '';
+      _selectedIsCoordinator = false;
+      _priority             = TaskPriority.medium;
+      _dueDate              = null;
     });
   }
 
@@ -431,7 +462,7 @@ class _AssignTabState extends State<_AssignTab> {
                       color: AppTheme.primary, strokeWidth: 2))
               : DropdownButtonFormField<String>(
                   value: _selectedTeacherId,
-                  hint: const Text('Select a teacher'),
+                  hint: const Text('Select a teacher or coordinator'),
                   isExpanded: true,
                   decoration: _inputDec(),
                   items: [
@@ -447,19 +478,53 @@ class _AssignTabState extends State<_AssignTab> {
                                 color: AppTheme.primary)),
                       ]),
                     ),
+                    // Coordinators (principal only)
+                    ..._coordinators.map((c) => DropdownMenuItem<String>(
+                          value: '$_kCoordPrefix${c['email']}',
+                          child: Row(children: [
+                            const Icon(Icons.supervisor_account_outlined,
+                                color: AppTheme.accent, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${(c['name'] as String?)?.isNotEmpty == true ? c['name'] : c['email']} (Coordinator)',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ]),
+                        )),
                     ..._teachers.map((t) => DropdownMenuItem<String>(
                           value: t.id,
-                          child: Text(t.name,
+                          child: Text(
+                              t.isClassTeacher &&
+                                      (t.classTeacherOf?.isNotEmpty ?? false)
+                                  ? '${t.name} (Class Teacher · ${t.classTeacherOf})'
+                                  : t.name,
                               overflow: TextOverflow.ellipsis),
                         )),
                   ],
                   onChanged: (v) {
                     if (v == null) return;
                     setState(() {
-                      _selectedTeacherId   = v;
-                      _selectedTeacherName = v == _kAllTeachers
-                          ? 'All Teachers'
-                          : _teachers.firstWhere((t) => t.id == v).name;
+                      _selectedTeacherId = v;
+                      if (v == _kAllTeachers) {
+                        _selectedTeacherName   = 'All Teachers';
+                        _selectedIsCoordinator = false;
+                      } else if (v.startsWith(_kCoordPrefix)) {
+                        final email = v.substring(_kCoordPrefix.length);
+                        final c = _coordinators.firstWhere(
+                            (c) => c['email'] == email,
+                            orElse: () => const {});
+                        _selectedTeacherName =
+                            (c['name'] as String?)?.isNotEmpty == true
+                                ? c['name'] as String
+                                : email;
+                        _selectedIsCoordinator = true;
+                      } else {
+                        _selectedTeacherName =
+                            _teachers.firstWhere((t) => t.id == v).name;
+                        _selectedIsCoordinator = false;
+                      }
                     });
                   },
                 ),
@@ -628,8 +693,9 @@ class _AssignTabState extends State<_AssignTab> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AllTasksTab extends StatefulWidget {
+  final String viewerRole;
   final String assignerEmail;
-  const _AllTasksTab({required this.assignerEmail});
+  const _AllTasksTab({required this.viewerRole, required this.assignerEmail});
 
   @override
   State<_AllTasksTab> createState() => _AllTasksTabState();
@@ -671,8 +737,10 @@ class _AllTasksTabState extends State<_AllTasksTab> {
         Expanded(
           child: StreamBuilder<List<StaffTask>>(
             key: ValueKey(_refreshTick),
-            stream: StaffTaskService()
-                .getTasksByAssignerStream(widget.assignerEmail),
+            // Show every task in the school so a coordinator also sees tasks the
+            // principal assigned directly to teachers (each card is labelled
+            // with who assigned it to whom).
+            stream: StaffTaskService().getAllTasksStream(),
             builder: (context, snap) {
               if (snap.connectionState == ConnectionState.waiting &&
                   !snap.hasData) {
@@ -716,6 +784,10 @@ class _AllTasksTabState extends State<_AllTasksTab> {
                   itemCount: tasks.length,
                   itemBuilder: (_, i) => _AdminTaskCard(
                     task: tasks[i],
+                    // A coordinator may only delete tasks they assigned; the
+                    // principal can delete any task in the school.
+                    showDelete: widget.viewerRole == 'principal' ||
+                        tasks[i].assignedBy == widget.assignerEmail,
                     onDelete: () => _deleteTask(tasks[i]),
                   ),
                 ),
@@ -1101,7 +1173,12 @@ class _TeacherTaskTabState extends State<_TeacherTaskTab> {
 class _AdminTaskCard extends StatelessWidget {
   final StaffTask    task;
   final VoidCallback onDelete;
-  const _AdminTaskCard({required this.task, required this.onDelete});
+  final bool         showDelete;
+  const _AdminTaskCard({
+    required this.task,
+    required this.onDelete,
+    this.showDelete = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1136,22 +1213,41 @@ class _AdminTaskCard extends StatelessWidget {
               TaskPriorityBadge(priority: task.priority),
               const SizedBox(width: 6),
               TaskStatusChip(status: task.status),
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: onDelete,
-                child: Icon(Icons.delete_outline,
-                    size: 18, color: Colors.grey.shade400),
-              ),
+              if (showDelete) ...[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: onDelete,
+                  child: Icon(Icons.delete_outline,
+                      size: 18, color: Colors.grey.shade400),
+                ),
+              ],
             ]),
+            // Who assigned the task → who it was assigned to.
             if (task.assignedToName.isNotEmpty) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Row(children: [
-                Icon(Icons.person_outline,
-                    size: 12, color: Colors.grey.shade400),
+                Icon(Icons.swap_horiz_outlined,
+                    size: 13, color: Colors.grey.shade400),
                 const SizedBox(width: 4),
-                Text(task.assignedToName,
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade500)),
+                Expanded(
+                  child: RichText(
+                    overflow: TextOverflow.ellipsis,
+                    text: TextSpan(
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade600),
+                      children: [
+                        TextSpan(text: _assignerLabel(task)),
+                        const TextSpan(text: '  →  '),
+                        TextSpan(
+                          text: '${task.assignedToName}'
+                              '${_assigneeRoleSuffix(task)}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ]),
             ],
             if (task.description.isNotEmpty) ...[
@@ -1221,6 +1317,32 @@ class _AdminTaskCard extends StatelessWidget {
       'Jul','Aug','Sep','Oct','Nov','Dec',
     ];
     return '${dt.day} ${mo[dt.month - 1]} ${dt.year}';
+  }
+
+  static String _roleTitle(String role) {
+    switch (role) {
+      case 'principal':   return 'Principal';
+      case 'coordinator': return 'Coordinator';
+      case 'owner':       return 'Owner';
+      case 'teacher':     return 'Teacher';
+      default:            return role.isNotEmpty ? role : 'Admin';
+    }
+  }
+
+  /// "Assigned by X" — prefers the creator's name, falls back to the role.
+  String _assignerLabel(StaffTask task) {
+    final who = task.creatorName.isNotEmpty
+        ? task.creatorName
+        : _roleTitle(task.assignedByRole);
+    return 'By $who';
+  }
+
+  /// "(Coordinator)" suffix when the assignee is not a plain teacher.
+  String _assigneeRoleSuffix(StaffTask task) {
+    final role = task.assignedToRoles.isNotEmpty
+        ? task.assignedToRoles.first
+        : 'teacher';
+    return role == 'teacher' ? '' : ' (${_roleTitle(role)})';
   }
 }
 

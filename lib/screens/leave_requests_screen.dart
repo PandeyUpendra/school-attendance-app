@@ -82,46 +82,53 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
     _load();
     if (!mounted) return;
     if (status == 'approved') {
-      // Jump straight into the smart substitution plan for this leave.
-      final startStr = app['startDate'] as String? ?? '';
-      final start    = DateTime.tryParse(startStr);
-      final days     = (app['numberOfDays'] as num?)?.toInt() ?? 1;
-
-      if (teacherId.isNotEmpty && start != null) {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => SubstitutionPlanScreen(
-              teacherId:    teacherId,
-              teacherName:  teacherName,
-              startDate:    start,
-              numberOfDays: days,
-            ),
-          ),
-        );
-      } else {
-        // Fallback when teacher/start is missing — fall back to Free Bells.
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text(
-              'Leave approved. Use Free Bells screen to assign substitutes.'),
-          backgroundColor: Colors.green.shade700,
-          duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: 'Free Bells',
-            textColor: Colors.white,
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const FreeBellsScreen()),
-            ),
-          ),
-        ));
-      }
+      // Do NOT jump straight into substitution — approving and assigning a
+      // substitute are separate steps. Offer it as an option instead; the
+      // approved card also carries an "Assign Substitution" button.
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Leave approved ✓'),
+        backgroundColor: Colors.green.shade700,
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'Assign Substitution',
+          textColor: Colors.white,
+          onPressed: () => _openSubstitution(app),
+        ),
+      ));
     } else if (status == 'forwarded_to_principal') {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Leave request forwarded to Principal.'),
         backgroundColor: AppTheme.primary,
         duration: Duration(seconds: 3),
       ));
+    }
+  }
+
+  /// Opens the smart substitution plan for a leave (or Free Bells as a
+  /// fallback when the teacher/start date can't be resolved).
+  Future<void> _openSubstitution(Map<String, dynamic> app) async {
+    final teacherId   = app['teacherId']   as String? ?? '';
+    final teacherName = app['teacherName'] as String? ?? '';
+    final start       = DateTime.tryParse(app['startDate'] as String? ?? '');
+    final days        = (app['numberOfDays'] as num?)?.toInt() ?? 1;
+
+    if (teacherId.isNotEmpty && start != null) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SubstitutionPlanScreen(
+            teacherId:    teacherId,
+            teacherName:  teacherName,
+            startDate:    start,
+            numberOfDays: days,
+          ),
+        ),
+      );
+    } else {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const FreeBellsScreen()),
+      );
     }
   }
 
@@ -137,6 +144,10 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
         onAction: (id, status) async {
           await _act(app, status);
           if (mounted) Navigator.pop(context);
+        },
+        onAssignSubstitution: () {
+          Navigator.pop(context);
+          _openSubstitution(app);
         },
       ),
     );
@@ -232,6 +243,11 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
           onForward: showActions && widget.viewerRole == 'coordinator'
               ? () => _act(apps[i], 'forwarded_to_principal')
               : null,
+          // Substitution is an explicit follow-up action, available on any
+          // approved leave (not triggered automatically on approval).
+          onAssignSubstitution: apps[i]['status'] == 'approved'
+              ? () => _openSubstitution(apps[i])
+              : null,
         ),
       ),
     );
@@ -247,6 +263,7 @@ class _LeaveCard extends StatelessWidget {
   final VoidCallback? onAccept;
   final VoidCallback? onReject;
   final VoidCallback? onForward;
+  final VoidCallback? onAssignSubstitution;
 
   const _LeaveCard({
     required this.app,
@@ -255,6 +272,7 @@ class _LeaveCard extends StatelessWidget {
     this.onAccept,
     this.onReject,
     this.onForward,
+    this.onAssignSubstitution,
   });
 
   @override
@@ -372,6 +390,21 @@ class _LeaveCard extends StatelessWidget {
               ],
             ]),
           ],
+          // Approved leaves: optional substitution assignment.
+          if (onAssignSubstitution != null) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: _ActionButton(
+                label: 'Assign Substitution',
+                icon: Icons.swap_horiz_outlined,
+                color: AppTheme.primary,
+                onPressed: onAssignSubstitution,
+              ),
+            ),
+          ],
         ]),
       ),
     );
@@ -448,11 +481,13 @@ class _LeaveDetailSheet extends StatefulWidget {
   final Map<String, dynamic> app;
   final String viewerRole;
   final void Function(String id, String status) onAction;
+  final VoidCallback onAssignSubstitution;
 
   const _LeaveDetailSheet({
     required this.app,
     required this.viewerRole,
     required this.onAction,
+    required this.onAssignSubstitution,
   });
 
   @override
@@ -572,6 +607,25 @@ class _LeaveDetailSheetState extends State<_LeaveDetailSheet> {
                   ),
                 ]),
               ),
+
+              if (status == 'approved') ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: widget.onAssignSubstitution,
+                    icon: const Icon(Icons.swap_horiz_outlined, size: 18),
+                    label: const Text('Assign Substitution'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+              ],
 
               if (isPending) ...[
                 const SizedBox(height: 20),

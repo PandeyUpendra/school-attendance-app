@@ -147,6 +147,7 @@ class NotificationService extends BaseFirestoreService {
     required String assignedByName,
     String? dueDateStr,
     String? priority,
+    String? audience, // defaults to teacher:{id}; pass 'coordinator' etc. to override
   }) async {
     final parts = <String>[taskTitle];
     if (dueDateStr != null && dueDateStr.isNotEmpty) {
@@ -159,7 +160,7 @@ class NotificationService extends BaseFirestoreService {
       'type':      'staff_task',
       'title':     'New Task Assigned',
       'body':      '${parts.join(' · ')} — by $assignedByName',
-      'audience':  'teacher:$assignedTeacherId',
+      'audience':  audience ?? 'teacher:$assignedTeacherId',
       'createdAt': FieldValue.serverTimestamp(),
     });
   }

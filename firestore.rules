@@ -572,11 +572,18 @@ service cloud.firestore {
     // STUDENT DELETION REQUESTS
     // (/schools/{sid}/student_deletion_requests/{requestId})
     //
-    // Read/Update/Delete: management only.
-    // Create: any staff member; status must be 'pending'.
+    // Workflow: a class teacher files a request; only the PRINCIPAL (or
+    // admin/owner) reviews and approves/rejects it. Coordinators are NOT
+    // involved — the review screen lives solely on the principal dashboard,
+    // so coordinators are excluded at the data layer too (no read/update/
+    // delete), even though they are "management" elsewhere.
+    //
+    // Read/Update/Delete: principal | admin | owner | ownerPrincipal.
+    // Create: any teacher or management member; status must be 'pending'.
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/student_deletion_requests/{requestId} {
-      allow read, update, delete: if isSignedIn() && inSchool(sid) && isManagement();
+      allow read, update, delete: if isSignedIn() && inSchool(sid)
+        && hasAnyRole(['principal', 'admin', 'owner', 'ownerPrincipal']);
       allow create: if isSignedIn() && inSchool(sid) && isAnyStaff()
         && request.resource.data.status == 'pending';
     }
