@@ -140,6 +140,34 @@ service cloud.firestore {
              ));
     }
 
+    /// Recovers the class name from an ATTENDANCE document id and tests it
+    /// against the caller's classIds[].
+    ///
+    /// Attendance doc ids are "<classKey>_<section>_<Y-M-D>" where classKey is
+    /// the class name with spaces encoded as underscores (StudentService._todayKey
+    /// builds it from "<className> <section>"). e.g. "6-B_B_2026-6-4" or
+    /// "Class_6_A_2026-6-4". The class teacher's classIds[] holds the plain class
+    /// name ("6-B" or "Class 6"). We therefore reconstruct the leading class
+    /// segment(s) and test membership — covering 1-word/hyphenated names and
+    /// 2-word names. Pure string ops (no get()), so it stays well under the
+    /// 1000-expression ceiling.
+    function isAttendanceClassTeacher(cls) {
+      return (cls.split('_')[0] in userClassIds()) ||
+             (cls.split('_').size() >= 4 &&
+                (cls.split('_')[0] + ' ' + cls.split('_')[1]) in userClassIds()) ||
+             (cls.split('_').size() >= 4 &&
+                (cls.split('_')[0] + '_' + cls.split('_')[1]) in userClassIds());
+    }
+
+    /// True when an ATTENDANCE doc id belongs to the guardian's child's class.
+    /// Same doc-id reconstruction as [isAttendanceClassTeacher], compared to the
+    /// guardian's own studentClass.
+    function isGuardianAttendanceClass(cls) {
+      return (cls.split('_')[0] == userStudentClass()) ||
+             (cls.split('_').size() >= 4 &&
+                (cls.split('_')[0] + ' ' + cls.split('_')[1]) == userStudentClass());
+    }
+
     /// True when caller's role is one of the given list literal.
     function hasAnyRole(roles) {
       return userRole() != null && userRole() in roles;
@@ -557,21 +585,22 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     // ATTENDANCE  (/schools/{sid}/attendance/{cls})
     //
-    // Document ID = class name string, e.g. "Class 9-A".
-    // Guardian: restricted to classes in their classIds[].
-    // Write: class teacher of that class, or management.
+    // Document ID = "<classKey>_<section>_<Y-M-D>" (spaces → underscores),
+    // e.g. "6-B_B_2026-6-4" — NOT the bare class name. The class name is the
+    // leading segment(s); see isAttendanceClassTeacher / isGuardianAttendanceClass.
+    // Guardian: restricted to their child's class. Write: that class's teacher,
+    // or management.
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/attendance/{cls} {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isAnyStaff() ||
-        // Attendance doc ID == class name; guardian reads only their child's class.
-        (isRole('guardian') && cls == userStudentClass())
+        (isRole('guardian') && isGuardianAttendanceClass(cls))
       );
 
       allow write: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isAnyTeacher() && isClassTeacher(cls))
+        (isAnyTeacher() && isAttendanceClassTeacher(cls))
       );
     }
 
