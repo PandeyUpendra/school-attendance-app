@@ -22,7 +22,6 @@ import '../../utils/role_guard.dart';
 import '../onboarding/school_onboarding_screen.dart';
 import '../principal_dashboard.dart';
 import '../role_selection_screen.dart';
-import 'edit_school_settings_screen.dart';
 import '../../widgets/refreshable_data.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -172,15 +171,6 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
             title: 'Manage School',
             subtitle: 'Accounts, school settings & announcements',
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _OPManagePage(email: _myEmail, role: _myRole))),
-          ),
-          _FeatureTile(
-            icon: Icons.tune_outlined,
-            color: AppTheme.primaryMid,
-            title: 'School Settings',
-            subtitle: 'Edit basic info, academic, fees & communication',
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const EditSchoolSettingsScreen(),
-            )),
           ),
 
           const SizedBox(height: 32),
