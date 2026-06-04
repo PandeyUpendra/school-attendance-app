@@ -15,16 +15,12 @@ class _AdminScreenState extends State<AdminScreen> {
   final _service   = TimetableService();
   final _emailCtrl  = TextEditingController();
 
-  String  _selectedRole           = 'owner';
+  // Admin can only create Owner accounts — the role is fixed (no picker).
+  static const _role = 'owner';
+
   List<Map<String, dynamic>> _users = [];
   bool _loading  = true;
   bool _saving   = false;
-
-  // Admin can only create Owner and Owner-Principal. All other roles are
-  // created by the appropriate role in their own home screen.
-  static const _roles = [
-    {'value': 'owner', 'label': 'Owner', 'icon': Icons.stars_outlined},
-  ];
 
   // Role → accent colour (all purple-family now, semantic distinction by shade/hue)
   static const _roleColors = {
@@ -100,13 +96,13 @@ class _AdminScreenState extends State<AdminScreen> {
     try {
       // No password needed — a secure temp is generated automatically and a
       // setup link is sent to the user's email via Firebase Auth.
-      await _service.addAllowedUser(email, '', _selectedRole);
+      await _service.addAllowedUser(email, '', _role);
       _emailCtrl.clear();
       if (!mounted) return;
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('$email added as $_selectedRole — setup link sent'),
+        content: Text('$email added as Owner — setup link sent'),
         backgroundColor: Colors.green.shade700,
         duration: const Duration(seconds: 3),
       ));
@@ -121,173 +117,6 @@ class _AdminScreenState extends State<AdminScreen> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
-  }
-
-  // ── Edit ───────────────────────────────────────────────────────────────────
-
-  Future<void> _edit(Map<String, dynamic> user) async {
-    final email     = user['email'] as String;
-    String editRole = user['role']  as String;
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setLocal) {
-            final roleColor = _roleColors[editRole] ?? AppTheme.primary;
-            return Padding(
-              padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(ctx).viewInsets.bottom),
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Handle
-                    Center(
-                      child: Container(
-                        width: 36, height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(2)),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Header
-                    Row(children: [
-                      Container(
-                        width: 44, height: 44,
-                        decoration: BoxDecoration(
-                          color: roleColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(_roleIcon(editRole),
-                            color: roleColor, size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Edit User',
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold)),
-                            Text(email,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade500),
-                                overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                    ]),
-                    const SizedBox(height: 20),
-
-                    // Role selector chips
-                    Text('ROLE',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.grey.shade500,
-                            letterSpacing: 0.8)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: _roles.map((r) {
-                        final val  = r['value'] as String;
-                        final lbl  = r['label'] as String;
-                        final ico  = r['icon']  as IconData;
-                        final sel  = val == editRole;
-                        final rCol = _roleColors[val] ?? AppTheme.primary;
-                        return GestureDetector(
-                          onTap: () => setLocal(() => editRole = val),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: sel
-                                  ? rCol.withValues(alpha: 0.12)
-                                  : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: sel ? rCol : Colors.grey.shade300,
-                              ),
-                            ),
-                            child: Row(mainAxisSize: MainAxisSize.min,
-                                children: [
-                              Icon(ico,
-                                  size: 14,
-                                  color: sel ? rCol : Colors.grey.shade500),
-                              const SizedBox(width: 5),
-                              Text(lbl,
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: sel
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                      color: sel
-                                          ? rCol
-                                          : Colors.grey.shade600)),
-                            ]),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Save button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () async {
-                          Navigator.pop(ctx);
-                          await _service.updateAllowedUser(
-                            email,
-                            role: editRole,
-                          );
-                          await _load();
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('$email updated'),
-                                backgroundColor: Colors.green.shade700,
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        },
-                        child: const Text('Save Changes',
-                            style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
   // ── Remove ─────────────────────────────────────────────────────────────────
@@ -422,46 +251,30 @@ class _AdminScreenState extends State<AdminScreen> {
                   color: AppTheme.primary, size: 20),
             ),
             const SizedBox(width: 12),
-            const Text('Add Account',
+            const Text('Add Owner',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ]),
           const SizedBox(height: 18),
 
-          // Role
+          // Role — fixed to Owner (admin creates owners only), shown read-only.
           _fieldLabel('ROLE'),
           const SizedBox(height: 6),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             decoration: BoxDecoration(
               color: AppTheme.background,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.grey.shade200),
             ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedRole,
-                isExpanded: true,
-                borderRadius: BorderRadius.circular(12),
-                icon: Icon(Icons.keyboard_arrow_down_rounded,
-                    color: Colors.grey.shade500),
-                items: _roles.map((r) {
-                  final c = _roleColors[r['value']] ?? AppTheme.primary;
-                  return DropdownMenuItem<String>(
-                    value: r['value'] as String,
-                    child: Row(children: [
-                      Icon(r['icon'] as IconData, color: c, size: 18),
-                      const SizedBox(width: 10),
-                      Text(r['label'] as String,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 14)),
-                    ]),
-                  );
-                }).toList(),
-                onChanged: (v) {
-                  if (v != null) setState(() => _selectedRole = v);
-                },
-              ),
-            ),
+            child: Row(children: [
+              Icon(_roleIcon('owner'), color: _roleColor('owner'), size: 18),
+              const SizedBox(width: 10),
+              const Text('Owner',
+                  style:
+                      TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const Spacer(),
+              Icon(Icons.lock_outline, size: 14, color: Colors.grey.shade400),
+            ]),
           ),
           const SizedBox(height: 14),
 
@@ -590,13 +403,11 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget _buildUserCard(Map<String, dynamic> user) {
     final email = user['email'] as String;
     final role  = user['role'] as String;
-    final cls   = (user['studentClass'] as String?) ?? '';
-    final roll  = (user['studentRoll'] as int?) ?? 0;
     final color = _roleColor(role);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+      padding: const EdgeInsets.fromLTRB(12, 12, 6, 12),
       decoration: _cardDecoration,
       child: Row(children: [
         Container(
@@ -617,43 +428,22 @@ class _AdminScreenState extends State<AdminScreen> {
                       fontSize: 13.5, fontWeight: FontWeight.w600),
                   overflow: TextOverflow.ellipsis),
               const SizedBox(height: 6),
-              Row(children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border:
-                        Border.all(color: color.withValues(alpha: 0.3)),
-                  ),
-                  child: Text(role[0].toUpperCase() + role.substring(1),
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: color)),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: color.withValues(alpha: 0.3)),
                 ),
-                if (role == 'guardian' && cls.isNotEmpty && roll > 0) ...[
-                  const SizedBox(width: 8),
-                  Icon(Icons.school_outlined,
-                      size: 11, color: Colors.grey.shade400),
-                  const SizedBox(width: 3),
-                  Flexible(
-                    child: Text('$cls • Roll $roll',
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade500),
-                        overflow: TextOverflow.ellipsis),
-                  ),
-                ],
-              ]),
+                child: Text(role[0].toUpperCase() + role.substring(1),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: color)),
+              ),
             ],
           ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.edit_outlined,
-              color: AppTheme.primary, size: 20),
-          onPressed: () => _edit(user),
-          tooltip: 'Edit',
         ),
         IconButton(
           icon: const Icon(Icons.delete_outline,
