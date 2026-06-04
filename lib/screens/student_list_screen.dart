@@ -265,10 +265,15 @@ class _StudentListScreenState extends State<StudentListScreen> {
         ),
       ),
     );
+    // Dispose after the dialog's close animation finishes. Disposing the
+    // controller synchronously while its TextField is still unmounting trips
+    // framework.dart's `_dependents.isEmpty` assertion (red error screen).
+    // Scheduled before the early-return so Cancel doesn't leak it either.
+    Future.delayed(const Duration(milliseconds: 350), reasonCtrl.dispose);
+
     if (ok != true || !mounted) return;
 
     final reason = reasonCtrl.text.trim();
-    reasonCtrl.dispose();
 
     final studentMaps = toDelete
         .map((s) => {
@@ -898,9 +903,13 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
       ),
       ),
     );
+    // Dispose after the dialog's close animation finishes (see _deleteSelected)
+    // — synchronous disposal mid-teardown trips the `_dependents.isEmpty`
+    // assertion; scheduling before the early-return also avoids a Cancel leak.
+    Future.delayed(const Duration(milliseconds: 350), reasonCtrl.dispose);
+
     if (ok != true || !mounted) return;
     final reason = reasonCtrl.text.trim();
-    reasonCtrl.dispose();
 
     final studentMaps = [
       {
