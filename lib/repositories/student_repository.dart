@@ -119,6 +119,15 @@ abstract class StudentRepository {
     String reason = '',
   });
 
+  /// Flags/unflags a student record as awaiting deletion approval. A targeted
+  /// field write (does not overwrite the rest of the document).
+  Future<void> setDeletionPending(
+    int roll,
+    String className,
+    String section,
+    bool value,
+  );
+
   /// Live count of pending deletion requests (used for dashboard badges).
   Stream<int> streamPendingDeletionCount();
 
@@ -353,6 +362,18 @@ class FirestoreStudentRepository implements StudentRepository {
   }
 
   // ── Deletion requests ─────────────────────────────────────────────────────────
+
+  @override
+  Future<void> setDeletionPending(
+    int roll,
+    String className,
+    String section,
+    bool value,
+  ) async {
+    await _students
+        .doc(_docId(roll, className, section))
+        .update({'deletionPending': value});
+  }
 
   @override
   Future<void> submitDeletionRequest({

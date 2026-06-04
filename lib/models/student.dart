@@ -32,6 +32,11 @@ class Student {
   final String? bloodGroup;
   final String? allergies;
   final String? transportMode;
+  /// True while a teacher-filed deletion request for this student is awaiting
+  /// principal approval. The student is shown as deactivated (greyed out) and
+  /// cannot be re-selected for deletion until the request is approved (record
+  /// removed) or rejected (flag cleared).
+  final bool deletionPending;
 
   const Student({
     this.id = '',
@@ -59,6 +64,7 @@ class Student {
     this.bloodGroup,
     this.allergies,
     this.transportMode,
+    this.deletionPending = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -87,6 +93,7 @@ class Student {
         if (bloodGroup != null) 'bloodGroup': bloodGroup,
         if (allergies != null) 'allergies': allergies,
         if (transportMode != null) 'transportMode': transportMode,
+        if (deletionPending) 'deletionPending': true,
       };
 
   factory Student.fromJson(Map<String, dynamic> json) => Student(
@@ -118,6 +125,7 @@ class Student {
         bloodGroup: json['bloodGroup'] as String?,
         allergies: json['allergies'] as String?,
         transportMode: json['transportMode'] as String?,
+        deletionPending: json['deletionPending'] as bool? ?? false,
       );
 
   Student copyWith({
@@ -145,6 +153,7 @@ class Student {
     String? bloodGroup,
     String? allergies,
     String? transportMode,
+    bool? deletionPending,
   }) =>
       Student(
         id: id ?? this.id,
@@ -172,5 +181,6 @@ class Student {
         bloodGroup: bloodGroup ?? this.bloodGroup,
         allergies: allergies ?? this.allergies,
         transportMode: transportMode ?? this.transportMode,
+        deletionPending: deletionPending ?? this.deletionPending,
       );
 }

@@ -219,4 +219,50 @@ void main() {
     expect(s?.guardianEmail, 'parent@gmail.com');
     expect(s?.name, 'Hana', reason: 'Other fields must remain unchanged');
   });
+
+  // ── 11. markStudentsDeletionPending — flags selected students ────────────────
+
+  test('markStudentsDeletionPending flags only the named students', () async {
+    repo.seed([
+      _student(roll: 1, name: 'Ivy',  className: 'Class 8', section: 'A'),
+      _student(roll: 2, name: 'Jack', className: 'Class 8', section: 'A'),
+    ]);
+
+    await service.markStudentsDeletionPending([
+      {'roll': 1, 'className': 'Class 8', 'section': 'A'},
+    ], true);
+
+    final ivy  = await service.getStudentByRoll('Class 8', 1, section: 'A');
+    final jack = await service.getStudentByRoll('Class 8', 2, section: 'A');
+    expect(ivy?.deletionPending, isTrue,
+        reason: 'Requested student must be deactivated');
+    expect(jack?.deletionPending, isFalse,
+        reason: 'Untouched student must stay active');
+  });
+
+  // ── 12. rejectDeletionRequest — reactivates the students ─────────────────────
+
+  test('rejectDeletionRequest clears the deletionPending flag', () async {
+    repo.seed([
+      _student(roll: 1, name: 'Ivy', className: 'Class 8', section: 'A'),
+    ]);
+
+    final students = [
+      {'roll': 1, 'name': 'Ivy', 'className': 'Class 8', 'section': 'A'},
+    ];
+    await service.submitDeletionRequest(
+      teacherId: 't1', teacherName: 'T', teacherEmail: 't@x.com',
+      students: students,
+    );
+    await service.markStudentsDeletionPending(students, true);
+
+    final pending = await service.getPendingDeletionRequests();
+    expect(pending, hasLength(1));
+
+    await service.rejectDeletionRequest(pending.first['id'] as String);
+
+    final ivy = await service.getStudentByRoll('Class 8', 1, section: 'A');
+    expect(ivy?.deletionPending, isFalse,
+        reason: 'Rejecting the request must reactivate the student');
+  });
 }

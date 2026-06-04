@@ -306,6 +306,26 @@ class StudentService extends BaseFirestoreService {
         reason: reason,
       );
 
+  /// Marks/unmarks a batch of students (as `[{roll, className, section}]`) as
+  /// awaiting deletion approval. Called with `true` right after a teacher files
+  /// a deletion request so the list shows them as deactivated, and with `false`
+  /// when the request is rejected so they reactivate. Failures per-student are
+  /// swallowed so one bad record can't abort the whole batch.
+  Future<void> markStudentsDeletionPending(
+    List<Map<String, dynamic>> students,
+    bool value,
+  ) async {
+    await Future.wait(students.map((s) async {
+      final roll      = (s['roll']      as num?)?.toInt() ?? 0;
+      final className = (s['className'] as String?) ?? '';
+      final section   = (s['section']   as String?) ?? '';
+      if (roll <= 0 || className.isEmpty) return;
+      try {
+        await _repo.setDeletionPending(roll, className, section, value);
+      } catch (_) {/* non-fatal — request is already filed */}
+    }));
+  }
+
   /// Real-time stream of pending deletion request count — used for the
   /// principal dashboard badge.
   Stream<int> streamPendingDeletionCount() =>
@@ -333,11 +353,21 @@ class StudentService extends BaseFirestoreService {
     await _repo.updateDeletionRequestStatus(requestId, 'approved');
   }
 
-  /// Principal rejects a deletion request.
+  /// Principal rejects a deletion request — reactivates the affected students
+  /// (clears their `deletionPending` flag) before marking the request rejected.
   Future<void> rejectDeletionRequest(String requestId,
-          {String rejectionNote = ''}) =>
-      _repo.updateDeletionRequestStatus(requestId, 'rejected',
-          rejectionNote: rejectionNote);
+      {String rejectionNote = ''}) async {
+    final data = await _repo.getDeletionRequest(requestId);
+    if (data != null) {
+      final list = (data['students'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          const [];
+      await markStudentsDeletionPending(list, false);
+    }
+    await _repo.updateDeletionRequestStatus(requestId, 'rejected',
+        rejectionNote: rejectionNote);
+  }
 
   // ── Attendance ──────────────────────────────────────────────────────────────
   //

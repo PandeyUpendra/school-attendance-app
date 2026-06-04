@@ -93,7 +93,12 @@ class _StudentListScreenState extends State<StudentListScreen> {
   // Pull-to-refresh is a no-op: the live stream already keeps data current.
   Future<void> _refresh() async {}
 
+  /// Students that can still be selected for deletion (not already pending).
+  List<Student> get _selectableStudents =>
+      _students.where((s) => !s.deletionPending).toList();
+
   void _enterSelectMode(Student s) {
+    if (s.deletionPending) return; // already awaiting approval
     setState(() { _selectMode = true; _selectedRolls = {s.roll}; });
   }
 
@@ -102,6 +107,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
   }
 
   void _toggleSelect(Student s) {
+    if (s.deletionPending) return; // can't re-request a pending student
     setState(() {
       if (_selectedRolls.contains(s.roll)) {
         _selectedRolls.remove(s.roll);
@@ -113,16 +119,17 @@ class _StudentListScreenState extends State<StudentListScreen> {
   }
 
   bool get _allSelected =>
-      _students.isNotEmpty &&
-      _students.every((s) => _selectedRolls.contains(s.roll));
+      _selectableStudents.isNotEmpty &&
+      _selectableStudents.every((s) => _selectedRolls.contains(s.roll));
 
   void _toggleSelectAll() {
+    final selectable = _selectableStudents.map((s) => s.roll);
     setState(() {
       if (_allSelected) {
-        _selectedRolls.removeAll(_students.map((s) => s.roll));
+        _selectedRolls.removeAll(selectable);
         if (_selectedRolls.isEmpty) _selectMode = false;
       } else {
-        _selectedRolls.addAll(_students.map((s) => s.roll));
+        _selectedRolls.addAll(selectable);
       }
     });
   }
@@ -263,34 +270,47 @@ class _StudentListScreenState extends State<StudentListScreen> {
     final reason = reasonCtrl.text.trim();
     reasonCtrl.dispose();
 
+    final studentMaps = toDelete
+        .map((s) => {
+              'roll':          s.roll,
+              'name':          s.name,
+              'className':     s.className,
+              'section':       s.section,
+              'guardianEmail': s.guardianEmail ?? '',
+            })
+        .toList();
+
     await StudentService().submitDeletionRequest(
       teacherId:    widget.teacherId ?? '',
       teacherName:  widget.teacherName,
       teacherEmail: widget.teacherEmail,
-      students: toDelete
-          .map((s) => {
-                'roll':          s.roll,
-                'name':          s.name,
-                'className':     s.className,
-                'section':       s.section,
-                'guardianEmail': s.guardianEmail ?? '',
-              })
-          .toList(),
-      reason: reason,
+      students:     studentMaps,
+      reason:       reason,
     );
+    // Flag the records as deactivated until the principal acts. The live stream
+    // re-renders them greyed-out.
+    await StudentService().markStudentsDeletionPending(studentMaps, true);
 
     if (!mounted) return;
     setState(() { _selectMode = false; _selectedRolls = {}; });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-            'Deletion request sent for $count '
-            'student${count == 1 ? '' : 's'}. Awaiting principal approval.'),
+            'Deletion request sent for ${_namesLabel(toDelete)}. '
+            'Awaiting principal approval.'),
         backgroundColor: AppTheme.primary,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 4),
       ),
     );
+  }
+
+  /// Comma-separated student names for the confirmation message, capped so a
+  /// bulk request (e.g. 50 students) stays readable: "A, B, C +47 more".
+  String _namesLabel(List<Student> list) {
+    final names = list.map((s) => s.name).toList();
+    if (names.length <= 3) return names.join(', ');
+    return '${names.take(3).join(', ')} +${names.length - 3} more';
   }
 
 
@@ -560,10 +580,18 @@ class _StudentListScreenState extends State<StudentListScreen> {
                         student: s,
                         selected: _selectedRolls.contains(s.roll),
                         selectMode: _selectMode,
+                        pendingDeletion: s.deletionPending,
+                        // In select mode a pending student can still be tapped
+                        // to view detail (but not toggled); otherwise normal tap
+                        // opens detail.
                         onTap: _selectMode
-                            ? () => _toggleSelect(s)
+                            ? (s.deletionPending
+                                ? () => _openDetail(s)
+                                : () => _toggleSelect(s))
                             : () => _openDetail(s),
-                        onLongPress: widget.isClassTeacher && !_selectMode
+                        onLongPress: widget.isClassTeacher &&
+                                !_selectMode &&
+                                !s.deletionPending
                             ? () => _enterSelectMode(s)
                             : null,
                       );
@@ -582,12 +610,14 @@ class _StudentCard extends StatelessWidget {
   final VoidCallback? onLongPress;
   final bool          selected;
   final bool          selectMode;
+  final bool          pendingDeletion;
   const _StudentCard({
     required this.student,
     this.onTap,
     this.onLongPress,
-    this.selected   = false,
-    this.selectMode = false,
+    this.selected        = false,
+    this.selectMode      = false,
+    this.pendingDeletion = false,
   });
 
   Color get _feeColor {
@@ -606,11 +636,16 @@ class _StudentCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: pendingDeletion ? const Color(0xFFF1EEF4) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4)),
-        ],
+        border: pendingDeletion
+            ? Border.all(color: AppTheme.warning.withValues(alpha: 0.4))
+            : null,
+        boxShadow: pendingDeletion
+            ? null
+            : [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4)),
+              ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -663,7 +698,13 @@ class _StudentCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(student.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text(student.name,
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: pendingDeletion
+                                  ? Colors.grey.shade500
+                                  : null)),
                       const SizedBox(height: 4),
                       Row(
                         children: [
@@ -673,25 +714,48 @@ class _StudentCard extends StatelessWidget {
                               color: AppTheme.primary.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Text('ROLL ${student.roll}', 
+                            child: Text('ROLL ${student.roll}',
                                 style: const TextStyle(fontSize: 10, color: AppTheme.primaryDark, fontWeight: FontWeight.w800)),
                           ),
                           const SizedBox(width: 8),
                           Text(student.fatherName, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                         ],
                       ),
+                      if (pendingDeletion) ...[
+                        const SizedBox(height: 4),
+                        const Text('Deletion requested — awaiting approval',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontStyle: FontStyle.italic,
+                                color: AppTheme.warning)),
+                      ],
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _feeColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
+                if (pendingDeletion)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warning.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.hourglass_top, size: 11, color: AppTheme.warning),
+                      SizedBox(width: 3),
+                      Text('Deactivated',
+                          style: TextStyle(fontSize: 10, color: AppTheme.warning, fontWeight: FontWeight.bold)),
+                    ]),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _feeColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(student.feeStatus,
+                        style: TextStyle(fontSize: 10, color: _feeColor, fontWeight: FontWeight.bold)),
                   ),
-                  child: Text(student.feeStatus, 
-                      style: TextStyle(fontSize: 10, color: _feeColor, fontWeight: FontWeight.bold)),
-                ),
                 const SizedBox(width: 8),
                 if (!selectMode)
                   Icon(Icons.chevron_right, color: Colors.grey.shade300, size: 20),
@@ -838,29 +902,33 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     final reason = reasonCtrl.text.trim();
     reasonCtrl.dispose();
 
+    final studentMaps = [
+      {
+        'roll':          _student.roll,
+        'name':          _student.name,
+        'className':     _student.className,
+        'section':       _student.section,
+        'guardianEmail': _student.guardianEmail ?? '',
+      }
+    ];
+
     await StudentService().submitDeletionRequest(
       teacherId:    widget.teacherId ?? '',
       teacherName:  widget.teacherName,
       teacherEmail: widget.teacherEmail,
-      students: [
-        {
-          'roll':          _student.roll,
-          'name':          _student.name,
-          'className':     _student.className,
-          'section':       _student.section,
-          'guardianEmail': _student.guardianEmail ?? '',
-        }
-      ],
-      reason: reason,
+      students:     studentMaps,
+      reason:       reason,
     );
+    await StudentService().markStudentsDeletionPending(studentMaps, true);
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(
-          'Deletion request sent. Awaiting principal approval.'),
+          'Deletion request sent for ${_student.name}. '
+          'Awaiting principal approval.'),
       backgroundColor: AppTheme.primary,
       behavior: SnackBarBehavior.floating,
-      duration: Duration(seconds: 4),
+      duration: const Duration(seconds: 4),
     ));
     Navigator.pop(context);
   }

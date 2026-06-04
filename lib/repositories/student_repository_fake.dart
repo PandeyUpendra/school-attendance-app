@@ -200,6 +200,19 @@ class FakeStudentRepository implements StudentRepository {
   // ── Deletion requests ─────────────────────────────────────────────────────────
 
   @override
+  Future<void> setDeletionPending(
+    int roll,
+    String className,
+    String section,
+    bool value,
+  ) async {
+    final id = docId(roll, className, section);
+    final existing = _students[id];
+    if (existing == null) return;
+    _students[id] = existing.copyWith(deletionPending: value);
+  }
+
+  @override
   Future<void> submitDeletionRequest({
     required String teacherId,
     required String teacherName,
