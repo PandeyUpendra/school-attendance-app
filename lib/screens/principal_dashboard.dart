@@ -15,6 +15,7 @@ import 'class_picker_screen.dart';
 import 'free_bells_screen.dart';
 import 'leave_requests_screen.dart';
 import 'teacher_deletion_requests_screen.dart';
+import 'student_deletion_requests_screen.dart';
 import '../services/teacher_deletion_service.dart';
 import '../services/base_firestore_service.dart';
 import 'my_timetable_screen.dart';
@@ -381,6 +382,23 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                     : null,
                 onTap: () =>
                     _navigate(const TeacherDeletionRequestsScreen()),
+              ),
+              const Divider(height: 1, indent: 72),
+              StreamBuilder<int>(
+                stream: StudentService().streamPendingDeletionCount(),
+                builder: (context, snap) {
+                  final n = snap.data ?? 0;
+                  return _FeatureTile(
+                    icon: Icons.person_remove_outlined,
+                    color: AppTheme.danger,
+                    title: 'Student Deletion Requests',
+                    subtitle:
+                        'Review & approve teacher requests to remove student records',
+                    badge: n > 0 ? '$n' : null,
+                    onTap: () =>
+                        _navigate(const StudentDeletionRequestsScreen()),
+                  );
+                },
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(
