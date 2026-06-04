@@ -197,6 +197,7 @@ class _LoginScreenState extends State<LoginScreen> {
     bool    obscure = true;
     bool    busy    = false;
     String? dlgError;
+    String? resetMsg;
 
     await showDialog<void>(
       context: context,
@@ -251,6 +252,36 @@ class _LoginScreenState extends State<LoginScreen> {
             }
           }
 
+          // Sends a Firebase password-reset link to the entered admin email.
+          // For an alias like name+admin@gmail.com the email lands in the base
+          // name@gmail.com inbox.
+          Future<void> resetPassword() async {
+            final email = emailCtrl.text.trim().toLowerCase();
+            if (email.isEmpty || !email.contains('@')) {
+              setS(() {
+                resetMsg = null;
+                dlgError = 'Enter your admin email above first, then tap reset.';
+              });
+              return;
+            }
+            setS(() { busy = true; dlgError = null; resetMsg = null; });
+            try {
+              await AuthService().sendPasswordResetEmail(email);
+              setS(() {
+                busy = false;
+                resetMsg = 'Reset link sent to $email. Check that inbox, set a '
+                    'new password, then sign in here.';
+              });
+            } on FirebaseAuthException catch (e) {
+              setS(() { busy = false; dlgError = AuthService.friendlyAuthError(e); });
+            } catch (_) {
+              setS(() {
+                busy = false;
+                dlgError = 'Could not send the reset email. Check your connection.';
+              });
+            }
+          }
+
           return AlertDialog(
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -297,6 +328,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       style:
                           TextStyle(color: Colors.red.shade700, fontSize: 13)),
                 ],
+                if (resetMsg != null) ...[
+                  const SizedBox(height: 12),
+                  Text(resetMsg!,
+                      style: TextStyle(
+                          color: Colors.green.shade700, fontSize: 12.5)),
+                ],
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: busy ? null : resetPassword,
+                    style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        minimumSize: const Size(0, 36),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                    child: const Text('Forgot password?',
+                        style: TextStyle(fontSize: 12)),
+                  ),
+                ),
               ],
             ),
             actions: [
