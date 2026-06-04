@@ -128,6 +128,9 @@ class _LoginScreenState extends State<LoginScreen> {
   void _routeToDashboard(String role, String email) {
     Widget destination;
     switch (role) {
+      case 'admin':
+        destination = const AdminScreen();
+        break;
       case 'coordinator':
         destination = const CoordinatorDashboard();
         break;
@@ -232,7 +235,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 });
                 return;
               }
-              // 3. Admin verified — open the admin screen.
+              // 3. Admin verified — persist a session so RoleGuard on the
+              //    admin screen passes, then open it. (The splash gate
+              //    deliberately does NOT auto-resume admin sessions, so this
+              //    never causes the app to launch into the admin panel.)
+              await AuthService().saveSession(
+                email:    email,
+                role:     'admin',
+                name:     userData?['name']     as String? ?? '',
+                schoolId: userData?['schoolId'] as String? ?? '',
+              );
               if (!ctx.mounted) return;
               Navigator.pop(ctx);
               if (!mounted) return;
