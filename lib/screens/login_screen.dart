@@ -384,8 +384,15 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
 
-    emailCtrl.dispose();
-    passCtrl.dispose();
+    // Dispose AFTER the dialog's close animation finishes. Disposing the
+    // controllers synchronously here — while the dialog's TextFields are still
+    // being torn down during the pop animation — trips framework.dart's
+    // `_dependents.isEmpty` assertion (the red error screen seen when tapping
+    // Cancel). A short delay lets the route finish unmounting first.
+    Future.delayed(const Duration(milliseconds: 350), () {
+      emailCtrl.dispose();
+      passCtrl.dispose();
+    });
   }
 
   @override
