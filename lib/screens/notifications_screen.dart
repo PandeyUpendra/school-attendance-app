@@ -441,14 +441,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           final routed = _hasRoute(type);
           final selected = _selectedIds.contains(id);
 
-          final card = Ink(
+          // NOTE: a coloured left border (unread/selected accent) makes the
+          // Border NON-uniform. Flutter forbids `borderRadius` on a non-uniform
+          // border and throws "A borderRadius can only be given on borders with
+          // uniform colors." during paint — which blanked the whole list the
+          // moment any unread notification appeared. Fix: round the corners with
+          // an outer ClipRRect and keep the BoxDecoration border radius-free.
+          final card = ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Ink(
             decoration: BoxDecoration(
               color: selected
                   ? AppTheme.primary.withValues(alpha: 0.08)
                   : unread
                       ? AppTheme.primary.withValues(alpha: 0.05)
                       : Colors.white,
-              borderRadius: BorderRadius.circular(12),
               border: Border(
                 left: BorderSide(
                   color: selected
@@ -553,6 +560,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
               ),
             ),
+          ),
           );
 
           // Swipe-to-dismiss only when not in selection mode
