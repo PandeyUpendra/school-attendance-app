@@ -614,10 +614,32 @@ service cloud.firestore {
 
     // ════════════════════════════════════════════════════════════════
     // ANNOUNCEMENTS  (/schools/{sid}/announcements/{id})
+    //
+    // Read:   any school member.
+    // Create: management posts to any audience. A teacher may post ONLY to a
+    //         class they teach — audience must be 'class:{cls}' with cls in
+    //         their classIds[] — and may not pose as another user (postedBy ==
+    //         their own email).
+    // Update/Delete: management moderates anything; a teacher may edit/delete
+    //         only their OWN posts (postedBy == their email). The teacher edit
+    //         flow deletes-then-recreates, so both verbs are needed.
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/announcements/{announcementId} {
-      allow read:  if isSignedIn() && inSchool(sid);
-      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+      allow read: if isSignedIn() && inSchool(sid);
+
+      allow create: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isAnyTeacher()
+          && request.resource.data.audience is string
+          && request.resource.data.audience.split(':')[0] == 'class'
+          && request.resource.data.audience.split(':')[1] in userClassIds()
+          && request.resource.data.postedBy.lower() == userEmail())
+      );
+
+      allow update, delete: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isAnyTeacher() && resource.data.postedBy.lower() == userEmail())
+      );
     }
 
 

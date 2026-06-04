@@ -29,6 +29,11 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
   List<Map<String, dynamic>> _resolved = [];
   bool _loading = true;
 
+  /// Assigning a substitute is a coordinator-only action. The principal can
+  /// review and resolve leave, but substitution planning belongs to the
+  /// coordinator, so the option is hidden from the principal's view.
+  bool get _canAssignSubstitution => widget.viewerRole == 'coordinator';
+
   @override
   void initState() {
     super.initState();
@@ -83,17 +88,20 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
     if (!mounted) return;
     if (status == 'approved') {
       // Do NOT jump straight into substitution — approving and assigning a
-      // substitute are separate steps. Offer it as an option instead; the
-      // approved card also carries an "Assign Substitution" button.
+      // substitute are separate steps. Offer it as an option instead (the
+      // approved card also carries an "Assign Substitution" button), but only
+      // to the coordinator — the principal does not assign substitutions.
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('Leave approved ✓'),
         backgroundColor: Colors.green.shade700,
         duration: const Duration(seconds: 5),
-        action: SnackBarAction(
-          label: 'Assign Substitution',
-          textColor: Colors.white,
-          onPressed: () => _openSubstitution(app),
-        ),
+        action: _canAssignSubstitution
+            ? SnackBarAction(
+                label: 'Assign Substitution',
+                textColor: Colors.white,
+                onPressed: () => _openSubstitution(app),
+              )
+            : null,
       ));
     } else if (status == 'forwarded_to_principal') {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -145,10 +153,12 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
           await _act(app, status);
           if (mounted) Navigator.pop(context);
         },
-        onAssignSubstitution: () {
-          Navigator.pop(context);
-          _openSubstitution(app);
-        },
+        onAssignSubstitution: _canAssignSubstitution
+            ? () {
+                Navigator.pop(context);
+                _openSubstitution(app);
+              }
+            : null,
       ),
     );
   }
@@ -244,10 +254,12 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
               ? () => _act(apps[i], 'forwarded_to_principal')
               : null,
           // Substitution is an explicit follow-up action, available on any
-          // approved leave (not triggered automatically on approval).
-          onAssignSubstitution: apps[i]['status'] == 'approved'
-              ? () => _openSubstitution(apps[i])
-              : null,
+          // approved leave (not triggered automatically on approval) — and only
+          // to the coordinator; the principal does not assign substitutions.
+          onAssignSubstitution:
+              _canAssignSubstitution && apps[i]['status'] == 'approved'
+                  ? () => _openSubstitution(apps[i])
+                  : null,
         ),
       ),
     );
@@ -481,7 +493,8 @@ class _LeaveDetailSheet extends StatefulWidget {
   final Map<String, dynamic> app;
   final String viewerRole;
   final void Function(String id, String status) onAction;
-  final VoidCallback onAssignSubstitution;
+  /// Null when the viewer may not assign substitutions (e.g. principal).
+  final VoidCallback? onAssignSubstitution;
 
   const _LeaveDetailSheet({
     required this.app,
@@ -608,7 +621,8 @@ class _LeaveDetailSheetState extends State<_LeaveDetailSheet> {
                 ]),
               ),
 
-              if (status == 'approved') ...[
+              if (status == 'approved' &&
+                  widget.onAssignSubstitution != null) ...[
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,

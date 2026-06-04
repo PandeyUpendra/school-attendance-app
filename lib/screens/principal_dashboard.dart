@@ -243,7 +243,8 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             onTeachersAbsentTap: () => _navigate(
               const LeaveRequestsScreen(viewerRole: 'principal'),
             ),
-            onBellsTap: () => _navigate(const FreeBellsScreen()),
+            onBellsTap: () =>
+                _navigate(const FreeBellsScreen(canAssign: false)),
           ),
           Expanded(
             child: RefreshIndicator(
@@ -258,10 +259,6 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               role: _sessionRole,
             ),
             if (!_loading) ...[
-              // ── Today's Attendance ─────────────────────────────────────
-              const _SectionHeader("TODAY'S ATTENDANCE"),
-              _buildAttendanceSection(),
-
               // ── Active Tasks ───────────────────────────────────────────
               const _SectionHeader('ACTIVE TASKS'),
               _buildTasksSection(),
@@ -457,6 +454,10 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   role: _sessionRole,
                 )),
               ),
+
+              // ── Today's Attendance (shown last) ────────────────────────
+              const _SectionHeader("TODAY'S ATTENDANCE"),
+              _buildAttendanceSection(),
 
               const SizedBox(height: 32),
             ],

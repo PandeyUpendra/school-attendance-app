@@ -611,7 +611,12 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(
                   builder: (_) => AnnouncementsScreen(
                       viewerRole: 'class_teacher',
-                      posterName: teacher?.email)),
+                      posterName: teacher?.email,
+                      viewerClasses: <String>{
+                        if ((teacher?.classTeacherOf ?? '').isNotEmpty)
+                          teacher!.classTeacherOf!,
+                        ...?teacher?.assignedClasses,
+                      }.toList())),
             ),
           ),
 
@@ -881,7 +886,12 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(
                 builder: (_) => AnnouncementsScreen(
                     viewerRole: 'teacher',
-                    posterName: teacher?.email)),
+                    posterName: teacher?.email,
+                    viewerClasses: <String>{
+                      if ((teacher?.classTeacherOf ?? '').isNotEmpty)
+                        teacher!.classTeacherOf!,
+                      ...?teacher?.assignedClasses,
+                    }.toList())),
           ),
         ),
 

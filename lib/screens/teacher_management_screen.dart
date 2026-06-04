@@ -1369,7 +1369,6 @@ class _TeacherDialogState extends State<_TeacherDialog> {
   late final TextEditingController _subjectCtrl;  // used for "Other" custom input
   late final TextEditingController _emailCtrl;
   late final TextEditingController _phoneCtrl;
-  late final TextEditingController _sectionCtrl;  // Section input for class teacher
   final TextEditingController _newClassCtrl = TextEditingController();
   late bool _isClassTeacher;
   String? _classTeacherOf;
@@ -1389,7 +1388,6 @@ class _TeacherDialogState extends State<_TeacherDialog> {
     _nameCtrl       = TextEditingController(text: t?.name ?? '');
     _emailCtrl      = TextEditingController(text: t?.email ?? '');
     _phoneCtrl      = TextEditingController(text: t?.phone ?? '');
-    _sectionCtrl    = TextEditingController(text: t?.section ?? '');
     _isClassTeacher = t?.isClassTeacher ?? false;
     _classTeacherOf = t?.classTeacherOf;
     _dateOfBirth    = t?.dateOfBirth?.toDate();
@@ -1454,7 +1452,6 @@ class _TeacherDialogState extends State<_TeacherDialog> {
     _subjectCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
-    _sectionCtrl.dispose();
     _newClassCtrl.dispose();
     super.dispose();
   }
@@ -1620,7 +1617,6 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                     _isClassTeacher = v;
                     if (!v) {
                       _classTeacherOf = null;
-                      _sectionCtrl.clear();
                     }
                   }),
                   activeColor: AppTheme.primary,
@@ -1738,24 +1734,6 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                         ),
                       ),
                   ],
-
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _sectionCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Assigned Section',
-                      hintText: 'e.g. A',
-                      prefixIcon: const Icon(Icons.groups_outlined),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 12),
-                      counterText: '',
-                    ),
-                    textCapitalization: TextCapitalization.characters,
-                    maxLength: 1,
-                  ),
-
                 ],
 
               ],
@@ -1779,7 +1757,7 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                     : (_selectedSubject ?? ''),
                 email:
                     _emailCtrl.text.trim().toLowerCase(),
-                section: _isClassTeacher ? _sectionCtrl.text.trim().toUpperCase() : '',
+                section: '',
                 isClassTeacher: _isClassTeacher,
                 classTeacherOf:
                     _isClassTeacher ? _classTeacherOf : null,

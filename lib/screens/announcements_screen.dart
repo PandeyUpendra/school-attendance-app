@@ -18,13 +18,20 @@ class AnnouncementsScreen extends StatefulWidget {
   final String? posterName;
 
   /// The class name (e.g. "10th-A") if the viewer is a teacher or guardian.
+  /// Used to scope which announcements they can read.
   final String? viewerClass;
+
+  /// Classes a teacher may post announcements TO (their class-teacher class +
+  /// any assigned classes). Teachers post only to their own class(es); each
+  /// becomes a selectable audience chip. Null/empty for non-teacher roles.
+  final List<String>? viewerClasses;
 
   const AnnouncementsScreen({
     super.key,
     required this.viewerRole,
     this.posterName,
     this.viewerClass,
+    this.viewerClasses,
   });
 
   @override
@@ -57,6 +64,21 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
   }
 
   bool get _canPost => widget.viewerRole != 'guardian';
+
+  /// Classes a teacher may address. Prefers the explicit [viewerClasses] list,
+  /// falling back to the single [viewerClass] for older call sites.
+  List<String> get _postClasses {
+    final list = widget.viewerClasses
+            ?.where((c) => c.trim().isNotEmpty)
+            .toList() ??
+        (widget.viewerClass != null && widget.viewerClass!.isNotEmpty
+            ? [widget.viewerClass!]
+            : <String>[]);
+    return list;
+  }
+
+  bool get _isTeacherRole =>
+      widget.viewerRole == 'teacher' || widget.viewerRole == 'class_teacher';
 
   bool _canManageItem(Announcement a) {
     if (widget.viewerRole == 'principal' || widget.viewerRole == 'coordinator' ||
@@ -183,12 +205,11 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
     );
     final bodyCtrl = TextEditingController(text: editing?.body ?? '');
 
-    // Default audience based on role
+    // Default audience based on role. Teachers post only to their own class,
+    // so default to their first class (never the school-wide 'all').
     String audience = editing?.audience ??
-        ((widget.viewerRole == 'teacher' ||
-                    widget.viewerRole == 'class_teacher') &&
-                widget.viewerClass != null
-            ? 'class:${widget.viewerClass}'
+        (_isTeacherRole && _postClasses.isNotEmpty
+            ? 'class:${_postClasses.first}'
             : 'all');
     bool pinned = editing?.isPinned ?? false;
     bool saving = false;
@@ -348,15 +369,16 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                                 setS(() => audience = opt['val']!),
                           ),
                       ],
-                      if ((widget.viewerRole == 'teacher' ||
-                              widget.viewerRole == 'class_teacher') &&
-                          widget.viewerClass != null)
-                        ChoiceChip(
-                          label: Text('My Class (${widget.viewerClass})'),
-                          selected: audience == 'class:${widget.viewerClass}',
-                          onSelected: (_) => setS(
-                              () => audience = 'class:${widget.viewerClass}'),
-                        ),
+                      if (_isTeacherRole)
+                        for (final cls in _postClasses)
+                          ChoiceChip(
+                            label: Text(_postClasses.length == 1
+                                ? 'My Class ($cls)'
+                                : cls),
+                            selected: audience == 'class:$cls',
+                            onSelected: (_) =>
+                                setS(() => audience = 'class:$cls'),
+                          ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -381,6 +403,18 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                           ? null
                           : () async {
                               if (!formKey.currentState!.validate()) return;
+                              // Teachers may only post to their own class.
+                              if (_isTeacherRole &&
+                                  !audience.startsWith('class:')) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'You can only post to your own class. '
+                                        'No class is assigned to you.'),
+                                  ),
+                                );
+                                return;
+                              }
                               final title = selectedTitle == customKey
                                   ? customTitleCtrl.text.trim()
                                   : selectedTitle!;

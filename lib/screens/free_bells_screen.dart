@@ -8,7 +8,12 @@ import '../theme.dart';
 import 'substitution_history_screen.dart';
 
 class FreeBellsScreen extends StatefulWidget {
-  const FreeBellsScreen({super.key});
+  /// Whether the viewer may assign/remove substitutes. Substitution planning is
+  /// a coordinator-only action; the principal opens this screen read-only (they
+  /// see free bells & current substitutes but cannot change them).
+  final bool canAssign;
+
+  const FreeBellsScreen({super.key, this.canAssign = true});
 
   @override
   State<FreeBellsScreen> createState() => _FreeBellsScreenState();
@@ -310,6 +315,34 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
           ),
         ),
         const SizedBox(width: 8),
+        // Read-only viewers (e.g. principal) see the current substitute as
+        // plain text — no dropdown, so they cannot assign or remove one.
+        if (!widget.canAssign)
+          Expanded(
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: isSub
+                        ? Colors.orange.shade200
+                        : Colors.grey.shade200),
+              ),
+              child: Text(
+                currentSubTeacher != null
+                    ? 'Substitute: ${currentSubTeacher.name}'
+                    : 'Unassigned',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: isSub
+                        ? Colors.orange.shade800
+                        : Colors.grey.shade500),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
+        else
         Expanded(
           child: DropdownButtonFormField<String>(
             value: validValue,
