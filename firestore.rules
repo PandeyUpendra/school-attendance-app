@@ -128,16 +128,34 @@ service cloud.firestore {
     /// DENIES. The correct fix is to keep classIds populated on allowed_users
     /// (addTeacher / updateTeacher stamp it; existing docs were backfilled)
     /// rather than reading the teachers doc from inside the rule.
+    /// Membership test against a PRE-FETCHED class-id list. Callers must pass
+    /// userClassIds() exactly once: the previous version re-invoked
+    /// userClassIds() (→ getUserData() → a get) up to 8 times per check, which
+    /// — combined with inSchool()/isManagement()/isAnyTeacher() each also
+    /// re-deriving identity — pushed teacher writes past Firestore's
+    /// 1000-expression-per-request ceiling, so they were DENIED (management
+    /// short-circuited before reaching here, which is why only teachers broke).
+    function classIdInList(cls, ids, sec) {
+      return cls in ids
+          || (cls.split('-')[0] in ids)
+          || (('Class ' + cls.split('-')[0]) in ids)
+          || (sec != '' && (
+                ((cls + '-' + sec) in ids)
+             || ((cls + '_' + sec) in ids)
+             || (cls.split(' ').size() > 1 && (
+                   ((cls.split(' ')[1] + '-' + sec) in ids)
+                || ((cls.split(' ')[1] + '_' + sec) in ids)
+             ))
+          ));
+    }
+
     function isClassTeacher(cls) {
-      return cls in userClassIds() ||
-             (cls.split('-')[0] in userClassIds()) ||
-             ("Class " + cls.split('-')[0] in userClassIds()) ||
-             (request.resource != null && 'data' in request.resource && 'section' in request.resource.data && (
-               (cls + "-" + request.resource.data.section) in userClassIds() ||
-               (cls + "_" + request.resource.data.section) in userClassIds() ||
-               (cls.split(' ')[1] + "-" + request.resource.data.section) in userClassIds() ||
-               (cls.split(' ')[1] + "_" + request.resource.data.section) in userClassIds()
-             ));
+      return classIdInList(
+        cls,
+        userClassIds(),
+        (request.resource != null && 'data' in request.resource && 'section' in request.resource.data)
+          ? request.resource.data.section : ''
+      );
     }
 
     /// Recovers the class name from an ATTENDANCE document id and tests it
