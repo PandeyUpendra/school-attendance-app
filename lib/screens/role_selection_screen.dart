@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
+import '../utils/validators.dart';
 import 'login_screen.dart';
 import 'guardian_login_screen.dart';
 import 'admin_screen.dart';
@@ -36,7 +37,7 @@ class RoleSelectionScreen extends StatelessWidget {
           Future<void> attempt() async {
             final email = emailCtrl.text.trim().toLowerCase();
             final pass  = passCtrl.text;
-            if (email.isEmpty || !email.contains('@')) {
+            if (!Validators.isValidEmail(email)) {
               setS(() => dlgError = 'Enter a valid email address.');
               return;
             }

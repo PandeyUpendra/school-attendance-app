@@ -5,6 +5,7 @@ import '../theme.dart';
 import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
+import '../utils/validators.dart';
 import 'coordinator_dashboard.dart';
 import 'home_screen.dart';
 import 'principal_dashboard.dart';
@@ -39,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final email    = _emailCtrl.text.trim().toLowerCase();
     final password = _passCtrl.text;
 
-    if (email.isEmpty || !email.contains('@')) {
+    if (!Validators.isValidEmail(email)) {
       setState(() => _error = 'Enter a valid email address.');
       return;
     }
@@ -210,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Future<void> attempt() async {
             final email = emailCtrl.text.trim().toLowerCase();
             final pass  = passCtrl.text;
-            if (email.isEmpty || !email.contains('@')) {
+            if (!Validators.isValidEmail(email)) {
               setS(() => dlgError = 'Enter a valid email address.');
               return;
             }
@@ -269,7 +270,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // name@gmail.com inbox.
           Future<void> resetPassword() async {
             final email = emailCtrl.text.trim().toLowerCase();
-            if (email.isEmpty || !email.contains('@')) {
+            if (!Validators.isValidEmail(email)) {
               setS(() {
                 resetMsg = null;
                 dlgError = 'Enter your admin email above first, then tap reset.';

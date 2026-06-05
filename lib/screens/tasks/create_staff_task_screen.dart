@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../models/staff_task.dart';
 import '../../models/teacher.dart';
@@ -12,6 +13,9 @@ class CreateStaffTaskScreen extends StatefulWidget {
   final String creatorName;
   final bool isPersonal;
 
+  /// When non-null, the screen edits this task instead of creating a new one.
+  final StaffTask? existing;
+
   const CreateStaffTaskScreen({
     super.key,
     required this.schoolId,
@@ -19,6 +23,7 @@ class CreateStaffTaskScreen extends StatefulWidget {
     required this.creatorRole,
     required this.creatorName,
     this.isPersonal = false,
+    this.existing,
   });
 
   @override
@@ -49,6 +54,8 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
 
   bool _loading = true;
 
+  bool get _isEdit => widget.existing != null;
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +63,21 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
       _selectedUserIds = [widget.creatorEmail.toLowerCase().trim()];
       _selectedUserNames = [widget.creatorName];
       _selectedUserRoles = [widget.creatorRole];
+    }
+    // Prefill from the task being edited.
+    final e = widget.existing;
+    if (e != null) {
+      _titleCtrl.text = e.title;
+      _descCtrl.text  = e.description;
+      _notesCtrl.text = e.notes ?? '';
+      _priority = e.priority;
+      if (e.dueDate != null) _dueDate = e.dueDate!;
+      _selectedUserIds   = List<String>.from(e.assignedToIds);
+      _selectedUserNames = List<String>.from(e.assignedToNames);
+      _selectedUserRoles = List<String>.from(e.assignedToRoles);
+      _selectedTargetRoles.addAll(e.targetRoles);
+      _selectedClasses.addAll(e.targetClasses);
+      _checkpoints.addAll(e.checkpoints);
     }
     _loadData();
   }
@@ -80,7 +102,9 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isPersonal ? 'New Personal Task' : 'Create Task'),
+        title: Text(_isEdit
+            ? 'Edit Task'
+            : (widget.isPersonal ? 'New Personal Task' : 'Create Task')),
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
       ),
@@ -154,7 +178,7 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
                       child: ElevatedButton(
                         onPressed: _submit,
                         style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary, foregroundColor: Colors.white),
-                        child: const Text('CREATE TASK', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: Text(_isEdit ? 'SAVE CHANGES' : 'CREATE TASK', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
@@ -341,6 +365,33 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
 
     if (_selectedUserIds.isEmpty && _selectedTargetRoles.isEmpty && !widget.isPersonal) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please assign to at least one person or role')));
+      return;
+    }
+
+    // Edit mode: patch the editable fields on the existing task, preserving
+    // id / status / createdAt / creator.
+    if (_isEdit) {
+      await StaffTaskService().updateTaskFields(
+        widget.schoolId,
+        widget.existing!.id,
+        {
+          'title':           _titleCtrl.text.trim(),
+          'description':     _descCtrl.text.trim(),
+          'notes':           _notesCtrl.text.trim(),
+          'priority':        _priority.name,
+          'dueDate':         Timestamp.fromDate(_dueDate),
+          'assignedToIds':   _selectedUserIds.map((e) => e.toLowerCase().trim()).toList(),
+          'assignedToNames': _selectedUserNames,
+          'assignedToRoles': _selectedUserRoles,
+          'targetRoles':     _selectedTargetRoles,
+          'targetClasses':   _selectedClasses,
+          'checkpoints':     _checkpoints.map((c) => c.toJson()).toList(),
+        },
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task updated')));
+      }
       return;
     }
 

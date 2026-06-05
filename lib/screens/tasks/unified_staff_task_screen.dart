@@ -9,6 +9,7 @@ import '../../services/notification_service.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/index_building_notice.dart';
 import '../task_badge_widgets.dart';
+import 'create_staff_task_screen.dart';
 
 const String _kAllTeachers = 'ALL_TEACHERS';
 const String _kCoordPrefix = 'coord:';
@@ -782,14 +783,32 @@ class _AllTasksTabState extends State<_AllTasksTab> {
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
                   physics: const AlwaysScrollableScrollPhysics(),
                   itemCount: tasks.length,
-                  itemBuilder: (_, i) => _AdminTaskCard(
-                    task: tasks[i],
-                    // A coordinator may only delete tasks they assigned; the
-                    // principal can delete any task in the school.
-                    showDelete: widget.viewerRole == 'principal' ||
-                        tasks[i].assignedBy == widget.assignerEmail,
-                    onDelete: () => _deleteTask(tasks[i]),
-                  ),
+                  itemBuilder: (_, i) {
+                    // The creator (any role) may edit or delete their own task;
+                    // a principal may also delete any task in the school.
+                    final isCreator =
+                        tasks[i].assignedBy == widget.assignerEmail;
+                    return _AdminTaskCard(
+                      task: tasks[i],
+                      showDelete: widget.viewerRole == 'principal' || isCreator,
+                      onDelete: () => _deleteTask(tasks[i]),
+                      showEdit: isCreator,
+                      onEdit: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CreateStaffTaskScreen(
+                            schoolId: tasks[i].schoolId.isNotEmpty
+                                ? tasks[i].schoolId
+                                : AuthService.currentSchoolId,
+                            creatorEmail: widget.assignerEmail,
+                            creatorRole: widget.viewerRole,
+                            creatorName: tasks[i].creatorName,
+                            existing: tasks[i],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               );
             },
@@ -1174,10 +1193,14 @@ class _AdminTaskCard extends StatelessWidget {
   final StaffTask    task;
   final VoidCallback onDelete;
   final bool         showDelete;
+  final VoidCallback? onEdit;
+  final bool         showEdit;
   const _AdminTaskCard({
     required this.task,
     required this.onDelete,
     this.showDelete = true,
+    this.onEdit,
+    this.showEdit = false,
   });
 
   @override
@@ -1213,6 +1236,14 @@ class _AdminTaskCard extends StatelessWidget {
               TaskPriorityBadge(priority: task.priority),
               const SizedBox(width: 6),
               TaskStatusChip(status: task.status),
+              if (showEdit && onEdit != null) ...[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: onEdit,
+                  child: Icon(Icons.edit_outlined,
+                      size: 18, color: Colors.grey.shade500),
+                ),
+              ],
               if (showDelete) ...[
                 const SizedBox(width: 6),
                 GestureDetector(

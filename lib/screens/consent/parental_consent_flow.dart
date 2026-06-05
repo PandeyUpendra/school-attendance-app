@@ -5,6 +5,7 @@ import '../../models/parental_consent.dart';
 import '../../services/consent_service.dart';
 import '../../theme.dart';
 import '../../utils/privacy_notice.dart';
+import '../../utils/validators.dart';
 
 /// Multi-step parental consent flow.
 ///
@@ -324,6 +325,7 @@ class _GuardianDetailsStep extends StatelessWidget {
             label:   'Email (optional)',
             icon:    Icons.email_outlined,
             keyboard: TextInputType.emailAddress,
+            validator: Validators.optionalEmail,
           ),
           const SizedBox(height: 32),
           _NextButton(label: 'Continue', onPressed: onNext),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
+import '../utils/validators.dart';
 import '../widgets/refreshable_data.dart';
 
 /// Principal-only screen to create, edit, and delete coordinator accounts.
@@ -469,11 +470,7 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                     _Field(controller: _emailCtrl, label: 'Email Address', icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
                         readOnly: _isEdit,
-                        validator: (v) {
-                          if (v!.trim().isEmpty) return 'Email is required';
-                          if (!v.contains('@')) return 'Enter a valid email';
-                          return null;
-                        }),
+                        validator: Validators.email),
                     const SizedBox(height: 14),
                     _Field(controller: _phoneCtrl, label: 'Phone Number (optional)', icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone),

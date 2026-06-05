@@ -9,6 +9,7 @@ import '../../providers/school_settings_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/school_settings_service.dart';
 import '../../theme.dart';
+import '../../utils/validators.dart';
 import '../../widgets/index_building_notice.dart';
 
 class EditSchoolSettingsScreen extends StatefulWidget {
@@ -197,6 +198,11 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
   }
 
   Future<void> _save() async {
+    final emailVal = _emailCtrl.text.trim();
+    if (emailVal.isNotEmpty && !Validators.isValidEmail(emailVal)) {
+      _snack('Enter a valid email address');
+      return;
+    }
     setState(() => _saving = true);
     try {
       final p = context.read<SchoolSettingsProvider>();

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
+import '../utils/validators.dart';
 import 'role_selection_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -64,7 +65,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
 
   Future<void> _sendReset() async {
     final email = _emailCtrl.text.trim().toLowerCase();
-    if (email.isEmpty || !email.contains('@')) {
+    if (!Validators.isValidEmail(email)) {
       setState(() => _error = 'Enter a valid email address.');
       return;
     }

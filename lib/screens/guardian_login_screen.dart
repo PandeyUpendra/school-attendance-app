@@ -4,6 +4,7 @@ import '../theme.dart';
 import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
+import '../utils/validators.dart';
 import 'guardian_dashboard.dart';
 import 'student_selection_screen.dart';
 import 'forgot_password_screen.dart';
@@ -34,7 +35,7 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
     final email    = _emailCtrl.text.trim().toLowerCase();
     final password = _passCtrl.text;
 
-    if (email.isEmpty || !email.contains('@')) {
+    if (!Validators.isValidEmail(email)) {
       setState(() => _error = 'Enter a valid email address.');
       return;
     }

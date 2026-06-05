@@ -5,6 +5,7 @@ import '../../services/staff_task_service.dart';
 import '../../services/auth_service.dart';
 import '../../theme.dart';
 import '../../widgets/index_building_notice.dart';
+import 'create_staff_task_screen.dart';
 
 class StaffTaskDetailScreen extends StatefulWidget {
   final String schoolId;
@@ -72,7 +73,27 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
             actions: [
               if (isCreator)
                 IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Edit task',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CreateStaffTaskScreen(
+                        schoolId: task.schoolId.isNotEmpty
+                            ? task.schoolId
+                            : widget.schoolId,
+                        creatorEmail: _userEmail,
+                        creatorRole: _userRole,
+                        creatorName: _userName,
+                        existing: task,
+                      ),
+                    ),
+                  ),
+                ),
+              if (isCreator)
+                IconButton(
                   icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Delete task',
                   onPressed: () => _confirmDelete(context, task),
                 ),
             ],

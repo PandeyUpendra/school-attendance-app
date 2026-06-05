@@ -13,6 +13,7 @@ import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
 import '../utils/app_logger.dart';
+import '../utils/validators.dart';
 import 'add_student_screen.dart';
 import 'attendance_certificate_screen.dart';
 import '../widgets/refreshable_data.dart';
@@ -966,6 +967,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
   Future<void> _setGuardianEmail(BuildContext ctx) async {
     final ctrl = TextEditingController(text: _student.guardianEmail ?? '');
     String? savedEmail;
+    String? emailErr;
     bool    inviteSent  = false;
     Object? inviteError;
 
@@ -990,6 +992,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 autofocus: true,
                 decoration: InputDecoration(
                   labelText: 'Guardian email address',
+                  errorText: emailErr,
                   prefixIcon: const Icon(Icons.email_outlined),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -1007,7 +1010,11 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                   backgroundColor: AppTheme.primary, foregroundColor: Colors.white),
               onPressed: () async {
                 final email = ctrl.text.trim().toLowerCase();
-                if (email.isEmpty || !email.contains('@')) return;
+                if (!Validators.isValidEmail(email)) {
+                  setS(() => emailErr = 'Enter a valid email address');
+                  return;
+                }
+                setS(() => emailErr = null);
                 // Persist the email on the student record + provision the
                 // guardian's allowed_users / Firebase Auth account.
                 await StudentService().setGuardianEmail(

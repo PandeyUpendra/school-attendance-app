@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../models/staff_task.dart';
+import '../services/auth_service.dart';
 import '../services/staff_task_service.dart';
 import '../widgets/index_building_notice.dart';
 import 'task_badge_widgets.dart';
+import 'tasks/create_staff_task_screen.dart';
 
 /// Teacher's personal task list — shows tasks assigned to this teacher only.
 class StaffTasksScreen extends StatefulWidget {
@@ -18,6 +20,26 @@ class StaffTasksScreen extends StatefulWidget {
 class _StaffTasksScreenState extends State<StaffTasksScreen> {
   // Incrementing this key forces the StreamBuilder to re-subscribe on refresh.
   int _refreshTick = 0;
+  String _email = '';
+  String _role  = '';
+  String _name  = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final session = await AuthService().getSession();
+    if (session != null && mounted) {
+      setState(() {
+        _email = (session['email'] as String? ?? '').toLowerCase();
+        _role  = session['role'] as String? ?? '';
+        _name  = session['name'] as String? ?? _email;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +86,9 @@ class _StaffTasksScreenState extends State<StaffTasksScreen> {
                     itemCount: tasks.length,
                     itemBuilder: (_, i) => _TaskCard(
                       task: tasks[i],
+                      currentEmail: _email,
+                      currentRole: _role,
+                      currentName: _name,
                       onStatusChange: (s) async {
                         await StaffTaskService()
                             .updateTaskStatus(tasks[i].id, s);
@@ -95,8 +120,17 @@ class _StaffTasksScreenState extends State<StaffTasksScreen> {
 class _TaskCard extends StatelessWidget {
   final StaffTask                task;
   final ValueChanged<TaskStatus> onStatusChange;
+  final String                   currentEmail;
+  final String                   currentRole;
+  final String                   currentName;
 
-  const _TaskCard({required this.task, required this.onStatusChange});
+  const _TaskCard({
+    required this.task,
+    required this.onStatusChange,
+    this.currentEmail = '',
+    this.currentRole = '',
+    this.currentName = '',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -207,6 +241,9 @@ class _TaskCard extends StatelessWidget {
       builder: (_) => _TaskDetailSheet(
         task: task,
         onStatusChange: onStatusChange,
+        currentEmail: currentEmail,
+        currentRole: currentRole,
+        currentName: currentName,
       ),
     );
   }
@@ -225,8 +262,17 @@ class _TaskCard extends StatelessWidget {
 class _TaskDetailSheet extends StatelessWidget {
   final StaffTask                task;
   final ValueChanged<TaskStatus> onStatusChange;
+  final String                   currentEmail;
+  final String                   currentRole;
+  final String                   currentName;
 
-  const _TaskDetailSheet({required this.task, required this.onStatusChange});
+  const _TaskDetailSheet({
+    required this.task,
+    required this.onStatusChange,
+    this.currentEmail = '',
+    this.currentRole = '',
+    this.currentName = '',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -330,6 +376,76 @@ class _TaskDetailSheet extends StatelessWidget {
           ],
 
           const SizedBox(height: 20),
+
+          // Creator-only: edit / delete the task you created (any role).
+          if (currentEmail.isNotEmpty && task.createdBy == currentEmail) ...[
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CreateStaffTaskScreen(
+                          schoolId: task.schoolId,
+                          creatorEmail: currentEmail,
+                          creatorRole: currentRole,
+                          creatorName: currentName,
+                          existing: task,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Edit'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primary,
+                    side: const BorderSide(color: AppTheme.primary),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final ok = await showDialog<bool>(
+                      context: context,
+                      builder: (c) => AlertDialog(
+                        title: const Text('Delete Task'),
+                        content: const Text('Delete this task permanently?'),
+                        actions: [
+                          TextButton(
+                              onPressed: () => Navigator.pop(c, false),
+                              child: const Text('Cancel')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(c, true),
+                            style: TextButton.styleFrom(
+                                foregroundColor: AppTheme.danger),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (ok == true) {
+                      await StaffTaskService().deleteTask(task);
+                      if (context.mounted) Navigator.pop(context);
+                    }
+                  },
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Delete'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.danger,
+                    side: BorderSide(
+                        color: AppTheme.danger.withValues(alpha: 0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 12),
+          ],
 
           // Status buttons
           if (task.status != TaskStatus.completed) ...[
