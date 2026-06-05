@@ -100,9 +100,9 @@ service cloud.firestore {
     /// matching how the app builds student doc IDs. Used to scope guardian
     /// access to subcollections that carry no className/roll fields.
     function guardianStudentId() {
-      return userStudentClass().replace(' ', '_')
-           + '_' + userStudentSection().replace(' ', '_')
-           + '_' + string(userStudentRoll());
+      return userStudentSection() == '' || userStudentSection() == null
+        ? userStudentClass().replace(' ', '_') + '_' + string(userStudentRoll())
+        : userStudentClass().replace(' ', '_') + '_' + userStudentSection().replace(' ', '_') + '_' + string(userStudentRoll());
     }
 
     /// True when caller's role exactly equals r.
@@ -698,29 +698,52 @@ service cloud.firestore {
 
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isAnyTeacher() && resource.data.teacherId == userTeacherId())
+        (isAnyTeacher() && 'teacherId' in resource.data && resource.data.teacherId == userTeacherId()) ||
+        (isRole('guardian')
+          && 'applicantType' in resource.data && resource.data.applicantType == 'guardian'
+          && 'studentClass' in resource.data && resource.data.studentClass == userStudentClass()
+          && 'studentRoll' in resource.data && resource.data.studentRoll == userStudentRoll()
+          && 'studentSection' in resource.data && resource.data.studentSection == userStudentSection()) ||
+        (isAnyTeacher() && 'studentClass' in resource.data && isClassTeacher(resource.data.studentClass))
       );
 
-      // No impersonation: teacherId must equal the calling user's teacherId, and teacherEmail must match their authenticated email.
-      allow create: if isSignedIn() && inSchool(sid)
-        && isAnyTeacher()
-        && request.resource.data.teacherId == userTeacherId()
-        && request.resource.data.teacherEmail.lower() == userEmail();
+      // No impersonation: teacherId must equal the calling user's teacherId, or guardian matches student info.
+      allow create: if isSignedIn() && inSchool(sid) && (
+        (isAnyTeacher()
+          && 'teacherId' in request.resource.data
+          && request.resource.data.teacherId == userTeacherId()
+          && 'teacherEmail' in request.resource.data
+          && request.resource.data.teacherEmail.lower() == userEmail()) ||
+        (isRole('guardian')
+          && 'applicantType' in request.resource.data && request.resource.data.applicantType == 'guardian'
+          && 'studentClass' in request.resource.data && request.resource.data.studentClass == userStudentClass()
+          && 'studentRoll' in request.resource.data && request.resource.data.studentRoll == userStudentRoll()
+          && 'studentSection' in request.resource.data && request.resource.data.studentSection == userStudentSection())
+      );
 
       allow update: if isSignedIn() && inSchool(sid) && (
 
-        // Management may only update status + review metadata.
+        // Management may only update status + review metadata + coordinatorNote.
         (isManagement()
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['status', 'reviewedBy', 'reviewedAt', 'remarks'])) ||
+               .hasOnly(['status', 'reviewedBy', 'reviewedAt', 'remarks', 'coordinatorNote'])) ||
 
         // Submitting teacher may edit body fields of their own PENDING leave
         // but may NOT touch status or reassign teacherId.
         (isAnyTeacher()
+          && 'teacherId' in resource.data
           && resource.data.teacherId == userTeacherId()
           && resource.data.status == 'pending'
           && !request.resource.data.diff(resource.data).affectedKeys()
-                .hasAny(['status', 'teacherId']))
+                .hasAny(['status', 'teacherId'])) ||
+
+        // Class teacher may update status/coordinatorNote of guardian-submitted student leaves
+        (isAnyTeacher()
+          && 'studentClass' in resource.data
+          && 'applicantType' in resource.data && resource.data.applicantType == 'guardian'
+          && isClassTeacher(resource.data.studentClass)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'coordinatorNote']))
       );
 
       allow delete: if isSignedIn() && inSchool(sid) && isManagement();

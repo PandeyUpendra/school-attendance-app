@@ -595,6 +595,7 @@ class _GuardianLeaveApplicationScreenState
     final startDate = (data['startDate'] as String?) ?? '';
     final days      = (data['numberOfDays'] as int?) ?? 1;
     final reason    = (data['reason'] as String?) ?? '';
+    final coordinatorNote = data['coordinatorNote'] as String?;
 
     Color  statusColor;
     String statusLabel;
@@ -658,6 +659,16 @@ class _GuardianLeaveApplicationScreenState
                 : reason,
                 style: TextStyle(
                     fontSize: 11, color: Colors.grey.shade500)),
+            if (coordinatorNote != null && coordinatorNote.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Remarks: $coordinatorNote',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.orange.shade800),
+              ),
+            ],
           ],
         )),
         const SizedBox(width: 8),

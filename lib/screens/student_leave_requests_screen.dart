@@ -396,9 +396,18 @@ class _StudentLeaveCard extends StatelessWidget {
             _chip(Icons.access_time_outlined,
                 '$days day${days > 1 ? 's' : ''}', AppTheme.primaryMid),
           ]),
-          const SizedBox(height: 8),
           Text('Reason: $reason',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          if (app['coordinatorNote'] != null && app['coordinatorNote'].toString().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Remarks: ${app['coordinatorNote']}',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.orange.shade800),
+            ),
+          ],
           if (showActions) ...[
             const SizedBox(height: 12),
             const Divider(height: 1),
