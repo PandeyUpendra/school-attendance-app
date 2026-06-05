@@ -625,6 +625,13 @@ class _GuardianHeroCard extends StatelessWidget {
     }
   }
 
+  Widget _vDivider() => Container(
+        width: 1,
+        height: 28,
+        color: Colors.white24,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+      );
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -641,7 +648,7 @@ class _GuardianHeroCard extends StatelessWidget {
         child: SafeArea(
           bottom: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 8, 56),
+            padding: const EdgeInsets.fromLTRB(20, 10, 8, 52),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -725,30 +732,30 @@ class _GuardianHeroCard extends StatelessWidget {
                     style: const TextStyle(
                         color: Colors.white70, fontSize: 13),
                   ),
-                  const SizedBox(height: 12),
-                  // Today status chip
+                  const SizedBox(height: 14),
+                  // ── Stats glass card (mirrors the teacher dashboard) ──
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
+                        horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white30),
+                      color: Colors.white.withValues(alpha: 0.13),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Container(
-                        width: 8, height: 8,
-                        decoration: BoxDecoration(
-                            color: _statusColor(todayStatus),
-                            shape: BoxShape.circle),
+                    child: Row(children: [
+                      _HeroInfo(
+                        label: 'Class',
+                        value: studentClass.isNotEmpty ? studentClass : '—',
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Today: ${todayStatus ?? 'Not marked'}',
-                        style: TextStyle(
-                            color: _statusColor(todayStatus),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600),
+                      _vDivider(),
+                      _HeroInfo(
+                        label: 'Roll',
+                        value: '$studentRoll',
+                      ),
+                      _vDivider(),
+                      _HeroInfo(
+                        label: 'Today',
+                        value: todayStatus ?? 'Not marked',
+                        color: _statusColor(todayStatus),
                       ),
                     ]),
                   ),
@@ -762,6 +769,34 @@ class _GuardianHeroCard extends StatelessWidget {
   }
 }
 
+// ── Hero info cell (matches the teacher dashboard's glass-card cells) ─────────
+
+class _HeroInfo extends StatelessWidget {
+  final String label, value;
+  final Color? color;
+  const _HeroInfo({required this.label, required this.value, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  color: color ?? Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 2),
+          Text(label,
+              style: const TextStyle(color: Colors.white60, fontSize: 10),
+              textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+}
 
 
 // ─── Exam results section ────────────────────────────────────────────────────

@@ -926,6 +926,8 @@ service cloud.firestore {
     //   'coordinator'             → coordinator role
     //   'principal'               → principal role
     //   'teacher:{uid}'           → a specific teacher (UID match)
+    //   'class:{class}'           → class-wide notice (class teacher → guardians
+    //                               of that class; also visible to staff)
     //   'guardian:{class}:{roll}' → student-specific guardian notification
     //   'class_teacher:{class}'   → the class teacher of the named class
     //
@@ -975,6 +977,17 @@ service cloud.firestore {
           && resource.data.audience.matches('guardian:.*:.*')
           && resource.data.audience.split(':')[1] == userStudentClass()
           && resource.data.audience.split(':')[2] == string(userStudentRoll())) ||
+
+        // Class-wide notice — 'class:{className}'
+        // Posted by the class teacher to every guardian in the class. A guardian
+        // may read it only when the named class is their own child's class. Staff
+        // (any teacher) may also read class notices. matches('class:.*') excludes
+        // the longer 'class_teacher:.*' form, which is handled separately below.
+        ((isRole('guardian')
+            && resource.data.audience.matches('class:.*')
+            && resource.data.audience.split(':')[1] == userStudentClass())
+          || (isAnyTeacher()
+            && resource.data.audience.matches('class:.*'))) ||
 
         // Class teacher — 'class_teacher:{className}'
         (isAnyTeacher()

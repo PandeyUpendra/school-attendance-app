@@ -242,7 +242,8 @@ class NotificationService extends BaseFirestoreService {
   /// The candidate set mirrors the writers above exactly:
   ///   • everyone sees `'all'` and their own role string;
   ///   • teachers also see `'teachers'` and their `'teacher:{id}'` channel;
-  ///   • guardians also see `'guardians'` and their `'guardian:{class}:{roll}'`.
+  ///   • guardians also see `'guardians'`, their class-wide `'class:{class}'`
+  ///     channel (class-teacher notices), and `'guardian:{class}:{roll}'`.
   List<String> _audiencesFor({
     required String role,
     String? teacherId,
@@ -272,8 +273,16 @@ class NotificationService extends BaseFirestoreService {
     }
     if (role == 'guardian') {
       audiences.add('guardians');
-      if (studentClass != null && studentRoll != null) {
-        audiences.add('guardian:$studentClass:$studentRoll');
+      if (studentClass != null && studentClass.isNotEmpty) {
+        // Notices posted by the class teacher to a whole class use the
+        // 'class:{className}' audience (see announcements_screen). A guardian
+        // belongs to exactly one class, so add that channel here. The matching
+        // firestore.rules branch must also permit guardians to read it, or the
+        // whole whereIn query is rejected with permission-denied.
+        audiences.add('class:$studentClass');
+        if (studentRoll != null) {
+          audiences.add('guardian:$studentClass:$studentRoll');
+        }
       }
     }
     return audiences.toList();
