@@ -1060,9 +1060,16 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
 
   Future<void> _loadUsers() async {
     if (mounted) setState(() => _usersLoading = true);
-    final users = await _svc.getUsersCreatedBy(widget.email);
-    if (!mounted) return;
-    setState(() { _createdUsers = users; _usersLoading = false; });
+    try {
+      final users = await _svc.getUsersCreatedBy(widget.email);
+      if (!mounted) return;
+      setState(() { _createdUsers = users; _usersLoading = false; });
+    } catch (e) {
+      // Don't leave the list stuck on "Loading…" if the query fails.
+      if (!mounted) return;
+      setState(() { _createdUsers = []; _usersLoading = false; });
+      _snack('Could not load accounts: $e');
+    }
   }
 
   Future<void> _createUser() async {
@@ -1089,6 +1096,8 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
         ));
         await _loadUsers();
       }
+    } on RoleConflictException catch (e) {
+      if (mounted) _snack(e.toString());
     } catch (e) {
       if (mounted) _snack('Error: $e');
     }

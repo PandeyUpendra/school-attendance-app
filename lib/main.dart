@@ -138,6 +138,34 @@ class _SplashGateState extends State<_SplashGate> {
       BaseFirestoreService.currentSchoolId = schoolId;
     }
 
+    // Re-validate management sessions against the authoritative allowed_users
+    // doc. SplashGate otherwise routes purely from the cached SharedPreferences
+    // session — so a session whose role was since revoked or changed would
+    // render a dashboard the Firestore rules no longer honour, and every write
+    // (e.g. an owner creating a principal) then fails with permission-denied
+    // while looking like a generic error. Reconcile against the live doc:
+    //   • doc absent OR role changed  → clear the stale session, force re-login
+    //   • read threw (offline/transient) → keep cached routing (don't lock out)
+    //   • role matches                 → proceed
+    const managementRoles = {'owner', 'ownerPrincipal', 'principal', 'coordinator'};
+    final email = session['email'] as String?;
+    if (managementRoles.contains(role) && email != null && email.isNotEmpty) {
+      bool readFailed = false;
+      Map<String, dynamic>? live;
+      try {
+        live = await TimetableService().getAllowedUserDoc(email);
+      } catch (_) {
+        readFailed = true; // network/transient — fall through to cached routing.
+      }
+      if (!mounted) return;
+      if (!readFailed && (live == null || (live['role'] as String? ?? '') != role)) {
+        await AuthService().clearSession();
+        if (!mounted) return;
+        _go(const LoginScreen());
+        return;
+      }
+    }
+
     switch (role) {
       case 'admin':
         // Admin is a privileged, non-persistent role reached only via the

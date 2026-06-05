@@ -808,9 +808,16 @@ class _OPManagePageState extends State<_OPManagePage> {
 
   Future<void> _loadUsers() async {
     if (mounted) setState(() => _usersLoading = true);
-    final users = await _svc.getUsersCreatedBy(widget.email);
-    if (!mounted) return;
-    setState(() { _users = users; _usersLoading = false; });
+    try {
+      final users = await _svc.getUsersCreatedBy(widget.email);
+      if (!mounted) return;
+      setState(() { _users = users; _usersLoading = false; });
+    } catch (e) {
+      // Don't leave the list stuck on "Loading…" if the query fails.
+      if (!mounted) return;
+      setState(() { _users = []; _usersLoading = false; });
+      _snack('Could not load accounts: $e');
+    }
   }
 
   Future<void> _loadSchoolSettings() async {
@@ -882,6 +889,8 @@ class _OPManagePageState extends State<_OPManagePage> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${RolePermissionService.roleDisplayName(_createRole)} account created'), backgroundColor: AppTheme.success));
         await _loadUsers();
       }
+    } on RoleConflictException catch (e) {
+      if (mounted) _snack(e.toString());
     } catch (e) { if (mounted) _snack('Error: $e'); }
     if (mounted) setState(() => _saving = false);
   }

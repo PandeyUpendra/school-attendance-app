@@ -8,6 +8,23 @@ import '../models/timetable_entry.dart';
 import '../utils/app_logger.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
+import 'role_permission_service.dart';
+
+/// Thrown by [TimetableService.addAllowedUser] when the target email already
+/// holds a *different* role. One email maps to exactly one role — the existing
+/// account must be deleted before the address can be reassigned.
+class RoleConflictException implements Exception {
+  final String email;
+  final String existingRole;
+  final String attemptedRole;
+  const RoleConflictException(this.email, this.existingRole, this.attemptedRole);
+
+  @override
+  String toString() =>
+      '$email already has a ${RolePermissionService.roleDisplayName(existingRole)} '
+      'account. One email can hold only one role — delete that account first to '
+      'reassign it as a ${RolePermissionService.roleDisplayName(attemptedRole)}.';
+}
 
 class TimetableService extends BaseFirestoreService {
   static final _db = FirebaseFirestore.instance;
@@ -519,6 +536,28 @@ class TimetableService extends BaseFirestoreService {
     String?       createdByRole,
   }) async {
     final normEmail = email.toLowerCase().trim();
+
+    // 0. One email = one role. If this address already holds a *different* role,
+    //    refuse outright — the existing account must be deleted before the email
+    //    can be reassigned. Re-adding the SAME role is fine (re-inviting a user,
+    //    or linking another child to an existing guardian).
+    //
+    //    The read is best-effort: the rules deny reads of a NON-EXISTENT
+    //    allowed_users doc to non-owner creators, so a fresh email throws here.
+    //    That's not a conflict (there's nothing to collide with), so on any read
+    //    failure we fall through and let the write rules be the final authority.
+    DocumentSnapshot<Map<String, dynamic>>? existingDoc;
+    try {
+      existingDoc = await _allowedUsers.doc(normEmail).get();
+    } catch (_) {
+      existingDoc = null; // unreadable (likely absent) — no provable conflict.
+    }
+    if (existingDoc != null && existingDoc.exists) {
+      final existingRole = existingDoc.data()?['role'] as String?;
+      if (existingRole != null && existingRole.isNotEmpty && existingRole != role) {
+        throw RoleConflictException(normEmail, existingRole, role);
+      }
+    }
 
     // 1. Write to allowed_users — no password field; credentials live in Firebase Auth.
     final data = <String, dynamic>{
