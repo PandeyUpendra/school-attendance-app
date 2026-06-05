@@ -257,7 +257,17 @@ class StudentService extends BaseFirestoreService {
     await _repo.delete(student.id);
 
     // 4. Cascade-delete attendance, notifications, exam results, fee records.
-    await _cascadeDeleteAttendance(roll, className, section: section);
+    //    These are BEST-EFFORT cleanups — the student document (the record that
+    //    matters) is already gone. A permission hiccup on a secondary collection
+    //    (e.g. reading a guardian's allowed_users doc that no longer exists,
+    //    which the rules deny for a principal) must NOT abort the approval and
+    //    surface as a cryptic permission-denied. Each is wrapped so failures are
+    //    logged and skipped.
+    try {
+      await _cascadeDeleteAttendance(roll, className, section: section);
+    } catch (e) {
+      AppLogger.e('StudentService', 'cascade attendance delete failed: $e', e);
+    }
     await _cascadeDeleteStudentNotifications(className, roll);
     await _cascadeDeleteExamResults(className, roll);
     await _cascadeDeleteFeePayments(className, roll);
@@ -272,18 +282,23 @@ class StudentService extends BaseFirestoreService {
       reason: 'principal-approved deletion',
     );
 
-    // 5. Revoke guardian login.
+    // 5. Revoke guardian login (best-effort — never block the deletion on it).
     final guardianEmail = student.guardianEmail;
     if (guardianEmail != null && guardianEmail.trim().isNotEmpty) {
-      final svc = TimetableService();
-      await svc.removeGuardianLink(
-        email: guardianEmail,
-        studentClass: className,
-        studentRoll: roll,
-      );
-      final remaining = await svc.getGuardianLinks(guardianEmail);
-      if (remaining == null || remaining.isEmpty) {
-        await svc.removeAllowedUser(guardianEmail);
+      try {
+        final svc = TimetableService();
+        await svc.removeGuardianLink(
+          email: guardianEmail,
+          studentClass: className,
+          studentRoll: roll,
+        );
+        final remaining = await svc.getGuardianLinks(guardianEmail);
+        if (remaining == null || remaining.isEmpty) {
+          await svc.removeAllowedUser(guardianEmail);
+        }
+      } catch (e) {
+        AppLogger.e('StudentService',
+            'guardian login revoke failed (non-fatal): $e', e);
       }
     }
   }
