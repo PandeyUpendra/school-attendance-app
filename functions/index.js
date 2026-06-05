@@ -230,13 +230,26 @@ exports.deleteAccount = onCall(
     } else if ((targetRole === "teacher" || targetRole === "subjectTeacher") && targetSchoolId) {
       const teacherId = targetData && targetData.teacherId;
       if (teacherId) {
-        await db
-          .collection("schools")
-          .doc(targetSchoolId)
+        const schoolRef = db.collection("schools").doc(targetSchoolId);
+        await schoolRef
           .collection("teachers")
           .doc(teacherId)
           .delete()
           .catch((err) => logger.warn(`teacher doc delete failed`, err && err.message));
+        // Remove the teacher's leave / duty / substitution records so they don't
+        // linger as orphaned dashboard counts ("Leave Requests" / "Teacher absent").
+        for (const coll of ["leave_applications", "duties", "substitutions"]) {
+          try {
+            const q = await schoolRef.collection(coll).where("teacherId", "==", teacherId).get();
+            if (!q.empty) {
+              const batch = db.batch();
+              q.docs.forEach((d) => batch.delete(d.ref));
+              await batch.commit();
+            }
+          } catch (err) {
+            logger.warn(`${coll} cleanup failed for ${teacherId}`, err && err.message);
+          }
+        }
       }
     }
 

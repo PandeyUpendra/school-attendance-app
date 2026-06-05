@@ -866,15 +866,37 @@ class TimetableService extends BaseFirestoreService {
       });
     }
 
+    // Drop orphaned applications whose teacher no longer exists (e.g. the
+    // teacher was deleted) — otherwise stale requests inflate the dashboard's
+    // "Leave Requests" / "Teacher absent" counts even when there are no teachers.
+    final validIds = await _currentTeacherIds();
+    list.retainWhere((a) {
+      final tid = (a['teacherId'] as String?) ?? '';
+      return tid.isNotEmpty && validIds.contains(tid);
+    });
+
     return list;
   }
 
-  /// Real-time count of pending leave applications.
+  /// Set of teacher document ids currently registered in this school.
+  Future<Set<String>> _currentTeacherIds() async {
+    final teachers = await getTeachers();
+    return teachers.map((t) => t.id).toSet();
+  }
+
+  /// Real-time count of pending leave applications, excluding orphaned requests
+  /// from teachers that no longer exist (so the badge matches the list).
   Stream<int> streamPendingLeaveCount() =>
       _leaveApps
           .where('status', isEqualTo: 'pending')
           .snapshots()
-          .map((snap) => snap.docs.length);
+          .asyncMap((snap) async {
+            final validIds = await _currentTeacherIds();
+            return snap.docs.where((d) {
+              final tid = (d.data()['teacherId'] as String?) ?? '';
+              return tid.isNotEmpty && validIds.contains(tid);
+            }).length;
+          });
 
   Future<void> updateLeaveApplication(String schoolId, String id, String status,
       {String? note}) async {
