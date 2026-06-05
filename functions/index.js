@@ -129,6 +129,126 @@ exports.sendPasswordEmail = onCall(
   }
 );
 
+// Roles permitted to delete accounts.
+const DELETE_ROLES = ["admin", "owner", "ownerPrincipal", "principal", "coordinator"];
+
+/**
+ * Callable: deleteAccount({ email })
+ *
+ * Permanently deletes an account and its associated data, including the
+ * Firebase Auth login (which the client SDK cannot remove for another user).
+ * This is what makes a re-created email start completely fresh.
+ *
+ * Cascade by role:
+ *   owner / ownerPrincipal → the ENTIRE school: every account in that school
+ *     (+ their Auth logins), the whole schools/{schoolId} Firestore subtree,
+ *     and best-effort Storage cleanup.
+ *   teacher → the teacher document in their school + login + Auth.
+ *   principal / coordinator / guardian / other → just that account + Auth.
+ *     (Accounts they created are intentionally kept — they belong to the school.)
+ */
+exports.deleteAccount = onCall(
+  { cors: true, region: "us-central1" },
+  async (request) => {
+    const db = admin.firestore();
+
+    if (!request.auth || !request.auth.token || !request.auth.token.email) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    const email = String(request.data && request.data.email ? request.data.email : "")
+      .trim()
+      .toLowerCase();
+    if (!EMAIL_RE.test(email)) {
+      throw new HttpsError("invalid-argument", "A valid email address is required.");
+    }
+
+    const callerEmail = String(request.auth.token.email).toLowerCase();
+    if (callerEmail === email) {
+      throw new HttpsError("failed-precondition", "You cannot delete your own account.");
+    }
+
+    // Resolve caller + target identity from allowed_users.
+    const [callerSnap, targetSnap] = await Promise.all([
+      db.collection("allowed_users").doc(callerEmail).get(),
+      db.collection("allowed_users").doc(email).get(),
+    ]);
+    const callerRole = callerSnap.exists ? callerSnap.get("role") : null;
+    const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
+
+    if (!DELETE_ROLES.includes(callerRole)) {
+      throw new HttpsError("permission-denied", "You are not allowed to delete accounts.");
+    }
+
+    // If the target no longer has an allowed_users doc, still try to free the
+    // Auth login so a half-deleted account can be cleaned up (idempotent).
+    const targetData = targetSnap.exists ? targetSnap.data() : null;
+    const targetRole = targetData ? targetData.role : null;
+    const targetSchoolId = targetData ? targetData.schoolId : null;
+
+    if (targetRole === "admin") {
+      throw new HttpsError("permission-denied", "Admin accounts cannot be deleted here.");
+    }
+
+    // Authorization: admins may delete anyone (e.g. owners in other schools);
+    // other management roles may only delete within their own school.
+    const isAdmin = callerRole === "admin";
+    const sameSchool =
+      callerSchoolId && targetSchoolId && callerSchoolId === targetSchoolId;
+    if (!isAdmin && !sameSchool) {
+      throw new HttpsError("permission-denied", "You can only delete accounts in your own school.");
+    }
+
+    const deleteAuth = async (e) => {
+      try {
+        const u = await admin.auth().getUserByEmail(e);
+        await admin.auth().deleteUser(u.uid);
+      } catch (err) {
+        if (!err || err.code !== "auth/user-not-found") {
+          logger.warn(`deleteAuth failed for ${e}`, err && err.code);
+        }
+      }
+    };
+
+    if ((targetRole === "owner" || targetRole === "ownerPrincipal") && targetSchoolId) {
+      // Delete every account belonging to this school + their Auth logins.
+      const members = await db
+        .collection("allowed_users")
+        .where("schoolId", "==", targetSchoolId)
+        .get();
+      for (const doc of members.docs) {
+        await deleteAuth(doc.id);
+        await doc.ref.delete();
+      }
+      // Wipe the entire school subtree (students, teachers, attendance, fees, …).
+      await db.recursiveDelete(db.collection("schools").doc(targetSchoolId));
+      // Best-effort Storage cleanup (gallery photos, etc.).
+      try {
+        await admin.storage().bucket().deleteFiles({ prefix: `schools/${targetSchoolId}/` });
+      } catch (err) {
+        logger.warn(`Storage cleanup failed for ${targetSchoolId}`, err && err.message);
+      }
+    } else if ((targetRole === "teacher" || targetRole === "subjectTeacher") && targetSchoolId) {
+      const teacherId = targetData && targetData.teacherId;
+      if (teacherId) {
+        await db
+          .collection("schools")
+          .doc(targetSchoolId)
+          .collection("teachers")
+          .doc(teacherId)
+          .delete()
+          .catch((err) => logger.warn(`teacher doc delete failed`, err && err.message));
+      }
+    }
+
+    // Always remove the target's own login record + Auth account (idempotent —
+    // the owner loop above may have already handled it).
+    await deleteAuth(email);
+    await db.collection("allowed_users").doc(email).delete().catch(() => {});
+
+    return { ok: true, role: targetRole || "unknown" };
+  }
+);
+
 function renderHtml({ appName, intro, link, type }) {
   const cta = type === "invite" ? "Set your password" : "Reset password";
   return `<!doctype html>

@@ -1032,6 +1032,12 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
 
   final _nameCtrl  = TextEditingController();
   final _emailCtrl = TextEditingController();
+  // Owned by the screen, not the delete dialog: disposing a controller while the
+  // dialog's TextField is still tearing down (e.g. on Cancel, during the route's
+  // exit animation / focus loss) trips the framework's InheritedElement
+  // `_dependents.isEmpty` assertion and shows a red error screen. Tying it to the
+  // screen lifecycle avoids that entirely.
+  final _deletePwCtrl = TextEditingController();
   bool _saving     = false;
   late String _createRole;
 
@@ -1048,7 +1054,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
 
   @override
   void dispose() {
-    _nameCtrl.dispose(); _emailCtrl.dispose();
+    _nameCtrl.dispose(); _emailCtrl.dispose(); _deletePwCtrl.dispose();
     super.dispose();
   }
 
@@ -1098,7 +1104,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
     // the app-root ScaffoldMessenger, which dangles when the dialog tears down
     // and trips the framework's `_dependents.isEmpty` assertion.
     final messenger = ScaffoldMessenger.of(context);
-    final pwCtrl = TextEditingController();
+    final pwCtrl = _deletePwCtrl..clear();
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1176,15 +1182,16 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
         );
       },
     );
-    pwCtrl.dispose();
     if (confirmed != true || !mounted) return;
 
     try {
-      await _svc.removeAllowedUser(uEmail);
+      final full = await _svc.deleteAccountFully(uEmail);
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Account deleted'),
-        backgroundColor: AppTheme.danger,
+      messenger.showSnackBar(SnackBar(
+        content: Text(full
+            ? 'Account and all related data deleted'
+            : 'Access revoked — deploy the deletion function for full cleanup'),
+        backgroundColor: full ? AppTheme.danger : Colors.orange.shade800,
       ));
       await _loadUsers();
     } catch (e) {

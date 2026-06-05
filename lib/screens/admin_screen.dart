@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../utils/app_logger.dart';
 import '../utils/role_guard.dart';
+import 'role_selection_screen.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -147,8 +149,53 @@ class _AdminScreenState extends State<AdminScreen> {
       ),
     );
     if (ok != true) return;
-    await _service.removeAllowedUser(email);
+    try {
+      final full = await _service.deleteAccountFully(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(full
+            ? '$email and all related school data deleted'
+            : 'Access revoked for $email — deploy the deletion function for full cleanup'),
+        backgroundColor: full ? Colors.green.shade700 : Colors.orange.shade800,
+        duration: const Duration(seconds: 5),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not delete $email: $e'),
+        backgroundColor: Colors.red.shade700,
+        duration: const Duration(seconds: 8),
+      ));
+    }
     _load();
+  }
+
+  // ── Logout ───────────────────────────────────────────────────────────────────
+
+  Future<void> _logout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Log Out'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await AuthService().clearSession();
+    if (!mounted) return;
+    Navigator.pushReplacement(context,
+        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()));
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -196,7 +243,10 @@ class _AdminScreenState extends State<AdminScreen> {
       backgroundColor: AppTheme.background,
       body: Column(
         children: [
-          _AdminHero(onBack: () => Navigator.maybePop(context)),
+          _AdminHero(
+            onBack: () => Navigator.maybePop(context),
+            onLogout: _logout,
+          ),
           Expanded(
             child: RefreshIndicator(
               onRefresh: _load,
@@ -481,7 +531,8 @@ class _AdminScreenState extends State<AdminScreen> {
 
 class _AdminHero extends StatelessWidget {
   final VoidCallback onBack;
-  const _AdminHero({required this.onBack});
+  final VoidCallback onLogout;
+  const _AdminHero({required this.onBack, required this.onLogout});
 
   @override
   Widget build(BuildContext context) {
@@ -516,6 +567,18 @@ class _AdminHero extends StatelessWidget {
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 1.1)),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: onLogout,
+                    icon: const Icon(Icons.logout, color: Colors.white, size: 18),
+                    label: const Text('Log Out',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600)),
+                    style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8)),
+                  ),
                 ]),
                 const Padding(
                   padding: EdgeInsets.only(left: 14, top: 6),

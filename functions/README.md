@@ -5,6 +5,14 @@ because the `firebaseapp.com` sender isn't authenticated for you) with email sen
 through **SendGrid from a domain you authenticate** — so messages pass
 SPF + DKIM + DMARC and reach the inbox.
 
+This codebase contains two callable functions, both deployed together by
+`firebase deploy --only functions`:
+
+| Function | Purpose |
+|---|---|
+| `sendPasswordEmail` | Inbox-grade password setup/reset email (see below). |
+| `deleteAccount` | Permanent account deletion + data cascade (see "Account deletion"). |
+
 The app calls the callable function `sendPasswordEmail({ email, type })`:
 - `type: "invite"` — sent when an admin/owner/principal/coordinator creates an
   account. Requires the caller to be a signed-in management user.
@@ -49,6 +57,31 @@ firebase deploy --only functions
 ```
 
 ---
+
+## Account deletion (`deleteAccount`)
+
+`deleteAccount({ email })` permanently removes an account **and its data**,
+including the Firebase Auth login (which the client SDK cannot delete for another
+user). This is what stops a re-created email from resurfacing old data.
+
+Cascade by role:
+- **owner / ownerPrincipal** → the entire school: every account in that school
+  (+ their Auth logins), the whole `schools/{schoolId}` Firestore subtree, and
+  best-effort Storage cleanup.
+- **teacher** → the teacher document + login + Auth.
+- **principal / coordinator / guardian** → just that account + Auth (accounts
+  they created are intentionally kept — they belong to the school).
+
+Authorization: caller must be a signed-in management user; only admins may delete
+across schools (e.g. owners), everyone else is restricted to their own school.
+Admin accounts and self-deletion are blocked.
+
+Until the function is deployed, the app **falls back** to revoking the login
+record locally (access is cut off, but the Auth credential and deep data are
+only fully removed once the function is live). No SendGrid setup is required for
+`deleteAccount` — but because both functions deploy together, you still need the
+`SENDGRID_API_KEY` secret to exist (even a placeholder) for the deploy to
+succeed. Set it as in step 2–3 above.
 
 ## Notes
 - Region is `us-central1`, matching the Flutter `FirebaseFunctions.instance` default.

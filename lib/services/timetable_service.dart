@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../firebase_options.dart';
@@ -199,6 +200,15 @@ class TimetableService extends BaseFirestoreService {
   }
 
   Future<void> removeTeacher(String schoolId, String id) async {
+    // Capture the teacher's email before deletion so we can also revoke their
+    // login + Firebase Auth account (otherwise the email stays registered and a
+    // re-created teacher resurfaces the old login).
+    String? email;
+    try {
+      final doc = await _teachers.doc(id).get();
+      email = (doc.data()?['email'] as String?)?.trim().toLowerCase();
+    } catch (_) {}
+
     await _teachers.doc(id).delete();
 
     // Scrub teacher from every timetable slot
@@ -222,6 +232,16 @@ class TimetableService extends BaseFirestoreService {
       if (dirty) batch.set(doc.reference, {'data': raw});
     }
     await batch.commit();
+
+    // Revoke the login + Auth account so the email is fully freed. Best-effort:
+    // a failure here must not leave the teacher half-deleted in the UI.
+    if (email != null && email.isNotEmpty && email.contains('@')) {
+      try {
+        await deleteAccountFully(email);
+      } catch (e) {
+        AppLogger.d('TimetableService', 'removeTeacher login cleanup failed: $e');
+      }
+    }
   }
 
   // ── Settings ──────────────────────────────────────────────────────────────
@@ -581,6 +601,38 @@ class TimetableService extends BaseFirestoreService {
 
   Future<void> removeAllowedUser(String email) async {
     await _allowedUsers.doc(email.toLowerCase().trim()).delete();
+  }
+
+  /// Permanently deletes an account and all of its associated data via the
+  /// `deleteAccount` Cloud Function (which can also remove the Firebase Auth
+  /// login — something the client SDK cannot do for another user). This is what
+  /// stops a re-created email from resurfacing old data.
+  ///
+  /// Returns `true` when the function performed the full cascade. If the
+  /// function isn't deployed yet (or is unreachable), it falls back to revoking
+  /// the login record locally and returns `false`, so access is still cut off
+  /// even though deep cleanup is deferred until the function is deployed.
+  /// Genuine authorization / validation errors are rethrown.
+  Future<bool> deleteAccountFully(String email) async {
+    final normEmail = email.toLowerCase().trim();
+    try {
+      await FirebaseFunctions.instance
+          .httpsCallable('deleteAccount')
+          .call(<String, dynamic>{'email': normEmail});
+      return true;
+    } on FirebaseFunctionsException catch (e) {
+      // Surface real authz / validation failures to the caller.
+      if (e.code == 'permission-denied' ||
+          e.code == 'unauthenticated' ||
+          e.code == 'invalid-argument' ||
+          e.code == 'failed-precondition') {
+        rethrow;
+      }
+      // not-found / unavailable / internal → function not deployed or transient.
+      // Minimal fallback: revoke the login so the account can't be used.
+      await removeAllowedUser(normEmail);
+      return false;
+    }
   }
 
   /// Marks an account active after first successful login.
