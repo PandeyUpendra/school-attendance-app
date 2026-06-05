@@ -37,7 +37,12 @@ class _CoordinatorManagementScreenState
       // Load classes from school settings first so the class chips are always
       // populated even if the coordinator list fails to load.
       final settings = await _service.getSettings();
-      final coords = await _service.getCoordinators('school_1');
+      // Use the signed-in user's actual school — NOT a hardcoded 'school_1'.
+      // Coordinators are created with AuthService.currentSchoolId (see _save),
+      // and the security rules only allow this query when the filter's schoolId
+      // matches the caller's own school. Hardcoding 'school_1' denied the query
+      // for every owner/principal whose school isn't literally 'school_1'.
+      final coords = await _service.getCoordinators(AuthService.currentSchoolId);
       if (!mounted) return;
       setState(() {
         _allClasses = List<String>.from(settings['classes'] ?? []);
