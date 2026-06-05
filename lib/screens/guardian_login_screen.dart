@@ -9,6 +9,7 @@ import 'guardian_dashboard.dart';
 import 'student_selection_screen.dart';
 import 'forgot_password_screen.dart';
 import 'login_screen.dart';
+import 'role_selection_screen.dart';
 
 class GuardianLoginScreen extends StatefulWidget {
   const GuardianLoginScreen({super.key});
@@ -132,9 +133,24 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
     }
   }
 
+  // Back from this root guardian-login screen returns to the role selection
+  // hub instead of exiting the app.
+  void _backToRoleSelection() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _backToRoleSelection();
+      },
+      child: Scaffold(
       backgroundColor: AppTheme.primaryDark,
       body: Container(
         decoration: const BoxDecoration(
@@ -335,6 +351,7 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

@@ -13,6 +13,7 @@ import 'guardian_login_screen.dart';
 import 'admin_screen.dart';
 import 'admin_login_screen.dart';
 import 'forgot_password_screen.dart';
+import 'role_selection_screen.dart';
 import 'owner/owner_home.dart';
 import 'owner/owner_principal_home.dart';
 
@@ -212,9 +213,24 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // Hardware/gesture back from this root login screen returns to the role
+  // selection hub instead of exiting the app.
+  void _backToRoleSelection() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _backToRoleSelection();
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
@@ -443,6 +459,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }
