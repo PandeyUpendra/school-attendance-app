@@ -92,6 +92,8 @@ class RoleSelectionScreen extends StatelessWidget {
                   enabled: !busy,
                   autofocus: true,
                   keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  enableSuggestions: false,
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     labelText: 'Email Address',

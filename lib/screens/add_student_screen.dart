@@ -743,10 +743,16 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Email fields must not be auto-corrected/suggested, or the IME holds the
+    // whole address as one composing region (shown highlighted, impossible to
+    // edit a single character).
+    final isEmail = keyboard == TextInputType.emailAddress;
     return TextFormField(
       controller: controller,
       enabled: enabled,
       keyboardType: keyboard,
+      autocorrect: !isEmail,
+      enableSuggestions: !isEmail,
       textCapitalization: caps,
       validator: validator,
       inputFormatters: inputFormatters,

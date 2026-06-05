@@ -156,6 +156,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                 TextField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  enableSuggestions: false,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _loading ? null : _sendReset(),
                   decoration: InputDecoration(

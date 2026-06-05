@@ -195,6 +195,8 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
                       TextField(
                         controller: _emailCtrl,
                         keyboardType: TextInputType.emailAddress,
+                        autocorrect: false,
+                        enableSuggestions: false,
                         textInputAction: TextInputAction.next,
                         decoration: InputDecoration(
                           labelText: 'Email Address',

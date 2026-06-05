@@ -307,6 +307,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   enabled: !busy,
                   autofocus: true,
                   keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  enableSuggestions: false,
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     labelText: 'Email Address',
@@ -466,6 +468,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextField(
                           controller: _emailCtrl,
                           keyboardType: TextInputType.emailAddress,
+                          // Email must not be auto-corrected/suggested: otherwise
+                          // the IME holds the whole address as one composing
+                          // region, showing it highlighted and making single
+                          // characters impossible to edit/delete.
+                          autocorrect: false,
+                          enableSuggestions: false,
                           maxLength: 100,
                           maxLengthEnforcement: MaxLengthEnforcement.enforced,
                           textInputAction: TextInputAction.next,

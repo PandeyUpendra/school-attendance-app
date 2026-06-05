@@ -989,6 +989,8 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
               TextField(
                 controller: ctrl,
                 keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                enableSuggestions: false,
                 autofocus: true,
                 decoration: InputDecoration(
                   labelText: 'Guardian email address',
