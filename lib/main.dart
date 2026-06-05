@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
 import 'providers/school_settings_provider.dart';
@@ -117,12 +118,28 @@ class _SplashGateState extends State<_SplashGate> {
       return;
     }
 
+    // 7-day inactivity session timeout check
+    final prefs = await SharedPreferences.getInstance();
+    final lastActivity = prefs.getInt('last_activity_timestamp');
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (lastActivity != null) {
+      final diff = now - lastActivity;
+      const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+      if (diff > sevenDaysMs) {
+        await AuthService().clearSession();
+        if (!mounted) return;
+        _go(const LoginScreen());
+        return;
+      }
+    }
+    await prefs.setInt('last_activity_timestamp', now);
+
     final role = session['role'] as String? ?? '';
 
     // All roles (including guardians) now use Firebase Auth — verify the
     // session is still valid before routing. Guardians may have signed in via
     // email+password or phone OTP; both produce a Firebase Auth user.
-    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final firebaseUser = await FirebaseAuth.instance.authStateChanges().first;
     if (firebaseUser == null) {
       await AuthService().clearSession();
       if (!mounted) return;

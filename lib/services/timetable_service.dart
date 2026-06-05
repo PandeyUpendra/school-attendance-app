@@ -954,10 +954,12 @@ class TimetableService extends BaseFirestoreService {
     required String startDate,
     required int    numberOfDays,
     required String reason,
+    String          studentSection = '',
   }) async {
     await _leaveApps.add({
       'applicantType': 'guardian',
       'studentClass' : studentClass,
+      'studentSection': studentSection,
       'studentRoll'  : studentRoll,
       'studentName'  : studentName,
       if (guardianName != null && guardianName.isNotEmpty)
@@ -971,14 +973,18 @@ class TimetableService extends BaseFirestoreService {
     });
   }
 
-  /// All student leaves for [studentClass] (class teacher view).
+  /// All student leaves for [studentClass]/[studentSection] (class teacher view).
   Future<List<Map<String, dynamic>>> getStudentLeaveApplications({
     required String studentClass,
+    String          studentSection = '',
     String? status,
   }) async {
     Query q = _leaveApps
         .where('applicantType', isEqualTo: 'guardian')
         .where('studentClass',  isEqualTo: studentClass);
+    if (studentSection.isNotEmpty) {
+      q = q.where('studentSection', isEqualTo: studentSection);
+    }
     if (status != null) q = q.where('status', isEqualTo: status);
     final snap = await q.get();
     final list = snap.docs.map((d) {
@@ -1024,13 +1030,19 @@ class TimetableService extends BaseFirestoreService {
   }
 
   /// Real-time pending count for the class teacher badge.
-  Stream<int> streamPendingStudentLeaveCount({required String studentClass}) =>
-      _leaveApps
-          .where('applicantType', isEqualTo: 'guardian')
-          .where('studentClass',  isEqualTo: studentClass)
-          .where('status',        isEqualTo: 'pending')
-          .snapshots()
-          .map((snap) => snap.docs.length);
+  Stream<int> streamPendingStudentLeaveCount({
+    required String studentClass,
+    String          studentSection = '',
+  }) {
+    Query q = _leaveApps
+        .where('applicantType', isEqualTo: 'guardian')
+        .where('studentClass',  isEqualTo: studentClass)
+        .where('status',        isEqualTo: 'pending');
+    if (studentSection.isNotEmpty) {
+      q = q.where('studentSection', isEqualTo: studentSection);
+    }
+    return q.snapshots().map((snap) => snap.docs.length);
+  }
 
   // ── Substitutions ─────────────────────────────────────────────────────────
 

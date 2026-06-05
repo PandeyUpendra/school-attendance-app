@@ -156,6 +156,7 @@ class _GuardianLeaveApplicationScreenState
 
       await _service.submitStudentLeaveApplication(
         studentClass:  widget.student.className,
+        studentSection: widget.student.section,
         studentRoll:   widget.student.roll,
         studentName:   widget.student.name,
         guardianName:  widget.student.fatherName.isNotEmpty

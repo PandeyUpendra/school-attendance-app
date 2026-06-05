@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/student.dart';
+import '../models/school_provided_details.dart';
 import '../services/auth_service.dart';
 import '../services/base_firestore_service.dart';
 import '../services/student_service.dart';
@@ -166,29 +168,39 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     final service = StudentService();
     try {
       if (_isEdit) {
-        final oldEmail = widget.existing?.guardianEmail?.trim().toLowerCase() ?? '';
-        final newEmail = student.guardianEmail?.trim().toLowerCase() ?? '';
-        failedStep = 'update student record';
-        await service.updateStudent(updated: student);
-        if (!mounted) return;
-        if (newEmail.isNotEmpty && newEmail != oldEmail) {
-          failedStep = 'create guardian login account';
-          await TimetableService().addAllowedUser(
-            newEmail, 'TmpParent@2024!', 'guardian',
-            name: student.name,
-            schoolId: BaseFirestoreService.currentSchoolId,
-            studentClass: student.className,
-            studentRoll:  student.roll,
+        final dobStr = _dateOfBirth != null
+            ? '${_dateOfBirth!.day.toString().padLeft(2, '0')}/${_dateOfBirth!.month.toString().padLeft(2, '0')}/${_dateOfBirth!.year}'
+            : '';
+        final newDetails = SchoolProvidedDetails(
+          name: _nameCtrl.text.trim(),
+          dob: dobStr,
+          gender: _gender ?? '',
+          fatherName: _fatherCtrl.text.trim(),
+          motherName: _motherCtrl.text.trim(),
+          phone: _phoneCtrl.text.trim(),
+          parentPhone: _parentPhoneCtrl.text.trim(),
+          address: _addressCtrl.text.trim(),
+          previousSchool: _prevSchoolCtrl.text.trim(),
+          bloodGroup: _bloodGroup ?? '',
+          emergencyContactName: _emergencyCtrl.text.trim(),
+          emergencyContactPhone: '',
+          allergies: _allergiesCtrl.text.trim(),
+          transportMode: _transportMode ?? '',
+          teacherUid: FirebaseAuth.instance.currentUser?.uid ?? '',
+          teacherName: (session?['name'] as String?) ?? FirebaseAuth.instance.currentUser?.displayName ?? '',
+          status: 'pending',
+          remarks: '',
+        );
+
+        failedStep = 'submit school provided details proposal';
+        await service.submitSchoolProvidedDetails(widget.existing!.id, newDetails);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Details proposal submitted to guardian for approval')),
           );
-          failedStep = 'link guardian to student';
-          await TimetableService().linkGuardianEmail(
-            email: newEmail,
-            studentClass: student.className,
-            studentRoll:  student.roll,
-            studentName:  student.name,
-          );
+          Navigator.pop(context, widget.existing);
         }
-        if (mounted) Navigator.pop(context, student);
       } else {
         failedStep = 'create student record';
         final error = await service.addStudent(student: student);

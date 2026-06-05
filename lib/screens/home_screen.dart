@@ -115,7 +115,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final cls = widget.teacher?.classTeacherOf;
     if (cls != null && cls.isNotEmpty) {
       _studentLeaveSub = TimetableService()
-          .streamPendingStudentLeaveCount(studentClass: cls)
+          .streamPendingStudentLeaveCount(
+            studentClass: cls,
+            studentSection: widget.teacher?.section ?? '',
+          )
           .listen((n) {
         if (!mounted) return;
         setState(() => _pendingStudentLeaves = n);
@@ -503,6 +506,7 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(
                 builder: (_) => StudentLeaveRequestsScreen(
                   studentClass: teacher!.classTeacherOf!,
+                  studentSection: teacher!.section,
                 ),
               ),
             ),

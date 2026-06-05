@@ -2,8 +2,12 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/student.dart';
 import '../models/guardian_student_details.dart';
+import '../models/guardian_provided_details.dart';
+import '../models/school_provided_details.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
 
@@ -99,49 +103,273 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
     }
   }
 
+  Timestamp? _parseDob(String dob) {
+    try {
+      final parts = dob.split('/');
+      if (parts.length == 3) {
+        final day = int.parse(parts[0]);
+        final month = int.parse(parts[1]);
+        final year = int.parse(parts[2]);
+        return Timestamp.fromDate(DateTime(year, month, day));
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _acceptSchoolDetails(SchoolProvidedDetails details) async {
+    setState(() => _isSaving = true);
+    try {
+      final newDetails = GuardianStudentDetails(
+        dob: details.dob,
+        gender: details.gender,
+        address: details.address,
+        bloodGroup: details.bloodGroup,
+        emergencyContactName: details.emergencyContactName,
+        emergencyContactPhone: details.emergencyContactPhone,
+        allergies: details.allergies,
+        transportMode: details.transportMode,
+        previousSchool: details.previousSchool,
+        lastUpdated: DateTime.now().toIso8601String(),
+      );
+
+      final updatedStudent = widget.student.copyWith(
+        name: details.name,
+        fatherName: details.fatherName,
+        motherName: details.motherName,
+        phone: details.phone,
+        parentPhone: details.parentPhone,
+        guardianDetails: newDetails,
+        dateOfBirth: _parseDob(details.dob),
+        gender: details.gender,
+        address: details.address,
+        previousSchool: details.previousSchool,
+        bloodGroup: details.bloodGroup,
+        allergies: details.allergies,
+        transportMode: details.transportMode,
+        emergencyContact: details.emergencyContactName.isNotEmpty || details.emergencyContactPhone.isNotEmpty
+            ? '${details.emergencyContactName} (${details.emergencyContactPhone})'
+            : null,
+      );
+
+      await _service.updateStudent(updated: updatedStudent);
+      await _service.updateSchoolProvidedDetailsStatus(widget.student.id, details.id, 'accepted');
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('School updates accepted and applied')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to accept updates: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _requestSchoolClarification(SchoolProvidedDetails details) async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Request Clarification'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'Enter why you are requesting clarification...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      setState(() => _isSaving = true);
+      try {
+        await _service.updateSchoolProvidedDetailsStatus(
+          widget.student.id,
+          details.id,
+          'clarification_requested',
+          remarks: result,
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Clarification request sent to school')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to request clarification: $e')),
+        );
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Widget _buildSchoolDetailsSection(SchoolProvidedDetails details) {
+    final diffs = <String, List<String>>{};
+
+    void compare(String fieldName, String currentValue, String newValue) {
+      if (newValue.trim().isNotEmpty && currentValue.trim() != newValue.trim()) {
+        diffs[fieldName] = [currentValue, newValue];
+      }
+    }
+
+    final s = widget.student;
+    final d = s.guardianDetails;
+
+    compare('Full Name', s.name, details.name);
+    compare('Date of Birth', d?.dob ?? '', details.dob);
+    compare('Gender', d?.gender ?? '', details.gender);
+    compare("Father's Name", s.fatherName, details.fatherName);
+    compare("Mother's Name", s.motherName ?? '', details.motherName);
+    compare('Primary Phone', s.phone, details.phone);
+    compare('Secondary Phone', s.parentPhone ?? '', details.parentPhone);
+    compare('Address', d?.address ?? '', details.address);
+    compare('Previous School', d?.previousSchool ?? '', details.previousSchool);
+    compare('Blood Group', d?.bloodGroup ?? '', details.bloodGroup);
+    compare('Emergency Contact Name', d?.emergencyContactName ?? '', details.emergencyContactName);
+    compare('Emergency Contact Phone', d?.emergencyContactPhone ?? '', details.emergencyContactPhone);
+    compare('Allergies', d?.allergies ?? '', details.allergies);
+    compare('Transport Mode', d?.transportMode ?? '', details.transportMode);
+
+    if (diffs.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 24),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.amber.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.amber.shade800),
+                const SizedBox(width: 8),
+                Text(
+                  'Details updated by school',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber.shade900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...diffs.entries.map((entry) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(color: Colors.black87, fontSize: 14),
+                    children: [
+                      TextSpan(
+                        text: '${entry.key}: ',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      TextSpan(
+                        text: entry.value[0].isEmpty ? '[Empty]' : entry.value[0],
+                        style: const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.red),
+                      ),
+                      const TextSpan(text: '  ➔  '),
+                      TextSpan(
+                        text: entry.value[1],
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+            if (details.remarks.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Remarks: ${details.remarks}',
+                style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.black54),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => _requestSchoolClarification(details),
+                  child: Text(
+                    'Request Clarification',
+                    style: TextStyle(color: Colors.amber.shade900),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () => _acceptSchoolDetails(details),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber.shade800,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Accept Changes'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
 
     try {
-      // Photo upload not yet supported via StudentService — keep existing photoUrl
-      final String? photoUrl = widget.student.photoUrl;
-
-      final newDetails = GuardianStudentDetails(
+      final newDetails = GuardianProvidedDetails(
+        name: _nameController.text.trim(),
         dob: _dobController.text.trim(),
         gender: _gender,
+        fatherName: _fatherNameController.text.trim(),
+        motherName: _motherNameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        parentPhone: _parentPhoneController.text.trim(),
         address: _addressController.text.trim(),
+        previousSchool: _previousSchoolController.text.trim(),
         bloodGroup: _bloodGroupController.text.trim(),
         emergencyContactName: _emergencyNameController.text.trim(),
         emergencyContactPhone: _emergencyPhoneController.text.trim(),
         allergies: _allergiesController.text.trim(),
         transportMode: _transportController.text.trim(),
-        previousSchool: _previousSchoolController.text.trim(),
-        lastUpdated: DateTime.now().toIso8601String(),
+        guardianUid: FirebaseAuth.instance.currentUser?.uid ?? '',
+        status: 'pending',
+        remarks: '',
       );
 
-      final updatedStudent = widget.student.copyWith(
-        name: _nameController.text.trim(),
-        fatherName: _fatherNameController.text.trim(),
-        motherName: _motherNameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        parentPhone: _parentPhoneController.text.trim(),
-        guardianDetails: newDetails,
-        photoUrl: photoUrl,
-      );
-
-      await _service.updateStudent(updated: updatedStudent);
+      await _service.submitGuardianProvidedDetails(widget.student.id, newDetails);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('All details updated successfully')),
+        const SnackBar(content: Text('Details submitted to class teacher for verification')),
       );
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update: $e')),
+        SnackBar(content: Text('Failed to submit updates: $e')),
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -156,14 +384,26 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // ── DOCUMENTS / PHOTO ──
+      body: StreamBuilder<List<SchoolProvidedDetails>>(
+        stream: _service.watchSchoolProvidedDetails(widget.student.id),
+        builder: (context, snapshot) {
+          final list = snapshot.data ?? [];
+          final pendingSchoolDetails = list.firstWhere(
+            (d) => d.status == 'pending',
+            orElse: () => const SchoolProvidedDetails(id: ''),
+          );
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (pendingSchoolDetails.id.isNotEmpty)
+                    _buildSchoolDetailsSection(pendingSchoolDetails),
+
+                  // ── DOCUMENTS / PHOTO ──
               _buildSectionTitle('Documents & Photo'),
               Center(
                 child: Stack(
@@ -255,9 +495,11 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
             ],
           ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  ),
+);
+}
 
   Widget _buildSectionTitle(String title) {
     return Padding(

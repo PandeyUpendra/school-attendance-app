@@ -7,7 +7,9 @@ import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/guardian_student_details.dart';
+import '../models/guardian_provided_details.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
@@ -1131,6 +1133,234 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     }
   }
 
+  Timestamp? _parseDob(String dob) {
+    try {
+      final parts = dob.split('/');
+      if (parts.length == 3) {
+        final day = int.parse(parts[0]);
+        final month = int.parse(parts[1]);
+        final year = int.parse(parts[2]);
+        return Timestamp.fromDate(DateTime(year, month, day));
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _acceptGuardianDetails(GuardianProvidedDetails details) async {
+    try {
+      final newDetails = GuardianStudentDetails(
+        dob: details.dob,
+        gender: details.gender,
+        address: details.address,
+        bloodGroup: details.bloodGroup,
+        emergencyContactName: details.emergencyContactName,
+        emergencyContactPhone: details.emergencyContactPhone,
+        allergies: details.allergies,
+        transportMode: details.transportMode,
+        previousSchool: details.previousSchool,
+        lastUpdated: DateTime.now().toIso8601String(),
+      );
+
+      final updatedStudent = _student.copyWith(
+        name: details.name,
+        fatherName: details.fatherName,
+        motherName: details.motherName,
+        phone: details.phone,
+        parentPhone: details.parentPhone,
+        guardianDetails: newDetails,
+        dateOfBirth: _parseDob(details.dob),
+        gender: details.gender,
+        address: details.address,
+        previousSchool: details.previousSchool,
+        bloodGroup: details.bloodGroup,
+        allergies: details.allergies,
+        transportMode: details.transportMode,
+        emergencyContact: details.emergencyContactName.isNotEmpty || details.emergencyContactPhone.isNotEmpty
+            ? '${details.emergencyContactName} (${details.emergencyContactPhone})'
+            : null,
+      );
+
+      await StudentService().updateStudent(updated: updatedStudent);
+      await StudentService().updateGuardianProvidedDetailsStatus(_student.id, details.id, 'accepted');
+
+      setState(() {
+        _student = updatedStudent;
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Guardian updates accepted and applied')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to accept updates: $e')),
+      );
+    }
+  }
+
+  Future<void> _requestGuardianClarification(GuardianProvidedDetails details) async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Request Clarification'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'Enter why clarification is needed...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      try {
+        await StudentService().updateGuardianProvidedDetailsStatus(
+          _student.id,
+          details.id,
+          'clarification_requested',
+          remarks: result,
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Clarification request sent to guardian')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to request clarification: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildGuardianDetailsSection(GuardianProvidedDetails details) {
+    final diffs = <String, List<String>>{};
+
+    void compare(String fieldName, String currentValue, String newValue) {
+      if (newValue.trim().isNotEmpty && currentValue.trim() != newValue.trim()) {
+        diffs[fieldName] = [currentValue, newValue];
+      }
+    }
+
+    final s = _student;
+    final d = s.guardianDetails;
+
+    compare('Full Name', s.name, details.name);
+    compare('Date of Birth', d?.dob ?? '', details.dob);
+    compare('Gender', d?.gender ?? '', details.gender);
+    compare("Father's Name", s.fatherName, details.fatherName);
+    compare("Mother's Name", s.motherName ?? '', details.motherName);
+    compare('Primary Phone', s.phone, details.phone);
+    compare('Secondary Phone', s.parentPhone ?? '', details.parentPhone);
+    compare('Address', d?.address ?? '', details.address);
+    compare('Previous School', d?.previousSchool ?? '', details.previousSchool);
+    compare('Blood Group', d?.bloodGroup ?? '', details.bloodGroup);
+    compare('Emergency Contact Name', d?.emergencyContactName ?? '', details.emergencyContactName);
+    compare('Emergency Contact Phone', d?.emergencyContactPhone ?? '', details.emergencyContactPhone);
+    compare('Allergies', d?.allergies ?? '', details.allergies);
+    compare('Transport Mode', d?.transportMode ?? '', details.transportMode);
+
+    if (diffs.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.blue.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.blue.shade800),
+                const SizedBox(width: 8),
+                Text(
+                  'Details provided by guardian',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...diffs.entries.map((entry) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(color: Colors.black87, fontSize: 14),
+                    children: [
+                      TextSpan(
+                        text: '${entry.key}: ',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      TextSpan(
+                        text: entry.value[0].isEmpty ? '[Empty]' : entry.value[0],
+                        style: const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.red),
+                      ),
+                      const TextSpan(text: '  ➔  '),
+                      TextSpan(
+                        text: entry.value[1],
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+            if (details.remarks.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Remarks: ${details.remarks}',
+                style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.black54),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => _requestGuardianClarification(details),
+                  child: Text(
+                    'Request Clarification',
+                    style: TextStyle(color: Colors.blue.shade900),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () => _acceptGuardianDetails(details),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade800,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Accept Changes'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ── Build ────────────────────────────────────────────────────────────────────
 
   @override
@@ -1154,11 +1384,20 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
           ],
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Header ──────────────────────────────────────────────────────
+      body: StreamBuilder<List<GuardianProvidedDetails>>(
+        stream: StudentService().watchGuardianProvidedDetails(_student.id),
+        builder: (context, snapshot) {
+          final list = snapshot.data ?? [];
+          final pendingGuardianDetails = list.firstWhere(
+            (d) => d.status == 'pending',
+            orElse: () => const GuardianProvidedDetails(id: ''),
+          );
+
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Header ──────────────────────────────────────────────────────
             Container(
               decoration: const BoxDecoration(
                 color: AppTheme.primaryDark,
@@ -1209,6 +1448,9 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             ),
 
             const SizedBox(height: 8),
+
+            if (pendingGuardianDetails.id.isNotEmpty)
+              _buildGuardianDetailsSection(pendingGuardianDetails),
 
             // ── Basic Info ───────────────────────────────────────────────────
             const _SectionHeader('BASIC INFO'),
@@ -1450,98 +1692,11 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             const SizedBox(height: 24),
           ],
         ),
-      ),
-    );
-  }
+      );
+    },
+  ),
+);
 }
-
-// ── Reusable sub-widgets ───────────────────────────────────────────────────────
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  const _SectionHeader(this.title);
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-      child: Text(title,
-          style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Colors.grey.shade500,
-              letterSpacing: 0.8)),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _InfoRow(this.icon, this.label, this.value);
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(children: [
-        Icon(icon, size: 20, color: Colors.grey.shade400),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: TextStyle(
-                        fontSize: 11, color: Colors.grey.shade500)),
-                const SizedBox(height: 2),
-                Text(value,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w500)),
-              ]),
-        ),
-      ]),
-    );
-  }
-}
-
-class _ActionBtn extends StatelessWidget {
-  final IconData? icon;
-  final Widget?   iconWidget;
-  final String    label;
-  final Color     color;
-  final VoidCallback onTap;
-  const _ActionBtn({
-    this.icon,
-    this.iconWidget,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(children: [
-          iconWidget ?? Icon(icon, color: color, size: 26),
-          const SizedBox(height: 4),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: color)),
-        ]),
-      ),
-    );
-  }
 }
 
 class _Chip extends StatelessWidget {
@@ -1557,6 +1712,99 @@ class _Chip extends StatelessWidget {
       ),
       child: Text(text,
           style: const TextStyle(fontSize: 13, color: Colors.white)),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  const _SectionHeader(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryDark, letterSpacing: 0.5),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String   label;
+  final String   value;
+  const _InfoRow(this.icon, this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onLongPress: value != '—' ? () {
+        Clipboard.setData(ClipboardData(text: value));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Copied to clipboard'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ));
+      } : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 20, color: Colors.grey.shade400),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
+                  const SizedBox(height: 2),
+                  Text(value, style: const TextStyle(fontSize: 14)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  final IconData? icon;
+  final Widget?   iconWidget;
+  final String    label;
+  final Color     color;
+  final VoidCallback? onTap;
+  const _ActionBtn({
+    this.icon,
+    this.iconWidget,
+    required this.label,
+    required this.color,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color.withValues(alpha: 0.5)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+      ),
+      onPressed: onTap,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (iconWidget != null) iconWidget! else Icon(icon, size: 20),
+          const SizedBox(width: 8),
+          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+        ],
+      ),
     );
   }
 }

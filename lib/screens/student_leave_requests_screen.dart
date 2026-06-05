@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme.dart';
 import '../services/timetable_service.dart';
 import '../services/student_service.dart';
@@ -10,10 +11,12 @@ import '../widgets/refreshable_data.dart';
 /// Teacher can Approve (auto-marks attendance), Reject, or Forward to Coordinator/Principal.
 class StudentLeaveRequestsScreen extends StatefulWidget {
   final String studentClass;  // teacher.classTeacherOf
+  final String studentSection;
 
   const StudentLeaveRequestsScreen({
     super.key,
     required this.studentClass,
+    this.studentSection = '',
   });
 
   @override
@@ -49,7 +52,8 @@ class _StudentLeaveRequestsScreenState
     setState(() => _loading = true);
     final all =
         await _ttService.getStudentLeaveApplications(
-            studentClass: widget.studentClass);
+            studentClass: widget.studentClass,
+            studentSection: widget.studentSection);
     if (!mounted) return;
     setState(() {
       _pending  = all.where((a) => a['status'] == 'pending').toList();
@@ -60,14 +64,50 @@ class _StudentLeaveRequestsScreenState
 
   // ── Act on a leave ────────────────────────────────────────────────────────
 
+  Future<String?> _showRemarksDialog(String action) async {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Remarks for ${action == 'approved' ? 'Approval' : 'Rejection'}'),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(
+            hintText: 'Enter remarks (optional)...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _act(Map<String, dynamic> app, String status) async {
     final id     = app['id']          as String;
     final roll   = (app['studentRoll'] as int?) ?? 0;
     final name   = (app['studentName'] as String?) ?? '';
     final cls    = (app['studentClass'] as String?) ?? widget.studentClass;
 
+    String remarks = '';
+    if (status == 'approved' || status == 'rejected') {
+      final res = await _showRemarksDialog(status);
+      if (res == null) return; // user cancelled
+      remarks = res;
+    }
+
     await _ttService.updateLeaveApplication(
-        BaseFirestoreService.currentSchoolId ?? 'default_school', id, status);
+        BaseFirestoreService.currentSchoolId ?? 'default_school', id, status,
+        note: remarks);
 
     if (status == 'approved') {
       // Auto-mark attendance as 'Leave' for every day in the range
@@ -147,9 +187,10 @@ class _StudentLeaveRequestsScreenState
           children: [
             const Text('Student Leave Requests',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('Class ${widget.studentClass}',
-                style: const TextStyle(
-                    fontSize: 11, color: Colors.white70)),
+            Text(
+              'Class ${widget.studentClass}${widget.studentSection.isNotEmpty ? ' — Section ${widget.studentSection}' : ''}',
+              style: const TextStyle(
+                  fontSize: 11, color: Colors.white70)),
           ],
         ),
         bottom: TabBar(
@@ -277,6 +318,19 @@ class _StudentLeaveCard extends StatelessWidget {
     this.onFwdPrinc,
   });
 
+  String _fmtSubmissionTime(dynamic createdAt) {
+    if (createdAt == null) return '—';
+    if (createdAt is Timestamp) {
+      final dt = createdAt.toDate();
+      const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+      final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+      final min = dt.minute.toString().padLeft(2, '0');
+      return '${dt.day.toString().padLeft(2, '0')} ${months[dt.month]} ${dt.year}, ${hour.toString().padLeft(2, '0')}:$min $ampm';
+    }
+    return createdAt.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = app['status'] as String? ?? 'pending';
@@ -325,8 +379,9 @@ class _StudentLeaveCard extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.bold)),
                 Text(
-                  'Roll $roll  •  $cls'
-                  '${guardian.isNotEmpty ? '  •  $guardian' : ''}',
+                  'Roll $roll  •  $cls${app['studentSection'] != null && app['studentSection'].toString().isNotEmpty ? ' — Sec ${app['studentSection']}' : ''}'
+                  '${guardian.isNotEmpty ? '  •  $guardian' : ''}\n'
+                  'Submitted: ${_fmtSubmissionTime(app['createdAt'])}',
                   style: TextStyle(
                       fontSize: 11, color: Colors.grey.shade500)),
               ],
@@ -513,6 +568,19 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
       return '${p[2]} ${months[m]} ${p[0]}';
     }
 
+    String fmtSubmissionTime(dynamic createdAt) {
+      if (createdAt == null) return '—';
+      if (createdAt is Timestamp) {
+        final dt = createdAt.toDate();
+        const monthsSub = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+        final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+        final min = dt.minute.toString().padLeft(2, '0');
+        return '${dt.day.toString().padLeft(2, '0')} ${monthsSub[dt.month]} ${dt.year}, ${hour.toString().padLeft(2, '0')}:$min $ampm';
+      }
+      return createdAt.toString();
+    }
+
     final statusColor = switch (status) {
       'approved' => Colors.green,
       'rejected' => Colors.red,
@@ -546,7 +614,7 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
             _row(Icons.person_outline, 'Student',
                 '${app['studentName'] ?? '—'}  •  Roll ${app['studentRoll'] ?? ''}'),
             _row(Icons.school_outlined, 'Class',
-                app['studentClass'] as String? ?? '—'),
+                '${app['studentClass'] ?? '—'}${app['studentSection'] != null && app['studentSection'].toString().isNotEmpty ? ' — Section ${app['studentSection']}' : ''}'),
             if ((app['guardianName'] as String? ?? '').isNotEmpty)
               _row(Icons.family_restroom_outlined, 'Guardian',
                   app['guardianName'] as String),
@@ -556,6 +624,11 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
                 '${app['numberOfDays']} day(s)'),
             _row(Icons.notes_outlined, 'Reason',
                 app['reason'] as String? ?? '—'),
+            _row(Icons.watch_later_outlined, 'Submitted At',
+                fmtSubmissionTime(app['createdAt'])),
+            if (app['coordinatorNote'] != null && app['coordinatorNote'].toString().isNotEmpty)
+              _row(Icons.comment_outlined, 'Remarks',
+                  app['coordinatorNote'] as String),
             const SizedBox(height: 8),
 
             // Status badge

@@ -261,6 +261,7 @@ class AuthService {
     } else {
       await prefs.remove(_keyStudentLinks);
     }
+    await prefs.setInt('last_activity_timestamp', DateTime.now().millisecondsSinceEpoch);
   }
 
   /// Returns session map with keys: email, role, and optional role-specific
@@ -320,6 +321,7 @@ class AuthService {
     await prefs.remove(_keyName);
     await prefs.remove(_keySchoolId);
     await prefs.remove(_keyStudentLinks);
+    await prefs.remove('last_activity_timestamp');
 
     // Drop the in-memory school so it can't leak into the next session and
     // leave school-scoped streams bound to the previous user's school.

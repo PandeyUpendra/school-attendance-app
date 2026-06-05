@@ -201,10 +201,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (_isOnline) {
       try {
         students = await _service.getStudentsByClass(
-            className: _className, section: _section, teacherId: _teacherId);
-      } catch (_) {
-        // Composite index may not exist yet — retry without teacherId filter.
-        students = await _service.getStudentsByClass(className: _className, section: _section);
+            className: _className, section: _section);
+      } catch (e) {
+        AppLogger.e('Attendance', 'Error loading students online: $e', e);
+        students = [];
       }
       if (widget.date == null) {
         saved = await _service.loadTodayAttendance(className: _attendanceKey);
@@ -227,10 +227,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       }
     } else {
       try {
-        students = await _service.getStudentsByClass(className: _className,
-                section: _section, teacherId: _teacherId)
+        students = await _service.getStudentsByClass(className: _className, section: _section)
             .timeout(const Duration(seconds: 3));
-      } catch (_) {
+      } catch (e) {
+        AppLogger.e('Attendance', 'Error loading students offline: $e', e);
         students = [];
       }
       if (widget.date == null) {
@@ -332,7 +332,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     _studentSub?.cancel();
     bool isFirst = true;
     _studentSub = _service
-        .watchStudentsByClass(className: _className, section: _section, teacherId: _teacherId)
+        .watchStudentsByClass(className: _className, section: _section)
         .listen((list) {
       if (isFirst) { isFirst = false; return; }
       if (!mounted) return;
