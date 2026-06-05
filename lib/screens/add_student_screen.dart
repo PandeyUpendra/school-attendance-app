@@ -276,13 +276,26 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       // ignore: avoid_print
       print('[AddStudent] FAILED at step "${failedStep ?? "unknown"}" · '
             'role=$role · schoolId=$sid · error=$e');
+      // Pull the caller's own allowed_users classIds so a permission-denied
+      // shows exactly why isClassTeacher() failed (the #1 cause is a class the
+      // teacher isn't assigned to, or a schoolId mismatch).
+      List<dynamic> classIds = const [];
+      try {
+        final email = session?['email'] as String?;
+        if (email != null) {
+          final doc = await TimetableService().getAllowedUserDoc(email);
+          classIds = (doc?['classIds'] as List?) ?? const [];
+        }
+      } catch (_) {}
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-          'Failed at "${failedStep ?? "save"}" (role=$role): $e',
+          'Failed at "${failedStep ?? "save"}" (role=$role)\n'
+          'school=$sid · class=${widget.className}-${widget.section}\n'
+          'your classes=$classIds\n$e',
         ),
         backgroundColor: Colors.red,
-        duration: const Duration(seconds: 10),
+        duration: const Duration(seconds: 12),
       ));
       setState(() => _saving = false);
     }
@@ -294,22 +307,6 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Text(_isEdit ? 'Edit Student' : 'Add Student'),
-        actions: [
-          TextButton(
-            onPressed: _saving ? null : _save,
-            child: _saving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white))
-                : const Text('Save',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16)),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
