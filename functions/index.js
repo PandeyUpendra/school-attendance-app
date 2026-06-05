@@ -74,16 +74,27 @@ exports.sendPasswordEmail = onCall(
       }
     }
 
+    // Self-service reset: only proceed for emails registered in the school
+    // system, and report whether it was registered so the UI can show a clear
+    // "not registered" message instead of a generic confirmation.
+    if (type === "reset") {
+      const reg = await admin.firestore().collection("allowed_users").doc(email).get();
+      if (!reg.exists) {
+        return { ok: true, registered: false };
+      }
+    }
+
     // Generate the password setup/reset link via the Admin SDK.
     let link;
     try {
       link = await admin.auth().generatePasswordResetLink(email);
     } catch (err) {
-      // Anti-enumeration: don't tell an unauthenticated caller whether the
-      // account exists. Report success regardless.
+      // The account is registered in allowed_users but has no Firebase Auth
+      // login yet (rare — provisioning gap). Report it as registered so the UI
+      // is truthful; an admin can re-send the invite to create the login.
       if (err && err.code === "auth/user-not-found") {
-        logger.info("sendPasswordEmail: no account for address (suppressed)", { type });
-        return { ok: true };
+        logger.info("sendPasswordEmail: registered but no auth account", { type });
+        return { ok: true, registered: true };
       }
       logger.error("generatePasswordResetLink failed", err);
       throw new HttpsError("internal", "Could not generate the password link.");
@@ -125,7 +136,7 @@ exports.sendPasswordEmail = onCall(
       throw new HttpsError("internal", "Could not send the email.");
     }
 
-    return { ok: true };
+    return { ok: true, registered: true };
   }
 );
 

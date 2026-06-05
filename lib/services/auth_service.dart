@@ -5,6 +5,19 @@ import 'base_firestore_service.dart';
 
 import 'audit_log_service.dart';
 
+/// Outcome of a self-service password-reset request.
+enum ResetResult {
+  /// Email is registered — a reset link was sent.
+  sent,
+
+  /// Email is NOT registered in the school system — nothing was sent.
+  notRegistered,
+
+  /// Registration couldn't be verified (reset function not deployed /
+  /// unreachable); a best-effort reset email was attempted via Firebase.
+  unknown,
+}
+
 /// Manages authentication (Firebase Auth) and local session persistence
 /// (SharedPreferences for role-specific data like teacherId, studentLinks).
 class AuthService {
@@ -68,6 +81,39 @@ class AuthService {
       // Function unavailable / not deployed — fall back to the built-in email so
       // the user is never blocked. Let a fallback failure propagate.
       await _auth.sendPasswordResetEmail(email: normEmail);
+    }
+  }
+
+  /// Self-service password reset that only sends to registered emails.
+  ///
+  /// Returns [ResetResult.sent] / [ResetResult.notRegistered] based on whether
+  /// the email exists in `allowed_users` (checked server-side, since
+  /// unauthenticated clients can't read that collection). If the Cloud Function
+  /// isn't deployed/reachable, falls back to a best-effort Firebase reset email
+  /// and returns [ResetResult.unknown].
+  Future<ResetResult> sendResetIfRegistered(String email) async {
+    final normEmail = email.trim().toLowerCase();
+    try {
+      final res = await _functions
+          .httpsCallable('sendPasswordEmail')
+          .call(<String, dynamic>{'email': normEmail, 'type': 'reset'});
+      final data = res.data;
+      final registered = data is Map && data['registered'] == true;
+      if (registered) {
+        AuditService.emit(
+          action: 'update',
+          entity: 'auth',
+          entityId: normEmail,
+          reason: 'password_reset_email_sent',
+        );
+      }
+      return registered ? ResetResult.sent : ResetResult.notRegistered;
+    } on FirebaseFunctionsException {
+      // Function unavailable — can't verify registration. Best-effort send.
+      try {
+        await _auth.sendPasswordResetEmail(email: normEmail);
+      } catch (_) {}
+      return ResetResult.unknown;
     }
   }
 

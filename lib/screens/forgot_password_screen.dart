@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
@@ -73,17 +72,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     setState(() { _loading = true; _error = null; });
 
     try {
-      await AuthService().sendPasswordResetEmail(email);
+      final result = await AuthService().sendResetIfRegistered(email);
       if (!mounted) return;
-      setState(() { _loading = false; _sent = true; });
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        // For security, show success even for unknown emails.
-        _sent = e.code == 'user-not-found' ? true : false;
-        _error = _sent ? null : AuthService.friendlyAuthError(e);
-      });
+      switch (result) {
+        case ResetResult.notRegistered:
+          setState(() {
+            _loading = false;
+            _error =
+                'This email is not registered. Check the address, or contact '
+                'your school administrator.';
+          });
+        case ResetResult.sent:
+        case ResetResult.unknown:
+          // unknown = reset function not deployed; a best-effort email was sent.
+          setState(() { _loading = false; _sent = true; });
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -139,8 +142,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
               const SizedBox(height: 10),
               Text(
                 _sent
-                    ? 'If an account with that email exists, we\'ve sent a '
-                        'password reset link. Check your inbox (and spam folder).'
+                    ? 'We\'ve sent a password reset link to your email. '
+                        'Check your inbox (and spam folder).'
                     : 'Enter the email address registered with your school account '
                         'and we\'ll send you a secure link to reset your password.',
                 textAlign: TextAlign.center,
