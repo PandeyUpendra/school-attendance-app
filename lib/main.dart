@@ -138,6 +138,27 @@ class _SplashGateState extends State<_SplashGate> {
       BaseFirestoreService.currentSchoolId = schoolId;
     }
 
+    // IDENTITY GUARD — the cached session and the live Firebase Auth user must
+    // be the SAME account. Firestore rules derive identity from the Auth token
+    // email (`request.auth.token.email`), NOT from the cached session. If a
+    // previous/different account is still the signed-in Firebase Auth user while
+    // the session says "owner", the app routes to the owner dashboard but every
+    // read/write is denied (the app thinks you're the owner; the server doesn't).
+    // Force re-login on any mismatch so the two can't diverge. Phone-OTP
+    // guardians have no token email, so they are exempt from this check.
+    if (role != 'guardian') {
+      final authEmail    = firebaseUser.email?.toLowerCase().trim();
+      final sessionEmail = (session['email'] as String?)?.toLowerCase().trim();
+      if (authEmail == null || authEmail.isEmpty ||
+          sessionEmail == null || sessionEmail.isEmpty ||
+          authEmail != sessionEmail) {
+        await AuthService().clearSession();
+        if (!mounted) return;
+        _go(const LoginScreen());
+        return;
+      }
+    }
+
     // Re-validate management sessions against the authoritative allowed_users
     // doc. SplashGate otherwise routes purely from the cached SharedPreferences
     // session — so a session whose role was since revoked or changed would
