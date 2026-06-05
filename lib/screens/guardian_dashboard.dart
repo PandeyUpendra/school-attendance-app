@@ -97,11 +97,11 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   final _consentSvc = ConsentService();
   bool  _hasConsent  = true;  // optimistic — don't show banner until we know
   bool  _needsReConsent = false;
-  String get _studentDocId {
-    final cls = widget.studentClass.replaceAll(' ', '_');
-    final sec = widget.studentSection.replaceAll(' ', '_');
-    return '${cls}_${sec}_${widget.studentRoll}';
-  }
+  String get _studentDocId => Student.buildDocId(
+        widget.studentRoll,
+        widget.studentClass,
+        widget.studentSection,
+      );
 
   @override
   void initState() {

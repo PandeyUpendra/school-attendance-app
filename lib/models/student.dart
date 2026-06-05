@@ -96,8 +96,20 @@ class Student {
         if (deletionPending) 'deletionPending': true,
       };
 
+  static String buildDocId(int roll, String className, String section) {
+    final base = className.replaceAll(' ', '_');
+    final sec = section.trim().replaceAll(' ', '_');
+    return sec.isEmpty ? '${base}_$roll' : '${base}_${sec}_$roll';
+  }
+
   factory Student.fromJson(Map<String, dynamic> json) => Student(
-        id: json['id'] as String? ?? (json['roll'] != null ? '${json['className']}_${json['section']}_${json['roll']}'.replaceAll(' ', '_') : ''),
+        id: json['id'] as String? ??
+            (json['roll'] != null
+                ? buildDocId(
+                    json['roll'] as int,
+                    json['className'] as String? ?? '',
+                    json['section'] as String? ?? '')
+                : ''),
         roll: json['roll'] as int,
         name: json['name'] as String,
         className: json['className'] as String? ?? '',

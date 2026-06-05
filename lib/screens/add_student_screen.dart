@@ -256,9 +256,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
 
         // ── Parental consent flow ─────────────────────────────────────────
         // Build the canonical student doc ID that StudentService uses.
-        final cls        = widget.className.replaceAll(' ', '_');
-        final sec        = widget.section.replaceAll(' ', '_');
-        final studentDocId = '${cls}_${sec}_${student.roll}';
+        final studentDocId = Student.buildDocId(student.roll, widget.className, widget.section);
 
         if (!mounted) return;
         failedStep = 'open parental consent';
