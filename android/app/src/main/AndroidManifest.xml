@@ -73,5 +73,12 @@
         </intent>
         <package android:name="com.whatsapp"/>
         <package android:name="com.whatsapp.w4b"/>
+        <!-- Gmail app — "Open Gmail" button on the forgot-password screen -->
+        <package android:name="com.google.android.gm"/>
+        <!-- Default email-app inbox fallback (CATEGORY_APP_EMAIL) -->
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
+            <category android:name="android.intent.category.APP_EMAIL"/>
+        </intent>
     </queries>
 </manifest>

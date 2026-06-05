@@ -1,3 +1,7 @@
+import 'dart:io' show Platform;
+
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
@@ -50,17 +54,47 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
   }
 
   Future<void> _openGmail() async {
-    // Try the Gmail app deep-link first; fall back to the web Gmail URL.
-    final gmailApp = Uri.parse('googlegmail://');
-    final gmailWeb = Uri.parse('https://mail.google.com/');
-
     setState(() => _gmailOpened = true);
 
-    if (await canLaunchUrl(gmailApp)) {
-      await launchUrl(gmailApp, mode: LaunchMode.externalApplication);
+    // ANDROID: open the actual Gmail *app*. The iOS `googlegmail://` scheme is
+    // not registered by Android Gmail, so canLaunchUrl() failed there and the
+    // old code fell back to the browser. Launch the app by package instead,
+    // then degrade gracefully: Gmail app → default email inbox → web Gmail.
+    if (Platform.isAndroid) {
+      // 1. Gmail app, opened to its inbox (MAIN/LAUNCHER on the Gmail package).
+      try {
+        const gmail = AndroidIntent(
+          action: 'android.intent.action.MAIN',
+          category: 'android.intent.category.LAUNCHER',
+          package: 'com.google.android.gm',
+          flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
+        );
+        await gmail.launch();
+        return;
+      } catch (_) {/* Gmail not installed — try the default email app. */}
+
+      // 2. Whatever the user's default email app is, opened to the inbox.
+      try {
+        const email = AndroidIntent(
+          action: 'android.intent.action.MAIN',
+          category: 'android.intent.category.APP_EMAIL',
+          flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
+        );
+        await email.launch();
+        return;
+      } catch (_) {/* No email app — fall through to web. */}
     } else {
-      await launchUrl(gmailWeb, mode: LaunchMode.externalApplication);
+      // iOS / other: the Gmail app URL scheme.
+      final gmailApp = Uri.parse('googlegmail://');
+      if (await canLaunchUrl(gmailApp)) {
+        await launchUrl(gmailApp, mode: LaunchMode.externalApplication);
+        return;
+      }
     }
+
+    // Last resort on any platform: web Gmail.
+    await launchUrl(Uri.parse('https://mail.google.com/'),
+        mode: LaunchMode.externalApplication);
   }
 
   Future<void> _sendReset() async {
