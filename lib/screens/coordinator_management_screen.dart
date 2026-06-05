@@ -504,10 +504,10 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                               else   { _selectedClasses.remove(cls); }
                             }),
                             selectedColor: AppTheme.primary.withValues(alpha: 0.15),
-                            checkmarkColor: AppTheme.primary,
+                            // Constant weight so selecting never reflows the label width.
                             labelStyle: TextStyle(
                               color: selected ? AppTheme.primary : Colors.grey.shade700,
-                              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                              fontWeight: FontWeight.w600,
                             ),
                             side: BorderSide(
                               color: selected ? AppTheme.primary : Colors.grey.shade300,

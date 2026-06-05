@@ -125,5 +125,11 @@ abstract class AppTheme {
     dividerColor: border,
     dividerTheme: const DividerThemeData(
       color: border, thickness: 1, space: 1),
+
+    // Chips (FilterChip / ChoiceChip): selecting must NOT resize the chip.
+    // The default selected-state checkmark adds a leading avatar that widens
+    // the chip — disable it app-wide so selection only changes colour, never
+    // size. Individual chips still control their own colours/borders.
+    chipTheme: const ChipThemeData(showCheckmark: false),
   );
 }
