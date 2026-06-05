@@ -35,6 +35,21 @@ class AuthService {
   static final _auth = FirebaseAuth.instance;
   static final _functions = FirebaseFunctions.instance;
 
+  /// The single, permanent system administrator.
+  ///
+  /// Admin identity is HARDCODED to this one address — it is intentionally not
+  /// stored in (and not read from) Firestore. That makes it the unforgeable
+  /// root of the whole role hierarchy (admin → owner → principal → …) and lets
+  /// it bootstrap the system even when the database is completely empty. No
+  /// other email can ever obtain admin access, request an admin password reset,
+  /// or be promoted to admin. The Firestore security rules enforce the same
+  /// constant server-side (`isRootAdmin()`), so this is not merely client-side.
+  static const String rootAdminEmail = 'mandvishal@gmail.com';
+
+  /// True only for [rootAdminEmail] (case-insensitive, trimmed).
+  static bool isRootAdminEmail(String? email) =>
+      (email ?? '').trim().toLowerCase() == rootAdminEmail;
+
   /// Returns the current school ID set during login, falling back to the
   /// default production school ID so pre-migration sessions still work.
   /// Delegates to [BaseFirestoreService.currentSchoolId] which is set by

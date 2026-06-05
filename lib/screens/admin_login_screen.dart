@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
-import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
 import '../utils/validators.dart';
 import 'admin_screen.dart';
@@ -50,34 +49,39 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       return;
     }
 
+    // Admin identity is hardcoded to the single permanent system admin. Reject
+    // every other address up-front — before even touching Firebase Auth — so no
+    // other account can ever reach the admin panel.
+    if (!AuthService.isRootAdminEmail(email)) {
+      setState(() {
+        _loading = false;
+        _error = 'This is not the system admin account. Admin access is '
+            'restricted to a single fixed email.';
+        _resetMsg = null;
+      });
+      return;
+    }
+
     setState(() { _loading = true; _error = null; _resetMsg = null; });
     try {
-      // 1. Firebase Auth sign-in.
+      // Firebase Auth sign-in. The hardcoded email above IS the authorization —
+      // no allowed_users/role lookup is needed (and it would fail anyway when
+      // the database is empty, which is exactly when the admin must bootstrap
+      // the system). The security rules trust the same hardcoded email via
+      // isRootAdmin(), so admin writes succeed without an identity document.
       await AuthService().signInWithEmail(email, pass);
-      // 2. Verify the account holds the admin role.
-      final userData = await TimetableService().getAllowedUserDoc(email);
-      final role = userData?['role'] as String? ?? '';
-      if (role != 'admin') {
-        await AuthService().signOut();
-        if (!mounted) return;
-        setState(() { _loading = false; _error = 'Not an admin account.'; });
-        return;
-      }
 
-      final schoolId = userData?['schoolId'] as String? ?? '';
-      if (schoolId.isNotEmpty) {
-        BaseFirestoreService.currentSchoolId = schoolId;
-      }
+      // Admin operates at the root level, not inside any one school.
+      BaseFirestoreService.currentSchoolId = 'school_1';
 
-      // 3. Admin verified — persist a session so RoleGuard on the admin
-      //    screen passes, then open it. (The splash gate deliberately does
-      //    NOT auto-resume admin sessions, so this never causes the app to
-      //    launch into the admin panel.)
+      // Persist a session so RoleGuard on the admin screen passes, then open it.
+      // (The splash gate deliberately does NOT auto-resume admin sessions, so
+      // this never causes the app to launch straight into the admin panel.)
       await AuthService().saveSession(
         email:    email,
         role:     'admin',
-        name:     userData?['name'] as String? ?? '',
-        schoolId: schoolId,
+        name:     'Admin',
+        schoolId: '',
       );
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -106,6 +110,14 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       setState(() {
         _resetMsg = null;
         _error = 'Enter your admin email above first, then tap reset.';
+      });
+      return;
+    }
+    // Only the one fixed admin address may request an admin password reset.
+    if (!AuthService.isRootAdminEmail(email)) {
+      setState(() {
+        _resetMsg = null;
+        _error = 'Password reset is only available for the system admin account.';
       });
       return;
     }

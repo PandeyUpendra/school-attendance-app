@@ -131,6 +131,16 @@ class _LoginScreenState extends State<LoginScreen> {
     Widget destination;
     switch (role) {
       case 'admin':
+        // Admin is hardcoded to a single email — no other account may ever
+        // resolve to the admin panel, even if a stray allowed_users doc claims
+        // the admin role. The admin signs in through the dedicated screen.
+        if (!AuthService.isRootAdminEmail(email)) {
+          setState(() {
+            _loading = false;
+            _error   = 'This account is not permitted admin access.';
+          });
+          return;
+        }
         destination = const AdminScreen();
         break;
       case 'coordinator':

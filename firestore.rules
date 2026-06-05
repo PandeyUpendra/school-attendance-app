@@ -173,22 +173,33 @@ service cloud.firestore {
       return userRole() != null && userRole() in roles;
     }
 
+    /// THE permanent system administrator — a single hardcoded email matched
+    /// directly against the Firebase Auth token (NOT against any allowed_users
+    /// document). This is the unforgeable root of the role hierarchy: it grants
+    /// full admin power even when the database is empty (so the admin can
+    /// bootstrap the first owner), and no other account can ever obtain it.
+    /// Keep this constant in sync with AuthService.rootAdminEmail in the app.
+    function isRootAdmin() {
+      return isSignedIn() && request.auth.token.email.lower() == 'mandvishal@gmail.com';
+    }
+
     // ── Convenience role groups ──────────────────────────────────────────
 
     // `ownerPrincipal` is the combined owner+principal role created when the
     // owner of a single-school deployment also acts as principal (see
     // main.dart router, login_screen.dart, OwnerPrincipalHome). It MUST
     // appear in every group below or that user is denied across the board
-    // after onboarding completes.
+    // after onboarding completes. The hardcoded root admin is folded into every
+    // group so it has unconditional access across the system.
 
-    /// coordinator | principal | admin | owner | ownerPrincipal
+    /// root admin | coordinator | principal | admin | owner | ownerPrincipal
     function isManagement() {
-      return hasAnyRole(['coordinator', 'principal', 'admin', 'owner', 'ownerPrincipal']);
+      return isRootAdmin() || hasAnyRole(['coordinator', 'principal', 'admin', 'owner', 'ownerPrincipal']);
     }
 
-    /// admin | owner | ownerPrincipal  (user-lifecycle / privileged operations)
+    /// root admin | admin | owner | ownerPrincipal  (user-lifecycle / privileged ops)
     function isStrictAdmin() {
-      return hasAnyRole(['admin', 'owner', 'ownerPrincipal']);
+      return isRootAdmin() || hasAnyRole(['admin', 'owner', 'ownerPrincipal']);
     }
 
     /// teacher | subjectTeacher
@@ -196,9 +207,9 @@ service cloud.firestore {
       return hasAnyRole(['teacher', 'subjectTeacher']);
     }
 
-    /// Any staff member (teachers + management).
+    /// Any staff member (teachers + management) — plus the root admin.
     function isAnyStaff() {
-      return hasAnyRole(['teacher', 'subjectTeacher',
+      return isRootAdmin() || hasAnyRole(['teacher', 'subjectTeacher',
                          'coordinator', 'principal',
                          'admin', 'owner', 'ownerPrincipal']);
     }
@@ -302,7 +313,7 @@ service cloud.firestore {
       // Own document, OR any coordinator / principal / admin in the same school,
       // OR any owner globally,
       // OR unauthenticated read if the target document is an 'owner' (for bootstrapping).
-      allow read: if (isSignedIn() && (
+      allow read: if isRootAdmin() || (isSignedIn() && (
         userEmail() == email ||
         isRole('owner') ||
         (isManagement() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId)
@@ -319,7 +330,7 @@ service cloud.firestore {
       //    Coordinators may NOT create coordinators (no peer creation),
       //    principals, admins, owners, or guardians.
       // OR unauthenticated create if the new document's role is 'owner' (for bootstrapping).
-      allow create: if (isSignedIn() && (
+      allow create: if isRootAdmin() || (isSignedIn() && (
         isRole('owner') ||
         (isStrictAdmin() && 'schoolId' in request.resource.data && userSchoolId() == request.resource.data.schoolId) ||
         (isRole('principal')
@@ -336,7 +347,7 @@ service cloud.firestore {
         'role' in request.resource.data && request.resource.data.role == 'owner'
       );
 
-      allow update: if (isSignedIn() && (
+      allow update: if isRootAdmin() || (isSignedIn() && (
         isRole('owner') ||
         // Admin: full update power within own school.
         (isStrictAdmin() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId) ||
@@ -373,7 +384,7 @@ service cloud.firestore {
         'role' in request.resource.data && request.resource.data.role == 'owner'
       );
 
-      allow delete: if (isSignedIn() && (
+      allow delete: if isRootAdmin() || (isSignedIn() && (
         isRole('owner') ||
         (isStrictAdmin() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId) ||
         // Principal: may delete non-management staff in their own school.
