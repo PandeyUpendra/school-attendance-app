@@ -7,7 +7,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/school_settings_provider.dart';
 import '../theme.dart';
 import '../models/exam.dart';
-import '../models/guardian_student_details.dart';
 import '../models/student.dart';
 import '../models/fee.dart';
 import '../models/homework.dart';
@@ -61,8 +60,6 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   String? _error;
   Student? _student;
 
-  DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
-  Map<int, Map<int, String>> _monthData = {};
   String? _todayStatus;
 
   // Attendance is stored by the teacher under a section-scoped key
@@ -175,15 +172,12 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       // These must succeed; if not, show the error screen.
       final coreResults = await Future.wait([
         _service.getStudentByRoll(widget.studentClass, widget.studentRoll, section: widget.studentSection),  // 0
-        _service.loadMonthAttendance(
-            className: _attendanceKey, year: _month.year, month: _month.month),  // 1
-        _service.loadTodayAttendance(className: _attendanceKey),                  // 2
+        _service.loadTodayAttendance(className: _attendanceKey),                  // 1
       ]);
       if (!mounted) return;
 
       final student     = coreResults[0] as Student?;
-      final monthData   = coreResults[1] as Map<int, Map<int, String>>;
-      final todayByRoll = coreResults[2] as Map<int, String>;
+      final todayByRoll = coreResults[1] as Map<int, String>;
 
       // ── Optional: fee / exams / homework / timetable ────────────────────────
       // Any individual failure just leaves that section empty; no full crash.
@@ -226,7 +220,6 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
 
       setState(() {
         _student        = student;
-        _monthData      = monthData;
         _todayStatus    = todayByRoll[widget.studentRoll];
         _feeStructure   = feeStructure;
         _totalPaid      = totalPaid;
@@ -247,36 +240,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     }
   }
 
-  Future<void> _changeMonth(DateTime newMonth) async {
-    setState(() { _month = newMonth; _loading = true; _error = null; });
-    try {
-      final data = await _service.loadMonthAttendance(
-          className: _attendanceKey, year: newMonth.year, month: newMonth.month);
-      if (!mounted) return;
-      setState(() { _monthData = data; _loading = false; });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
-    }
-  }
 
-  bool get _isCurrentMonth {
-    final now = DateTime.now();
-    return _month.year == now.year && _month.month == now.month;
-  }
-
-  int get _workingDays => _monthData.keys.length;
-  int get _present => _monthData.values
-      .where((d) => d[widget.studentRoll] == 'Present').length;
-  int get _absent => _monthData.values
-      .where((d) => d[widget.studentRoll] == 'Absent').length;
-  int get _leave => _monthData.values
-      .where((d) => d[widget.studentRoll] == 'Leave').length;
-
-  double get _pct =>
-      _workingDays == 0 ? 0 : _present / _workingDays * 100;
-
-  bool get _isLow => _workingDays > 0 && _pct < 75;
 
   List<Widget> _buildErrorChildren() => [
     const SizedBox(height: 40),
@@ -321,218 +285,228 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   ];
 
   List<Widget> _buildContentChildren() => [
-    const SizedBox(height: 16),
-    // ── Consent pending banner ────────────────────────────────────
-    if (!_hasConsent)
+    if (!_hasConsent) ...[
+      const SizedBox(height: 12),
       ConsentPendingBanner(
         hasConsent:  false,
         isReConsent: _needsReConsent,
       ),
-    // ── Child profile card (name / parents) ──────────────────────
-    _ChildProfileCard(student: _student!),
+    ],
     const SizedBox(height: 12),
-    // ── View / Edit Student Details (action bar) ──────────────────
-    SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: _openChildDetails,
-        icon: const Icon(Icons.edit_outlined, size: 16),
-        label: const Text('View / Edit Student Details'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppTheme.primary,
-          side: const BorderSide(color: AppTheme.primary),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-          textStyle: const TextStyle(
-              fontSize: 15, fontWeight: FontWeight.w600),
-        ),
-      ),
-    ),
-    const SizedBox(height: 16),
-    // ── School information (read-only, managed by owner/principal) ─
-    const _SchoolInfoCard(),
-    const SizedBox(height: 16),
-    // ── Today's status banner ────────────────────────────────────
     _TodayBanner(status: _todayStatus),
-    const SizedBox(height: 16),
-    // ── Today's schedule ─────────────────────────────────────────
-    _TodayScheduleCard(
-      classTimetable: _classTimetable,
-      bellSettings:   _bellSettings,
-      firstBellTime:  _firstBellTime,
-      teacherById:    _teacherById,
-    ),
-    const SizedBox(height: 16),
-    // ── Fee Status ───────────────────────────────────────────────
-    if (_feeStructure != null && _feeStructure!.totalAnnualFee > 0) ...[
-      _FeeStatusCard(structure: _feeStructure!, totalPaid: _totalPaid),
-      const SizedBox(height: 16),
-    ],
-    // ── Exam Results ─────────────────────────────────────────────
-    if (_examData.isNotEmpty) ...[
-      _ExamResultsSection(examData: _examData),
-      const SizedBox(height: 16),
-    ],
-    // ── Homework ─────────────────────────────────────────────────
-    if (_homeworkList.isNotEmpty) ...[
-      _HomeworkSection(homeworkList: _homeworkList),
-      const SizedBox(height: 16),
-    ],
-    // ── Subject Teachers ─────────────────────────────────────────
-    _SubjectTeachersCard(
-      classTimetable: _classTimetable,
-      teacherById:    _teacherById,
-    ),
-    const SizedBox(height: 16),
-    // ── Details provided by guardian (read-only view) ─────────────
-    if (_student!.guardianDetails != null) ...[
-      _GuardianDetailsViewCard(details: _student!.guardianDetails!),
-      const SizedBox(height: 16),
-    ],
-    // ── Quick Actions ─────────────────────────────────────────────
-    // Apply for Leave (primary CTA — filled button)
-    if (_student != null)
-      SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => GuardianLeaveApplicationScreen(
-                  student: _student!),
-            ),
-          ).then((_) => _loadAll()),
-          icon: const Icon(Icons.event_busy_outlined),
-          label: const Text('Apply for Leave'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-            textStyle: const TextStyle(
-                fontSize: 15, fontWeight: FontWeight.w600),
-          ),
-        ),
-      ),
-    const SizedBox(height: 12),
-    // Attendance Certificate
-    OutlinedButton.icon(
-      onPressed: () => Navigator.push(
+
+    const _SectionHeader('ACADEMICS'),
+    _FeatureTile(
+      icon: Icons.calendar_month_outlined,
+      color: AppTheme.primary,
+      title: 'My Timetable',
+      subtitle: 'View class bell schedule',
+      onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-            builder: (_) =>
-                AttendanceCertificateScreen(student: _student!)),
-      ),
-      icon: const Icon(Icons.workspace_premium_outlined),
-      label: const Text('Attendance Certificate'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppTheme.primary,
-        side: const BorderSide(color: AppTheme.primary),
-        padding: const EdgeInsets.symmetric(vertical: 14),
+          builder: (_) => GuardianTimetableScreen(
+            classTimetable: _classTimetable,
+            bellSettings: _bellSettings,
+            firstBellTime: _firstBellTime,
+            teacherById: _teacherById,
+            className: _student?.className ?? widget.studentClass,
+          ),
+        ),
       ),
     ),
-    const SizedBox(height: 12),
-    // Announcements
-    OutlinedButton.icon(
-      onPressed: () => Navigator.push(
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.people_outline,
+      color: AppTheme.primary,
+      title: 'Subject Teachers',
+      subtitle: 'Teachers teaching this class',
+      onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-            builder: (_) =>
-                const AnnouncementsScreen(viewerRole: 'guardian')),
-      ),
-      icon: const Icon(Icons.campaign_outlined),
-      label: const Text('School Announcements'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppTheme.primary,
-        side: const BorderSide(color: AppTheme.primary),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
-    ),
-    const SizedBox(height: 12),
-    // Contact school
-    OutlinedButton.icon(
-      onPressed: _callSchool,
-      icon: const Icon(Icons.call_outlined),
-      label: const Text('Contact School'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppTheme.primary,
-        side: const BorderSide(color: AppTheme.primary),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
-    ),
-    const SizedBox(height: 12),
-    // Student Remarks
-    if (_student != null)
-      OutlinedButton.icon(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => StudentRemarksScreen(
-              role:            'guardian',
-              guardianStudent: _student,
-            ),
+          builder: (_) => GuardianSubjectTeachersScreen(
+            classTimetable: _classTimetable,
+            teacherById: _teacherById,
+            className: _student?.className ?? widget.studentClass,
           ),
         ),
-        icon: const Icon(Icons.comment_outlined),
-        label: const Text('Student Remarks'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppTheme.primary,
-          side: const BorderSide(color: AppTheme.primary),
-          padding: const EdgeInsets.symmetric(vertical: 14),
+      ),
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.assignment_outlined,
+      color: AppTheme.primary,
+      title: 'Homework',
+      subtitle: 'View homework assignments',
+      badge: _homeworkList.isNotEmpty ? '${_homeworkList.length}' : null,
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuardianHomeworkScreen(
+            homeworkList: _homeworkList,
+            className: _student?.className ?? widget.studentClass,
+          ),
         ),
       ),
-    const SizedBox(height: 24),
-
-    // ── Privacy & Consent ─────────────────────────────────────────
-    Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color:        Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color:      Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset:     const Offset(0, 2),
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.quiz_outlined,
+      color: AppTheme.primary,
+      title: 'Exam Results',
+      subtitle: 'View report cards and marks',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuardianExamResultsScreen(
+            examData: _examData,
           ),
-        ],
-      ),
-      child: GuardianConsentSection(
-        studentDocId:   _studentDocId,
-        studentName:    _student!.name,
-        guardianName:   _student!.fatherName,
-        guardianPhone:  _student!.parentPhone ?? _student!.phone,
-        guardianEmail:  _student!.guardianEmail,
+        ),
       ),
     ),
-    const SizedBox(height: 24),
 
-    // ── Combined attendance calendar ──────────────────────────────
-    _AttendanceCalendarCard(
-      month:          _month,
-      monthData:      _monthData,
-      roll:           widget.studentRoll,
-      workingDays:    _workingDays,
-      present:        _present,
-      absent:         _absent,
-      leave:          _leave,
-      pct:            _pct,
-      isLow:          _isLow,
-      isCurrentMonth: _isCurrentMonth,
-      onPrev: () => _changeMonth(DateTime(_month.year, _month.month - 1)),
-      onNext: _isCurrentMonth
-          ? null
-          : () => _changeMonth(DateTime(_month.year, _month.month + 1)),
+    const _SectionHeader('ATTENDANCE'),
+    _FeatureTile(
+      icon: Icons.bar_chart_outlined,
+      color: AppTheme.primary,
+      title: 'Attendance History',
+      subtitle: 'Monthly reports and calendar',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuardianAttendanceHistoryScreen(
+            attendanceKey: _attendanceKey,
+            studentRoll: widget.studentRoll,
+            studentName: _student?.name ?? 'Student',
+          ),
+        ),
+      ),
     ),
-    const SizedBox(height: 16),
-    // ── Low attendance warning ────────────────────────────────────
-    if (_isLow) ...[
-      _LowAttendanceBanner(pct: _pct),
-      const SizedBox(height: 16),
-    ],
-    const SizedBox(height: 4),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.workspace_premium_outlined,
+      color: AppTheme.primary,
+      title: 'Attendance Certificate',
+      subtitle: 'Download certificate',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AttendanceCertificateScreen(student: _student!),
+        ),
+      ),
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.event_busy_outlined,
+      color: AppTheme.warning,
+      title: 'Apply for Leave',
+      subtitle: 'Submit leave application',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuardianLeaveApplicationScreen(student: _student!),
+        ),
+      ).then((_) => _loadAll()),
+    ),
+
+    const _SectionHeader('FEES'),
+    _FeatureTile(
+      icon: Icons.account_balance_wallet_outlined,
+      color: Colors.green,
+      title: 'Fee Status',
+      subtitle: _feeStructure != null && _feeStructure!.totalAnnualFee > 0
+          ? ((_feeStructure!.totalAnnualFee - _totalPaid) < 1 ? 'Fully Paid' : 'Pending: ₹${(_feeStructure!.totalAnnualFee - _totalPaid).toStringAsFixed(0)}')
+          : 'No fee info',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuardianFeeStatusScreen(
+            structure: _feeStructure ?? FeeStructure.empty(widget.studentClass),
+            totalPaid: _totalPaid,
+          ),
+        ),
+      ),
+    ),
+
+    const _SectionHeader('LEAVE & REMARKS'),
+    _FeatureTile(
+      icon: Icons.comment_outlined,
+      color: AppTheme.primary,
+      title: 'Student Remarks',
+      subtitle: 'View class teacher observations',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => StudentRemarksScreen(
+            role: 'guardian',
+            guardianStudent: _student,
+          ),
+        ),
+      ),
+    ),
+
+    const _SectionHeader('SCHOOL & PROFILE'),
+    _FeatureTile(
+      icon: Icons.badge_outlined,
+      color: AppTheme.primary,
+      title: 'Student Details',
+      subtitle: 'View student profile details',
+      onTap: _openChildDetails,
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.gavel_outlined,
+      color: AppTheme.primary,
+      title: 'Parental Consent',
+      subtitle: 'Manage permissions and privacy settings',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuardianConsentScreen(
+            studentDocId: _studentDocId,
+            studentName: _student!.name,
+            guardianName: _student!.fatherName,
+            guardianPhone: _student!.parentPhone ?? _student!.phone,
+            guardianEmail: _student!.guardianEmail,
+          ),
+        ),
+      ),
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.school_outlined,
+      color: AppTheme.primary,
+      title: 'School Info',
+      subtitle: 'View school contact and details',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const GuardianSchoolInfoScreen(),
+        ),
+      ),
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.campaign_outlined,
+      color: AppTheme.primary,
+      title: 'Notice Board',
+      subtitle: 'View school announcements',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const AnnouncementsScreen(viewerRole: 'guardian'),
+        ),
+      ),
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.phone_callback_outlined,
+      color: AppTheme.primary,
+      title: 'Contact School',
+      subtitle: 'Call student\'s class teacher',
+      onTap: _callSchool,
+    ),
+
+    const SizedBox(height: 32),
   ];
 
   Future<void> _openChildDetails() async {
@@ -788,203 +762,7 @@ class _GuardianHeroCard extends StatelessWidget {
   }
 }
 
-// ─── Today's schedule card ───────────────────────────────────────────────────
 
-class _TodayScheduleCard extends StatelessWidget {
-  final Map<String, Map<int, TimetableEntry>> classTimetable;
-  final List<Map<String, dynamic>> bellSettings;
-  final String firstBellTime;
-  final Map<String, Teacher> teacherById;
-
-  const _TodayScheduleCard({
-    required this.classTimetable,
-    required this.bellSettings,
-    required this.firstBellTime,
-    required this.teacherById,
-  });
-
-  static const _dayNames = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-  ];
-
-  String _bellTime(int bellIdx) {
-    try {
-      final parts = firstBellTime.split(':');
-      int h = int.parse(parts[0]);
-      int m = int.parse(parts[1]);
-      for (int i = 0; i < bellIdx; i++) {
-        final dur = (bellSettings[i]['duration'] as num?)?.toInt() ?? 45;
-        m += dur;
-        h += m ~/ 60;
-        m = m % 60;
-      }
-      final ampm = h >= 12 ? 'PM' : 'AM';
-      final hh = h > 12 ? h - 12 : (h == 0 ? 12 : h);
-      return '$hh:${m.toString().padLeft(2, '0')} $ampm';
-    } catch (_) {
-      return '';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final todayName = _dayNames[DateTime.now().weekday - 1];
-    final todayPeriods = classTimetable[todayName] ?? {};
-    final bellCount = bellSettings.length;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header ────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            child: Row(children: [
-              Container(
-                width: 34, height: 34,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: const Icon(Icons.schedule_outlined,
-                    color: AppTheme.primary, size: 19),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Today's Schedule",
-                        style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.bold)),
-                    Text(todayName,
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade500)),
-                  ],
-                ),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 10),
-          const Divider(height: 1),
-
-          if (bellCount == 0 || todayPeriods.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  vertical: 20, horizontal: 16),
-              child: Text('No timetable for $todayName',
-                  style: TextStyle(
-                      fontSize: 13, color: Colors.grey.shade500)),
-            )
-          else
-            ...List.generate(bellCount, (i) {
-              final bell = i + 1;
-              final isLunch = (bellSettings[i]['isLunch'] as bool?) ?? false;
-              final time = _bellTime(i);
-              final entry = todayPeriods[bell];
-
-              if (isLunch) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 8),
-                  color: Colors.orange.shade50,
-                  child: Row(children: [
-                    const Icon(Icons.lunch_dining_outlined,
-                        size: 16, color: Colors.orange),
-                    const SizedBox(width: 8),
-                    Text(time,
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade500,
-                            fontFeatures: const [])),
-                    const SizedBox(width: 12),
-                    Text('Lunch Break',
-                        style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.orange.shade700,
-                            fontWeight: FontWeight.w500)),
-                  ]),
-                );
-              }
-
-              String subject = '—';
-              String teacherName = '';
-              Color periodColor = Colors.grey.shade100;
-
-              if (entry != null && !entry.isEmpty) {
-                final teacher = teacherById[entry.teacherId];
-                subject = entry.subject ??
-                    (teacher?.subject ?? '—');
-                teacherName = teacher?.name ?? '';
-                periodColor = AppTheme.primary.withValues(alpha: 0.07);
-              }
-
-              return Container(
-                decoration: BoxDecoration(
-                  color: periodColor,
-                  border: Border(
-                    bottom: BorderSide(color: Colors.grey.shade100),
-                  ),
-                ),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 9),
-                child: Row(children: [
-                  // Bell number badge
-                  Container(
-                    width: 26, height: 26,
-                    decoration: BoxDecoration(
-                      color: entry != null && !entry.isEmpty
-                          ? AppTheme.primary
-                          : Colors.grey.shade300,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text('$bell',
-                          style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white)),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Time
-                  SizedBox(
-                    width: 72,
-                    child: Text(time,
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade500)),
-                  ),
-                  // Subject + teacher
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(subject,
-                            style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600)),
-                        if (teacherName.isNotEmpty)
-                          Text(teacherName,
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade500)),
-                      ],
-                    ),
-                  ),
-                ]),
-              );
-            }),
-          const SizedBox(height: 4),
-        ],
-      ),
-    );
-  }
-}
 
 // ─── Exam results section ────────────────────────────────────────────────────
 
@@ -1305,126 +1083,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
   }
 }
 
-// ─── Subject teachers card ────────────────────────────────────────────────────
 
-class _SubjectTeachersCard extends StatelessWidget {
-  final Map<String, Map<int, TimetableEntry>> classTimetable;
-  final Map<String, Teacher> teacherById;
-
-  const _SubjectTeachersCard({
-    required this.classTimetable,
-    required this.teacherById,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // Build subject → teacher list from the timetable (all days combined)
-    final Map<String, Set<String>> subjectTeacherIds = {};
-    classTimetable.forEach((day, bells) {
-      bells.forEach((bell, entry) {
-        if (!entry.isEmpty && entry.teacherId != null) {
-          final teacher = teacherById[entry.teacherId!];
-          final subj    = entry.subject ??
-              teacher?.subject ?? 'Unknown';
-          subjectTeacherIds
-              .putIfAbsent(subj, () => {})
-              .add(entry.teacherId!);
-        }
-      });
-    });
-
-    if (subjectTeacherIds.isEmpty) return const SizedBox.shrink();
-
-    // Sort subjects alphabetically
-    final subjects = subjectTeacherIds.keys.toList()..sort();
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-            child: Row(children: [
-              Container(
-                width: 34, height: 34,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: const Icon(Icons.people_outline,
-                    color: AppTheme.primary, size: 19),
-              ),
-              const SizedBox(width: 10),
-              const Text('Subject Teachers',
-                  style: TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.bold)),
-            ]),
-          ),
-          const Divider(height: 1),
-          ...subjects.asMap().entries.map((e) {
-            final subj      = e.value;
-            final tIds      = subjectTeacherIds[subj]!;
-            final teachers  = tIds
-                .map((id) => teacherById[id])
-                .whereType<Teacher>()
-                .toList();
-            final names = teachers.map((t) => t.name).join(', ');
-
-            return Column(children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
-                child: Row(children: [
-                  Container(
-                    width: 36, height: 36,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        subj.isNotEmpty ? subj[0].toUpperCase() : '?',
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primary),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(subj,
-                            style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600)),
-                        if (names.isNotEmpty)
-                          Text(names,
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade600)),
-                      ],
-                    ),
-                  ),
-                ]),
-              ),
-              if (e.key < subjects.length - 1)
-                const Divider(height: 1, indent: 64),
-            ]);
-          }),
-          const SizedBox(height: 4),
-        ],
-      ),
-    );
-  }
-}
 
 // ─── Guardian hero wave card ─────────────────────────────────────────────────
 
@@ -1448,209 +1107,7 @@ class _WaveClipper extends CustomClipper<Path> {
   bool shouldReclip(_WaveClipper old) => false;
 }
 
-// ─── Child profile card (with edit details button) ──────────────────────────
 
-class _ChildProfileCard extends StatelessWidget {
-  final Student student;
-
-  const _ChildProfileCard({required this.student});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(children: [
-        CircleAvatar(
-          radius: 28,
-          backgroundColor: AppTheme.primary.withValues(alpha: 0.12),
-          child: Text(
-            student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
-            style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primary),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(student.name,
-                  style: const TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 3),
-              Text(
-                'Roll ${student.roll}  •  ${student.className}',
-                style:
-                    TextStyle(fontSize: 13, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 4),
-              if (student.fatherName.isNotEmpty)
-                _InfoLine(
-                  icon: Icons.man_outlined,
-                  label: 'Father',
-                  value: student.fatherName,
-                ),
-              if (student.motherName?.isNotEmpty == true)
-                _InfoLine(
-                  icon: Icons.woman_outlined,
-                  label: 'Mother',
-                  value: student.motherName!,
-                ),
-            ],
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-class _InfoLine extends StatelessWidget {
-  final IconData icon;
-  final String   label;
-  final String   value;
-  const _InfoLine(
-      {required this.icon, required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 2),
-        child: Row(children: [
-          Icon(icon, size: 13, color: Colors.grey.shade400),
-          const SizedBox(width: 4),
-          Text('$label: ',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-          Expanded(
-            child: Text(value,
-                style:
-                    TextStyle(fontSize: 11, color: Colors.grey.shade700),
-                overflow: TextOverflow.ellipsis),
-          ),
-        ]),
-      );
-}
-
-// ─── Guardian details read-only view card ────────────────────────────────────
-
-class _GuardianDetailsViewCard extends StatelessWidget {
-  final GuardianStudentDetails details;
-  const _GuardianDetailsViewCard({required this.details});
-
-  @override
-  Widget build(BuildContext context) {
-    final d = details;
-
-    // Collect only filled fields
-    final rows = <_GDRow>[
-      if (d.dob.isNotEmpty)
-        _GDRow(Icons.cake_outlined, 'Date of Birth', d.dob),
-      if (d.gender.isNotEmpty)
-        _GDRow(Icons.wc_outlined, 'Gender', d.gender),
-      if (d.address.isNotEmpty)
-        _GDRow(Icons.home_outlined, 'Address', d.address),
-      if (d.bloodGroup.isNotEmpty)
-        _GDRow(Icons.bloodtype_outlined, 'Blood Group', d.bloodGroup),
-      if (d.emergencyContactName.isNotEmpty)
-        _GDRow(Icons.contact_phone_outlined, 'Emergency Contact',
-            d.emergencyContactPhone.isNotEmpty
-                ? '${d.emergencyContactName} · ${d.emergencyContactPhone}'
-                : d.emergencyContactName),
-      if (d.allergies.isNotEmpty)
-        _GDRow(Icons.medical_services_outlined, 'Allergies', d.allergies),
-      if (d.transportMode.isNotEmpty)
-        _GDRow(Icons.directions_bus_outlined, 'Transport', d.transportMode),
-      if (d.previousSchool.isNotEmpty)
-        _GDRow(Icons.school_outlined, 'Previous School', d.previousSchool),
-    ];
-
-    if (rows.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            child: Row(children: [
-              Container(
-                width: 34, height: 34,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: const Icon(Icons.badge_outlined,
-                    color: AppTheme.primary, size: 19),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Details Provided by Guardian',
-                        style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.bold)),
-                    if (d.lastUpdated != null)
-                      Text(
-                        'Updated: ${d.lastUpdated!.split('T')[0]}',
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade500),
-                      ),
-                  ],
-                ),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 10),
-          const Divider(height: 1),
-          ...rows.asMap().entries.map((e) {
-            final r = e.value;
-            return Column(children: [
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                child: Row(children: [
-                  Icon(r.icon, size: 18, color: Colors.grey.shade400),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(r.label,
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade500)),
-                        const SizedBox(height: 2),
-                        Text(r.value,
-                            style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500)),
-                      ],
-                    ),
-                  ),
-                ]),
-              ),
-              if (e.key < rows.length - 1)
-                const Divider(height: 1, indent: 46),
-            ]);
-          }),
-          const SizedBox(height: 6),
-        ],
-      ),
-    );
-  }
-}
 
 class _GDRow {
   final IconData icon;
@@ -2302,21 +1759,407 @@ class _FeeStatusCard extends StatelessWidget {
   }
 }
 
-// ─── Homework section for guardian ───────────────────────────────────────────
 
-class _HomeworkSection extends StatelessWidget {
+
+// ── Shared list widgets for Guardian Dashboard ────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  const _SectionHeader(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+      child: Text(title,
+          style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade500,
+              letterSpacing: 0.8)),
+    );
+  }
+}
+
+class _Divider extends StatelessWidget {
+  const _Divider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Divider(height: 1, indent: 70);
+  }
+}
+
+class _FeatureTile extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final String? badge;
+
+  const _FeatureTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.badge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(children: [
+          Stack(clipBehavior: Clip.none, children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            if (badge != null)
+              Positioned(
+                top: -4,
+                right: -4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(badge!,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold)),
+                ),
+              ),
+          ]),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: TextStyle(
+                        fontSize: 12, color: Colors.grey.shade500)),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right,
+              color: Colors.grey.shade400, size: 20),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── Guardian Dedicated Screens ───────────────────────────────────────────────
+
+class GuardianTimetableScreen extends StatefulWidget {
+  final Map<String, Map<int, TimetableEntry>> classTimetable;
+  final List<Map<String, dynamic>> bellSettings;
+  final String firstBellTime;
+  final Map<String, Teacher> teacherById;
+  final String className;
+
+  const GuardianTimetableScreen({
+    super.key,
+    required this.classTimetable,
+    required this.bellSettings,
+    required this.firstBellTime,
+    required this.teacherById,
+    required this.className,
+  });
+
+  @override
+  State<GuardianTimetableScreen> createState() => _GuardianTimetableScreenState();
+}
+
+class _GuardianTimetableScreenState extends State<GuardianTimetableScreen> {
+  String _selectedDay = 'Monday';
+
+  static const _days = [
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+  ];
+  static const _dayAbbr = {
+    'Monday': 'Mon', 'Tuesday': 'Tue', 'Wednesday': 'Wed',
+    'Thursday': 'Thu', 'Friday': 'Fri', 'Saturday': 'Sat',
+  };
+
+  String _bellTime(int bellIdx) {
+    try {
+      final parts = widget.firstBellTime.split(':');
+      int h = int.parse(parts[0]);
+      int m = int.parse(parts[1]);
+      for (int i = 0; i < bellIdx; i++) {
+        final dur = (widget.bellSettings[i]['duration'] as num?)?.toInt() ?? 45;
+        m += dur;
+        h += m ~/ 60;
+        m = m % 60;
+      }
+      final ampm = h >= 12 ? 'PM' : 'AM';
+      final hh = h > 12 ? h - 12 : (h == 0 ? 12 : h);
+      return '$hh:${m.toString().padLeft(2, '0')} $ampm';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final todayName = dayNames[DateTime.now().weekday - 1];
+    if (_days.contains(todayName)) {
+      _selectedDay = todayName;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final todayPeriods = widget.classTimetable[_selectedDay] ?? {};
+    final bellCount = widget.bellSettings.length;
+
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: Text('${widget.className} Timetable'),
+      ),
+      body: Column(
+        children: [
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: _days.map((d) {
+                  final sel = d == _selectedDay;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedDay = d),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: sel ? AppTheme.primary : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: sel ? AppTheme.primary : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: Text(_dayAbbr[d]!,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: sel ? Colors.white : Colors.grey.shade600)),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: bellCount == 0 || todayPeriods.isEmpty
+                ? Center(
+                    child: Text('No timetable for $_selectedDay',
+                        style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: bellCount,
+                    itemBuilder: (context, i) {
+                      final bell = i + 1;
+                      final isLunch = (widget.bellSettings[i]['isLunch'] as bool?) ?? false;
+                      final time = _bellTime(i);
+                      final entry = todayPeriods[bell];
+
+                      if (isLunch) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(children: [
+                            const Icon(Icons.lunch_dining_outlined, size: 16, color: Colors.orange),
+                            const SizedBox(width: 8),
+                            Text(time, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                            const SizedBox(width: 12),
+                            Text('Lunch Break',
+                                style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.orange.shade700,
+                                    fontWeight: FontWeight.w500)),
+                          ]),
+                        );
+                      }
+
+                      String subject = '—';
+                      String teacherName = '';
+                      Color periodColor = Colors.white;
+
+                      if (entry != null && !entry.isEmpty) {
+                        final teacher = widget.teacherById[entry.teacherId];
+                        subject = entry.subject ?? (teacher?.subject ?? '—');
+                        teacherName = teacher?.name ?? '';
+                        periodColor = AppTheme.primary.withValues(alpha: 0.05);
+                      }
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: periodColor,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Row(children: [
+                          Container(
+                            width: 28, height: 28,
+                            decoration: BoxDecoration(
+                              color: entry != null && !entry.isEmpty ? AppTheme.primary : Colors.grey.shade300,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text('$bell',
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 80,
+                            child: Text(time, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(subject,
+                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                                if (teacherName.isNotEmpty)
+                                  Text(teacherName,
+                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                              ],
+                            ),
+                          ),
+                        ]),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class GuardianSubjectTeachersScreen extends StatelessWidget {
+  final Map<String, Map<int, TimetableEntry>> classTimetable;
+  final Map<String, Teacher> teacherById;
+  final String className;
+
+  const GuardianSubjectTeachersScreen({
+    super.key,
+    required this.classTimetable,
+    required this.teacherById,
+    required this.className,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Map<String, Set<String>> subjectTeacherIds = {};
+    classTimetable.forEach((day, bells) {
+      bells.forEach((bell, entry) {
+        if (!entry.isEmpty && entry.teacherId != null) {
+          final teacher = teacherById[entry.teacherId!];
+          final subj = entry.subject ?? teacher?.subject ?? 'Unknown';
+          subjectTeacherIds.putIfAbsent(subj, () => {}).add(entry.teacherId!);
+        }
+      });
+    });
+
+    final subjects = subjectTeacherIds.keys.toList()..sort();
+
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: Text('$className Teachers'),
+      ),
+      body: subjects.isEmpty
+          ? Center(
+              child: Text('No subject teachers assigned yet',
+                  style: TextStyle(color: Colors.grey.shade500)),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: subjects.length,
+              itemBuilder: (context, idx) {
+                final subj = subjects[idx];
+                final tIds = subjectTeacherIds[subj]!;
+                final teachers = tIds.map((id) => teacherById[id]).whereType<Teacher>().toList();
+                final names = teachers.map((t) => t.name).join(', ');
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                      child: Text(
+                        subj.isNotEmpty ? subj[0].toUpperCase() : '?',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary),
+                      ),
+                    ),
+                    title: Text(subj, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(names.isNotEmpty ? names : 'No teacher assigned'),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
+
+class GuardianHomeworkScreen extends StatelessWidget {
   final List<Homework> homeworkList;
-  const _HomeworkSection({required this.homeworkList});
+  final String className;
+
+  const GuardianHomeworkScreen({
+    super.key,
+    required this.homeworkList,
+    required this.className,
+  });
 
   Color _statusColor(Homework hw) {
     if (hw.isReviewed) return Colors.green;
-    if (hw.isOverdue)  return Colors.red;
+    if (hw.isOverdue) return Colors.red;
     return Colors.orange;
   }
 
   String _statusLabel(Homework hw) {
     if (hw.isReviewed) return 'Reviewed';
-    if (hw.isOverdue)  return 'Overdue';
+    if (hw.isOverdue) return 'Overdue';
     final d = hw.daysUntilDue;
     if (d == 0) return 'Due Today';
     if (d == 1) return 'Tomorrow';
@@ -2325,116 +2168,619 @@ class _HomeworkSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Show latest 5
-    final list = homeworkList.take(5).toList();
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: Text('Homework — $className'),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(children: [
-              Container(
-                width: 32, height: 32,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.assignment_outlined,
-                    color: AppTheme.primary, size: 18),
-              ),
-              const SizedBox(width: 10),
-              const Text('Homework',
-                  style: TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.bold)),
-              const Spacer(),
-              Text('${homeworkList.length} total',
-                  style: TextStyle(
-                      fontSize: 12, color: Colors.grey.shade500)),
-            ]),
-          ),
-          const Divider(height: 1),
-          ...list.asMap().entries.map((entry) {
-            final i  = entry.key;
-            final hw = entry.value;
-            final due =
-                '${hw.dueDate.day}/${hw.dueDate.month}/${hw.dueDate.year}';
-            final sc = _statusColor(hw);
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      body: homeworkList.isEmpty
+          ? Center(
+              child: Text('No homework assignments posted',
+                  style: TextStyle(color: Colors.grey.shade500)),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: homeworkList.length,
+              itemBuilder: (context, i) {
+                final hw = homeworkList[i];
+                final due = '${hw.dueDate.day}/${hw.dueDate.month}/${hw.dueDate.year}';
+                final sc = _statusColor(hw);
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(hw.subject,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: AppTheme.primary)),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: sc.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                _statusLabel(hw),
+                                style: TextStyle(color: sc, fontWeight: FontWeight.bold, fontSize: 11),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(hw.title,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        const SizedBox(height: 6),
+                        Text(hw.description, style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+                        const SizedBox(height: 12),
+                        const Divider(height: 1),
+                        const SizedBox(height: 8),
+                        Text('Due Date: $due',
+                            style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
+
+class GuardianExamResultsScreen extends StatefulWidget {
+  final List<MapEntry<Exam, ExamResult?>> examData;
+  const GuardianExamResultsScreen({super.key, required this.examData});
+
+  @override
+  State<GuardianExamResultsScreen> createState() => _GuardianExamResultsScreenState();
+}
+
+class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
+  int? _expandedIdx;
+
+  Color _gradeColor(String grade) {
+    switch (grade) {
+      case 'A+': return Colors.green.shade700;
+      case 'A':  return Colors.green;
+      case 'B+': return Colors.teal;
+      case 'B':  return Colors.blue.shade700;
+      case 'C':  return const Color(0xFFF57F17);
+      default:   return Colors.red;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: const Text('Exam Results'),
+      ),
+      body: widget.examData.isEmpty
+          ? Center(
+              child: Text('No exam results available',
+                  style: TextStyle(color: Colors.grey.shade500)),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: widget.examData.length,
+              itemBuilder: (context, idx) {
+                final exam = widget.examData[idx].key;
+                final result = widget.examData[idx].value;
+                final isExp = _expandedIdx == idx;
+                final dateStr = '${exam.examDate.day} ${months[exam.examDate.month - 1]} ${exam.examDate.year}';
+
+                if (result == null) {
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      title: Text(exam.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text(dateStr),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text('Not Entered', style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
+                      ),
+                    ),
+                  );
+                }
+
+                final grade = result.grade;
+                final gradeColor = _gradeColor(grade);
+                final pct = result.percentage;
+                final total = result.total;
+                final maxTotal = result.subjectCount * result.maxMarks;
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: Column(
+                      ListTile(
+                        onTap: () => setState(() => _expandedIdx = isExp ? null : idx),
+                        leading: CircleAvatar(
+                          backgroundColor: gradeColor.withValues(alpha: 0.1),
+                          child: Text(grade, style: TextStyle(color: gradeColor, fontWeight: FontWeight.bold)),
+                        ),
+                        title: Text(exam.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(hw.title,
-                                style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${hw.subject}  •  Due: $due',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade500),
-                            ),
                             const SizedBox(height: 4),
-                            Text(hw.description,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade700),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis),
+                            Text(dateStr),
+                            const SizedBox(height: 6),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: (pct / 100).clamp(0.0, 1.0),
+                                minHeight: 6,
+                                backgroundColor: Colors.grey.shade200,
+                                valueColor: AlwaysStoppedAnimation(gradeColor),
+                              ),
+                            ),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text('${pct.toStringAsFixed(1)}%',
+                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: gradeColor)),
+                                Text('$total/$maxTotal', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                              ],
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(isExp ? Icons.expand_less : Icons.expand_more, color: Colors.grey.shade400),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: sc.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
+                      if (isExp)
+                        Container(
+                          margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Column(
+                            children: [
+                              const Row(children: [
+                                Expanded(child: Text('Subject', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                                SizedBox(width: 60, child: Text('Marks', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                                SizedBox(width: 50, child: Text('%', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                              ]),
+                              const Divider(height: 16),
+                              ...result.marks.entries.map((me) {
+                                final subj = me.key;
+                                final marks = me.value;
+                                final subPct = marks == null ? null : marks / result.maxMarks * 100;
+                                final subCol = subPct == null
+                                    ? Colors.grey
+                                    : subPct >= 75
+                                        ? Colors.green
+                                        : subPct >= 50
+                                            ? const Color(0xFFF57F17)
+                                            : Colors.red;
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Row(children: [
+                                    Expanded(child: Text(subj, style: const TextStyle(fontSize: 13))),
+                                    SizedBox(
+                                      width: 60,
+                                      child: Text(
+                                        marks == null ? 'Absent' : '${marks.toStringAsFixed(0)}/${result.maxMarks}',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(fontWeight: FontWeight.bold, color: subCol, fontSize: 13),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 50,
+                                      child: Text(
+                                        subPct == null ? '—' : '${subPct.toStringAsFixed(0)}%',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: subCol, fontSize: 12),
+                                      ),
+                                    ),
+                                  ]),
+                                );
+                              }),
+                              const Divider(height: 16),
+                              Row(children: [
+                                const Expanded(child: Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                                SizedBox(
+                                  width: 60,
+                                  child: Text('$total/$maxTotal',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(fontWeight: FontWeight.bold, color: gradeColor, fontSize: 13)),
+                                ),
+                                SizedBox(
+                                  width: 50,
+                                  child: Text('${pct.toStringAsFixed(1)}%',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(fontWeight: FontWeight.bold, color: gradeColor, fontSize: 12)),
+                                ),
+                              ]),
+                            ],
+                          ),
                         ),
-                        child: Text(_statusLabel(hw),
-                            style: TextStyle(
-                                fontSize: 10,
-                                color: sc,
-                                fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
+
+class GuardianAttendanceHistoryScreen extends StatefulWidget {
+  final String attendanceKey;
+  final int studentRoll;
+  final String studentName;
+
+  const GuardianAttendanceHistoryScreen({
+    super.key,
+    required this.attendanceKey,
+    required this.studentRoll,
+    required this.studentName,
+  });
+
+  @override
+  State<GuardianAttendanceHistoryScreen> createState() => _GuardianAttendanceHistoryScreenState();
+}
+
+class _GuardianAttendanceHistoryScreenState extends State<GuardianAttendanceHistoryScreen> {
+  final _service = StudentService();
+  DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+  Map<int, Map<int, String>> _monthData = {};
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAttendance();
+  }
+
+  Future<void> _loadAttendance() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await _service.loadMonthAttendance(
+        className: widget.attendanceKey,
+        year: _month.year,
+        month: _month.month,
+      );
+      if (mounted) {
+        setState(() {
+          _monthData = data;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _changeMonth(DateTime newMonth) async {
+    _month = newMonth;
+    await _loadAttendance();
+  }
+
+  bool get _isCurrentMonth {
+    final now = DateTime.now();
+    return _month.year == now.year && _month.month == now.month;
+  }
+
+  int get _workingDays => _monthData.keys.length;
+  int get _present => _monthData.values.where((d) => d[widget.studentRoll] == 'Present').length;
+  int get _absent => _monthData.values.where((d) => d[widget.studentRoll] == 'Absent').length;
+  int get _leave => _monthData.values.where((d) => d[widget.studentRoll] == 'Leave').length;
+
+  double get _pct => _workingDays == 0 ? 0 : _present / _workingDays * 100;
+  bool get _isLow => _workingDays > 0 && _pct < 75;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: Text('${widget.studentName}\'s Attendance'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const SizedBox(height: 12),
+                      Text('Error: $_error'),
+                      const SizedBox(height: 16),
+                      ElevatedButton(onPressed: _loadAttendance, child: const Text('Retry')),
+                    ],
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      _AttendanceCalendarCard(
+                        month: _month,
+                        monthData: _monthData,
+                        roll: widget.studentRoll,
+                        workingDays: _workingDays,
+                        present: _present,
+                        absent: _absent,
+                        leave: _leave,
+                        pct: _pct,
+                        isLow: _isLow,
+                        isCurrentMonth: _isCurrentMonth,
+                        onPrev: () => _changeMonth(DateTime(_month.year, _month.month - 1)),
+                        onNext: _isCurrentMonth ? null : () => _changeMonth(DateTime(_month.year, _month.month + 1)),
                       ),
+                      if (_isLow) ...[
+                        const SizedBox(height: 16),
+                        _LowAttendanceBanner(pct: _pct),
+                      ],
                     ],
                   ),
                 ),
-                if (i < list.length - 1)
-                  const Divider(height: 1, indent: 16),
-              ],
-            );
-          }),
-          if (homeworkList.length > 5)
-            Padding(
-              padding: const EdgeInsets.only(
-                  left: 16, right: 16, bottom: 10, top: 4),
-              child: Text(
-                '+ ${homeworkList.length - 5} more assignments',
+    );
+  }
+}
+
+class GuardianFeeStatusScreen extends StatelessWidget {
+  final FeeStructure structure;
+  final double totalPaid;
+
+  const GuardianFeeStatusScreen({
+    super.key,
+    required this.structure,
+    required this.totalPaid,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: const Text('Fee Details'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _FeeStatusCard(structure: structure, totalPaid: totalPaid),
+            
+            if (structure.components.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const Text(
+                'FEE BREAKDOWN',
                 style: TextStyle(
-                    fontSize: 12, color: Colors.grey.shade500),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey,
+                  letterSpacing: 0.8,
+                ),
               ),
-            ),
-        ],
+              const SizedBox(height: 8),
+              Card(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(
+                    children: structure.components.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final comp = entry.value;
+                      return Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(comp.name, style: const TextStyle(fontWeight: FontWeight.w500)),
+                                Text('₹${comp.amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                          if (idx < structure.components.length - 1)
+                            const Divider(height: 1),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+
+            if (structure.installments.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const Text(
+                'INSTALLMENTS SCHEDULE',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...structure.installments.map((inst) {
+                final dateStr = '${inst.dueDate.day} ${months[inst.dueDate.month - 1]} ${inst.dueDate.year}';
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.orange.shade50,
+                      child: const Icon(Icons.calendar_today_outlined, color: Colors.orange, size: 18),
+                    ),
+                    title: Text(inst.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('Due: $dateStr'),
+                    trailing: Text(
+                      '₹${inst.amount.toStringAsFixed(0)}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ],
+        ),
       ),
     );
   }
 }
+
+class GuardianSchoolInfoScreen extends StatelessWidget {
+  const GuardianSchoolInfoScreen({super.key});
+
+  Future<void> _launchUrlHelper(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<SchoolSettingsProvider>();
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: const Text('School Information'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const _SchoolInfoCard(),
+            const SizedBox(height: 24),
+            if (s.isLoaded) ...[
+              if (s.schoolPhone.trim().isNotEmpty)
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                    child: const Icon(Icons.phone, color: AppTheme.primary),
+                  ),
+                  title: const Text('Call School'),
+                  subtitle: Text(s.schoolPhone.trim()),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _launchUrlHelper('tel:${s.schoolPhone.trim()}'),
+                ),
+              const SizedBox(height: 8),
+              if (s.schoolEmail.trim().isNotEmpty)
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                    child: const Icon(Icons.email, color: AppTheme.primary),
+                  ),
+                  title: const Text('Email School'),
+                  subtitle: Text(s.schoolEmail.trim()),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _launchUrlHelper('mailto:${s.schoolEmail.trim()}'),
+                ),
+              const SizedBox(height: 8),
+              if (s.schoolWebsite.trim().isNotEmpty)
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                    child: const Icon(Icons.language, color: AppTheme.primary),
+                  ),
+                  title: const Text('Visit Website'),
+                  subtitle: Text(s.schoolWebsite.trim()),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    String url = s.schoolWebsite.trim();
+                    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                      url = 'https://$url';
+                    }
+                    _launchUrlHelper(url);
+                  },
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class GuardianConsentScreen extends StatelessWidget {
+  final String studentDocId;
+  final String studentName;
+  final String guardianName;
+  final String guardianPhone;
+  final String? guardianEmail;
+
+  const GuardianConsentScreen({
+    super.key,
+    required this.studentDocId,
+    required this.studentName,
+    required this.guardianName,
+    required this.guardianPhone,
+    this.guardianEmail,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: const Text('Parental Consent'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: GuardianConsentSection(
+            studentDocId: studentDocId,
+            studentName: studentName,
+            guardianName: guardianName,
+            guardianPhone: guardianPhone,
+            guardianEmail: guardianEmail,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 

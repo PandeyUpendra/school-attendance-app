@@ -360,7 +360,12 @@ service cloud.firestore {
           && 'schoolId' in request.resource.data
           && userSchoolId() == request.resource.data.schoolId
           && 'role' in request.resource.data
-          && request.resource.data.role in ['teacher', 'subjectTeacher', 'guardian'])
+          && request.resource.data.role in ['teacher', 'subjectTeacher', 'guardian']) ||
+        (isAnyTeacher()
+          && 'schoolId' in request.resource.data
+          && userSchoolId() == request.resource.data.schoolId
+          && 'role' in request.resource.data
+          && request.resource.data.role == 'guardian')
       )) || (
         'role' in request.resource.data && request.resource.data.role == 'owner'
       );
@@ -390,6 +395,15 @@ service cloud.firestore {
           && resource.data.role in ['teacher', 'subjectTeacher', 'guardian']
           && 'role' in request.resource.data
           && request.resource.data.role in ['teacher', 'subjectTeacher', 'guardian']) ||
+
+        // Teacher: may update a guardian in their own school. No privilege escalation.
+        (isAnyTeacher()
+          && 'schoolId' in resource.data
+          && userSchoolId() == resource.data.schoolId
+          && 'role' in resource.data
+          && resource.data.role == 'guardian'
+          && 'role' in request.resource.data
+          && request.resource.data.role == 'guardian') ||
 
         // ③ Non-admin self-update: role and schoolId MUST remain unchanged.
         (userEmail() == email

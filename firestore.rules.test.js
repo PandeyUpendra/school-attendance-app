@@ -367,6 +367,64 @@ describe('Firestore Security Rules', () => {
       );
     });
 
+    test('ALLOW — teacher can create a guardian allowed_users document in their own school', async () => {
+      await assertSucceeds(
+        setDoc(doc(db(UID.teacher9A), 'allowed_users', 'new-guardian@school.test'), {
+          role: 'guardian', schoolId: SCHOOL_ID,
+          name: 'New Guardian', email: 'new-guardian@school.test',
+          studentClass: 'Class 9-A', studentRoll: 42,
+          status: 'pending',
+        }),
+      );
+    });
+
+    test('DENY — teacher cannot create a guardian allowed_users document in a different school', async () => {
+      await assertFails(
+        setDoc(doc(db(UID.teacher9A), 'allowed_users', 'new-guardian-other@school.test'), {
+          role: 'guardian', schoolId: 'other_school',
+          name: 'New Guardian Other', email: 'new-guardian-other@school.test',
+          studentClass: 'Class 9-A', studentRoll: 42,
+          status: 'pending',
+        }),
+      );
+    });
+
+    test('ALLOW — teacher can update a guardian allowed_users document in their own school', async () => {
+      // Seed a guardian first
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'allowed_users', 'existing-guardian@school.test'), {
+          role: 'guardian', schoolId: SCHOOL_ID,
+          name: 'Existing Guardian', email: 'existing-guardian@school.test',
+          studentClass: 'Class 9-A', studentRoll: 42,
+          status: 'pending',
+        });
+      });
+
+      await assertSucceeds(
+        updateDoc(doc(db(UID.teacher9A), 'allowed_users', 'existing-guardian@school.test'), {
+          studentRoll: 43,
+        }),
+      );
+    });
+
+    test('DENY — teacher cannot update a guardian allowed_users document to a different role', async () => {
+      // Seed a guardian first
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), 'allowed_users', 'existing-guardian-escalate@school.test'), {
+          role: 'guardian', schoolId: SCHOOL_ID,
+          name: 'Existing Guardian', email: 'existing-guardian-escalate@school.test',
+          studentClass: 'Class 9-A', studentRoll: 42,
+          status: 'pending',
+        });
+      });
+
+      await assertFails(
+        updateDoc(doc(db(UID.teacher9A), 'allowed_users', 'existing-guardian-escalate@school.test'), {
+          role: 'teacher',
+        }),
+      );
+    });
+
     test('ALLOW — user can update their own non-privileged fields', async () => {
       // Must pass role and schoolId unchanged; otherwise the rule rejects.
       await assertSucceeds(
