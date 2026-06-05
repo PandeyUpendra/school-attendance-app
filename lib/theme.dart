@@ -131,5 +131,35 @@ abstract class AppTheme {
     // the chip — disable it app-wide so selection only changes colour, never
     // size. Individual chips still control their own colours/borders.
     chipTheme: const ChipThemeData(showCheckmark: false),
+
+    // Date picker: match the brand instead of the default Material teal. The
+    // header and the selected day use the deep brand green; the calendar body
+    // stays white for legibility.
+    datePickerTheme: DatePickerThemeData(
+      backgroundColor: surface,
+      headerBackgroundColor: primary,
+      headerForegroundColor: Colors.white,
+      dayBackgroundColor: WidgetStateProperty.resolveWith((s) =>
+          s.contains(WidgetState.selected) ? primary : null),
+      dayForegroundColor: WidgetStateProperty.resolveWith((s) =>
+          s.contains(WidgetState.selected) ? Colors.white : null),
+      todayForegroundColor: WidgetStateProperty.resolveWith((s) =>
+          s.contains(WidgetState.selected) ? Colors.white : primary),
+      todayBackgroundColor: WidgetStateProperty.resolveWith((s) =>
+          s.contains(WidgetState.selected) ? primary : null),
+      todayBorder: const BorderSide(color: primary),
+      yearBackgroundColor: WidgetStateProperty.resolveWith((s) =>
+          s.contains(WidgetState.selected) ? primary : null),
+      yearForegroundColor: WidgetStateProperty.resolveWith((s) =>
+          s.contains(WidgetState.selected) ? Colors.white : null),
+    ),
+
+    // Time picker: same brand treatment for any time-of-day dialogs.
+    timePickerTheme: const TimePickerThemeData(
+      backgroundColor: surface,
+      hourMinuteColor: primaryLight,
+      dialHandColor: primary,
+      dialBackgroundColor: background,
+    ),
   );
 }
