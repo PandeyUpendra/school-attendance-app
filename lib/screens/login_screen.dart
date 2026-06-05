@@ -219,12 +219,12 @@ class _LoginScreenState extends State<LoginScreen> {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: AppTheme.primaryMid,
+        systemNavigationBarColor: AppTheme.primaryDark,
         systemNavigationBarIconBrightness: Brightness.light,
         systemNavigationBarContrastEnforced: false,
       ),
       child: Scaffold(
-        backgroundColor: AppTheme.primaryMid,
+        backgroundColor: AppTheme.primaryDark,
         body: Container(
           decoration: const BoxDecoration(
             color: AppTheme.primaryDark,

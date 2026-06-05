@@ -135,7 +135,7 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.primaryMid,
+      backgroundColor: AppTheme.primaryDark,
       body: Container(
         decoration: const BoxDecoration(
           color: AppTheme.primaryDark,
