@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
 import '../widgets/refreshable_data.dart';
@@ -390,7 +391,9 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
         await svc.addAllowedUser(
           email, '', 'coordinator',
           name: name,
-          schoolId: 'school_1',
+          // Inherit the principal's own school so the coordinator is created in
+          // that school, not the hardcoded default.
+          schoolId: AuthService.currentSchoolId,
           assignedClasses: classes,
           createdByEmail: widget.principalEmail,
           createdByRole: 'principal',

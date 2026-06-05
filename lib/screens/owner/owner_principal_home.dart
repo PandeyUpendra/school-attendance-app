@@ -874,7 +874,9 @@ class _OPManagePageState extends State<_OPManagePage> {
     setState(() => _saving = true);
     try {
       // No password needed — auto-generated + setup link emailed.
-      await _svc.addAllowedUser(email, '', _createRole, name: name, createdByEmail: widget.email, createdByRole: widget.role);
+      // Stamp the creator's own school so sub-accounts stay inside it instead
+      // of falling back to the default 'school_1'.
+      await _svc.addAllowedUser(email, '', _createRole, name: name, schoolId: AuthService.currentSchoolId, createdByEmail: widget.email, createdByRole: widget.role);
       _nameCtrl.clear(); _emailCtrl.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${RolePermissionService.roleDisplayName(_createRole)} account created'), backgroundColor: AppTheme.success));

@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../firebase_options.dart';
@@ -135,7 +134,7 @@ class TimetableService extends BaseFirestoreService {
 
     // Send invitation / password-setup email.
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: normEmail);
+      await AuthService().sendPasswordEmailViaFunction(normEmail, invite: true);
     } catch (_) {
       // Non-fatal.
     }
@@ -395,6 +394,7 @@ class TimetableService extends BaseFirestoreService {
       return <String, dynamic>{
         'email':           d.id,
         'role':            (data['role']         as String? ?? 'teacher'),
+        'schoolId':        (data['schoolId']     as String? ?? ''),
         'studentClass':    (data['studentClass'] as String? ?? ''),
         'studentRoll':     (data['studentRoll']  as int?    ?? 0),
         'assignedClasses': rawClasses != null
@@ -536,7 +536,7 @@ class TimetableService extends BaseFirestoreService {
     // 3. Send invitation / password-setup email via Firebase Auth.
     //    The user will click the link to set their own password.
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: normEmail);
+      await AuthService().sendPasswordEmailViaFunction(normEmail, invite: true);
     } catch (_) {
       // Non-fatal; admin can resend from the user management screen.
     }
@@ -594,9 +594,10 @@ class TimetableService extends BaseFirestoreService {
   Future<void> resendInvitationEmail(String email) async {
     // Let failures propagate so callers can report truthfully and offer a
     // retry — swallowing this is what caused "invite sent" to be shown when no
-    // email actually went out.
-    await FirebaseAuth.instance
-        .sendPasswordResetEmail(email: email.toLowerCase().trim());
+    // email actually went out. Routes through the Cloud Function for
+    // inbox-grade deliverability (falls back to the built-in email internally).
+    await AuthService()
+        .sendPasswordEmailViaFunction(email.toLowerCase().trim(), invite: true);
   }
 
   /// Provisions Firebase Auth + allowed_users for a teacher who was added
@@ -650,7 +651,7 @@ class TimetableService extends BaseFirestoreService {
     } catch (_) {}
 
     // Send invitation / password-setup email.
-    await FirebaseAuth.instance.sendPasswordResetEmail(email: normEmail);
+    await AuthService().sendPasswordEmailViaFunction(normEmail, invite: true);
   }
 
   /// Provisions Firebase Auth + allowed_users for a guardian email set on a
@@ -700,7 +701,7 @@ class TimetableService extends BaseFirestoreService {
     } catch (_) {}
 
     // Send invite / password-setup email.
-    await FirebaseAuth.instance.sendPasswordResetEmail(email: normEmail);
+    await AuthService().sendPasswordEmailViaFunction(normEmail, invite: true);
   }
 
   /// Returns the role if the email is registered, or null if not found.

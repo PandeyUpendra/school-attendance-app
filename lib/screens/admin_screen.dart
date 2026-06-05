@@ -94,9 +94,15 @@ class _AdminScreenState extends State<AdminScreen> {
 
     setState(() => _saving = true);
     try {
+      // Each owner runs an independent school. Stamp a unique schoolId on the
+      // account so two owners never share data — without this the account is
+      // written with no schoolId and login falls back to the default
+      // 'school_1', which is why every owner was seeing the same school.
+      final schoolId =
+          'school_${DateTime.now().millisecondsSinceEpoch}_${email.hashCode.abs()}';
       // No password needed — a secure temp is generated automatically and a
       // setup link is sent to the user's email via Firebase Auth.
-      await _service.addAllowedUser(email, '', _role);
+      await _service.addAllowedUser(email, '', _role, schoolId: schoolId);
       _emailCtrl.clear();
       if (!mounted) return;
       await _load();
@@ -401,9 +407,10 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Widget _buildUserCard(Map<String, dynamic> user) {
-    final email = user['email'] as String;
-    final role  = user['role'] as String;
-    final color = _roleColor(role);
+    final email    = user['email'] as String;
+    final role     = user['role'] as String;
+    final schoolId = (user['schoolId'] as String?) ?? '';
+    final color    = _roleColor(role);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -442,6 +449,20 @@ class _AdminScreenState extends State<AdminScreen> {
                         fontWeight: FontWeight.w600,
                         color: color)),
               ),
+              if (schoolId.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Row(children: [
+                  Icon(Icons.school_outlined,
+                      size: 12, color: Colors.grey.shade400),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(schoolId,
+                        style: TextStyle(
+                            fontSize: 10.5, color: Colors.grey.shade500),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                ]),
+              ],
             ],
           ),
         ),

@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'base_firestore_service.dart';
@@ -19,6 +20,7 @@ class AuthService {
   static const _keyStudentLinks    = 'auth_student_links';
 
   static final _auth = FirebaseAuth.instance;
+  static final _functions = FirebaseFunctions.instance;
 
   /// Returns the current school ID set during login, falling back to the
   /// default production school ID so pre-migration sessions still work.
@@ -42,11 +44,37 @@ class AuthService {
     );
   }
 
+  /// Sends a password setup / reset email via the `sendPasswordEmail` Cloud
+  /// Function, which delivers through an authenticated SendGrid domain so the
+  /// message lands in the inbox instead of Gmail's spam folder.
+  ///
+  /// [invite] = true is the privileged path used when a management user creates
+  /// an account (the function verifies the caller's role). [invite] = false is
+  /// self-service "forgot password".
+  ///
+  /// Falls back to Firebase Auth's built-in email if the function call fails
+  /// (e.g. not deployed yet), so account creation / reset is never blocked.
+  /// The fallback's own failure is allowed to propagate so callers that need to
+  /// report success/failure truthfully still can.
+  Future<void> sendPasswordEmailViaFunction(String email,
+      {bool invite = false}) async {
+    final normEmail = email.trim().toLowerCase();
+    try {
+      await _functions.httpsCallable('sendPasswordEmail').call(<String, dynamic>{
+        'email': normEmail,
+        'type': invite ? 'invite' : 'reset',
+      });
+    } on FirebaseFunctionsException {
+      // Function unavailable / not deployed — fall back to the built-in email so
+      // the user is never blocked. Let a fallback failure propagate.
+      await _auth.sendPasswordResetEmail(email: normEmail);
+    }
+  }
+
   /// Sends a password-reset email (also used as first-time invitation email).
+  /// Routes through the Cloud Function for inbox-grade deliverability.
   Future<void> sendPasswordResetEmail(String email) async {
-    await _auth.sendPasswordResetEmail(
-      email: email.trim().toLowerCase(),
-    );
+    await sendPasswordEmailViaFunction(email.trim().toLowerCase());
     AuditService.emit(
       action:   'update',
       entity:   'auth',
