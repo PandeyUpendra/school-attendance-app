@@ -6,29 +6,30 @@ import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
 import '../utils/validators.dart';
-import 'coordinator_dashboard.dart';
-import 'home_screen.dart';
-import 'principal_dashboard.dart';
-import 'guardian_login_screen.dart';
 import 'admin_screen.dart';
-import 'admin_login_screen.dart';
-import 'forgot_password_screen.dart';
-import 'owner/owner_home.dart';
-import 'owner/owner_principal_home.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+/// Full-screen admin login — replaces the old "Admin Access" dialog so the
+/// experience matches the other roles (staff / guardian) instead of a
+/// cramped, laggy `AlertDialog`.
+///
+/// Authenticates email + password via Firebase Auth, verifies the account
+/// holds the `admin` role in `allowed_users`, persists a session so the
+/// `RoleGuard` on [AdminScreen] passes, then opens the admin panel. An inline
+/// "Forgot password?" link sends a Firebase reset email to the entered address.
+class AdminLoginScreen extends StatefulWidget {
+  const AdminLoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<AdminLoginScreen> createState() => _AdminLoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _AdminLoginScreenState extends State<AdminLoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl  = TextEditingController();
-  bool _loading    = false;
-  bool _showPass   = false;
+  bool _loading  = false;
+  bool _showPass = false;
   String? _error;
+  String? _resetMsg;
 
   @override
   void dispose() {
@@ -38,80 +39,49 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signIn() async {
-    final email    = _emailCtrl.text.trim().toLowerCase();
-    final password = _passCtrl.text;
-
+    final email = _emailCtrl.text.trim().toLowerCase();
+    final pass  = _passCtrl.text;
     if (!Validators.isValidEmail(email)) {
-      setState(() => _error = 'Enter a valid email address.');
+      setState(() { _error = 'Enter a valid email address.'; _resetMsg = null; });
       return;
     }
-    if (password.isEmpty) {
-      setState(() => _error = 'Enter your password.');
+    if (pass.isEmpty) {
+      setState(() { _error = 'Enter your password.'; _resetMsg = null; });
       return;
     }
 
-    setState(() { _loading = true; _error = null; });
-
+    setState(() { _loading = true; _error = null; _resetMsg = null; });
     try {
-      // Firebase Auth sign-in.
-      await AuthService().signInWithEmail(email, password);
-
-      if (!mounted) return;
-
-      // Fetch role + extra data from allowed_users.
+      // 1. Firebase Auth sign-in.
+      await AuthService().signInWithEmail(email, pass);
+      // 2. Verify the account holds the admin role.
       final userData = await TimetableService().getAllowedUserDoc(email);
-      if (!mounted) return;
-
-      if (userData == null) {
+      final role = userData?['role'] as String? ?? '';
+      if (role != 'admin') {
         await AuthService().signOut();
-        setState(() {
-          _loading = false;
-          _error = 'Your account is not registered in this school system. '
-              'Contact your administrator.';
-        });
+        if (!mounted) return;
+        setState(() { _loading = false; _error = 'Not an admin account.'; });
         return;
       }
 
-      final role     = userData['role']     as String? ?? '';
-      final name     = userData['name']     as String? ?? '';
-      final schoolId = userData['schoolId'] as String? ?? '';
-      final status   = userData['status']   as String? ?? 'active';
-
-      if (status == 'suspended') {
-        await AuthService().signOut();
-        setState(() {
-          _loading = false;
-          _error = 'Your account has been suspended. Contact your administrator.';
-        });
-        return;
-      }
-
-      // Mark account active on first successful login.
-      if (status == 'pending') {
-        TimetableService().markUserActive(email);
-      }
-
+      final schoolId = userData?['schoolId'] as String? ?? '';
       if (schoolId.isNotEmpty) {
         BaseFirestoreService.currentSchoolId = schoolId;
       }
 
-      // Role-specific data.
-      List<String>? assignedClasses;
-      if (role == 'coordinator' || role == 'principal' || role == 'owner') {
-        final loginData = await TimetableService().getAssignedClasses(email);
-        assignedClasses = loginData.assignedClasses;
-      }
-
+      // 3. Admin verified — persist a session so RoleGuard on the admin
+      //    screen passes, then open it. (The splash gate deliberately does
+      //    NOT auto-resume admin sessions, so this never causes the app to
+      //    launch into the admin panel.)
       await AuthService().saveSession(
-        email:          email,
-        role:           role,
-        name:           name,
-        schoolId:       schoolId,
-        assignedClasses: assignedClasses,
+        email:    email,
+        role:     'admin',
+        name:     userData?['name'] as String? ?? '',
+        schoolId: schoolId,
       );
-
       if (!mounted) return;
-      _routeToDashboard(role, email);
+      Navigator.pushReplacement(
+          context, MaterialPageRoute(builder: (_) => const AdminScreen()));
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -127,79 +97,37 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _routeToDashboard(String role, String email) {
-    Widget destination;
-    switch (role) {
-      case 'admin':
-        destination = const AdminScreen();
-        break;
-      case 'coordinator':
-        destination = const CoordinatorDashboard();
-        break;
-      case 'principal':
-        destination = const PrincipalDashboard();
-        break;
-      case 'owner':
-        destination = const OwnerHome();
-        break;
-      case 'ownerPrincipal':
-        destination = const OwnerPrincipalHome();
-        break;
-      case 'teacher':
-      case 'subjectTeacher':
-        // Teacher needs to load their full profile — use splash gate routing.
-        _loadTeacherAndRoute(email);
-        return;
-      default:
-        setState(() {
-          _loading = false;
-          _error   = 'Unknown role "$role". Contact your administrator.';
-        });
-        return;
+  /// Sends a Firebase password-reset link to the entered admin email.
+  /// For an alias like name+admin@gmail.com the email lands in the base
+  /// name@gmail.com inbox.
+  Future<void> _resetPassword() async {
+    final email = _emailCtrl.text.trim().toLowerCase();
+    if (!Validators.isValidEmail(email)) {
+      setState(() {
+        _resetMsg = null;
+        _error = 'Enter your admin email above first, then tap reset.';
+      });
+      return;
     }
-    Navigator.pushReplacement(
-        context, MaterialPageRoute(builder: (_) => destination));
-  }
-
-  Future<void> _loadTeacherAndRoute(String email) async {
+    setState(() { _loading = true; _error = null; _resetMsg = null; });
     try {
-      final teachers = await TimetableService().getTeachers();
-      final teacher = teachers.firstWhere(
-        (t) => t.email.toLowerCase() == email,
-        orElse: () => throw Exception('Teacher profile not found'),
-      );
+      await AuthService().sendPasswordResetEmail(email);
       if (!mounted) return;
-
-      // Save teacherId to session for future restarts.
-      final session = await AuthService().getSession();
-      if (session != null) {
-        await AuthService().saveSession(
-          email:          session['email'] as String,
-          role:           session['role']  as String,
-          name:           session['name']  as String? ?? '',
-          schoolId:       session['schoolId'] as String? ?? '',
-          teacherId:      teacher.id,
-        );
-      }
+      setState(() {
+        _loading = false;
+        _resetMsg = 'Reset link sent to $email. Check that inbox, set a '
+            'new password, then sign in here.';
+      });
+    } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => HomeScreen(teacher: teacher)));
+      setState(() { _loading = false; _error = AuthService.friendlyAuthError(e); });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error   = 'Teacher profile not found. Ask your administrator to set up your profile.';
+        _error = 'Could not send the reset email. Check your connection.';
       });
     }
-  }
-
-  /// Admin access — opens the full-screen [AdminLoginScreen] (replaces the old
-  /// in-line "Admin Access" dialog so the experience matches the other roles).
-  void _openAdminLogin() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const AdminLoginScreen()),
-    );
   }
 
   @override
@@ -229,12 +157,23 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 24),
+                  // Back button
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      onPressed: _loading ? null : () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      tooltip: 'Back',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
                   // Header
-                  const Icon(Icons.school, size: 56, color: Colors.white),
+                  const Icon(Icons.manage_accounts_outlined,
+                      size: 56, color: Colors.white),
                   const SizedBox(height: 16),
                   const Text(
-                    'School App',
+                    'Admin Access',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 28,
@@ -244,7 +183,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Sign in to your account',
+                    'Manage registered users & login access',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 15, color: Colors.white.withValues(alpha: 0.75)),
@@ -271,11 +210,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         // Email
                         TextField(
                           controller: _emailCtrl,
+                          enabled: !_loading,
                           keyboardType: TextInputType.emailAddress,
-                          // Email must not be auto-corrected/suggested: otherwise
-                          // the IME holds the whole address as one composing
-                          // region, showing it highlighted and making single
-                          // characters impossible to edit/delete.
                           autocorrect: false,
                           enableSuggestions: false,
                           maxLength: 100,
@@ -294,6 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         // Password
                         TextField(
                           controller: _passCtrl,
+                          enabled: !_loading,
                           obscureText: !_showPass,
                           maxLength: 100,
                           maxLengthEnforcement: MaxLengthEnforcement.enforced,
@@ -321,12 +258,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) =>
-                                      const ForgotPasswordScreen()),
-                            ),
+                            onPressed: _loading ? null : _resetPassword,
                             child: const Text(
                               'Forgot Password?',
                               style: TextStyle(color: AppTheme.primary),
@@ -341,8 +273,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             decoration: BoxDecoration(
                               color: Colors.red.shade50,
                               borderRadius: BorderRadius.circular(10),
-                              border:
-                                  Border.all(color: Colors.red.shade200),
+                              border: Border.all(color: Colors.red.shade200),
                             ),
                             child: Row(
                               children: [
@@ -363,7 +294,35 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 12),
                         ],
 
-                        // Sign In button
+                        // Reset confirmation
+                        if (_resetMsg != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.green.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.mark_email_read_outlined,
+                                    color: Colors.green.shade600, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _resetMsg!,
+                                    style: TextStyle(
+                                        fontSize: 12.5,
+                                        color: Colors.green.shade700),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // Login button
                         SizedBox(
                           height: 52,
                           child: ElevatedButton(
@@ -380,11 +339,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                     width: 22,
                                     height: 22,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white),
+                                        strokeWidth: 2, color: Colors.white),
                                   )
                                 : const Text(
-                                    'Sign In',
+                                    'Login',
                                     style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600),
@@ -392,44 +350,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // Guardian login
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const GuardianLoginScreen()),
-                    ),
-                    icon: const Icon(Icons.family_restroom_outlined,
-                        color: Colors.white70),
-                    label: const Text(
-                      'Guardian? Sign in here',
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Admin access (small, unobtrusive)
-                  Center(
-                    child: TextButton(
-                      onPressed: _openAdminLogin,
-                      child: Text(
-                        'Admin Access',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.45)),
-                      ),
                     ),
                   ),
                 ],
