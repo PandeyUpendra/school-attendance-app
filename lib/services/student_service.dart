@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/student.dart';
 import '../models/student_remark.dart';
+import '../models/guardian_provided_details.dart';
+import '../models/school_provided_details.dart';
 import '../repositories/student_repository.dart';
 import '../utils/app_logger.dart';
 import 'audit_log_service.dart';
@@ -881,7 +883,66 @@ class StudentService extends BaseFirestoreService {
     }
     await batch.commit();
   }
+
+  // ── Guardian / School Detail Updates Synced Workflows ──────────────────────────
+
+  CollectionReference<Map<String, dynamic>> _guardianDetailsRef(String studentId) =>
+      _studentsRef.doc(studentId).collection('guardianProvidedDetails');
+
+  CollectionReference<Map<String, dynamic>> _schoolDetailsRef(String studentId) =>
+      _studentsRef.doc(studentId).collection('schoolProvidedDetails');
+
+  Future<void> submitGuardianProvidedDetails(
+      String studentId, GuardianProvidedDetails details) async {
+    final ref = _guardianDetailsRef(studentId);
+    await ref.add(details.toJson());
+  }
+
+  Stream<List<GuardianProvidedDetails>> watchGuardianProvidedDetails(String studentId) {
+    return _guardianDetailsRef(studentId)
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => GuardianProvidedDetails.fromJson(d.id, d.data()))
+            .toList());
+  }
+
+  Future<void> updateGuardianProvidedDetailsStatus(
+      String studentId, String detailId, String status,
+      {String remarks = ''}) async {
+    await _guardianDetailsRef(studentId).doc(detailId).update({
+      'status': status,
+      'remarks': remarks,
+      'resolvedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> submitSchoolProvidedDetails(
+      String studentId, SchoolProvidedDetails details) async {
+    final ref = _schoolDetailsRef(studentId);
+    await ref.add(details.toJson());
+  }
+
+  Stream<List<SchoolProvidedDetails>> watchSchoolProvidedDetails(String studentId) {
+    return _schoolDetailsRef(studentId)
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => SchoolProvidedDetails.fromJson(d.id, d.data()))
+            .toList());
+  }
+
+  Future<void> updateSchoolProvidedDetailsStatus(
+      String studentId, String detailId, String status,
+      {String remarks = ''}) async {
+    await _schoolDetailsRef(studentId).doc(detailId).update({
+      'status': status,
+      'remarks': remarks,
+      'resolvedAt': FieldValue.serverTimestamp(),
+    });
+  }
 }
+
 
 // ── Data classes for summary (public — used by coordinator screens) ───────────
 
