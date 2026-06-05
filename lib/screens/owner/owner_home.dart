@@ -234,11 +234,7 @@ class _OwnerHomeState extends State<OwnerHome> {
       clipper: _WaveClipper(),
       child: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppTheme.primaryDark, AppTheme.primaryMid],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: AppTheme.primaryDark,
         ),
         child: SafeArea(
           bottom: false,

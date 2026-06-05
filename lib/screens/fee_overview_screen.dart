@@ -201,11 +201,7 @@ class _SchoolSummaryBanner extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(0, 0, 0, 0),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppTheme.primaryDark, AppTheme.primaryMid],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppTheme.primaryDark,
       ),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       child: Column(

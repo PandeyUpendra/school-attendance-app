@@ -289,11 +289,7 @@ class _MonthlySummaryCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppTheme.primaryDark, AppTheme.primaryMid],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: AppTheme.primaryDark,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(children: [

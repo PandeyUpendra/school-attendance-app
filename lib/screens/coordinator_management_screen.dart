@@ -203,10 +203,7 @@ class _CoordCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppTheme.primary, AppTheme.primaryMid],
-                begin: Alignment.topLeft, end: Alignment.bottomRight,
-              ),
+              color: AppTheme.primary,
               borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(

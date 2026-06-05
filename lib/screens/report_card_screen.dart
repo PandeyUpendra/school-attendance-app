@@ -430,9 +430,7 @@ class _TopperBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppTheme.primaryDark, AppTheme.primary],
-        ),
+        color: AppTheme.primaryDark,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(children: [

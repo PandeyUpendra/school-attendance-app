@@ -157,11 +157,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         backgroundColor: AppTheme.primaryMid,
         body: Container(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [AppTheme.primaryDark, AppTheme.primaryMid],
-            ),
+            color: AppTheme.primaryDark,
           ),
           child: SafeArea(
             child: SingleChildScrollView(

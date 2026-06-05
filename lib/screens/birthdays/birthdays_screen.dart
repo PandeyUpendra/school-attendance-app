@@ -160,11 +160,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
   Widget _buildHeader() {
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppTheme.primary, AppTheme.primaryDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppTheme.primaryDark,
       ),
       child: SafeArea(
         bottom: false,
@@ -345,13 +341,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isToday
-              ? [AppTheme.primaryMid, AppTheme.accent]
-              : [AppTheme.primary, AppTheme.primaryDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: isToday ? AppTheme.primaryMid : AppTheme.primaryDark,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -587,9 +577,7 @@ class _BirthdayCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppTheme.accent, AppTheme.accent],
-                ),
+                color: AppTheme.accent,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
               ),
               child: Row(
@@ -1389,11 +1377,7 @@ class _BirthdayBannerState extends State<BirthdayBanner> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFFF8E1), Color(0xFFFFF3E0)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: const Color(0xFFFFF3E0),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFF57F17)),
               ),

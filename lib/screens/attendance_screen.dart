@@ -1119,11 +1119,7 @@ class _AttendanceHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppTheme.primaryDark, AppTheme.primaryMid],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppTheme.primaryDark,
       ),
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
       child: SafeArea(

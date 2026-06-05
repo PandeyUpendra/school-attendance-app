@@ -881,14 +881,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        AppTheme.primaryDark,
-                        AppTheme.primaryMid,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: AppTheme.primaryDark,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(

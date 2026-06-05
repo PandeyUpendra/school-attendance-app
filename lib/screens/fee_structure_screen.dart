@@ -550,10 +550,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppTheme.primaryDark, AppTheme.primaryMid],
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
-            ),
+            color: AppTheme.primaryDark,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(

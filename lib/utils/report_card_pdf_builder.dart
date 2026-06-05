@@ -166,11 +166,7 @@ pw.Widget _buildHeader(ReportCardTemplate template, Exam exam) {
   return pw.Container(
     padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
     decoration: const pw.BoxDecoration(
-      gradient: pw.LinearGradient(
-        colors: [_kVioletDk, _kViolet],
-        begin: pw.Alignment.centerLeft,
-        end:   pw.Alignment.centerRight,
-      ),
+      color: _kVioletDk,
       borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
     ),
     child: pw.Row(

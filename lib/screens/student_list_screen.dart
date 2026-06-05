@@ -1164,11 +1164,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             // ── Header ──────────────────────────────────────────────────────
             Container(
               decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppTheme.primaryDark, AppTheme.primaryMid],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: AppTheme.primaryDark,
               ),
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
