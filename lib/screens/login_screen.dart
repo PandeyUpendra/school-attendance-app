@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
 import '../utils/validators.dart';
+import '../widgets/email_text_form_field.dart';
 import 'coordinator_dashboard.dart';
 import 'home_screen.dart';
 import 'principal_dashboard.dart';
@@ -291,17 +292,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // Email
-                        TextField(
+                        EmailTextFormField(
                           controller: _emailCtrl,
-                          keyboardType: TextInputType.emailAddress,
-                          // Email must not be auto-corrected/suggested: otherwise
-                          // the IME holds the whole address as one composing
-                          // region, showing it highlighted and making single
-                          // characters impossible to edit/delete.
-                          autocorrect: false,
-                          enableSuggestions: false,
                           maxLength: 100,
-                          maxLengthEnforcement: MaxLengthEnforcement.enforced,
                           textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
                             labelText: 'Email Address',

@@ -18,6 +18,7 @@ import '../../services/school_settings_service.dart';
 import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
+import '../../widgets/email_text_form_field.dart';
 import '../../utils/role_guard.dart';
 import '../onboarding/school_onboarding_screen.dart';
 import '../principal_dashboard.dart';
@@ -917,7 +918,15 @@ class _OPManagePageState extends State<_OPManagePage> {
               ] else Padding(padding: const EdgeInsets.only(bottom: 12), child: Text('Creating: ${RolePermissionService.roleDisplayName(allowed.first)}', style: const TextStyle(fontWeight: FontWeight.w600, color: _primary))),
               _opField(_nameCtrl, 'Full Name', Icons.person_outline, keyboardType: TextInputType.name),
               const SizedBox(height: 10),
-              _opField(_emailCtrl, 'Email', Icons.email_outlined, keyboardType: TextInputType.emailAddress),
+              EmailTextFormField(
+                controller: _emailCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  isDense: true,
+                ),
+              ),
               const SizedBox(height: 10),
               Row(children: [
                 const Icon(Icons.info_outline, size: 13, color: _primary),

@@ -10,6 +10,7 @@ import '../../services/auth_service.dart';
 import '../../services/school_settings_service.dart';
 import '../../theme.dart';
 import '../../utils/validators.dart';
+import '../../widgets/email_text_form_field.dart';
 import '../../widgets/index_building_notice.dart';
 
 class EditSchoolSettingsScreen extends StatefulWidget {
@@ -257,8 +258,16 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
         _field(_phoneCtrl, 'Phone', Icons.phone_outlined,
             type: TextInputType.phone, readOnly: !widget.editing),
         const SizedBox(height: 12),
-        _field(_emailCtrl, 'Email', Icons.email_outlined,
-            type: TextInputType.emailAddress, readOnly: !widget.editing),
+        const SizedBox(height: 12),
+        EmailTextFormField(
+          controller: _emailCtrl,
+          readOnly: !widget.editing,
+          decoration: InputDecoration(
+            labelText: 'Email',
+            prefixIcon: const Icon(Icons.email_outlined),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
         const SizedBox(height: 12),
         _field(_principalCtrl, 'Principal Name', Icons.person_outline,
             readOnly: !widget.editing),

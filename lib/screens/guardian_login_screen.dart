@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
 import '../utils/validators.dart';
+import '../widgets/email_text_form_field.dart';
 import 'guardian_dashboard.dart';
 import 'student_selection_screen.dart';
 import 'forgot_password_screen.dart';
@@ -204,11 +205,8 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Email
-                      TextField(
+                      EmailTextFormField(
                         controller: _emailCtrl,
-                        keyboardType: TextInputType.emailAddress,
-                        autocorrect: false,
-                        enableSuggestions: false,
                         textInputAction: TextInputAction.next,
                         decoration: InputDecoration(
                           labelText: 'Email Address',

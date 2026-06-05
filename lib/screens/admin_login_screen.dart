@@ -5,6 +5,7 @@ import '../theme.dart';
 import '../services/auth_service.dart';
 import '../services/base_firestore_service.dart';
 import '../utils/validators.dart';
+import '../widgets/email_text_form_field.dart';
 import 'admin_screen.dart';
 
 /// Full-screen admin login — replaces the old "Admin Access" dialog so the
@@ -216,14 +217,10 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // Email
-                        TextField(
+                        EmailTextFormField(
                           controller: _emailCtrl,
                           enabled: !_loading,
-                          keyboardType: TextInputType.emailAddress,
-                          autocorrect: false,
-                          enableSuggestions: false,
                           maxLength: 100,
-                          maxLengthEnforcement: MaxLengthEnforcement.enforced,
                           textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
                             labelText: 'Email Address',

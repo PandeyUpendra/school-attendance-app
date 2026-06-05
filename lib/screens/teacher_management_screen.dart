@@ -11,6 +11,7 @@ import '../services/timetable_service.dart';
 import '../services/teacher_deletion_service.dart';
 import '../services/base_firestore_service.dart';
 import '../theme.dart';
+import '../widgets/email_text_form_field.dart';
 import '../widgets/refreshable_data.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1532,19 +1533,11 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                 ),
               ],
               const SizedBox(height: 12),
-              TextFormField(
+              EmailTextFormField(
                 controller: _emailCtrl,
                 decoration: const InputDecoration(
                     labelText: 'Email Address',
                     prefixIcon: Icon(Icons.email_outlined)),
-                keyboardType: TextInputType.emailAddress,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Required';
-                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(v.trim())) {
-                    return 'Enter a valid email address';
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 12),
               TextFormField(

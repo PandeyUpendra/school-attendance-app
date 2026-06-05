@@ -9,6 +9,7 @@ import '../services/base_firestore_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
+import '../widgets/email_text_form_field.dart';
 import 'consent/parental_consent_flow.dart';
 
 class AddStudentScreen extends StatefulWidget {
@@ -743,16 +744,31 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Email fields must not be auto-corrected/suggested, or the IME holds the
-    // whole address as one composing region (shown highlighted, impossible to
-    // edit a single character).
     final isEmail = keyboard == TextInputType.emailAddress;
+    if (isEmail) {
+      return EmailTextFormField(
+        controller: controller,
+        enabled: enabled,
+        textCapitalization: caps,
+        validator: validator,
+        inputFormatters: inputFormatters,
+        maxLength: maxLength,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon),
+          border:
+              OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        ),
+      );
+    }
     return TextFormField(
       controller: controller,
       enabled: enabled,
       keyboardType: keyboard,
-      autocorrect: !isEmail,
-      enableSuggestions: !isEmail,
+      autocorrect: true,
+      enableSuggestions: true,
       textCapitalization: caps,
       validator: validator,
       inputFormatters: inputFormatters,

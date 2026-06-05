@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../widgets/email_text_form_field.dart';
 import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../utils/app_logger.dart';
@@ -337,9 +338,8 @@ class _AdminScreenState extends State<AdminScreen> {
           // Email
           _fieldLabel('EMAIL ADDRESS'),
           const SizedBox(height: 6),
-          TextField(
+          EmailTextFormField(
             controller: _emailCtrl,
-            keyboardType: TextInputType.emailAddress,
             decoration: InputDecoration(
               hintText: 'name@example.com',
               hintStyle: TextStyle(color: Colors.grey.shade400),

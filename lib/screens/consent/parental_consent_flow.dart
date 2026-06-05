@@ -6,6 +6,7 @@ import '../../services/consent_service.dart';
 import '../../theme.dart';
 import '../../utils/privacy_notice.dart';
 import '../../utils/validators.dart';
+import '../../widgets/email_text_form_field.dart';
 
 /// Multi-step parental consent flow.
 ///
@@ -320,12 +321,18 @@ class _GuardianDetailsStep extends StatelessWidget {
             },
           ),
           const SizedBox(height: 16),
-          _Field(
+          EmailTextFormField(
             controller: emailCtrl,
-            label:   'Email (optional)',
-            icon:    Icons.email_outlined,
-            keyboard: TextInputType.emailAddress,
+            isOptional: true,
             validator: Validators.optionalEmail,
+            decoration: InputDecoration(
+              labelText:    'Email (optional)',
+              prefixIcon:   const Icon(Icons.email_outlined, color: AppTheme.primary),
+              border:       OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              filled:       true,
+              fillColor:    Colors.white,
+            ),
           ),
           const SizedBox(height: 32),
           _NextButton(label: 'Continue', onPressed: onNext),

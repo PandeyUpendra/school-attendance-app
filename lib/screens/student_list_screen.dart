@@ -14,6 +14,7 @@ import '../services/timetable_service.dart';
 import '../theme.dart';
 import '../utils/app_logger.dart';
 import '../utils/validators.dart';
+import '../widgets/email_text_form_field.dart';
 import 'add_student_screen.dart';
 import 'attendance_certificate_screen.dart';
 import '../widgets/refreshable_data.dart';
@@ -986,12 +987,8 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 12),
-              TextField(
+              EmailTextFormField(
                 controller: ctrl,
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                enableSuggestions: false,
-                autofocus: true,
                 decoration: InputDecoration(
                   labelText: 'Guardian email address',
                   errorText: emailErr,

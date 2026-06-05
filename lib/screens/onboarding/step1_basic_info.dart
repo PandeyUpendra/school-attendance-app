@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/school_onboarding.dart';
 import '../../services/auth_service.dart';
 import '../../theme.dart';
+import '../../widgets/email_text_form_field.dart';
 
 class Step1BasicInfo extends StatefulWidget {
   final SchoolOnboarding initial;
@@ -157,11 +158,8 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
             },
           ),
           const SizedBox(height: 14),
-          _field(
+          EmailTextFormField(
             controller: _emailCtrl,
-            label: 'School Email *',
-            icon: Icons.email_outlined,
-            keyboardType: TextInputType.emailAddress,
             onChanged: (_) => _notify(),
             validator: (v) {
               final s = (v ?? '').trim();
@@ -171,6 +169,13 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
               }
               return null;
             },
+            decoration: InputDecoration(
+              labelText: 'School Email *',
+              prefixIcon: const Icon(Icons.email_outlined),
+              counterText: '',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              isDense: true,
+            ),
           ),
           const SizedBox(height: 14),
           _field(

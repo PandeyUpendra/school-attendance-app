@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
 import '../utils/validators.dart';
+import '../widgets/email_text_form_field.dart';
 import '../widgets/refreshable_data.dart';
 
 /// Principal-only screen to create, edit, and delete coordinator accounts.
@@ -469,9 +470,16 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                     _Field(controller: _nameCtrl, label: 'Full Name', icon: Icons.person_outline,
                         validator: (v) => v!.trim().isEmpty ? 'Name is required' : null),
                     const SizedBox(height: 14),
-                    _Field(controller: _emailCtrl, label: 'Email Address', icon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
+                    EmailTextFormField(
+                        controller: _emailCtrl,
                         readOnly: _isEdit,
+                        decoration: InputDecoration(
+                          labelText: 'Email Address',
+                          prefixIcon: const Icon(Icons.email_outlined),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          filled: true,
+                          fillColor: _isEdit ? Colors.grey.shade100 : Colors.grey.shade50,
+                        ),
                         validator: Validators.email),
                     const SizedBox(height: 14),
                     _Field(controller: _phoneCtrl, label: 'Phone Number (optional)', icon: Icons.phone_outlined,
@@ -596,7 +604,6 @@ class _Field extends StatelessWidget {
   final String label;
   final IconData icon;
   final TextInputType? keyboardType;
-  final bool readOnly;
   final String? hint;
   final String? Function(String?)? validator;
 
@@ -605,7 +612,6 @@ class _Field extends StatelessWidget {
     required this.label,
     required this.icon,
     this.keyboardType,
-    this.readOnly = false,
     this.hint,
     this.validator,
   });
@@ -614,14 +620,14 @@ class _Field extends StatelessWidget {
   Widget build(BuildContext context) => TextFormField(
     controller: controller,
     keyboardType: keyboardType,
-    readOnly: readOnly,
+
     decoration: InputDecoration(
       labelText: label,
       hintText: hint,
       prefixIcon: Icon(icon),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       filled: true,
-      fillColor: readOnly ? Colors.grey.shade100 : Colors.grey.shade50,
+      fillColor: Colors.grey.shade50,
     ),
     validator: validator,
   );

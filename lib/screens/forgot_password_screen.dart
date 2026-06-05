@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
 import '../utils/validators.dart';
+import '../widgets/email_text_form_field.dart';
 import 'role_selection_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -187,13 +188,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
               const SizedBox(height: 32),
 
               if (!_sent) ...[
-                TextField(
+                EmailTextFormField(
                   controller: _emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  enableSuggestions: false,
                   textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _loading ? null : _sendReset(),
+                  onFieldSubmitted: (_) => _loading ? null : _sendReset(),
                   decoration: InputDecoration(
                     labelText: 'Email Address',
                     prefixIcon: const Icon(Icons.email_outlined),
