@@ -588,8 +588,8 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
             headerStyle: pw.TextStyle(
                 fontWeight: pw.FontWeight.bold,
                 color: PdfColors.white),
-            headerDecoration:
-                const pw.BoxDecoration(color: PdfColors.purple900),
+            headerDecoration: const pw.BoxDecoration(
+                color: PdfColor.fromInt(0xFF003D33)),
             oddRowDecoration:
                 const pw.BoxDecoration(color: PdfColors.grey200),
             cellAlignment: pw.Alignment.centerLeft,

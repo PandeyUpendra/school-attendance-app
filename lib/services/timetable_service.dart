@@ -267,6 +267,24 @@ class TimetableService extends BaseFirestoreService {
       }
     }
 
+    // Fallback: `settings/main` may exist without a synced `classes` key (e.g.
+    // only the school name was written to main, while the class list lives in
+    // `settings/academic.classList`, which the School Details screen edits).
+    // Pull from there so every screen reading getSettings() — coordinator class
+    // chips, teacher management, etc. — sees the configured classes.
+    final hasClasses = (result['classes'] as List?)?.isNotEmpty ?? false;
+    if (!hasClasses) {
+      try {
+        final academic = await _settings.doc('academic').get();
+        final list = academic.data()?['classList'];
+        if (list is List && list.isNotEmpty) {
+          result['classes'] = List<String>.from(list);
+        }
+      } catch (_) {
+        // Non-fatal — leave classes as-is.
+      }
+    }
+
     if (!result.containsKey('bells') ||
         (result['bells'] as List?)?.isEmpty != false) {
       final n = result['numberOfBells'] as int? ?? 8;

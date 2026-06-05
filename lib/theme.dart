@@ -4,44 +4,54 @@ import 'package:flutter/services.dart';
 /// Single source of truth for the app's colour palette.
 ///
 /// Strategy:
-///   • One brand colour everywhere — Deep Violet #6A1B9A
-///   • Magenta accent for badges, CTAs, pending indicators
+///   • One brand colour everywhere — Deep teal-green #003D33
+///   • Sea-green accent for badges, CTAs, pending indicators
 ///   • Semantic colours (green=Present, amber=Leave, red=Absent) are preserved
 ///
 /// Usage:
-///   AppTheme.primary          — deep violet
-///   AppTheme.accent           — magenta / pink for badges & CTAs
-///   AppTheme.background       — light lavender page background
+///   AppTheme.primary          — deep teal-green
+///   AppTheme.accent           — sea green for badges & CTAs
+///   AppTheme.background       — off-white page background
 ///   AppTheme.success/warning/danger — semantic data colours
 abstract class AppTheme {
   // ── Brand palette ─────────────────────────────────────────────────────────
 
-  static const Color primary      = Color(0xFF6A1B9A); // Deep Violet
-  static const Color primaryDark  = Color(0xFF4A148C); // Darker violet (gradient start)
-  static const Color primaryMid   = Color(0xFF8E24AA); // Medium violet (gradient end)
-  static const Color primaryLight = Color(0xFFCE93D8); // Light violet / chips
+  static const Color primary      = Color(0xFF003D33); // Deep teal-green (brand)
+  static const Color secondary    = Color(0xFF00473A); // Secondary teal
+  static const Color primaryDark  = Color(0xFF002A24); // Darker teal (gradient start)
+  static const Color primaryMid   = Color(0xFF2E8B74); // Medium green (gradient end)
+  static const Color primaryLight = Color(0xFFA7D3C7); // Light teal / chips
 
-  /// Magenta/pink — used for pending badges, notification dots, key CTAs
-  static const Color accent       = Color(0xFFD81B60);
+  /// Sea green — used for pending badges, notification dots, key CTAs
+  static const Color accent       = Color(0xFF2E8B74);
 
-  /// Very light lavender page background
-  static const Color background   = Color(0xFFF8F0FF);
+  /// Off-white page background
+  static const Color background   = Color(0xFFF5F7F6);
 
   /// Pure-white card / tile surface
-  static const Color surface      = Colors.white;
+  static const Color surface      = Color(0xFFFFFFFF);
+
+  // ── Text & lines ──────────────────────────────────────────────────────────
+
+  static const Color textPrimary   = Color(0xFF1A1A1A); // Headings / body text
+  static const Color textSecondary = Color(0xFF6B7280); // Muted / secondary text
+  static const Color border        = Color(0xFFE4E8E7); // Hairlines / dividers
 
   // ── Semantic / status colours (preserved for data-driven states) ──────────
 
-  static const Color success = Color(0xFF2E7D32); // Present · paid · ok
-  static const Color warning = Color(0xFFF57F17); // Leave · pending · caution
-  static const Color danger  = Color(0xFFC62828); // Absent · overdue · error
+  static const Color success = Color(0xFF4CAF50); // Present · paid · ok
+  static const Color warning = Color(0xFFFFB020); // Leave · pending · caution
+  static const Color danger  = Color(0xFFE53935); // Absent · overdue · error
+
+  /// Alias for [danger] — matches the supplied palette's `error` name.
+  static const Color error   = danger;
 
   // ── ThemeData ─────────────────────────────────────────────────────────────
 
   static ThemeData get light => ThemeData(
     useMaterial3: false,
     primaryColor: primary,
-    primarySwatch: Colors.purple,
+    primarySwatch: Colors.teal,
     scaffoldBackgroundColor: background,
 
     // AppBar: deep violet everywhere, no elevation, white status-bar icons
@@ -112,8 +122,8 @@ abstract class AppTheme {
     ),
 
     // Dividers
-    dividerColor: const Color(0xFFE0E0E0),
+    dividerColor: border,
     dividerTheme: const DividerThemeData(
-      color: Color(0xFFE0E0E0), thickness: 1, space: 1),
+      color: border, thickness: 1, space: 1),
   );
 }

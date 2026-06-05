@@ -905,7 +905,7 @@ class _ReportCardTemplateEditorState
                 labelText: 'Subject',
                 isDense: true,
                 filled: true,
-                fillColor: Color(0xFFF8F0FF),
+                fillColor: AppTheme.background,
               ),
               onChanged: (v) => setState(
                   () => _subjects[i] = sub.copyWith(subject: v)),
@@ -923,7 +923,7 @@ class _ReportCardTemplateEditorState
                 labelText: 'Max',
                 isDense: true,
                 filled: true,
-                fillColor: Color(0xFFF8F0FF),
+                fillColor: AppTheme.background,
               ),
               onChanged: (v) => setState(() =>
                   _subjects[i] = sub.copyWith(maxMarks: int.tryParse(v) ?? 100)),
@@ -1079,7 +1079,7 @@ class _ReportCardTemplateEditorState
           isDense: true,
           contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           filled: true,
-          fillColor: Color(0xFFF8F0FF),
+          fillColor: AppTheme.background,
           counterText: '',
           border: OutlineInputBorder(),
         ),

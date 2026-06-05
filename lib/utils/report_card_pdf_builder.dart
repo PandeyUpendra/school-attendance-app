@@ -10,9 +10,11 @@ import '../models/student.dart';
 const double _kMarginMm  = 12.0;
 const double _kMargin    = _kMarginMm * PdfPageFormat.mm;
 
-const _kViolet    = PdfColor.fromInt(0xFF6A1B9A);
-const _kVioletDk  = PdfColor.fromInt(0xFF4A148C);
-const _kAccent    = PdfColor.fromInt(0xFFD81B60);
+// Brand colours for the report-card PDF (kept in sync with AppTheme).
+// Names retained to avoid churn; values are the teal-green palette.
+const _kViolet    = PdfColor.fromInt(0xFF003D33); // brand primary
+const _kVioletDk  = PdfColor.fromInt(0xFF002A24); // brand dark
+const _kAccent    = PdfColor.fromInt(0xFF2E8B74); // brand accent
 const _kGrey50    = PdfColor.fromInt(0xFFF5F5F5);
 const _kGrey200   = PdfColor.fromInt(0xFFEEEEEE);
 const _kGrey400   = PdfColor.fromInt(0xFFBDBDBD);

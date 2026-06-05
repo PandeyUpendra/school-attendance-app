@@ -265,7 +265,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 
   Future<Uint8List> buildMeetingPdf(Meeting m) async {
     final doc = pw.Document();
-    const purple = PdfColor.fromInt(0xFF6A1B9A);
+    const purple = PdfColor.fromInt(0xFF003D33);
 
     final dateStr = _fmtDate(m.date);
 
@@ -759,7 +759,7 @@ String _fmtMeetingDate(DateTime d) {
 
 Future<void> shareMeetingPdf(Meeting m) async {
   final doc = pw.Document();
-  const purple = PdfColor.fromInt(0xFF6A1B9A);
+  const purple = PdfColor.fromInt(0xFF003D33);
   final dateStr = _fmtMeetingDate(m.date);
 
   doc.addPage(pw.MultiPage(

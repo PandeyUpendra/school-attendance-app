@@ -44,7 +44,7 @@ class TodoReminderBanner extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF4A148C), AppTheme.primary],
+                colors: [AppTheme.primaryDark, AppTheme.primary],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
