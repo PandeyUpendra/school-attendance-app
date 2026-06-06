@@ -111,16 +111,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
       final result = await AuthService().sendResetIfRegistered(email);
       if (!mounted) return;
       switch (result) {
-        case ResetResult.notRegistered:
-          setState(() {
-            _loading = false;
-            _error =
-                'This email is not registered. Check the address, or contact '
-                'your school administrator.';
-          });
         case ResetResult.sent:
         case ResetResult.unknown:
-          // unknown = reset function not deployed; a best-effort email was sent.
+          // Neutral confirmation for both — we never reveal whether the email
+          // is registered (avoids the account-enumeration oracle, #19/#84).
+          // If the reset service itself errors, the catch below tells the user
+          // clearly rather than silently (#103).
           setState(() { _loading = false; _sent = true; });
       }
     } catch (_) {
@@ -178,8 +174,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
               const SizedBox(height: 10),
               Text(
                 _sent
-                    ? 'We\'ve sent a password reset link to your email. '
-                        'Check your inbox (and spam folder).'
+                    // Neutral wording — must not confirm the address is
+                    // registered (#19/#84).
+                    ? 'If an account exists for that email, we\'ve sent a '
+                        'password reset link. Check your inbox (and spam folder).'
                     : 'Enter the email address registered with your school account '
                         'and we\'ll send you a secure link to reset your password.',
                 textAlign: TextAlign.center,

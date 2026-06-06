@@ -12,6 +12,7 @@ import '../models/timetable_entry.dart';
 import '../services/timetable_service.dart';
 import '../services/teacher_deletion_service.dart';
 import '../services/base_firestore_service.dart';
+import '../utils/app_logger.dart';
 import '../theme.dart';
 import '../widgets/email_text_form_field.dart';
 import '../widgets/refreshable_data.dart';
@@ -123,9 +124,8 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
       if (!mounted) return;
       setState(() => _pendingByTeacherId = m);
     }, onError: (e) {
-      // Non-fatal — badge just won't update. Surface in console for debugging.
-      // ignore: avoid_print
-      print('TeacherManagementScreen pending stream error: $e');
+      // Non-fatal — badge just won't update. Debug-only (no release stdout).
+      AppLogger.e('TeacherManagement', 'pending stream error', e);
     });
     await _load();
   }

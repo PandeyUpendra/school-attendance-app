@@ -137,8 +137,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             setState(() => _pendingTeacherDelCount = n);
           },
           onError: (e) =>
-              // ignore: avoid_print
-              print('PrincipalDashboard teacher-deletion stream error: $e'),
+              AppLogger.e('PrincipalDashboard', 'teacher-deletion stream error', e),
         );
   }
 

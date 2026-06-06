@@ -7,15 +7,16 @@ import 'audit_log_service.dart';
 import 'dropdown_options_service.dart';
 
 /// Outcome of a self-service password-reset request.
+///
+/// We deliberately do NOT expose whether the email was registered — that would
+/// be an account-enumeration oracle (#19, #84). The UI shows the same neutral
+/// "if an account exists, a link has been sent" message for both outcomes.
 enum ResetResult {
-  /// Email is registered — a reset link was sent.
+  /// The request reached the reset service and was processed.
   sent,
 
-  /// Email is NOT registered in the school system — nothing was sent.
-  notRegistered,
-
-  /// Registration couldn't be verified (reset function not deployed /
-  /// unreachable); a best-effort reset email was attempted via Firebase.
+  /// The reset service was unreachable; a best-effort Firebase reset email was
+  /// attempted instead.
   unknown,
 }
 
@@ -100,32 +101,21 @@ class AuthService {
     }
   }
 
-  /// Self-service password reset that only sends to registered emails.
-  ///
-  /// Returns [ResetResult.sent] / [ResetResult.notRegistered] based on whether
-  /// the email exists in `allowed_users` (checked server-side, since
-  /// unauthenticated clients can't read that collection). If the Cloud Function
-  /// isn't deployed/reachable, falls back to a best-effort Firebase reset email
-  /// and returns [ResetResult.unknown].
+  /// Self-service password reset. The Cloud Function sends a link only to
+  /// registered emails but returns the SAME neutral response either way, so the
+  /// client cannot (and must not) reveal whether the address is enrolled
+  /// (#19, #84). If the function is unreachable, falls back to a best-effort
+  /// Firebase reset email and returns [ResetResult.unknown]; the UI shows the
+  /// same neutral confirmation for both [sent] and [unknown].
   Future<ResetResult> sendResetIfRegistered(String email) async {
     final normEmail = email.trim().toLowerCase();
     try {
-      final res = await _functions
+      await _functions
           .httpsCallable('sendPasswordEmail')
           .call(<String, dynamic>{'email': normEmail, 'type': 'reset'});
-      final data = res.data;
-      final registered = data is Map && data['registered'] == true;
-      if (registered) {
-        AuditService.emit(
-          action: 'update',
-          entity: 'auth',
-          entityId: normEmail,
-          reason: 'password_reset_email_sent',
-        );
-      }
-      return registered ? ResetResult.sent : ResetResult.notRegistered;
+      return ResetResult.sent;
     } on FirebaseFunctionsException {
-      // Function unavailable — can't verify registration. Best-effort send.
+      // Function unavailable — best-effort fallback (also doesn't reveal existence).
       try {
         await _auth.sendPasswordResetEmail(email: normEmail);
       } catch (_) {}

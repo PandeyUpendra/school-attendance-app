@@ -74,13 +74,15 @@ exports.sendPasswordEmail = onCall(
       }
     }
 
-    // Self-service reset: only proceed for emails registered in the school
-    // system, and report whether it was registered so the UI can show a clear
-    // "not registered" message instead of a generic confirmation.
+    // Self-service reset: only send for emails registered in the school system,
+    // but NEVER reveal whether the email exists — returning registered:false
+    // turned this into an account-enumeration oracle that leaks which families
+    // are enrolled (#19, #84). Unregistered emails get the same neutral { ok }
+    // response as registered ones; the UI shows "if an account exists…".
     if (type === "reset") {
       const reg = await admin.firestore().collection("allowed_users").doc(email).get();
       if (!reg.exists) {
-        return { ok: true, registered: false };
+        return { ok: true };
       }
     }
 
@@ -94,7 +96,7 @@ exports.sendPasswordEmail = onCall(
       // is truthful; an admin can re-send the invite to create the login.
       if (err && err.code === "auth/user-not-found") {
         logger.info("sendPasswordEmail: registered but no auth account", { type });
-        return { ok: true, registered: true };
+        return { ok: true };
       }
       logger.error("generatePasswordResetLink failed", err);
       throw new HttpsError("internal", "Could not generate the password link.");
@@ -136,7 +138,7 @@ exports.sendPasswordEmail = onCall(
       throw new HttpsError("internal", "Could not send the email.");
     }
 
-    return { ok: true, registered: true };
+    return { ok: true };
   }
 );
 

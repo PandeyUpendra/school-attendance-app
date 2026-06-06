@@ -10,6 +10,7 @@ import '../services/auth_service.dart';
 import '../services/base_firestore_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
+import '../utils/app_logger.dart';
 import '../theme.dart';
 import '../widgets/email_text_form_field.dart';
 import '../widgets/managed_dropdown.dart';
@@ -223,10 +224,12 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     final session = await AuthService().getSession();
     final role    = (session?['role']     as String?) ?? '(no role)';
     final sid     = BaseFirestoreService.currentSchoolId ?? '(null)';
-    // ignore: avoid_print
-    print('[AddStudent] starting save · role=$role · schoolId=$sid · '
-          'class=${widget.className} · section=${widget.section} · '
-          'roll=${student.roll} · guardian=${student.guardianEmail ?? "—"}');
+    // Debug-only (AppLogger is a no-op in release) so student/guardian PII
+    // never reaches the release binary's logs (#25, #86).
+    AppLogger.d('AddStudent',
+        'starting save · role=$role · schoolId=$sid · '
+        'class=${widget.className} · section=${widget.section} · '
+        'roll=${student.roll} · guardian=${student.guardianEmail ?? "—"}');
 
     String? failedStep;
     final service = StudentService();
@@ -302,9 +305,9 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               ));
             }
           } catch (e) {
-            // ignore: avoid_print
-            print('[AddStudent] guardian invite failed for $guardianEmail · '
-                  'role=$role · schoolId=$sid · error=$e');
+            AppLogger.e('AddStudent',
+                'guardian invite failed for $guardianEmail · '
+                'role=$role · schoolId=$sid', e);
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content: Text(
@@ -348,9 +351,9 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       // Surface BOTH which step failed and the caller context so the next
       // diagnosis is one shot. `failedStep` tells us the exact write whose
       // rule branch is the culprit.
-      // ignore: avoid_print
-      print('[AddStudent] FAILED at step "${failedStep ?? "unknown"}" · '
-            'role=$role · schoolId=$sid · error=$e');
+      AppLogger.e('AddStudent',
+          'FAILED at step "${failedStep ?? "unknown"}" · '
+          'role=$role · schoolId=$sid', e);
       // Pull the caller's own allowed_users classIds so a permission-denied
       // shows exactly why isClassTeacher() failed (the #1 cause is a class the
       // teacher isn't assigned to, or a schoolId mismatch).
