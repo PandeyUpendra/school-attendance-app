@@ -5,7 +5,7 @@ import '../theme.dart';
 import '../models/student.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
-import '../services/base_firestore_service.dart';
+import '../services/auth_service.dart';
 import '../widgets/index_building_notice.dart';
 
 /// Guardian applies for leave on behalf of their child.
@@ -54,7 +54,7 @@ class _GuardianLeaveApplicationScreenState
     try {
       final snap = await FirebaseFirestore.instance
           .collection('schools')
-          .doc(BaseFirestoreService.currentSchoolId)
+          .doc(AuthService.currentSchoolId)
           .collection('leave_applications')
           .where('applicantType', isEqualTo: 'guardian')
           .where('studentClass',  isEqualTo: widget.student.className)
@@ -480,7 +480,7 @@ class _GuardianLeaveApplicationScreenState
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('schools')
-                .doc(BaseFirestoreService.currentSchoolId)
+                .doc(AuthService.currentSchoolId)
                 .collection('leave_applications')
                 .where('applicantType', isEqualTo: 'guardian')
                 .where('studentClass',  isEqualTo: widget.student.className)
