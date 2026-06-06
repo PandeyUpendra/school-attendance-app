@@ -12,6 +12,12 @@ class Teacher {
   final List<String> assignedClasses; // classes a subject teacher is allowed to access
   final String? phone;
   final Timestamp? dateOfBirth;
+  final String? photoUrl;          // profile photo (Firebase Storage download URL)
+  final String? designation;       // e.g. Senior Teacher, HOD
+  final Timestamp? joiningDate;    // date the teacher joined the school
+  final String? qualification;     // e.g. M.Sc, B.Ed
+  final String? address;
+  final String? emergencyContact;  // emergency phone number
 
   const Teacher({
     required this.id,
@@ -25,6 +31,12 @@ class Teacher {
     this.assignedClasses = const [],
     this.phone,
     this.dateOfBirth,
+    this.photoUrl,
+    this.designation,
+    this.joiningDate,
+    this.qualification,
+    this.address,
+    this.emergencyContact,
   });
 
   Map<String, dynamic> toJson() => {
@@ -39,6 +51,12 @@ class Teacher {
         'assignedClasses': assignedClasses,
         if (phone != null) 'phone': phone,
         if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
+        if (photoUrl != null) 'photoUrl': photoUrl,
+        if (designation != null) 'designation': designation,
+        if (joiningDate != null) 'joiningDate': joiningDate,
+        if (qualification != null) 'qualification': qualification,
+        if (address != null) 'address': address,
+        if (emergencyContact != null) 'emergencyContact': emergencyContact,
       };
 
   factory Teacher.fromJson(Map<String, dynamic> json) => Teacher(
@@ -56,6 +74,12 @@ class Teacher {
             [],
         phone: json['phone'] as String?,
         dateOfBirth: json['dateOfBirth'] as Timestamp?,
+        photoUrl: json['photoUrl'] as String?,
+        designation: json['designation'] as String?,
+        joiningDate: json['joiningDate'] as Timestamp?,
+        qualification: json['qualification'] as String?,
+        address: json['address'] as String?,
+        emergencyContact: json['emergencyContact'] as String?,
       );
 
   Teacher copyWith({
@@ -69,6 +93,12 @@ class Teacher {
     List<String>? assignedClasses,
     String? phone,
     Timestamp? dateOfBirth,
+    String? photoUrl,
+    String? designation,
+    Timestamp? joiningDate,
+    String? qualification,
+    String? address,
+    String? emergencyContact,
   }) =>
       Teacher(
         id: id,
@@ -82,5 +112,11 @@ class Teacher {
         assignedClasses: assignedClasses ?? this.assignedClasses,
         phone: phone ?? this.phone,
         dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+        photoUrl: photoUrl ?? this.photoUrl,
+        designation: designation ?? this.designation,
+        joiningDate: joiningDate ?? this.joiningDate,
+        qualification: qualification ?? this.qualification,
+        address: address ?? this.address,
+        emergencyContact: emergencyContact ?? this.emergencyContact,
       );
 }

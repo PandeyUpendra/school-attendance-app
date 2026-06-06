@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../services/timetable_service.dart';
@@ -298,9 +300,12 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   // ── Open the Add/Edit dialog ─────────────────────────────────────────────
 
   Future<void> _openDialog({Teacher? existing}) async {
-    final teacher = await showDialog<Teacher>(
-      context: context,
-      builder: (_) => _TeacherDialog(existing: existing),
+    final teacher = await Navigator.push<Teacher>(
+      context,
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _TeacherFormScreen(existing: existing),
+      ),
     );
     if (teacher == null) return;
 
@@ -1356,25 +1361,33 @@ class _SlotRow extends StatelessWidget {
 //  Add / Edit Teacher Dialog
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _TeacherDialog extends StatefulWidget {
+class _TeacherFormScreen extends StatefulWidget {
   final Teacher? existing;
-  const _TeacherDialog({this.existing});
+  const _TeacherFormScreen({this.existing});
 
   @override
-  State<_TeacherDialog> createState() => _TeacherDialogState();
+  State<_TeacherFormScreen> createState() => _TeacherFormScreenState();
 }
 
-class _TeacherDialogState extends State<_TeacherDialog> {
+class _TeacherFormScreenState extends State<_TeacherFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _subjectCtrl;  // used for "Other" custom input
   late final TextEditingController _emailCtrl;
   late final TextEditingController _phoneCtrl;
+  late final TextEditingController _designationCtrl;
+  late final TextEditingController _qualificationCtrl;
+  late final TextEditingController _addressCtrl;
+  late final TextEditingController _emergencyCtrl;
   final TextEditingController _newClassCtrl = TextEditingController();
   late bool _isClassTeacher;
   String? _classTeacherOf;
   String? _selectedSubject;   // selected from dropdown
   DateTime? _dateOfBirth;
+  DateTime? _joiningDate;
+  String? _photoUrl;          // existing remote photo
+  String? _photoPath;         // newly-picked local photo
+  bool _saving = false;
   List<String> _classes = [];
   bool _loadingClasses = true;
   bool _showAddClass   = false;
@@ -1386,12 +1399,18 @@ class _TeacherDialogState extends State<_TeacherDialog> {
   void initState() {
     super.initState();
     final t = widget.existing;
-    _nameCtrl       = TextEditingController(text: t?.name ?? '');
-    _emailCtrl      = TextEditingController(text: t?.email ?? '');
-    _phoneCtrl      = TextEditingController(text: t?.phone ?? '');
+    _nameCtrl          = TextEditingController(text: t?.name ?? '');
+    _emailCtrl         = TextEditingController(text: t?.email ?? '');
+    _phoneCtrl         = TextEditingController(text: t?.phone ?? '');
+    _designationCtrl   = TextEditingController(text: t?.designation ?? '');
+    _qualificationCtrl = TextEditingController(text: t?.qualification ?? '');
+    _addressCtrl       = TextEditingController(text: t?.address ?? '');
+    _emergencyCtrl     = TextEditingController(text: t?.emergencyContact ?? '');
     _isClassTeacher = t?.isClassTeacher ?? false;
     _classTeacherOf = t?.classTeacherOf;
     _dateOfBirth    = t?.dateOfBirth?.toDate();
+    _joiningDate    = t?.joiningDate?.toDate();
+    _photoUrl       = t?.photoUrl;
 
     // Pre-select subject from dropdown, or fall back to "Other (specify)"
     final existingSubject = t?.subject ?? '';
@@ -1453,6 +1472,10 @@ class _TeacherDialogState extends State<_TeacherDialog> {
     _subjectCtrl.dispose();
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
+    _designationCtrl.dispose();
+    _qualificationCtrl.dispose();
+    _addressCtrl.dispose();
+    _emergencyCtrl.dispose();
     _newClassCtrl.dispose();
     super.dispose();
   }
@@ -1468,16 +1491,129 @@ class _TeacherDialogState extends State<_TeacherDialog> {
     if (picked != null) setState(() => _dateOfBirth = picked);
   }
 
+  Future<void> _pickJoiningDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _joiningDate ?? DateTime.now(),
+      firstDate: DateTime(1980),
+      lastDate: DateTime.now(),
+      helpText: 'Select Joining Date',
+    );
+    if (picked != null) setState(() => _joiningDate = picked);
+  }
+
+  Future<void> _pickPhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            leading: const Icon(Icons.camera_alt),
+            title: const Text('Take Photo'),
+            onTap: () => Navigator.pop(context, ImageSource.camera),
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_library),
+            title: const Text('Choose from Gallery'),
+            onTap: () => Navigator.pop(context, ImageSource.gallery),
+          ),
+        ]),
+      ),
+    );
+    if (source == null) return;
+    final picked =
+        await ImagePicker().pickImage(source: source, imageQuality: 70);
+    if (picked != null && mounted) {
+      setState(() => _photoPath = picked.path);
+    }
+  }
+
+  void _removePhoto() => setState(() {
+        _photoPath = null;
+        _photoUrl  = null;
+      });
+
+  /// Upload a newly-picked photo to Firebase Storage and return its URL.
+  /// Returns the existing URL when no new photo was picked.
+  Future<String?> _resolvePhotoUrl(String teacherId) async {
+    if (_photoPath == null) return _photoUrl;
+    final schoolId = BaseFirestoreService.currentSchoolId ?? 'default_school';
+    final ref = FirebaseStorage.instance
+        .ref('schools/$schoolId/teachers/$teacherId.jpg');
+    await ref.putFile(File(_photoPath!));
+    return await ref.getDownloadURL();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    try {
+      final teacherId = widget.existing?.id ??
+          DateTime.now().millisecondsSinceEpoch.toString();
+      final photoUrl = await _resolvePhotoUrl(teacherId);
+      final teacher = Teacher(
+        id: teacherId,
+        name:    _nameCtrl.text.trim(),
+        subject: _isOtherSubject
+            ? _subjectCtrl.text.trim()
+            : (_selectedSubject ?? ''),
+        email:   _emailCtrl.text.trim().toLowerCase(),
+        section: widget.existing?.section ?? '',
+        isClassTeacher: _isClassTeacher,
+        classTeacherOf: _isClassTeacher ? _classTeacherOf : null,
+        schoolId: BaseFirestoreService.currentSchoolId ?? 'default_school',
+        assignedClasses: widget.existing?.assignedClasses ?? const [],
+        phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+        dateOfBirth: _dateOfBirth != null
+            ? Timestamp.fromDate(_dateOfBirth!)
+            : null,
+        photoUrl: photoUrl,
+        designation: _designationCtrl.text.trim().isEmpty
+            ? null
+            : _designationCtrl.text.trim(),
+        joiningDate: _joiningDate != null
+            ? Timestamp.fromDate(_joiningDate!)
+            : null,
+        qualification: _qualificationCtrl.text.trim().isEmpty
+            ? null
+            : _qualificationCtrl.text.trim(),
+        address: _addressCtrl.text.trim().isEmpty
+            ? null
+            : _addressCtrl.text.trim(),
+        emergencyContact: _emergencyCtrl.text.trim().isEmpty
+            ? null
+            : _emergencyCtrl.text.trim(),
+      );
+      if (!mounted) return;
+      Navigator.pop(context, teacher);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not save: $e'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(_isEdit ? 'Edit Teacher' : 'Add Teacher'),
-      content: SingleChildScrollView(
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: Text(_isEdit ? 'Edit Teacher Details' : 'Add Teacher'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         child: Form(
           key: _formKey,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // ── Profile photo ───────────────────────────────────────────
+              Center(child: _buildPhotoPicker()),
+              const SizedBox(height: 20),
+
               TextFormField(
                 controller: _nameCtrl,
                 decoration: const InputDecoration(
@@ -1588,6 +1724,102 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                             : Colors.grey.shade500),
                   ),
                 ),
+              ),
+              const SizedBox(height: 12),
+
+              // ── Designation ─────────────────────────────────────────────
+              TextFormField(
+                controller: _designationCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Designation',
+                    hintText: 'e.g. Senior Teacher, HOD',
+                    prefixIcon: Icon(Icons.badge_outlined),
+                    counterText: ''),
+                textCapitalization: TextCapitalization.words,
+                maxLength: 40,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
+              ),
+              const SizedBox(height: 12),
+
+              // ── Qualification ───────────────────────────────────────────
+              TextFormField(
+                controller: _qualificationCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Qualification',
+                    hintText: 'e.g. M.Sc, B.Ed',
+                    prefixIcon: Icon(Icons.school_outlined),
+                    counterText: ''),
+                textCapitalization: TextCapitalization.characters,
+                maxLength: 60,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
+              ),
+              const SizedBox(height: 12),
+
+              // ── Joining date picker ─────────────────────────────────────
+              GestureDetector(
+                onTap: _pickJoiningDate,
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Joining Date',
+                    prefixIcon: const Icon(Icons.event_available_outlined),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                    suffixIcon: _joiningDate != null
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () =>
+                                setState(() => _joiningDate = null),
+                          )
+                        : null,
+                  ),
+                  child: Text(
+                    _joiningDate != null
+                        ? '${_joiningDate!.day.toString().padLeft(2, '0')} / '
+                            '${_joiningDate!.month.toString().padLeft(2, '0')} / '
+                            '${_joiningDate!.year}'
+                        : 'Tap to select',
+                    style: TextStyle(
+                        fontSize: 15,
+                        color: _joiningDate != null
+                            ? Colors.black87
+                            : Colors.grey.shade500),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // ── Emergency contact ───────────────────────────────────────
+              TextFormField(
+                controller: _emergencyCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Emergency Contact',
+                    prefixIcon: Icon(Icons.contact_phone_outlined),
+                    counterText: ''),
+                keyboardType: TextInputType.phone,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                maxLength: 10,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return null; // optional
+                  if (v.trim().length != 10) return 'Must be 10 digits';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+
+              // ── Address ─────────────────────────────────────────────────
+              TextFormField(
+                controller: _addressCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Address',
+                    alignLabelWithHint: true,
+                    prefixIcon: Icon(Icons.home_outlined)),
+                textCapitalization: TextCapitalization.sentences,
+                maxLines: 2,
+                maxLength: 150,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
               ),
               const SizedBox(height: 8),
 
@@ -1730,45 +1962,82 @@ class _TeacherDialogState extends State<_TeacherDialog> {
                 ],
 
               ],
+
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _saving ? null : _save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: _saving
+                    ? const SizedBox(
+                        height: 20, width: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : Text(_isEdit ? 'Save Changes' : 'Add Teacher',
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.bold)),
+              ),
             ],
           ),
         ),
       ),
-      actions: [
+    );
+  }
+
+  // ── Profile photo picker ─────────────────────────────────────────────────
+  Widget _buildPhotoPicker() {
+    ImageProvider? image;
+    if (_photoPath != null) {
+      image = FileImage(File(_photoPath!));
+    } else if (_photoUrl != null && _photoUrl!.isNotEmpty) {
+      image = NetworkImage(_photoUrl!);
+    }
+    final hasPhoto = image != null;
+
+    return Column(
+      children: [
+        Stack(
+          children: [
+            CircleAvatar(
+              radius: 52,
+              backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+              backgroundImage: image,
+              child: hasPhoto
+                  ? null
+                  : const Icon(Icons.person,
+                      size: 52, color: AppTheme.primary),
+            ),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: GestureDetector(
+                onTap: _pickPhoto,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(Icons.camera_alt,
+                      size: 16, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel')),
-        ElevatedButton(
-          onPressed: () {
-            if (_formKey.currentState!.validate()) {
-              final teacher = Teacher(
-                id: widget.existing?.id ??
-                    DateTime.now().millisecondsSinceEpoch.toString(),
-                name:    _nameCtrl.text.trim(),
-                subject: _isOtherSubject
-                    ? _subjectCtrl.text.trim()
-                    : (_selectedSubject ?? ''),
-                email:
-                    _emailCtrl.text.trim().toLowerCase(),
-                section: '',
-                isClassTeacher: _isClassTeacher,
-                classTeacherOf:
-                    _isClassTeacher ? _classTeacherOf : null,
-                schoolId: BaseFirestoreService.currentSchoolId ?? 'default_school',
-                phone: _phoneCtrl.text.trim().isEmpty
-                    ? null
-                    : _phoneCtrl.text.trim(),
-                dateOfBirth: _dateOfBirth != null
-                    ? Timestamp.fromDate(_dateOfBirth!)
-                    : null,
-              );
-              Navigator.pop(context, teacher);
-            }
-          },
-          style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white),
-          child: Text(_isEdit ? 'Save' : 'Add'),
+          onPressed: hasPhoto ? _removePhoto : _pickPhoto,
+          child: Text(hasPhoto ? 'Remove Photo' : 'Add Photo',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: hasPhoto ? Colors.red : AppTheme.primary)),
         ),
       ],
     );

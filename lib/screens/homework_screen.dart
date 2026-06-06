@@ -385,6 +385,39 @@ class _Chip extends StatelessWidget {
   }
 }
 
+// ─── Common homework titles + default description templates ───────────────────
+
+/// Most-common homework titles, each mapped to a starter description the
+/// teacher can edit before posting. `{class}` / `{subject}` are filled in with
+/// the selected class & subject when a title is picked.
+const Map<String, String> _kHomeworkTemplates = {
+  'Complete exercises':
+      'Complete the exercises from today\'s {subject} lesson. Show all working '
+          'in your notebook and bring it for checking tomorrow.',
+  'Read chapter':
+      'Read the assigned chapter from your {subject} textbook. Underline key '
+          'points and be ready to answer questions in the next class.',
+  'Practice sums':
+      'Practise the sums covered in class today. Attempt all problems and revise '
+          'the formulas before the next {subject} period.',
+  'Learn & memorise':
+      'Learn and memorise the topic taught today. You will be asked to recite / '
+          'write it from memory in the next class.',
+  'Write an essay / paragraph':
+      'Write a well-structured essay/paragraph on the given topic. Pay attention '
+          'to handwriting, spelling and neatness.',
+  'Worksheet':
+      'Complete the {subject} worksheet handed out in class. Answer every '
+          'question and submit it tomorrow.',
+  'Project / activity work':
+      'Work on the assigned {subject} project/activity. Bring the required '
+          'materials and your progress to the next class.',
+  'Revise for test':
+      'Revise the topics covered so far in {subject} for the upcoming class '
+          'test. Clear any doubts before the test day.',
+  'Other (custom)': '',
+};
+
 // ─── Post homework bottom sheet ───────────────────────────────────────────────
 
 class _PostHomeworkSheet extends StatefulWidget {
@@ -405,19 +438,51 @@ class _PostHomeworkSheet extends StatefulWidget {
 class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
   final _service   = HomeworkService();
   final _formKey   = GlobalKey<FormState>();
-  final _titleCtrl = TextEditingController();
+  final _titleCtrl = TextEditingController(); // custom title ("Other")
   final _descCtrl  = TextEditingController();
 
   late String _selectedClass;
   late String _selectedSubject;
+  String?     _selectedTitle;   // chosen from the common-title dropdown
   DateTime    _dueDate = DateTime.now().add(const Duration(days: 1));
   bool        _saving  = false;
+
+  bool get _isOtherTitle => _selectedTitle == 'Other (custom)';
 
   @override
   void initState() {
     super.initState();
     _selectedClass   = widget.classSubjectMap.keys.first;
     _selectedSubject = widget.classSubjectMap[_selectedClass]!;
+  }
+
+  /// Fill in {subject} / {class} placeholders in a template.
+  String _fillTemplate(String tpl) => tpl
+      .replaceAll('{subject}', _selectedSubject)
+      .replaceAll('{class}', _selectedClass);
+
+  /// When a common title is picked, pre-fill the description with its template
+  /// unless the teacher has already typed their own custom text.
+  void _onTitleSelected(String? title) {
+    if (title == null) return;
+    final tpl = _kHomeworkTemplates[title] ?? '';
+    final filled = _fillTemplate(tpl);
+
+    // Only overwrite if the current text is empty or still matches a previous
+    // template (i.e. the teacher hasn't customised it) — never clobber edits.
+    final current = _descCtrl.text.trim();
+    final isUntouchedTemplate = current.isEmpty ||
+        _kHomeworkTemplates.values
+            .any((t) => t.isNotEmpty && _fillTemplate(t).trim() == current);
+
+    setState(() {
+      _selectedTitle = title;
+      if (isUntouchedTemplate) {
+        _descCtrl.text = filled;
+        _descCtrl.selection =
+            TextSelection.collapsed(offset: _descCtrl.text.length);
+      }
+    });
   }
 
   @override
@@ -439,7 +504,9 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final title = _titleCtrl.text.trim();
+    final title = _isOtherTitle
+        ? _titleCtrl.text.trim()
+        : (_selectedTitle ?? '');
     final desc  = _descCtrl.text.trim();
     setState(() => _saving = true);
     final hw = Homework(
@@ -529,23 +596,51 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
                     fontSize: 12, color: Colors.grey.shade500)),
             const SizedBox(height: 16),
 
-            // Title
-            TextFormField(
-              controller: _titleCtrl,
-              textCapitalization: TextCapitalization.sentences,
-              maxLength: 80,
-              maxLengthEnforcement: MaxLengthEnforcement.enforced,
+            // Title — pick from common titles
+            DropdownButtonFormField<String>(
+              value: _selectedTitle,
+              isExpanded: true,
               decoration: InputDecoration(
                 labelText: 'Homework Title',
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 14, vertical: 12),
-                counterText: '',
               ),
+              hint: const Text('Select a homework title'),
+              items: _kHomeworkTemplates.keys
+                  .map((t) => DropdownMenuItem(
+                        value: t,
+                        child: Text(t, overflow: TextOverflow.ellipsis),
+                      ))
+                  .toList(),
+              onChanged: _onTitleSelected,
               validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Title is required' : null,
+                  v == null ? 'Please select a title' : null,
             ),
+            // Custom title field shown only for "Other (custom)"
+            if (_isOtherTitle) ...[
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _titleCtrl,
+                textCapitalization: TextCapitalization.sentences,
+                maxLength: 80,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Custom Title',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  counterText: '',
+                ),
+                validator: (v) => _isOtherTitle &&
+                        (v == null || v.trim().isEmpty)
+                    ? 'Title is required'
+                    : null,
+              ),
+            ],
             const SizedBox(height: 14),
 
             // Description
@@ -556,7 +651,8 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
               maxLengthEnforcement: MaxLengthEnforcement.enforced,
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
-                labelText: 'Description / Instructions',
+                labelText: 'Description / Message (editable)',
+                helperText: 'Pre-filled from the title — customise as needed',
                 alignLabelWithHint: true,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10)),

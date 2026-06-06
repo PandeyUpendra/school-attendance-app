@@ -49,27 +49,34 @@ class _SubstitutionHistoryScreenState
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    if (_isTeacherMode) {
-      final history = await _histService.getHistoryForTeacher(
-          widget.teacherId!);
+    try {
+      if (_isTeacherMode) {
+        final history = await _histService.getHistoryForTeacher(
+            widget.teacherId!);
+        if (!mounted) return;
+        setState(() { _history = history; _loading = false; });
+      } else {
+        final results = await Future.wait([
+          _histService.getHistory(),
+          _ttService.getTeachers(),
+          _histService.getSubstituteCounts(days: 365),
+        ]);
+        final history  = results[0] as List<SubstitutionRecord>;
+        final teachers = results[1] as List<Teacher>;
+        final counts   = results[2] as Map<String, int>;
+        if (!mounted) return;
+        setState(() {
+          _history  = history;
+          _teachers = teachers;
+          _counts   = counts;
+          _loading  = false;
+        });
+      }
+    } catch (_) {
+      // Never leave the screen stuck on the spinner — fall back to the
+      // empty state ("No duty assigned") if a query fails.
       if (!mounted) return;
-      setState(() { _history = history; _loading = false; });
-    } else {
-      final results = await Future.wait([
-        _histService.getHistory(),
-        _ttService.getTeachers(),
-        _histService.getSubstituteCounts(days: 365),
-      ]);
-      final history  = results[0] as List<SubstitutionRecord>;
-      final teachers = results[1] as List<Teacher>;
-      final counts   = results[2] as Map<String, int>;
-      if (!mounted) return;
-      setState(() {
-        _history  = history;
-        _teachers = teachers;
-        _counts   = counts;
-        _loading  = false;
-      });
+      setState(() => _loading = false);
     }
   }
 
@@ -116,6 +123,7 @@ class _SubstitutionHistoryScreenState
                   records:      _history,
                   showTeacher:  false,
                   onDelete:     null,
+                  emptyMessage: 'No duty assigned',
                 )
               : TabBarView(
                   controller: _tab,
@@ -127,6 +135,7 @@ class _SubstitutionHistoryScreenState
                         await _histService.deleteRecord(id);
                         _load();
                       },
+                      emptyMessage: 'No substitution records yet.',
                     ),
                     _LeaderboardTab(
                       teachers: _teachers,
@@ -144,11 +153,13 @@ class _HistoryList extends StatelessWidget {
   final List<SubstitutionRecord> records;
   final bool       showTeacher;
   final void Function(String id)? onDelete;
+  final String     emptyMessage;
 
   const _HistoryList({
     required this.records,
     required this.showTeacher,
     required this.onDelete,
+    required this.emptyMessage,
   });
 
   @override
@@ -158,10 +169,10 @@ class _HistoryList extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.history_outlined,
+            Icon(Icons.event_busy_outlined,
                 size: 56, color: Colors.grey.shade300),
             const SizedBox(height: 12),
-            Text('No substitution records yet.',
+            Text(emptyMessage,
                 style: TextStyle(color: Colors.grey.shade500)),
           ],
         ),

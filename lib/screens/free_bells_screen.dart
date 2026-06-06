@@ -47,28 +47,36 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final results = await Future.wait([
-      _service.getSettings(),
-      _service.getTeachers(),
-      _service.getTimetable(),
-      _service.getTodaySubstitutions(),
-      _histService.getSubstituteCounts(days: 30),
-    ]);
-    if (!mounted) return;
-    final settings = results[0] as Map<String, dynamic>;
-    final teachers = results[1] as List<Teacher>;
-    final tt       = results[2] as Map<String, Map<String, Map<int, TimetableEntry>>>;
-    final subs     = results[3] as Map<String, String>;
-    final counts   = results[4] as Map<String, int>;
-    setState(() {
-      _classes       = List<String>.from(settings['classes'] as List);
-      _bellCount     = settings['numberOfBells'] as int;
-      _teachers      = teachers;
-      _timetable     = tt;
-      _substitutions = subs;
-      _subCounts     = counts;
-      _loading       = false;
-    });
+    try {
+      final results = await Future.wait([
+        _service.getSettings(),
+        _service.getTeachers(),
+        _service.getTimetable(),
+        _service.getTodaySubstitutions(),
+        _histService.getSubstituteCounts(days: 30),
+      ]);
+      if (!mounted) return;
+      final settings = results[0] as Map<String, dynamic>;
+      final teachers = results[1] as List<Teacher>;
+      final tt       = results[2] as Map<String, Map<String, Map<int, TimetableEntry>>>;
+      final subs     = results[3] as Map<String, String>;
+      final counts   = results[4] as Map<String, int>;
+      setState(() {
+        _classes       = List<String>.from(settings['classes'] as List? ?? []);
+        _bellCount     = (settings['numberOfBells'] as num?)?.toInt() ??
+            (settings['bells'] as List?)?.length ?? 8;
+        _teachers      = teachers;
+        _timetable     = tt;
+        _substitutions = subs;
+        _subCounts     = counts;
+        _loading       = false;
+      });
+    } catch (_) {
+      // Never strand the screen on a spinner — fall through to the empty
+      // state ("No free periods or substitutions assigned") on any failure.
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
   }
 
   Teacher? _teacherById(String? id) =>
@@ -164,7 +172,11 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _classes.isEmpty || _teachers.isEmpty
-              ? _emptyState()
+              ? RefreshIndicator(
+                  onRefresh: _load,
+                  color: AppTheme.primary,
+                  child: _emptyState(),
+                )
               : RefreshIndicator(
                   onRefresh: _load,
                   color: AppTheme.primary,
@@ -403,16 +415,20 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
     );
   }
 
-  Widget _emptyState() => Center(
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(Icons.schedule_outlined,
+  Widget _emptyState() => ListView(
+    physics: const AlwaysScrollableScrollPhysics(),
+    children: [
+      SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+      Icon(Icons.event_busy_outlined,
           size: 64, color: Colors.grey.shade300),
       const SizedBox(height: 16),
-      Text('Timetable not set up',
+      Text('No free periods or substitutions assigned',
+          textAlign: TextAlign.center,
           style: TextStyle(fontSize: 16, color: Colors.grey.shade400)),
       const SizedBox(height: 6),
-      Text('Configure timetable in Timetable & Settings',
+      Text('Configure the timetable in Timetable & Settings',
+          textAlign: TextAlign.center,
           style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
-    ]),
+    ],
   );
 }

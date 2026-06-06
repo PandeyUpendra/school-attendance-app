@@ -37,15 +37,18 @@ class SubstitutionHistoryService {
 
   Future<List<SubstitutionRecord>> getHistoryForTeacher(
       String teacherId, {int limit = 50}) async {
+    // Single-field equality filter only — avoids a composite index requirement
+    // (which, when missing, throws FAILED_PRECONDITION and would hang the
+    // screen). Sort newest-first client-side instead.
     final snap = await _col
         .where('substituteTeacherId', isEqualTo: teacherId)
-        .orderBy('createdAt', descending: true)
-        .limit(limit)
         .get();
-    return snap.docs
+    final records = snap.docs
         .map((d) => SubstitutionRecord.fromDoc(
             d.id, d.data() as Map<String, dynamic>))
-        .toList();
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return records.length > limit ? records.sublist(0, limit) : records;
   }
 
   // ── Auto-suggest: count substitutions per teacher in last [days] days ──────
