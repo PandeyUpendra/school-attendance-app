@@ -197,6 +197,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         teacherId:   result.id,
         teacherName: result.name,
         assignedBy:  widget.createdBy,
+        assignedByRole: widget.createdByRole,
       );
       await NotificationService().addMeetingTaskNotification(
         teacherId:    result.id,

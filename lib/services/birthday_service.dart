@@ -15,10 +15,19 @@ class BirthdayService extends BaseFirestoreService {
 
   // ── Date helpers ───────────────────────────────────────────────────────────
 
+  /// The birthday's occurrence in [year], with the day clamped to the month's
+  /// length so a 29-Feb birthday lands on 28 Feb in non-leap years instead of
+  /// silently rolling over to 1 March (DateTime normalises overflow) — #237.
+  DateTime _birthdayInYear(int year, DateTime birth) {
+    final lastDayOfMonth = DateTime(year, birth.month + 1, 0).day;
+    final day = birth.day > lastDayOfMonth ? lastDayOfMonth : birth.day;
+    return DateTime(year, birth.month, day);
+  }
+
   bool isBirthdayToday(Timestamp dob) {
     final now = DateTime.now();
-    final birth = dob.toDate();
-    return birth.day == now.day && birth.month == now.month;
+    final celebrated = _birthdayInYear(now.year, dob.toDate());
+    return celebrated.day == now.day && celebrated.month == now.month;
   }
 
   bool isBirthdayThisWeek(Timestamp dob) {
@@ -36,9 +45,9 @@ class BirthdayService extends BaseFirestoreService {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final birth = dob.toDate();
-    var next = DateTime(now.year, birth.month, birth.day);
+    var next = _birthdayInYear(now.year, birth);
     if (next.isBefore(today)) {
-      next = DateTime(now.year + 1, birth.month, birth.day);
+      next = _birthdayInYear(now.year + 1, birth);
     }
     return next.difference(today).inDays;
   }

@@ -212,9 +212,12 @@ class AuditService extends BaseFirestoreService {
           isGreaterThanOrEqualTo: Timestamp.fromDate(from));
     }
     if (to != null) {
+      // Inclusive of all of `to`'s day: [to-day-start, next-day-start).
+      // Was isLessThanOrEqualTo to+1day, which also pulled in the day AFTER the
+      // selected end date (review #230).
+      final dayStart = DateTime(to.year, to.month, to.day);
       q = q.where('timestamp',
-          isLessThanOrEqualTo:
-              Timestamp.fromDate(to.add(const Duration(days: 1))));
+          isLessThan: Timestamp.fromDate(dayStart.add(const Duration(days: 1))));
     }
     if (after != null) q = q.startAfterDocument(after);
 

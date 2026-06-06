@@ -40,6 +40,7 @@ class MeetingService {
     required String       teacherId,
     required String       teacherName,
     required String       assignedBy,
+    String                assignedByRole = 'coordinator',
   }) async {
     // 1. Create StaffTask in staff_tasks collection.
     final staffRef = _staffTasks.doc();
@@ -50,7 +51,9 @@ class MeetingService {
       assignedTo:     teacherId,
       assignedToName: teacherName,
       assignedBy:     assignedBy,
-      assignedByRole: 'coordinator',
+      // Use the actual converter's role — a principal converting a point was
+      // previously mislabeled as coordinator-assigned (review #283).
+      assignedByRole: assignedByRole,
       status:         TaskStatus.pending,
       priority:       TaskPriority.medium,
       createdAt:      DateTime.now(),
