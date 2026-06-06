@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/copy_check.dart';
+import 'auth_service.dart';
 import 'timetable_service.dart';
 
 /// Manages copy-checking sessions.
@@ -172,7 +173,13 @@ class CopyCheckService {
   }
 
   Future<String> createCheck(CopyCheck check) async {
-    final ref = await _coll.add(check.toJson());
+    // Stamp schoolId on this root collection so it can be tenant-filtered later
+    // (Phase 1 multi-tenancy prep — root copy_checks is currently readable by
+    // any staff with no school scoping). Read-side filtering follows the backfill.
+    final ref = await _coll.add({
+      ...check.toJson(),
+      'schoolId': AuthService.currentSchoolId,
+    });
     return ref.id;
   }
 

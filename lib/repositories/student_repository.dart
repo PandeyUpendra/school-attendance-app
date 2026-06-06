@@ -340,6 +340,9 @@ class FirestoreStudentRepository implements StudentRepository {
       'type': type,
       'whatsappSent': whatsappSent,
       if (teacherId != null) 'teacherId': teacherId,
+      // schoolId stamped so the collection-group remarks query (EOD digest) can
+      // be tenant-filtered once multi-tenancy lands (Phase 1 prep).
+      'schoolId': _schoolId,
     });
   }
 

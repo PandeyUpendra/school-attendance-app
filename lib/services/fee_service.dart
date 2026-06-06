@@ -111,7 +111,10 @@ class FeeService extends BaseFirestoreService {
       final rno  = 'RCP-${DateTime.now().year}-${next.toString().padLeft(6, '0')}';
 
       final data = Map<String, dynamic>.from(payment.toJson())
-        ..['receiptNo'] = rno;
+        ..['receiptNo'] = rno
+        // schoolId stamped so the collection-group payments query (EOD digest)
+        // can be tenant-filtered once multi-tenancy lands (Phase 1 prep).
+        ..['schoolId'] = _sid;
       tx.set(_receiptCounter, {'receiptSeq': next}, SetOptions(merge: true));
       tx.set(ref, data);
       return rno;

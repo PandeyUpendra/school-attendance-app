@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/substitution_record.dart';
+import 'auth_service.dart';
 
 /// Tracks every substitution event for history and auto-suggest.
 ///
@@ -17,7 +18,9 @@ class SubstitutionHistoryService {
   // ── Log a new substitution ─────────────────────────────────────────────────
 
   Future<void> logSubstitution(SubstitutionRecord record) async {
-    await _col.add(record.toJson());
+    // Stamp schoolId on this root collection for later tenant-filtering
+    // (Phase 1 multi-tenancy prep). Read filtering follows the backfill.
+    await _col.add({...record.toJson(), 'schoolId': AuthService.currentSchoolId});
   }
 
   // ── Coordinator: full history, newest first ────────────────────────────────
