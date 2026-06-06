@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import '../models/parental_consent.dart';
 import 'audit_log_service.dart';
@@ -67,9 +68,20 @@ class ConsentService {
     return completer.future;
   }
 
+  /// Name of the isolated secondary Firebase app used purely to verify consent
+  /// OTPs without touching the primary Auth session.
+  static const _verifierAppName = 'consentOtpVerifier';
+
   /// Verifies [smsCode] against [verificationId].
   ///
   /// Returns `true` on success; throws a human-readable [Exception] on failure.
+  ///
+  /// CRITICAL: the verification runs on an ISOLATED SECONDARY Firebase app, not
+  /// the default one. Phone-auth verification is done via signInWithCredential,
+  /// which signs the app in as that phone number — on the default instance that
+  /// would silently REPLACE the logged-in teacher/guardian's session with the
+  /// parent's phone account (review #223). Using a throwaway secondary app
+  /// confines the sign-in there and leaves the primary session untouched.
   Future<bool> verifyOtp({
     required String verificationId,
     required String smsCode,
@@ -78,8 +90,23 @@ class ConsentService {
       verificationId: verificationId,
       smsCode:        smsCode.trim(),
     );
+
+    // Get-or-create the isolated verifier app (initializeApp throws if it
+    // already exists, e.g. a previous verification didn't fully tear down).
+    FirebaseApp app;
     try {
-      await _fba.signInWithCredential(cred);
+      app = Firebase.app(_verifierAppName);
+    } catch (_) {
+      app = await Firebase.initializeApp(
+        name:    _verifierAppName,
+        options: Firebase.app().options,
+      );
+    }
+    final verifierAuth = FirebaseAuth.instanceFor(app: app);
+
+    try {
+      await verifierAuth.signInWithCredential(cred);
+      await verifierAuth.signOut();
       return true;
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
@@ -91,6 +118,11 @@ class ConsentService {
         default:
           throw Exception('Verification failed: ${e.message ?? e.code}');
       }
+    } finally {
+      // Tear down the secondary app so it never lingers as an auth state.
+      try {
+        await app.delete();
+      } catch (_) {/* best-effort */}
     }
   }
 

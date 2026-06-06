@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/deleted_student.dart';
@@ -59,14 +57,10 @@ class StudentService extends BaseFirestoreService {
   CollectionReference<Map<String, dynamic>> get _studentsRef =>
       schoolCollection(_schoolId, 'students');
 
-  // ── Password generator ───────────────────────────────────────────────────────
-
-  /// Generates a readable 8-char password (no 0/O/1/I to avoid confusion).
-  static String generateGuardianPassword() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    final rng = Random.secure();
-    return List.generate(8, (_) => chars[rng.nextInt(chars.length)]).join();
-  }
+  // (generateGuardianPassword removed — it was dead and misleading: guardians
+  // now get a strong random temp credential via generateSecurePassword inside
+  // TimetableService.addAllowedUser, set their own password via the invite
+  // link, and the password is never stored. Review #150.)
 
   // ── Students ────────────────────────────────────────────────────────────────
 

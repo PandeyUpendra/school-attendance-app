@@ -844,10 +844,9 @@ class TimetableService extends BaseFirestoreService {
   }
 
   /// @deprecated Password-based login is now handled by Firebase Auth.
-  /// This method always returns null and will be removed in a future release.
-  /// Use [AuthService.signInWithEmail] + [getAllowedUserDoc] instead.
-  @Deprecated('Use Firebase Auth sign-in + getAllowedUserDoc. This method always returns null.')
-  Future<String?> validateLogin(String email, String password) async => null;
+  // (validateLogin removed — it was a dead stub that always returned null yet
+  // read like a credential check. Auth is done via AuthService.signInWithEmail
+  // + getAllowedUserDoc. Review #151.)
 
   /// Looks up a guardian profile by phone number stored in [allowed_users].
   /// Returns the document data (with 'email' key added) or null if not found.
