@@ -46,7 +46,7 @@ class _EditSchoolSettingsScreenState extends State<EditSchoolSettingsScreen>
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
         title: const Text('School Settings'),

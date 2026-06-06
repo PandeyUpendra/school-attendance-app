@@ -75,7 +75,7 @@ class CoordinatorStaffTasksScreen extends StatelessWidget {
         backgroundColor: AppTheme.background,
         appBar: AppBar(
           title: const Text('Staff Tasks'),
-          backgroundColor: AppTheme.primary,
+          backgroundColor: AppTheme.primaryDark,
           foregroundColor: Colors.white,
           elevation: 0,
           bottom: const TabBar(

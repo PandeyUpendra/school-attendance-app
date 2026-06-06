@@ -54,9 +54,11 @@ abstract class AppTheme {
     primarySwatch: Colors.teal,
     scaffoldBackgroundColor: background,
 
-    // AppBar: deep violet everywhere, no elevation, white status-bar icons
+    // AppBar: deep teal-green everywhere, no elevation, white status-bar icons.
+    // Uses the darker shade so headers match the dark hero banners that sit
+    // directly beneath them (single continuous dark block, no seam).
     appBarTheme: const AppBarTheme(
-      backgroundColor: primary,
+      backgroundColor: primaryDark,
       foregroundColor: Colors.white,
       elevation: 0,
       systemOverlayStyle: SystemUiOverlayStyle(

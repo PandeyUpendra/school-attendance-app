@@ -46,13 +46,13 @@ class _StaffTaskManagementScreenState
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('All Staff Tasks'),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openCreateSheet,
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Assign Task'),

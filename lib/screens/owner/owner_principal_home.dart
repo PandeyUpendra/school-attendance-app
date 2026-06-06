@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../models/announcement.dart';
 import '../../models/exam.dart';
 import '../../models/student.dart';
 import '../../providers/school_settings_provider.dart';
@@ -18,7 +17,7 @@ import '../../services/school_settings_service.dart';
 import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
-import '../../utils/announcement_templates.dart';
+import '../../widgets/announcement_composer.dart';
 import '../../widgets/email_text_form_field.dart';
 import '../../utils/role_guard.dart';
 import '../onboarding/school_onboarding_screen.dart';
@@ -448,9 +447,14 @@ class _OPStaffPageState extends State<_OPStaffPage> {
     if (mounted) setState(() => _loading = true);
     try {
       final all = await _svc.getAllowedUsers();
+      final session = await AuthService().getSession();
+      final myEmail = (session?['email'] as String? ?? '').toLowerCase();
       // All staff roles (teachers, coordinators, principals, …), excluding
-      // guardians.
-      final staff = all.where((u) => u['role'] != 'guardian').toList()
+      // guardians and the owner's own account (no need to list yourself).
+      final staff = all.where((u) =>
+              u['role'] != 'guardian' &&
+              (u['email'] as String? ?? '').toLowerCase() != myEmail)
+          .toList()
         ..sort(staffByRoleThenName);
       final leaves = await _svc.getLeaveApplications(status: 'pending');
       if (!mounted) return;
@@ -794,23 +798,7 @@ class _OPManagePageState extends State<_OPManagePage> {
   final _academicYearCtrl = TextEditingController();
   bool _settingsSaving = false, _settingsLoaded = false;
 
-  final _annTitleCtrl = TextEditingController();
-  final _annMsgCtrl = TextEditingController();
-  String _annTarget = 'All Staff';
-  String? _annTemplate; // selected common-title template, null = custom
-  bool _annSaving = false;
   List<Map<String, dynamic>> _announcements = [];
-
-  /// Applies a common-title template: fills the title and a default editable
-  /// message. Both fields stay editable so the author can tweak before sending.
-  void _applyAnnTemplate(String? title) {
-    setState(() {
-      _annTemplate = title;
-      if (title == null) return;
-      _annTitleCtrl.text = title;
-      _annMsgCtrl.text   = kAnnouncementTemplates[title] ?? '';
-    });
-  }
 
   @override
   void initState() {
@@ -825,7 +813,6 @@ class _OPManagePageState extends State<_OPManagePage> {
     _nameCtrl.dispose(); _emailCtrl.dispose();
     _schoolNameCtrl.dispose(); _schoolPhoneCtrl.dispose();
     _schoolAddressCtrl.dispose(); _academicYearCtrl.dispose();
-    _annTitleCtrl.dispose(); _annMsgCtrl.dispose();
     super.dispose();
   }
 
@@ -881,23 +868,6 @@ class _OPManagePageState extends State<_OPManagePage> {
       if (!mounted) return;
       setState(() { _announcements = anns.map((a) => {'title': a.title, 'body': a.body, 'audience': a.audience}).toList(); });
     } catch (_) {}
-  }
-
-  Future<void> _sendAnnouncement() async {
-    final title = _annTitleCtrl.text.trim();
-    final body = _annMsgCtrl.text.trim();
-    if (title.isEmpty || body.isEmpty) { _snack('Enter title and message'); return; }
-    setState(() => _annSaving = true);
-    try {
-      await AnnouncementService().postAnnouncement(Announcement(id: '', title: title, body: body, postedBy: widget.email, postedByRole: widget.role, audience: _annTarget, isPinned: false));
-      _annTitleCtrl.clear(); _annMsgCtrl.clear();
-      if (mounted) {
-        setState(() => _annTemplate = null);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Announcement sent'), backgroundColor: AppTheme.success));
-      }
-      await _loadAnnouncements();
-    } catch (e) { if (mounted) _snack('Error: $e'); }
-    if (mounted) setState(() => _annSaving = false);
   }
 
   Future<void> _createUser() async {
@@ -1018,29 +988,11 @@ class _OPManagePageState extends State<_OPManagePage> {
                 onPressed: _settingsSaving ? null : _saveSchoolSettings)),
             ])),
             _opHeader('ANNOUNCEMENTS'),
-            _OPCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              DropdownButtonFormField<String>(value: _annTemplate, isExpanded: true,
-                decoration: InputDecoration(labelText: 'Quick template (optional)', prefixIcon: const Icon(Icons.bolt_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true),
-                hint: const Text('Choose a common title'),
-                items: kAnnouncementTemplates.keys.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                onChanged: _applyAnnTemplate),
-              const SizedBox(height: 10),
-              _opField(_annTitleCtrl, 'Announcement Title', Icons.title_outlined),
-              const SizedBox(height: 10),
-              TextField(controller: _annMsgCtrl, maxLines: 3, textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(labelText: 'Message', prefixIcon: const Padding(padding: EdgeInsets.only(bottom: 48), child: Icon(Icons.message_outlined)), border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true)),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String>(value: _annTarget,
-                decoration: const InputDecoration(labelText: 'Target Audience', prefixIcon: Icon(Icons.group_outlined), isDense: true),
-                items: ['All Staff', 'All Guardians', 'Everyone'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                onChanged: (v) { if (v != null) setState(() => _annTarget = v); }),
-              const SizedBox(height: 14),
-              SizedBox(width: double.infinity, child: ElevatedButton.icon(
-                icon: _annSaving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.send_outlined),
-                label: Text(_annSaving ? 'Sending…' : 'Send Announcement'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                onPressed: _annSaving ? null : _sendAnnouncement)),
-            ])),
+            _OPCard(child: AnnouncementComposer(
+              email: widget.email,
+              role:  widget.role,
+              onSent: _loadAnnouncements,
+            )),
             const SizedBox(height: 8),
             ..._announcements.take(5).map((a) => _OPCard(margin: const EdgeInsets.only(bottom: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [

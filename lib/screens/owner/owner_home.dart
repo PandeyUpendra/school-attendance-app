@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../models/announcement.dart';
 import '../../models/exam.dart';
 import '../../providers/school_settings_provider.dart';
 import '../../services/announcement_service.dart';
@@ -18,7 +17,7 @@ import '../../services/school_settings_service.dart';
 import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
-import '../../utils/announcement_templates.dart';
+import '../../widgets/announcement_composer.dart';
 import '../../widgets/email_text_form_field.dart';
 import '../../utils/role_guard.dart';
 import '../onboarding/school_onboarding_screen.dart';
@@ -586,9 +585,15 @@ class _StaffPageState extends State<_StaffPage> {
     if (mounted) setState(() => _loading = true);
     try {
       final all = await _svc.getAllowedUsers();
+      final session = await AuthService().getSession();
+      final myEmail = (session?['email'] as String? ?? '').toLowerCase();
       // All staff roles — teachers, coordinators, principals and other
-      // management — excluding guardians (parents are not staff).
-      final staff = all.where((u) => u['role'] != 'guardian').toList()
+      // management — excluding guardians (parents are not staff) and the
+      // owner's own account (no need to list yourself in the staff section).
+      final staff = all.where((u) =>
+              u['role'] != 'guardian' &&
+              (u['email'] as String? ?? '').toLowerCase() != myEmail)
+          .toList()
         ..sort(staffByRoleThenName);
       final leaves = await _svc.getLeaveApplications(status: 'pending');
       if (!mounted) return;
@@ -1411,37 +1416,13 @@ class _AnnouncementsPage extends StatefulWidget {
 class _AnnouncementsPageState extends State<_AnnouncementsPage> {
   static const _primary = AppTheme.primary;
 
-  final _titleCtrl = TextEditingController();
-  final _msgCtrl   = TextEditingController();
-  String _target   = 'All Staff';
-  String? _template; // selected common-title template, null = custom
-  bool _sending    = false;
-
   List<Map<String, dynamic>> _announcements = [];
   bool _loading = true;
-
-  /// Applies a common-title template: fills the title and a default editable
-  /// message. Both fields stay editable so the owner can tweak before sending.
-  void _applyTemplate(String? title) {
-    setState(() {
-      _template = title;
-      if (title == null) return;
-      _titleCtrl.text = title;
-      _msgCtrl.text   = kAnnouncementTemplates[title] ?? '';
-    });
-  }
 
   @override
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    _titleCtrl.dispose();
-    _msgCtrl.dispose();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -1465,44 +1446,6 @@ class _AnnouncementsPageState extends State<_AnnouncementsPage> {
     }
   }
 
-  Future<void> _send() async {
-    final title = _titleCtrl.text.trim();
-    final body  = _msgCtrl.text.trim();
-    if (title.isEmpty || body.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Enter title and message')));
-      return;
-    }
-    setState(() => _sending = true);
-    try {
-      await AnnouncementService().postAnnouncement(Announcement(
-        id:           '',
-        title:        title,
-        body:         body,
-        postedBy:     widget.email,
-        postedByRole: widget.role,
-        audience:     _target,
-        isPinned:     false,
-      ));
-      _titleCtrl.clear();
-      _msgCtrl.clear();
-      if (mounted) {
-        setState(() => _template = null);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Announcement sent'),
-          backgroundColor: AppTheme.success,
-        ));
-        await _load();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    }
-    if (mounted) setState(() => _sending = false);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1522,80 +1465,11 @@ class _AnnouncementsPageState extends State<_AnnouncementsPage> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _sectionHeader('NEW ANNOUNCEMENT'),
             _OwnerCard(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                DropdownButtonFormField<String>(
-                  value: _template,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: 'Quick template (optional)',
-                    prefixIcon: const Icon(Icons.bolt_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    isDense: true,
-                  ),
-                  hint: const Text('Choose a common title'),
-                  items: kAnnouncementTemplates.keys
-                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                      .toList(),
-                  onChanged: _applyTemplate,
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _titleCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Announcement Title',
-                    prefixIcon: const Icon(Icons.title_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    isDense: true,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _msgCtrl,
-                  maxLines: 3,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    labelText: 'Message',
-                    prefixIcon: const Padding(
-                      padding: EdgeInsets.only(bottom: 48),
-                      child: Icon(Icons.message_outlined),
-                    ),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    isDense: true,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  value: _target,
-                  decoration: const InputDecoration(
-                    labelText: 'Target Audience',
-                    prefixIcon: Icon(Icons.group_outlined),
-                    isDense: true,
-                  ),
-                  items: ['All Staff', 'All Guardians', 'Everyone']
-                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                      .toList(),
-                  onChanged: (v) { if (v != null) setState(() => _target = v); },
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: _sending
-                        ? const SizedBox(width: 16, height: 16,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                        : const Icon(Icons.send_outlined),
-                    label: Text(_sending ? 'Sending…' : 'Send Announcement'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.accent,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: _sending ? null : _send,
-                  ),
-                ),
-              ]),
+              child: AnnouncementComposer(
+                email: widget.email,
+                role:  widget.role,
+                onSent: _load,
+              ),
             ),
             _sectionHeader('RECENT ANNOUNCEMENTS'),
             if (_loading)

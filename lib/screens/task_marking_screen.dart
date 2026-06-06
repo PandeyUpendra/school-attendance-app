@@ -104,7 +104,7 @@ class _TaskMarkingScreenState extends State<TaskMarkingScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.task.title),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
       ),
       body: _loading

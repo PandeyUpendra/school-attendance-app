@@ -284,7 +284,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Text(_album.title, overflow: TextOverflow.ellipsis),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: _canWrite

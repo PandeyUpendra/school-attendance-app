@@ -85,7 +85,7 @@ class UnifiedStaffTaskScreen extends StatelessWidget {
           backgroundColor: AppTheme.background,
           appBar: AppBar(
             title: const Text('Staff Tasks'),
-            backgroundColor: AppTheme.primary,
+            backgroundColor: AppTheme.primaryDark,
             foregroundColor: Colors.white,
             elevation: 0,
             bottom: const TabBar(
@@ -120,7 +120,7 @@ class UnifiedStaffTaskScreen extends StatelessWidget {
         backgroundColor: AppTheme.background,
         appBar: AppBar(
           title: const Text('My Tasks'),
-          backgroundColor: AppTheme.primary,
+          backgroundColor: AppTheme.primaryDark,
           foregroundColor: Colors.white,
           elevation: 0,
           bottom: const TabBar(

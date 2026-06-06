@@ -41,7 +41,7 @@ class _TodoListScreenState extends State<TodoListScreen>
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('My To-Do List'),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
         bottom: TabBar(

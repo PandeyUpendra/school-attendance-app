@@ -49,7 +49,7 @@ class _StaffTasksScreenState extends State<StaffTasksScreen> {
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('My Tasks'),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
       ),

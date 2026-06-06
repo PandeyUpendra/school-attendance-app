@@ -381,7 +381,7 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
     return Scaffold(
       appBar: AppBar(
         title: const Text('Student Details'),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<List<SchoolProvidedDetails>>(

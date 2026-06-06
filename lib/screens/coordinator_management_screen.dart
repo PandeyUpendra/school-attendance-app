@@ -121,7 +121,7 @@ class _CoordinatorManagementScreenState
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         title: const Text('Manage Coordinators', style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,

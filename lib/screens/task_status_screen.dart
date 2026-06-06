@@ -19,7 +19,7 @@ class TaskStatusScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Task Status'),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<List<Task>>(

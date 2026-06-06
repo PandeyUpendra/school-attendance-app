@@ -69,7 +69,7 @@ class _StaffRemarksScreenState extends State<StaffRemarksScreen> {
       child: Scaffold(
         backgroundColor: AppTheme.background,
         appBar: AppBar(
-          backgroundColor: AppTheme.primary,
+          backgroundColor: AppTheme.primaryDark,
           foregroundColor: Colors.white,
           title: const Text('Remarks'),
           bottom: tabs.length > 1

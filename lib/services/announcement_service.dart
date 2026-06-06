@@ -125,4 +125,36 @@ class AnnouncementService {
     }
     await batch.commit();
   }
+
+  // ── Custom announcement titles ────────────────────────────────────────────
+  // Staff-saved titles that show up in the title dropdown alongside the
+  // built-in presets. School-scoped so the whole school shares them.
+
+  CollectionReference<Map<String, dynamic>> get _templatesColl =>
+      _db.collection('schools').doc(AuthService.currentSchoolId)
+         .collection('announcement_templates');
+
+  /// All custom titles saved for reuse, as title → default message.
+  Future<Map<String, String>> getCustomTemplates() async {
+    final snap = await _templatesColl.get();
+    final map = <String, String>{};
+    for (final d in snap.docs) {
+      final t = (d.data()['title'] as String?)?.trim();
+      if (t != null && t.isNotEmpty) {
+        map[t] = (d.data()['message'] as String?) ?? '';
+      }
+    }
+    return map;
+  }
+
+  /// Saves (or updates) a custom announcement title and its default message so
+  /// it appears in the title dropdown next time. The doc id is derived from the
+  /// title, so re-saving the same title overwrites instead of duplicating.
+  Future<void> saveCustomTemplate(String title, String message) async {
+    final t = title.trim();
+    if (t.isEmpty) return;
+    var id = t.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_');
+    if (id.replaceAll('_', '').isEmpty) id = 't_${t.hashCode}';
+    await _templatesColl.doc(id).set({'title': t, 'message': message});
+  }
 }

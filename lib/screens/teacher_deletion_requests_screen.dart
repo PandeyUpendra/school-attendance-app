@@ -187,7 +187,7 @@ class _TeacherDeletionRequestsScreenState
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         title: const Text('Teacher Deletion Requests'),
         bottom: TabBar(

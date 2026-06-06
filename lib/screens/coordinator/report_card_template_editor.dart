@@ -568,7 +568,7 @@ class _ReportCardTemplateEditorState
           builder: (_) => Scaffold(
             appBar: AppBar(
               title: const Text('Template Preview'),
-              backgroundColor: AppTheme.primary,
+              backgroundColor: AppTheme.primaryDark,
             ),
             body: PdfPreview(
               build: (_) async => bytes,

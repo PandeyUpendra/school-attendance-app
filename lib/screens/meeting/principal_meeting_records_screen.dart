@@ -71,7 +71,7 @@ class _PrincipalMeetingRecordsScreenState
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('Meeting Records'),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: const [],

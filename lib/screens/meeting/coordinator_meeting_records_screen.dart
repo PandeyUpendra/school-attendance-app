@@ -84,7 +84,7 @@ class _CoordinatorMeetingRecordsScreenState
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('My Meeting Records'),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
       ),

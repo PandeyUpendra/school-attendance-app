@@ -68,7 +68,7 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
         title: const Column(

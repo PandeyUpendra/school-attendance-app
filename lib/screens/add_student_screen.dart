@@ -122,8 +122,71 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     if (picked != null) setState(() => _photoPath = picked.path);
   }
 
+  /// Looks for an existing student in the same class/section whose identifying
+  /// details (name + father's name, and phone when given) match what's being
+  /// entered. If found, asks the user to confirm before saving a likely
+  /// duplicate. Returns true to proceed, false to cancel.
+  Future<bool> _confirmNotDuplicate() async {
+    String norm(String s) => s.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+    final name   = norm(_nameCtrl.text);
+    final father = norm(_fatherCtrl.text);
+    final phone  = norm(_phoneCtrl.text);
+    if (name.isEmpty) return true;
+
+    List<Student> existing;
+    try {
+      existing = await StudentService().getStudentsByClass(
+        className: widget.className,
+        section:   widget.section,
+        teacherId: widget.teacherId,
+      );
+    } catch (_) {
+      return true; // don't block saving if the lookup fails
+    }
+
+    final match = existing.where((s) {
+      final sameName   = norm(s.name) == name;
+      final sameFather = norm(s.fatherName) == father;
+      final samePhone  = phone.isNotEmpty && norm(s.phone) == phone;
+      // Same name + (same father OR same phone) is a strong duplicate signal.
+      return sameName && (sameFather || samePhone);
+    }).toList();
+    if (match.isEmpty) return true;
+    if (!mounted) return true;
+
+    final dup = match.first;
+    final sec = widget.section.isNotEmpty ? '-${widget.section}' : '';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Possible duplicate'),
+        content: Text(
+          'A student with the same details already appears to be saved:\n\n'
+          '${dup.name} (Roll ${dup.roll}, ${widget.className}$sec).\n\n'
+          'Please check before adding again. Save anyway?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Save anyway'),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Warn before adding what looks like a record that already exists. Only on
+    // the add path — editing an existing student is expected to "match".
+    if (!_isEdit && !await _confirmNotDuplicate()) return;
+
     setState(() => _saving = true);
 
     final student = Student(

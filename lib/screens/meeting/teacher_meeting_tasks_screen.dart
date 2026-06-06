@@ -57,7 +57,7 @@ class _TeacherMeetingTasksScreenState
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('Meeting Tasks'),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
       ),

@@ -297,6 +297,55 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     return ok == true ? text : null;
   }
 
+  /// Asks the user to confirm before adding a teacher whose details match an
+  /// existing record (same name + same email, or same name + same subject when
+  /// no email is given). Returns true to proceed, false to cancel.
+  Future<bool> _confirmTeacherNotDuplicate(Teacher teacher) async {
+    String norm(String s) => s.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+    final name    = norm(teacher.name);
+    final email   = norm(teacher.email);
+    final subject = norm(teacher.subject);
+    if (name.isEmpty) return true;
+
+    Teacher? match;
+    for (final t in _teachers) {
+      if (norm(t.name) != name) continue;
+      final sameEmail   = email.isNotEmpty && norm(t.email) == email;
+      final sameSubject = email.isEmpty && norm(t.subject) == subject;
+      if (sameEmail || sameSubject) { match = t; break; }
+    }
+    final m = match;
+    if (m == null || !mounted) return m == null;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.orange),
+          SizedBox(width: 8),
+          Text('Possible duplicate', style: TextStyle(fontSize: 16)),
+        ]),
+        content: Text(
+          'A teacher with the same details already appears to be saved:\n\n'
+          '${m.name}${m.email.isNotEmpty ? " (${m.email})" : ""}.\n\n'
+          'Please check before adding again. Save anyway?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Save anyway'),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
   // ── Open the Add/Edit dialog ─────────────────────────────────────────────
 
   Future<void> _openDialog({Teacher? existing}) async {
@@ -350,6 +399,9 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
         return;
       }
     }
+
+    // Warn before adding a teacher whose details match one already saved.
+    if (existing == null && !await _confirmTeacherNotDuplicate(teacher)) return;
 
     final schoolId = BaseFirestoreService.currentSchoolId ?? 'default_school';
 

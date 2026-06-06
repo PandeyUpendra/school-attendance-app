@@ -105,7 +105,7 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
         title: Text(_isEdit
             ? 'Edit Task'
             : (widget.isPersonal ? 'New Personal Task' : 'Create Task')),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
       ),
       body: _loading

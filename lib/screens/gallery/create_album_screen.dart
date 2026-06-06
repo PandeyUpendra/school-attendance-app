@@ -176,7 +176,7 @@ class _CreateAlbumScreenState extends State<CreateAlbumScreen> {
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Text(_isEdit ? 'Edit Album' : 'New Album'),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
       ),

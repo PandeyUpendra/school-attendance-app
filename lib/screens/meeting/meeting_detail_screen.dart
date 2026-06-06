@@ -455,7 +455,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text('New Meeting'),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
       ),
       body: Form(
@@ -592,7 +592,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           appBar: AppBar(
             title: Text(m.title,
                 style: const TextStyle(fontSize: 16), overflow: TextOverflow.ellipsis),
-            backgroundColor: AppTheme.primary,
+            backgroundColor: AppTheme.primaryDark,
             foregroundColor: Colors.white,
             actions: [
               if (!readOnly && m.status != MeetingStatus.completed)
