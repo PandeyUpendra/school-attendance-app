@@ -61,6 +61,17 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   String? _error;
   Student? _student;
 
+  // Active child identity. Starts from the widget params, but can change when a
+  // guardian with more than one child picks a different one. All data loads key
+  // off these instead of widget.* so switching reloads the whole dashboard.
+  late String _activeClass;
+  late int    _activeRoll;
+  late String _activeSection;
+
+  // Every student that shares this guardian's email — i.e. all their children.
+  // When more than one, a child switcher appears in the header.
+  List<Student> _children = [];
+
   String? _todayStatus;
 
   // Attendance is stored by the teacher under a section-scoped key
@@ -68,9 +79,9 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   // the identical key or the lookup misses every doc and history shows blank —
   // matches AttendanceScreen._attendanceKey / AttendanceHistoryScreen._attendanceKey.
   String get _attendanceKey =>
-      widget.studentSection.trim().isEmpty
-          ? widget.studentClass
-          : '${widget.studentClass} ${widget.studentSection.trim()}';
+      _activeSection.trim().isEmpty
+          ? _activeClass
+          : '$_activeClass ${_activeSection.trim()}';
 
   // Fee
   FeeStructure? _feeStructure;
@@ -99,20 +110,57 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   bool  _hasConsent  = true;  // optimistic — don't show banner until we know
   bool  _needsReConsent = false;
   String get _studentDocId => Student.buildDocId(
-        widget.studentRoll,
-        widget.studentClass,
-        widget.studentSection,
+        _activeRoll,
+        _activeClass,
+        _activeSection,
       );
 
   @override
   void initState() {
     super.initState();
+    _activeClass   = widget.studentClass;
+    _activeRoll    = widget.studentRoll;
+    _activeSection = widget.studentSection;
     // Guard: only a session with the guardian role may stay here.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       RoleGuard.verify(context, ['guardian']);
     });
+    _loadChildren();
     _loadAll();
     _initNotifStream();
+  }
+
+  /// Finds every student that shares this guardian's email so a parent with
+  /// more than one child can switch between them. Falls back silently to the
+  /// single child passed in if the lookup fails or finds nothing.
+  Future<void> _loadChildren() async {
+    try {
+      final session = await AuthService().getSession();
+      final email = (session?['email'] as String? ?? '').trim();
+      if (email.isEmpty) return;
+      final kids = await _service.getStudentsByGuardianEmail(email);
+      if (!mounted || kids.length < 2) return;
+      setState(() => _children = kids);
+    } catch (_) {/* keep single-child view */}
+  }
+
+  /// Switches the dashboard to another of the guardian's children and reloads.
+  void _switchChild(Student child) {
+    if (child.className == _activeClass &&
+        child.roll == _activeRoll &&
+        child.section == _activeSection) {
+      return;
+    }
+    setState(() {
+      _activeClass   = child.className;
+      _activeRoll    = child.roll;
+      _activeSection = child.section;
+      _student       = null;
+      _loading       = true;
+    });
+    _notifSub?.cancel();
+    _initNotifStream();
+    _loadAll();
   }
 
   @override
@@ -129,8 +177,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _notifSub = NotificationService()
         .streamFor(
           role:         'guardian',
-          studentClass: widget.studentClass,
-          studentRoll:  widget.studentRoll,
+          studentClass: _activeClass,
+          studentRoll:  _activeRoll,
         )
         .listen((items) {
       if (!mounted) return;
@@ -158,10 +206,10 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
 
   /// Loads every exam for the class + this student's result for each.
   Future<List<MapEntry<Exam, ExamResult?>>> _loadExamData() async {
-    final exams = await _examService.getExams(className: widget.studentClass);
+    final exams = await _examService.getExams(className: _activeClass);
     if (exams.isEmpty) return [];
     final resultFuts =
-        exams.map((e) => _examService.getResult(e.id, widget.studentRoll));
+        exams.map((e) => _examService.getResult(e.id, _activeRoll));
     final results = await Future.wait(resultFuts);
     return List.generate(exams.length, (i) => MapEntry(exams[i], results[i]));
   }
@@ -172,7 +220,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       // ── Critical: student identity + attendance ─────────────────────────────
       // These must succeed; if not, show the error screen.
       final coreResults = await Future.wait([
-        _service.getStudentByRoll(widget.studentClass, widget.studentRoll, section: widget.studentSection),  // 0
+        _service.getStudentByRoll(_activeClass, _activeRoll, section: _activeSection),  // 0
         _service.loadTodayAttendance(className: _attendanceKey),                  // 1
       ]);
       if (!mounted) return;
@@ -183,9 +231,9 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       // ── Optional: fee / exams / homework / timetable ────────────────────────
       // Any individual failure just leaves that section empty; no full crash.
       final optResults = await Future.wait([
-        _feeService.getFeeStructure(className: widget.studentClass).catchError((_) => FeeStructure.empty(widget.studentClass)),          // 0
-        _feeService.getTotalPaid(className: widget.studentClass, roll: widget.studentRoll).catchError((_) => 0.0),                       // 1
-        _hwService.getHomeworkForClass(BaseFirestoreService.currentSchoolId ?? 'default_school', widget.studentClass).catchError((_) => <Homework>[]),  // 2
+        _feeService.getFeeStructure(className: _activeClass).catchError((_) => FeeStructure.empty(_activeClass)),          // 0
+        _feeService.getTotalPaid(className: _activeClass, roll: _activeRoll).catchError((_) => 0.0),                       // 1
+        _hwService.getHomeworkForClass(BaseFirestoreService.currentSchoolId ?? 'default_school', _activeClass).catchError((_) => <Homework>[]),  // 2
         _loadExamData().catchError((_) => <MapEntry<Exam, ExamResult?>>[]),                                                              // 3
         _ttService.getTimetable().catchError((_) => <String, Map<String, Map<int, TimetableEntry>>>{}),                                  // 4
         _ttService.getSettings().catchError((_) => <String, dynamic>{}),                                                                 // 5
@@ -221,12 +269,12 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
 
       setState(() {
         _student        = student;
-        _todayStatus    = todayByRoll[widget.studentRoll];
+        _todayStatus    = todayByRoll[_activeRoll];
         _feeStructure   = feeStructure;
         _totalPaid      = totalPaid;
         _homeworkList   = hwList;
         _examData       = examData;
-        _classTimetable = timetable[widget.studentClass] ?? {};
+        _classTimetable = timetable[_activeClass] ?? {};
         _bellSettings   = bells;
         _firstBellTime  = ttSettings['firstBellTime'] as String? ?? '08:00';
         _teacherById    = {for (final t in teachers) t.id: t};
@@ -275,8 +323,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Text(
-          'No student found for Roll ${widget.studentRoll} '
-          'in ${widget.studentClass}. Please contact the school '
+          'No student found for Roll $_activeRoll '
+          'in $_activeClass. Please contact the school '
           'administrator to verify your account link.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
@@ -316,7 +364,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
             bellSettings: _bellSettings,
             firstBellTime: _firstBellTime,
             teacherById: _teacherById,
-            className: _student?.className ?? widget.studentClass,
+            className: _student?.className ?? _activeClass,
           ),
         ),
       ),
@@ -333,7 +381,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
           builder: (_) => GuardianSubjectTeachersScreen(
             classTimetable: _classTimetable,
             teacherById: _teacherById,
-            className: _student?.className ?? widget.studentClass,
+            className: _student?.className ?? _activeClass,
           ),
         ),
       ),
@@ -350,7 +398,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         MaterialPageRoute(
           builder: (_) => GuardianHomeworkScreen(
             homeworkList: _homeworkList,
-            className: _student?.className ?? widget.studentClass,
+            className: _student?.className ?? _activeClass,
           ),
         ),
       ),
@@ -382,7 +430,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         MaterialPageRoute(
           builder: (_) => GuardianAttendanceHistoryScreen(
             attendanceKey: _attendanceKey,
-            studentRoll: widget.studentRoll,
+            studentRoll: _activeRoll,
             studentName: _student?.name ?? 'Student',
           ),
         ),
@@ -427,7 +475,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         context,
         MaterialPageRoute(
           builder: (_) => GuardianFeeStatusScreen(
-            structure: _feeStructure ?? FeeStructure.empty(widget.studentClass),
+            structure: _feeStructure ?? FeeStructure.empty(_activeClass),
             totalPaid: _totalPaid,
           ),
         ),
@@ -544,6 +592,56 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         MaterialPageRoute(builder: (_) => const RoleSelectionScreen()));
   }
 
+  /// Horizontal chips to switch between this guardian's children. Hidden when
+  /// there's only one child linked to the email.
+  Widget _childSwitcher() {
+    if (_children.length < 2) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      color: AppTheme.surface,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 6),
+          child: Text('VIEWING',
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey,
+                  letterSpacing: 0.8)),
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: _children.map((c) {
+              final selected = c.className == _activeClass &&
+                  c.roll == _activeRoll &&
+                  c.section == _activeSection;
+              final sec = c.section.isNotEmpty ? '-${c.section}' : '';
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  selected: selected,
+                  onSelected: (_) => _switchChild(c),
+                  label: Text('${c.name}  ·  ${c.className}$sec'),
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    color: selected ? Colors.white : AppTheme.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  selectedColor: AppTheme.primary,
+                  backgroundColor: AppTheme.background,
+                  side: BorderSide(
+                      color: selected ? AppTheme.primary : AppTheme.border),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -553,8 +651,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
           // ── Wave hero (sticky — never scrolls) ───────────────────────
           _GuardianHeroCard(
             studentName:      _student?.name ?? '',
-            studentClass:     widget.studentClass,
-            studentRoll:      widget.studentRoll,
+            studentClass:     _activeClass,
+            studentRoll:      _activeRoll,
             todayStatus:      _todayStatus,
             loading:          _loading,
             unreadNotifCount: _unreadNotifCount,
@@ -564,8 +662,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                 MaterialPageRoute(
                   builder: (_) => NotificationsScreen(
                     role:         'guardian',
-                    studentClass: widget.studentClass,
-                    studentRoll:  widget.studentRoll,
+                    studentClass: _activeClass,
+                    studentRoll:  _activeRoll,
                   ),
                 ),
               );
@@ -573,6 +671,9 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
             },
             onLogout: _logout,
           ),
+
+          // ── Child switcher (only when this guardian has >1 child) ───────
+          _childSwitcher(),
 
           // ── Scrollable content ────────────────────────────────────────
           Expanded(

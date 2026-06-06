@@ -82,6 +82,26 @@ class StudentService extends BaseFirestoreService {
   Future<List<Student>> getStudents() async =>
       _visibleOnly(await _repo.fetchAll());
 
+  /// Every (visible) student whose guardian email matches [email]. Lets a
+  /// guardian with more than one child see all of them after a single login.
+  /// Uses a server-side equality query (guardian emails are stored lower-cased)
+  /// so it stays cheap and works under guardian-scoped read rules. Sorted by
+  /// name for a stable child-switcher order.
+  Future<List<Student>> getStudentsByGuardianEmail(String email) async {
+    final norm = email.trim().toLowerCase();
+    if (norm.isEmpty) return [];
+    final snap =
+        await _studentsRef.where('guardianEmail', isEqualTo: norm).get();
+    final list = snap.docs.map((d) {
+      final data = Map<String, dynamic>.from(d.data());
+      data['id'] = d.id;
+      return Student.fromJson(data);
+    }).toList();
+    final visible = _visibleOnly(list)
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return visible;
+  }
+
   /// Fetch students for a class/section, optionally scoped to one teacher.
   /// Pass [teacherId] to return only students added by that class teacher.
   /// Omit it (or pass null) for coordinator/principal views that need all
