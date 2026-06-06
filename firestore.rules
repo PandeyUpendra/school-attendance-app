@@ -56,11 +56,15 @@ service cloud.firestore {
       return getUserData() != null ? getUserData().role : null;
     }
 
-    /// Caller's schoolId. Defaults to 'school_1' when the field is absent so
-    /// that staff accounts created before schoolId was stamped (single-school
-    /// deployment) are not locked out of school-scoped reads.
+    /// Caller's schoolId, or null when absent.
+    ///
+    /// PHASE 3 (strict multi-tenancy): the old 'school_1' default is GONE — a
+    /// missing schoolId now fails closed (returns null → inSchool() false)
+    /// rather than silently granting access to school_1. This REQUIRES the
+    /// Phase 2 backfill (scripts/backfill_school_id.js) to have stamped schoolId
+    /// on every allowed_users doc first, or those accounts are locked out.
     function userSchoolId() {
-      return getUserData() != null && 'schoolId' in getUserData() ? getUserData().schoolId : 'school_1';
+      return getUserData() != null && 'schoolId' in getUserData() ? getUserData().schoolId : null;
     }
 
     /// Caller's teacherId.
@@ -111,8 +115,16 @@ service cloud.firestore {
     }
 
     /// ② True when the caller's schoolId matches path variable sid.
+    ///
+    /// PHASE 3 (strict multi-tenancy): real tenant isolation. Previously this
+    /// returned true whenever sid=='school_1' OR userSchoolId()=='school_1'
+    /// (which defaulted on), AND for any 'owner' regardless of school — so a
+    /// second school was fully exposed and any owner could reach any school
+    /// (review #12). Now ONLY the hardcoded root admin crosses schools; everyone
+    /// else (owners included) is confined to their own schoolId. Requires the
+    /// Phase 2 backfill to have run.
     function inSchool(sid) {
-      return isRole('owner') || userSchoolId() == sid || sid == 'school_1' || userSchoolId() == 'school_1';
+      return isRootAdmin() || userSchoolId() == sid;
     }
 
     /// True when cls is listed in the caller's classIds array.
@@ -1393,17 +1405,20 @@ service cloud.firestore {
     // A collection-group query needs a rule that matches the leaf collection
     // at ANY depth via the recursive {path=**} wildcard.
     //
-    // Restricted to management. NOTE: a collection-group query spans schools,
-    // so these grants are NOT school-isolated. Acceptable while the app is
-    // effectively single-school; revisit (stamp schoolId on each doc and
-    // filter) before true multi-tenant rollout.
+    // Restricted to management AND to the caller's own school: each leaf doc
+    // carries a schoolId (Phase 1 writes + Phase 2 backfill), so a collection-
+    // group query can no longer span schools (review #16). A management caller
+    // must add .where('schoolId', isEqualTo: <their school>) for the query to
+    // be permitted (rules are not filters). Root admin is exempt.
     // ════════════════════════════════════════════════════════════════
     match /{path=**}/remarks/{remarkId} {
-      allow read: if isSignedIn() && isManagement();
+      allow read: if isSignedIn() && isManagement()
+        && (isRootAdmin() || resource.data.schoolId == userSchoolId());
     }
 
     match /{path=**}/payments/{paymentId} {
-      allow read: if isSignedIn() && isManagement();
+      allow read: if isSignedIn() && isManagement()
+        && (isRootAdmin() || resource.data.schoolId == userSchoolId());
     }
 
   } // /databases/{database}/documents
