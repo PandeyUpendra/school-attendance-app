@@ -1,9 +1,45 @@
 rules_version = '2';
+
+// ════════════════════════════════════════════════════════════════════════════
+// School App — Cloud Storage Security Rules
+//
+// NOTE on tenancy: Storage rules cannot read Firestore, so without custom
+// auth claims they can only check that the caller is authenticated — not their
+// role or schoolId. The hard guarantees here are therefore:
+//   • No unauthenticated read/write anywhere (previously gallery was world-open).
+//   • Writes must be images and under a sane size cap.
+// Role/school scoping for uploads is additionally enforced by the Firestore
+// rules on the matching metadata docs (albums/photos/policy). A future
+// hardening step is to mint custom claims (role, schoolId) and gate on them.
+// ════════════════════════════════════════════════════════════════════════════
+
 service firebase.storage {
   match /b/{bucket}/o {
-    match /schools/{schoolId}/gallery/{allPaths=**} {
-      allow read, write: if true;
+
+    function isSignedIn() {
+      return request.auth != null;
     }
+
+    // Image-only, ≤ 15 MB. resource is null on create, so guard both.
+    function isAllowedImage() {
+      return request.resource != null
+        && request.resource.size < 15 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Gallery photos (original / compressed / watermarked variants).
+    match /schools/{schoolId}/gallery/{allPaths=**} {
+      allow read:  if isSignedIn();
+      allow write: if isSignedIn() && isAllowedImage();
+    }
+
+    // School policy assets (e.g. ideal-dress reference photo).
+    match /schools/{schoolId}/policy/{allPaths=**} {
+      allow read:  if isSignedIn();
+      allow write: if isSignedIn() && isAllowedImage();
+    }
+
+    // Everything else: denied.
     match /{allPaths=**} {
       allow read, write: if false;
     }

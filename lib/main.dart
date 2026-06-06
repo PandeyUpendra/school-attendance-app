@@ -192,18 +192,22 @@ class _SplashGateState extends State<_SplashGate> {
       }
     }
 
-    // Re-validate management sessions against the authoritative allowed_users
-    // doc. SplashGate otherwise routes purely from the cached SharedPreferences
-    // session — so a session whose role was since revoked or changed would
-    // render a dashboard the Firestore rules no longer honour, and every write
-    // (e.g. an owner creating a principal) then fails with permission-denied
-    // while looking like a generic error. Reconcile against the live doc:
-    //   • doc absent OR role changed  → clear the stale session, force re-login
+    // Re-validate the session against the authoritative allowed_users doc on
+    // EVERY resume, for EVERY role (previously only management). SplashGate
+    // otherwise routes purely from the cached SharedPreferences session — so a
+    // user who was since suspended, disabled, or had their role changed would
+    // keep full access until they happened to log out or 7 days elapsed.
+    // Suspending or firing a teacher mid-term now takes effect on next app open
+    // (review #8, #9). Reconcile against the live doc:
+    //   • doc absent OR role changed OR status suspended/disabled
+    //                                  → clear the stale session, force re-login
     //   • read threw (offline/transient) → keep cached routing (don't lock out)
-    //   • role matches                 → proceed
-    const managementRoles = {'owner', 'ownerPrincipal', 'principal', 'coordinator'};
+    //   • role matches & status active  → proceed
+    //
+    // Phone-OTP guardians have no session email and so cannot be re-checked here
+    // (their allowed_users doc is keyed by email); they are skipped.
     final email = session['email'] as String?;
-    if (managementRoles.contains(role) && email != null && email.isNotEmpty) {
+    if (email != null && email.isNotEmpty) {
       bool readFailed = false;
       Map<String, dynamic>? live;
       try {
@@ -212,11 +216,19 @@ class _SplashGateState extends State<_SplashGate> {
         readFailed = true; // network/transient — fall through to cached routing.
       }
       if (!mounted) return;
-      if (!readFailed && (live == null || (live['role'] as String? ?? '') != role)) {
-        await AuthService().clearSession();
-        if (!mounted) return;
-        _go(const LoginScreen());
-        return;
+      if (!readFailed) {
+        final liveRole   = (live?['role']   as String?) ?? '';
+        final liveStatus = (live?['status'] as String?) ?? '';
+        final revoked = live == null
+            || liveRole != role
+            || liveStatus == 'suspended'
+            || liveStatus == 'disabled';
+        if (revoked) {
+          await AuthService().clearSession();
+          if (!mounted) return;
+          _go(const LoginScreen());
+          return;
+        }
       }
     }
 

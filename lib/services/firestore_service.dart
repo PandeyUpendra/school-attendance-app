@@ -157,9 +157,13 @@ class FirestoreService {
   // ── FCM token ─────────────────────────────────────────────────────────────
 
   static Future<void> saveFcmToken(String uid, String token) async {
-    try {
-      await _db.collection('users').doc(uid).update({'fcmToken': token});
-    } catch (_) {}
+    // set(merge) — NOT update(): the users/{uid} doc usually doesn't exist yet
+    // (nothing else creates it), and update() throws on a missing doc, so the
+    // token never persisted and the throw was swallowed (review #209).
+    await _db.collection('users').doc(uid).set(
+      {'fcmToken': token, 'fcmTokenUpdatedAt': FieldValue.serverTimestamp()},
+      SetOptions(merge: true),
+    );
   }
 
   // ── Reports ───────────────────────────────────────────────────────────────

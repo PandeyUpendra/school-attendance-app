@@ -243,13 +243,20 @@ service cloud.firestore {
       allow create, delete: if isSignedIn() && isAnyStaff();
 
       // Staff may update any field. A guardian may update ONLY the
-      // studentStatuses map (marking their child's task done). The client
-      // scopes which key inside the map changes to their own child.
+      // studentStatuses map, AND only the entry for their OWN child — enforced
+      // server-side here (previously "scoping to their own child" was a
+      // client-only promise, so a guardian could mark/unmark every student).
+      // The map key is "{studentClass}_{studentRoll}" (TaskService.updateStudentStatus);
+      // we diff the sub-map and require the only changed key to be the
+      // guardian's own child key.
       allow update: if isSignedIn() && (
         isAnyStaff() ||
         (isRole('guardian')
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['studentStatuses']))
+               .hasOnly(['studentStatuses'])
+          && request.resource.data.studentStatuses
+               .diff(resource.data.studentStatuses).affectedKeys()
+               .hasOnly([userStudentClass() + '_' + string(userStudentRoll())]))
       );
     }
 
@@ -329,15 +336,15 @@ service cloud.firestore {
     match /allowed_users/{email} {
 
       // Own document, OR any coordinator / principal / admin in the same school,
-      // OR any owner globally,
-      // OR unauthenticated read if the target document is an 'owner' (for bootstrapping).
+      // OR any owner globally.
+      // (Previously also allowed UNAUTHENTICATED read of any 'owner' doc for
+      //  "bootstrapping" — that leaked every owner's email/name/phone to the
+      //  public internet. Bootstrapping is done by the hardcoded root admin.)
       allow read: if isRootAdmin() || (isSignedIn() && (
         userEmail() == email ||
         isRole('owner') ||
         (isManagement() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId)
-      )) || (
-        'role' in resource.data && resource.data.role == 'owner'
-      );
+      ));
 
       // ③ Only strict admin; new document must belong to caller's school.
       // OR any owner globally.
@@ -366,9 +373,11 @@ service cloud.firestore {
           && userSchoolId() == request.resource.data.schoolId
           && 'role' in request.resource.data
           && request.resource.data.role == 'guardian')
-      )) || (
-        'role' in request.resource.data && request.resource.data.role == 'owner'
-      );
+      ));
+      // NOTE: the previous trailing clause allowed ANYONE (even unauthenticated)
+      // to create a doc whose role == 'owner' — i.e. mint themselves owner and
+      // own the whole system. Removed. The first owner is bootstrapped by the
+      // hardcoded root admin (isRootAdmin), and further owners by an existing owner.
 
       allow update: if isRootAdmin() || (isSignedIn() && (
         isRole('owner') ||
@@ -411,10 +420,12 @@ service cloud.firestore {
           && request.resource.data.role     == resource.data.role
           && 'schoolId' in request.resource.data && 'schoolId' in resource.data
           && request.resource.data.schoolId == resource.data.schoolId)
-      )) || (
-        'role' in resource.data && resource.data.role == 'owner' &&
-        'role' in request.resource.data && request.resource.data.role == 'owner'
-      );
+      ));
+      // NOTE: removed the trailing clause that let ANY signed-in user modify ANY
+      // owner doc as long as role stayed 'owner' — a guardian could rewrite an
+      // owner's schoolId/name/classIds. Owner docs are now editable only by the
+      // root admin, an owner, a strict admin in-school, or the owner themselves
+      // (covered above, with role/schoolId pinned).
 
       allow delete: if isRootAdmin() || (isSignedIn() && (
         isRole('owner') ||
@@ -425,9 +436,10 @@ service cloud.firestore {
           && userSchoolId() == resource.data.schoolId
           && 'role' in resource.data
           && resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian'])
-      )) || (
-        'role' in resource.data && resource.data.role == 'owner'
-      );
+      ));
+      // NOTE: removed the trailing clause that let ANY signed-in user DELETE any
+      // owner doc — a trivial lockout/DoS of every school. Owner docs are now
+      // deletable only by the root admin, an owner, or a strict admin in-school.
     }
 
 
@@ -536,6 +548,24 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
+    // CONSENTS  (/schools/{sid}/students/{studentId}/consents/{consentId})
+    //
+    // Parental-consent records (ConsentService). Previously had NO rule, so
+    // every read/write was default-denied and the entire consent feature was
+    // dead. Scoped like remarks: staff, or the student's own guardian.
+    //   Read/Create/Update: any staff OR the child's guardian.
+    //   Delete: management only (consents are part of the compliance record).
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/students/{studentId}/consents/{consentId} {
+      allow read, create, update: if isSignedIn() && (
+        isAnyStaff() ||
+        (inSchool(sid) && isRole('guardian') && studentId == guardianStudentId())
+      );
+      allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
     // CONSENT WITHDRAWALS  (/schools/{sid}/consent_withdrawals/{wfId})
     //
     // Workflow documents created when a guardian withdraws consent.
@@ -627,8 +657,16 @@ service cloud.firestore {
     match /schools/{sid}/student_deletion_requests/{requestId} {
       allow read, update, delete: if isSignedIn() && inSchool(sid)
         && hasAnyRole(['principal', 'admin', 'owner', 'ownerPrincipal']);
-      allow create: if isSignedIn() && inSchool(sid) && isAnyStaff()
-        && request.resource.data.status == 'pending';
+      // Management may file for anyone; a teacher may file only under their OWN
+      // identity (no impersonation — teacherEmail must equal the caller).
+      allow create: if isSignedIn() && inSchool(sid)
+        && request.resource.data.status == 'pending'
+        && (
+          isManagement() ||
+          (isAnyTeacher()
+            && 'teacherEmail' in request.resource.data
+            && request.resource.data.teacherEmail.lower() == userEmail())
+        );
     }
 
 
@@ -1076,7 +1114,24 @@ service cloud.firestore {
           && isClassTeacher(resource.data.audience.split(':')[1]))
       );
 
-      allow write: if isSignedIn() && inSchool(sid);
+      // Create: management may post to ANY audience. Other school members
+      // (teachers, guardians) may only post TARGETED notices — never the
+      // broadcast group audiences 'all' / 'teachers' / 'guardians', which were
+      // the phishing/spam vector flagged in review (a guardian broadcasting to
+      // the whole school, or impersonating the principal to all parents).
+      // Targeted flows that must keep working: absent alerts ('guardian:..'),
+      // leave-submitted to 'coordinator'/'principal', student-leave to
+      // 'class_teacher:..', resolved-leave to 'teacher:..'.
+      allow create: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        ('audience' in request.resource.data
+          && request.resource.data.audience is string
+          && !(request.resource.data.audience in ['all', 'teachers', 'guardians']))
+      );
+
+      // Editing/deleting an existing notice is a moderation action — management
+      // only (a non-management member can no longer alter or remove notices).
+      allow update, delete: if isSignedIn() && inSchool(sid) && isManagement();
     }
 
 
@@ -1159,7 +1214,13 @@ service cloud.firestore {
       allow read: if isSignedIn() && inSchool(sid)
         && hasAnyRole(['principal', 'admin', 'owner', 'coordinator']);
 
-      allow create: if isSignedIn() && inSchool(sid);
+      // Append-only, and the log MUST be attributed to the creating user:
+      // actorUid is pinned to request.auth.uid so a user cannot forge an entry
+      // blaming someone else. Combined with the immutable-update + no-delete
+      // rules below, the actor on every record is now tamper-evident.
+      // (AuditService stamps actorUid = FirebaseAuth.currentUser.uid.)
+      allow create: if isSignedIn() && inSchool(sid)
+        && request.resource.data.actorUid == request.auth.uid;
 
       // Soft-delete only: admin may stamp a reason but cannot alter
       // any original audit fields (action, entity, before, after, etc.)
@@ -1191,15 +1252,20 @@ service cloud.firestore {
     // Published items are publicly readable (share links, parent portals).
     // Write: coordinator | principal | admin | owner.
     // ════════════════════════════════════════════════════════════════
+    // Reads require authentication (these are minors' photos). The previous
+    // `|| resource.data.published == true` public clause both (a) exposed
+    // children's photos to the open internet and (b) never matched anyway —
+    // the model writes `isPublished`, not `published` (review #77, #210). It is
+    // removed; signed-out share links are intentionally not supported. Whether
+    // to reintroduce public reads (with watermark + consent gating + the
+    // correct field name) is revisited in the Gallery pass.
     match /schools/{sid}/albums/{albumId} {
-      allow read: if (isSignedIn() && inSchool(sid))
-                  || resource.data.published == true;
+      allow read:  if isSignedIn() && inSchool(sid);
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
     }
 
     match /schools/{sid}/photos/{photoId} {
-      allow read: if (isSignedIn() && inSchool(sid))
-                  || resource.data.published == true;
+      allow read:  if isSignedIn() && inSchool(sid);
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
     }
 
@@ -1240,6 +1306,78 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['status']))
       );
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // LEADERBOARDS  (/schools/{sid}/leaderboards/{lbId} + /entries/{roll})
+    //
+    // Previously had NO rule → default-denied, feature dead (review #202).
+    // Read: any school member (guardians see their child's class standings).
+    // Write: management.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/leaderboards/{leaderboardId} {
+      allow read:  if isSignedIn() && inSchool(sid);
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+
+      match /entries/{roll} {
+        allow read:  if isSignedIn() && inSchool(sid);
+        allow write: if isSignedIn() && inSchool(sid) && isManagement();
+      }
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // DROPDOWN OPTIONS  (/schools/{sid}/dropdown_options/{fieldKey})
+    //
+    // User-managed custom values for fee modes, leave types, etc.
+    // (DropdownOptionsService). Previously had NO rule (review #285).
+    // Read: any school member. Write: management.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/dropdown_options/{fieldKey} {
+      allow read:  if isSignedIn() && inSchool(sid);
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // ROOT COLLECTIONS used by legacy/util services.
+    //
+    // These are NOT school-scoped by path (cross-school) — a known tenancy
+    // debt (review #245) to be addressed in the multi-tenancy pass by stamping
+    // schoolId on each doc and filtering. For now they get explicit, role-gated
+    // rules so the features stop silently failing under default-deny.
+    // ════════════════════════════════════════════════════════════════
+
+    // FCM device tokens (FirestoreService.saveFcmToken): users/{uid}.{fcmToken}
+    // A user may only read/write their OWN token doc.
+    match /users/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Custom calendar events (CalendarService) — global calendar today.
+    // (settings/calendar overrides are covered by the legacy /settings rule.)
+    match /calendar_events/{eventId} {
+      allow read:  if isSignedIn();
+      allow write: if isSignedIn() && isAnyStaff();
+    }
+
+    // Substitution history (SubstitutionHistoryService).
+    match /substitution_history/{recordId} {
+      allow read:  if isSignedIn() && isAnyStaff();
+      allow write: if isSignedIn() && isManagement();
+    }
+
+    // School emergency contacts (ContactService).
+    match /school_contacts/{contactId} {
+      allow read:  if isSignedIn();
+      allow write: if isSignedIn() && isManagement();
+    }
+
+    // Fee-reminder audit events (FeeReminderService).
+    match /feeReminders/{reminderId} {
+      allow read:  if isSignedIn() && isManagement();
+      allow write: if isSignedIn() && isManagement();
     }
 
 

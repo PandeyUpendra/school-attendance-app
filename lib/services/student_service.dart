@@ -242,8 +242,11 @@ class StudentService extends BaseFirestoreService {
         (schoolId != null && schoolId.isNotEmpty)
             ? schoolId
             : (BaseFirestoreService.currentSchoolId ?? 'school_1');
+    // Empty password ⇒ addAllowedUser mints a strong random temp credential.
+    // Previously every guardian shared the hardcoded 'TmpParent@2024!', so any
+    // guardian who never reset could be impersonated by anyone (review #6).
     await svc.addAllowedUser(
-      email, 'TmpParent@2024!', 'guardian',
+      email, '', 'guardian',
       name:         name,
       schoolId:     effectiveSchoolId,
       studentClass: className,

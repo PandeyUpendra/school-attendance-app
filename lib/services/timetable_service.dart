@@ -6,6 +6,7 @@ import '../firebase_options.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../utils/app_logger.dart';
+import '../utils/secure_password.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
 import 'role_permission_service.dart';
@@ -128,7 +129,10 @@ class TimetableService extends BaseFirestoreService {
     }, SetOptions(merge: true));
 
     // Create Firebase Auth account via REST (does not displace current admin session).
-    final tempPassword = 'Tmp_${DateTime.now().millisecondsSinceEpoch}';
+    // Strong random temp password — NOT timestamp-derived (which narrowed the
+    // brute-force window to the createdAt millisecond, review #7). The teacher
+    // sets their own password via the invite link below.
+    final tempPassword = generateSecurePassword();
     try {
       final res = await http.post(
         Uri.parse(
@@ -588,9 +592,9 @@ class TimetableService extends BaseFirestoreService {
     // 2. Create Firebase Auth account via REST (doesn't sign out current user).
     //    If the account already exists, skip silently.
     //    Use caller's password if provided, otherwise generate a secure temp one.
-    final authPass = password.isNotEmpty
-        ? password
-        : 'Tmp_${normEmail.hashCode.abs()}${DateTime.now().millisecondsSinceEpoch}!Aa1';
+    // Strong random temp password when the caller doesn't supply one — NOT
+    // hashCode/timestamp-derived (review #6, #7). User resets via invite link.
+    final authPass = password.isNotEmpty ? password : generateSecurePassword();
     try {
       final res = await http.post(
         Uri.parse(

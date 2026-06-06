@@ -138,11 +138,16 @@ class AuditService extends BaseFirestoreService {
     try {
       final session  = await AuthService().getSession() ?? {};
       final fbUser   = FirebaseAuth.instance.currentUser;
-      final actorUid  = fbUser?.uid
-          ?? (session['email'] as String?)
-          ?? 'unknown';
+      // actorUid MUST be the Firebase Auth uid: firestore.rules pins
+      // audit_logs.actorUid == request.auth.uid so an entry cannot be forged
+      // under another actor. (Previously it fell back to the session email,
+      // which both broke the binding and made the same person appear under two
+      // different actor ids — review #11, #226.) No signed-in user ⇒ the create
+      // is denied by the rules anyway, so 'unknown' just fails closed.
+      final actorUid  = fbUser?.uid ?? 'unknown';
       final actorName = (session['name']  as String?)
           ?? fbUser?.email
+          ?? (session['email'] as String?)
           ?? actorUid;
       final actorRole = (session['role']  as String?) ?? 'unknown';
       final sid       = AuthService.currentSchoolId;

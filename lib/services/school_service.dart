@@ -6,6 +6,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../models/school.dart';
 import 'base_firestore_service.dart';
 import 'report_card_template_service.dart';
+import 'timetable_service.dart';
 
 class SchoolService extends BaseFirestoreService {
   static final SchoolService _instance = SchoolService._();
@@ -27,14 +28,20 @@ class SchoolService extends BaseFirestoreService {
       'firstBellTime': '08:00',
     });
 
-    // 3. Register Admin in allowed_users
-    await db.collection('allowed_users').doc(adminEmail.toLowerCase().trim()).set({
-      'email': adminEmail.toLowerCase().trim(),
-      'name': adminName,
-      'role': 'principal',
-      'schoolId': school.id,
-      'password': adminPassword,
-    });
+    // 3. Register Admin via the shared account-provisioning path. This:
+    //      • writes allowed_users WITHOUT a password field (the old code stored
+    //        the password in plaintext — readable by management — review #251);
+    //      • creates a real Firebase Auth account with adminPassword, so the
+    //        principal can actually sign in (the old code created no Auth user,
+    //        so the freshly-registered principal could never log in — #252);
+    //      • uses the same code path as every other account (#253).
+    await TimetableService().addAllowedUser(
+      adminEmail.toLowerCase().trim(),
+      adminPassword,
+      'principal',
+      name:     adminName,
+      schoolId: school.id,
+    );
 
     // 4. Seed the 3 default report card templates for this school.
     //    Uses school.effectiveBrandName so no institution name is hardcoded.
