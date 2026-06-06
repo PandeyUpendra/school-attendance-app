@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
+import 'profile_screen.dart';
 import '../services/auth_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
@@ -781,6 +782,17 @@ class _PrincipalHeroCard extends StatelessWidget {
                         ),
                       ),
                   ]),
+                  IconButton(
+                    icon: const Icon(Icons.account_circle_outlined,
+                        color: Colors.white, size: 22),
+                    padding: const EdgeInsets.all(8),
+                    constraints: const BoxConstraints(),
+                    tooltip: 'My Profile',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                    ),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.logout,
                         color: Colors.white, size: 20),

@@ -17,6 +17,7 @@ import '../../services/school_settings_service.dart';
 import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
+import '../profile_screen.dart';
 import '../../widgets/announcement_composer.dart';
 import '../../widgets/email_text_form_field.dart';
 import '../../utils/role_guard.dart';
@@ -254,6 +255,14 @@ class _OwnerHomeState extends State<OwnerHome> {
                       style: const TextStyle(
                           color: Colors.white70, fontSize: 11,
                           fontWeight: FontWeight.w600, letterSpacing: 0.9),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.account_circle_outlined, color: Colors.white, size: 22),
+                    tooltip: 'My Profile',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
                     ),
                   ),
                   IconButton(

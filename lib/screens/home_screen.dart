@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../models/teacher.dart';
+import 'profile_screen.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/staff_task_service.dart';
@@ -263,6 +264,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                     ],
+                  ),
+                  // Profile
+                  IconButton(
+                    icon: const Icon(Icons.account_circle_outlined,
+                        color: Colors.white, size: 22),
+                    tooltip: 'My Profile',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                    ),
                   ),
                   // Logout
                   IconButton(

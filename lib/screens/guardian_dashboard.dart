@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/school_settings_provider.dart';
 import '../theme.dart';
+import 'profile_screen.dart';
 import '../models/exam.dart';
 import '../models/student.dart';
 import '../models/fee.dart';
@@ -705,6 +706,17 @@ class _GuardianHeroCard extends StatelessWidget {
                         ),
                       ),
                   ]),
+                  IconButton(
+                    icon: const Icon(Icons.account_circle_outlined,
+                        color: Colors.white, size: 22),
+                    padding: const EdgeInsets.all(8),
+                    constraints: const BoxConstraints(),
+                    tooltip: 'My Profile',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                    ),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.logout,
                         color: Colors.white, size: 20),
