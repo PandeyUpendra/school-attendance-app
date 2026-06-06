@@ -258,8 +258,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 24),
-                  // Header
-                  const Icon(Icons.school, size: 56, color: Colors.white),
+                  // Header. Long-pressing the title opens admin login — the
+                  // entry point is a hidden gesture rather than a visible link,
+                  // so it isn't a discoverable attack surface (#93).
+                  GestureDetector(
+                    onLongPress: _openAdminLogin,
+                    child: const Icon(Icons.school, size: 56, color: Colors.white),
+                  ),
                   const SizedBox(height: 16),
                   const Text(
                     'School App',
@@ -299,7 +304,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         // Email
                         EmailTextFormField(
                           controller: _emailCtrl,
-                          maxLength: 100,
+                          // RFC 5321 caps an email address at 254 chars; 100
+                          // silently truncated valid long addresses (#105)
+                          // while still bounding length against absurd input (#147).
+                          maxLength: 254,
                           textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
                             labelText: 'Email Address',
@@ -439,19 +447,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
 
                   const SizedBox(height: 24),
-
-                  // Admin access (small, unobtrusive)
-                  Center(
-                    child: TextButton(
-                      onPressed: _openAdminLogin,
-                      child: Text(
-                        'Admin Access',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.45)),
-                      ),
-                    ),
-                  ),
+                  // (Admin access moved to a long-press on the header icon — #93.)
                 ],
               ),
             ),

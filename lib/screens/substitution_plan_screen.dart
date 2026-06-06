@@ -246,7 +246,16 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
       final k = '${s.date.year}-${s.date.month}-${s.date.day}';
       groups.putIfAbsent(k, () => []).add(s);
     }
-    final dateKeys = groups.keys.toList()..sort();
+    // Sort by actual date, not lexicographically — the keys are unpadded
+    // 'YYYY-M-D', so a string sort misorders e.g. day 9 vs day 10 and across
+    // months (#97).
+    final dateKeys = groups.keys.toList()
+      ..sort((a, b) {
+        final pa = a.split('-').map(int.parse).toList();
+        final pb = b.split('-').map(int.parse).toList();
+        return DateTime(pa[0], pa[1], pa[2])
+            .compareTo(DateTime(pb[0], pb[1], pb[2]));
+      });
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 16),

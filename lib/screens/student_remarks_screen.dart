@@ -257,10 +257,16 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
     final phone = digits.startsWith('91') && digits.length > 10 ? digits : '91$digits';
     final encoded = Uri.encodeComponent(message);
     final uri = Uri.parse('https://wa.me/$phone?text=$encoded');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) _snack('Could not open WhatsApp', color: Colors.orange);
+    // launchUrl can throw (e.g. WhatsApp not installed) even when canLaunchUrl
+    // is true, so guard the launch itself rather than only the precheck (#108).
+    try {
+      final launched = await canLaunchUrl(uri) &&
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        _snack('WhatsApp is not available on this device', color: Colors.orange);
+      }
+    } catch (_) {
+      if (mounted) _snack('WhatsApp is not available on this device', color: Colors.orange);
     }
   }
 
