@@ -252,14 +252,4 @@ class MeetingService {
     };
   }
 
-  Future<Map<String, int>> countMyPendingTasksThisMonth(String createdBy) async {
-    final s = await _meetingTasks
-        .where('assignedBy', isEqualTo: createdBy)
-        .get();
-    final docs = s.docs.map((d) => d.data()).toList();
-    return {
-      'total':   docs.length,
-      'pending': docs.where((d) => (d['status'] as String? ?? '') != 'Completed').length,
-    };
-  }
 }

@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task.dart';
-import 'notification_service.dart';
 
 class TaskService {
   static final _db = FirebaseFirestore.instance;
@@ -9,36 +8,6 @@ class TaskService {
   static final TaskService _instance = TaskService._();
   TaskService._();
   factory TaskService() => _instance;
-
-  Future<void> createTask({
-    required String title,
-    required String description,
-    required String createdBy,
-    required String creatorRole,
-    required List<String> assignedClasses,
-    DateTime? dueDate,
-  }) async {
-    final docRef = _tasks.doc();
-    final task = Task(
-      id: docRef.id,
-      title: title,
-      description: description,
-      createdBy: createdBy,
-      creatorRole: creatorRole,
-      assignedClasses: assignedClasses,
-      createdAt: DateTime.now(),
-      dueDate: dueDate,
-      studentStatuses: {},
-    );
-
-    await docRef.set(task.toJson());
-
-    await NotificationService().addTaskNotice(
-      title: title,
-      createdBy: createdBy,
-      classes: assignedClasses,
-    );
-  }
 
   Stream<List<Task>> getTasksForTeacher({required String className}) {
     return _tasks

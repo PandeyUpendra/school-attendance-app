@@ -125,20 +125,6 @@ class NotificationService extends BaseFirestoreService {
     });
   }
 
-  Future<void> addTaskNotice({
-    required String title,
-    required String createdBy,
-    required List<String> classes,
-  }) async {
-    await _coll.add({
-      'type':      'task',
-      'title':     'New task assigned: $title',
-      'body':      'Assigned by $createdBy to ${classes.join(", ")}',
-      'audience':  'teachers',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-  }
-
   /// Sends a targeted notification to a specific teacher when a staff task
   /// is assigned to them.
   Future<void> addStaffTaskNotice({

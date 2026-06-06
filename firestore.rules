@@ -1374,11 +1374,8 @@ service cloud.firestore {
       allow write: if isSignedIn() && isManagement();
     }
 
-    // School emergency contacts (ContactService).
-    match /school_contacts/{contactId} {
-      allow read:  if isSignedIn();
-      allow write: if isSignedIn() && isManagement();
-    }
+    // (school_contacts rule removed — ContactService was deleted as dead code;
+    // default-deny covers any residual docs.)
 
     // Fee-reminder audit events (FeeReminderService).
     match /feeReminders/{reminderId} {
