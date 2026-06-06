@@ -42,7 +42,16 @@ class ExamService extends BaseFirestoreService {
     return list;
   }
 
+  /// Guards against a 0 (or negative) maximum — a maxMarks:0 exam makes the
+  /// marks validator a 0..0 range that rejects every entry (review #235).
+  void _validateExam(Exam exam) {
+    if (exam.maxMarks <= 0) {
+      throw ArgumentError('Maximum marks must be greater than 0.');
+    }
+  }
+
   Future<String> createExam({String? schoolId, required Exam exam}) async {
+    _validateExam(exam);
     final ref = await _exams.add(exam.toJson());
     AuditService.emit(
       action:   'create',
@@ -54,6 +63,7 @@ class ExamService extends BaseFirestoreService {
   }
 
   Future<void> updateExam({required Exam exam}) async {
+    _validateExam(exam);
     final prev   = await _exams.doc(exam.id).get();
     final before = prev.exists && prev.data() != null
         ? Map<String, dynamic>.from(prev.data()!)

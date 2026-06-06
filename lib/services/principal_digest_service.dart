@@ -56,7 +56,12 @@ class PrincipalDigestService {
       leave   += s.leave;
       if (s.marked) classesMarked++;
     }
-    final attendancePct = total > 0 ? (present / total * 100) : 0.0;
+    // Exclude students on approved leave from the denominator — counting them
+    // as "not present" dragged the figure below 100% for a class that was fully
+    // present apart from sanctioned leave (review #276). Attendance % is now
+    // present / (present + absent).
+    final attendanceBase = total - leave;
+    final attendancePct = attendanceBase > 0 ? (present / attendanceBase * 100) : 0.0;
 
     // ── Absent teachers (approved leaves overlapping today) ─────────────────
     final teacherById = {for (final t in teachers) t.id: t};
