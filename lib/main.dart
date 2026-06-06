@@ -3,10 +3,12 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
+import 'providers/locale_provider.dart';
 import 'providers/school_settings_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/role_selection_screen.dart';
@@ -44,7 +46,10 @@ void main() async {
   );
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  runApp(const SchoolApp());
+  // Restore the saved app language before the first frame to avoid a flash.
+  final languageCode = await LocaleProvider.savedCode();
+
+  runApp(SchoolApp(languageCode: languageCode));
 }
 
 @pragma('vm:entry-point')
@@ -55,13 +60,15 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 class SchoolApp extends StatelessWidget {
-  const SchoolApp({super.key});
+  final String languageCode;
+  const SchoolApp({super.key, this.languageCode = 'en'});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SchoolSettingsProvider()),
+        ChangeNotifierProvider(create: (_) => LocaleProvider(languageCode)),
       ],
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: const SystemUiOverlayStyle(
@@ -73,21 +80,30 @@ class SchoolApp extends StatelessWidget {
           systemNavigationBarDividerColor: Colors.transparent,
           systemNavigationBarContrastEnforced: false,
         ),
-        child: MaterialApp(
-          debugShowCheckedModeBanner: false,
-          title: 'School App',
-          theme: AppTheme.light,
-          builder: (context, child) {
-            return MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(
-                  MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.2),
+        child: Consumer<LocaleProvider>(
+          builder: (context, localeProvider, _) => MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: 'School App',
+            theme: AppTheme.light,
+            locale: localeProvider.locale,
+            supportedLocales: LocaleProvider.supported.keys.map(Locale.new),
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            builder: (context, child) {
+              return MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.linear(
+                    MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.2),
+                  ),
                 ),
-              ),
-              child: child!,
-            );
-          },
-          home: const _SplashGate(),
+                child: child!,
+              );
+            },
+            home: const _SplashGate(),
+          ),
         ),
       ),
     );

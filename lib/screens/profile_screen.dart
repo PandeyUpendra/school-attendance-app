@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../l10n/app_strings.dart';
+import '../providers/locale_provider.dart';
 import '../services/auth_service.dart';
-import '../services/role_permission_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
 
@@ -97,11 +99,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final displayName = _name.trim().isNotEmpty ? _name.trim() : _email;
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
-    final roleLabel = RolePermissionService.roleDisplayName(_role);
+    final roleLabel = context.trRole(_role);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(title: const Text('My Profile')),
+      appBar: AppBar(title: Text(context.tr('myProfile'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -147,31 +149,97 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 12),
 
                 // ── Detail rows ───────────────────────────────────────────
-                _section('ACCOUNT'),
-                _row(Icons.email_outlined, 'Email', _email),
+                _section(context.tr('account')),
+                _row(Icons.email_outlined, context.tr('email'), _email),
                 if (_phone.isNotEmpty)
-                  _row(Icons.phone_outlined, 'Phone', _phone),
+                  _row(Icons.phone_outlined, context.tr('phone'), _phone),
                 if (_schoolName.isNotEmpty)
-                  _row(Icons.school_outlined, 'School', _schoolName),
+                  _row(Icons.school_outlined, context.tr('school'), _schoolName),
                 if (_status.isNotEmpty)
-                  _row(Icons.verified_user_outlined, 'Status',
-                      _status[0].toUpperCase() + _status.substring(1)),
+                  _row(Icons.verified_user_outlined, context.tr('status'),
+                      _statusLabel(context)),
 
                 if (_classes.isNotEmpty) ...[
-                  _section('ASSIGNED CLASSES'),
+                  _section(context.tr('assignedClasses')),
                   _chips(_classes),
                 ],
 
                 if (_role == 'guardian' && _children.isNotEmpty) ...[
-                  _section('CHILDREN'),
+                  _section(context.tr('children')),
                   ..._children.map((c) =>
                       _row(Icons.child_care_outlined, '', c)),
                 ],
+
+                // ── Preferences: language ─────────────────────────────────
+                _section(context.tr('preferences')),
+                _languageRow(context),
 
                 const SizedBox(height: 24),
               ],
             ),
     );
+  }
+
+  String _statusLabel(BuildContext context) {
+    switch (_status.toLowerCase()) {
+      case 'active':  return context.tr('statusActive');
+      case 'pending': return context.tr('statusPending');
+      default:        return _status[0].toUpperCase() + _status.substring(1);
+    }
+  }
+
+  /// Tappable row showing the current language; opens a picker.
+  Widget _languageRow(BuildContext context) {
+    final provider = context.watch<LocaleProvider>();
+    final current = LocaleProvider.supported[provider.code] ?? 'English';
+    return InkWell(
+      onTap: () => _pickLanguage(context),
+      child: Container(
+        color: AppTheme.surface,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(children: [
+          const Icon(Icons.language_outlined, size: 20, color: AppTheme.primary),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(context.tr('language'),
+                  style: const TextStyle(
+                      fontSize: 11, color: AppTheme.textSecondary)),
+              Text(current,
+                  style: const TextStyle(
+                      fontSize: 15, color: AppTheme.textPrimary)),
+            ]),
+          ),
+          const Icon(Icons.chevron_right, color: Colors.grey),
+        ]),
+      ),
+    );
+  }
+
+  Future<void> _pickLanguage(BuildContext context) async {
+    final provider = context.read<LocaleProvider>();
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(context.tr('chooseLanguage'),
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold)),
+          ),
+          ...LocaleProvider.supported.entries.map((e) => RadioListTile<String>(
+                value: e.key,
+                groupValue: provider.code,
+                activeColor: AppTheme.primary,
+                title: Text(e.value),
+                onChanged: (v) => Navigator.pop(ctx, v),
+              )),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (picked != null) await provider.setLanguage(picked);
   }
 
   Widget _section(String title) => Padding(
