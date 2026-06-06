@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme.dart';
+import '../models/teacher.dart';
 import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
@@ -74,10 +75,11 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      final role     = userData['role']     as String? ?? '';
-      final name     = userData['name']     as String? ?? '';
-      final schoolId = userData['schoolId'] as String? ?? '';
-      final status   = userData['status']   as String? ?? 'active';
+      final role      = userData['role']     as String? ?? '';
+      final name      = userData['name']     as String? ?? '';
+      final schoolId  = userData['schoolId'] as String? ?? '';
+      final status    = userData['status']   as String? ?? 'active';
+      final teacherId = userData['teacherId'] as String?;
 
       if (status == 'suspended') {
         await AuthService().signOut();
@@ -110,10 +112,13 @@ class _LoginScreenState extends State<LoginScreen> {
         name:           name,
         schoolId:       schoolId,
         assignedClasses: assignedClasses,
+        // Stamp teacherId from allowed_users now, so the teacher route doesn't
+        // have to re-save the session (which dropped assignedClasses) — #149.
+        teacherId:      teacherId,
       );
 
       if (!mounted) return;
-      _routeToDashboard(role, email);
+      _routeToDashboard(role, email, teacherId);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -124,12 +129,15 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error   = 'Login failed. Check your internet connection and try again.';
+        // Don't assume connectivity — this branch also catches config/
+        // permission errors, where "check your internet" is misleading (#89).
+        _error   = 'Login failed. Please try again. If this keeps happening, '
+            'contact your administrator.';
       });
     }
   }
 
-  void _routeToDashboard(String role, String email) {
+  void _routeToDashboard(String role, String email, [String? teacherId]) {
     Widget destination;
     switch (role) {
       case 'admin':
@@ -160,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
       case 'teacher':
       case 'subjectTeacher':
         // Teacher needs to load their full profile — use splash gate routing.
-        _loadTeacherAndRoute(email);
+        _loadTeacherAndRoute(email, teacherId);
         return;
       default:
         setState(() {
@@ -173,29 +181,26 @@ class _LoginScreenState extends State<LoginScreen> {
         context, MaterialPageRoute(builder: (_) => destination));
   }
 
-  Future<void> _loadTeacherAndRoute(String email) async {
+  Future<void> _loadTeacherAndRoute(String email, [String? teacherId]) async {
     try {
-      final teachers = await TimetableService().getTeachers();
-      final teacher = teachers.firstWhere(
-        (t) => t.email.toLowerCase() == email,
-        orElse: () => throw Exception('Teacher profile not found'),
-      );
-      if (!mounted) return;
-
-      // Save teacherId to session for future restarts.
-      final session = await AuthService().getSession();
-      if (session != null) {
-        await AuthService().saveSession(
-          email:          session['email'] as String,
-          role:           session['role']  as String,
-          name:           session['name']  as String? ?? '',
-          schoolId:       session['schoolId'] as String? ?? '',
-          teacherId:      teacher.id,
+      // Prefer a direct O(1) fetch by the teacherId stamped on allowed_users.
+      // Fall back to an email scan only for legacy docs missing teacherId
+      // (the old path always scanned every teacher — review #41). The session
+      // was already saved with teacherId in _login(), so no re-save here (#149).
+      Teacher? teacher;
+      if (teacherId != null && teacherId.isNotEmpty) {
+        teacher = await TimetableService().getTeacherById(id: teacherId);
+      }
+      if (teacher == null) {
+        final teachers = await TimetableService().getTeachers();
+        teacher = teachers.firstWhere(
+          (t) => t.email.toLowerCase() == email,
+          orElse: () => throw Exception('Teacher profile not found'),
         );
       }
       if (!mounted) return;
       Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => HomeScreen(teacher: teacher)));
+          context, MaterialPageRoute(builder: (_) => HomeScreen(teacher: teacher!)));
     } catch (_) {
       if (!mounted) return;
       setState(() {

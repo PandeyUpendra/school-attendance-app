@@ -575,7 +575,10 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/consent_withdrawals/{wfId} {
       allow read, update: if isSignedIn() && inSchool(sid) && isManagement();
-      allow create:       if isSignedIn() && inSchool(sid);
+      // A withdrawal is the guardian's own action (or recorded by management);
+      // a teacher may no longer file one on a guardian's behalf (review #37).
+      allow create:       if isSignedIn() && inSchool(sid)
+                            && (isManagement() || isRole('guardian'));
       allow delete:       if false;
     }
 
@@ -915,13 +918,16 @@ service cloud.firestore {
       match /students/{roll} {
         allow read: if isSignedIn() && inSchool(sid) && (
           isAnyStaff() ||
-          // Guardian: only their own child's result. Scoped by the {roll} path
-          // node matching their child's roll, and (when present) the studentId
-          // field matching their child's doc ID — no cross-student leak.
+          // Guardian: only their own child's result. Requires BOTH the {roll}
+          // path node AND the studentId field to match the guardian's child.
+          // Previously a missing studentId (legacy docs) bypassed the studentId
+          // check, so any guardian whose child shared a roll number in another
+          // class could read those results (review #15). Legacy docs without
+          // studentId now fail closed for guardians.
           (isRole('guardian')
             && roll == string(userStudentRoll())
-            && (!('studentId' in resource.data)
-                || resource.data.studentId == guardianStudentId()))
+            && 'studentId' in resource.data
+            && resource.data.studentId == guardianStudentId())
         );
 
         allow write: if isSignedIn() && inSchool(sid) && (
@@ -1160,10 +1166,14 @@ service cloud.firestore {
 
     // ════════════════════════════════════════════════════════════════
     // LEGACY SETTINGS  (/settings/{docId})
+    //
+    // Global (un-scoped) settings incl. settings/calendar holiday overrides.
+    // Writes restricted to management — previously ANY staff member could
+    // overwrite global settings / the holiday calendar (review #17, #242).
     // ════════════════════════════════════════════════════════════════
     match /settings/{docId} {
       allow read:  if isSignedIn();
-      allow write: if isSignedIn() && isAnyStaff();
+      allow write: if isSignedIn() && isManagement();
     }
 
 
@@ -1293,16 +1303,20 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/meetingTasks/{taskId} {
 
+      // assignedTo holds the teacherId (MeetingService writes teacherId), so it
+      // must be matched against userTeacherId() — NOT request.auth.uid, which is
+      // a different value, so the assignee could never read/update their own
+      // task (review #34). Mirrors the staff_tasks identity model.
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        request.auth.uid == resource.data.assignedTo
+        userTeacherId() == resource.data.assignedTo
       );
 
       allow create, delete: if isSignedIn() && inSchool(sid) && isManagement();
 
       allow update: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (request.auth.uid == resource.data.assignedTo
+        (userTeacherId() == resource.data.assignedTo
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['status']))
       );

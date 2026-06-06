@@ -129,7 +129,9 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error   = 'Login failed. Check your internet connection and try again.';
+        // Don't assume connectivity — also catches config/permission errors (#89).
+        _error   = 'Login failed. Please try again. If this keeps happening, '
+            'contact your child\'s teacher.';
       });
     }
   }

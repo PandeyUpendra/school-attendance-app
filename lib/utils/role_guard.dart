@@ -9,18 +9,19 @@ class RoleGuard {
     final session = await AuthService().getSession();
     final role    = session?['role'] as String? ?? '';
 
-    final isGuardian = role == 'guardian';
     final noSession  = session == null;
     final wrongRole  = !allowedRoles.contains(role);
 
-    // For staff, also verify Firebase Auth session is still active.
-    final firebaseExpired =
-        !isGuardian && FirebaseAuth.instance.currentUser == null;
+    // Verify the Firebase Auth session is still active for ALL roles. Guardians
+    // were previously exempt, so a guardian whose token was revoked kept access
+    // (review #26). Phone-OTP guardians also have a Firebase Auth user, so this
+    // check is valid for them too.
+    final firebaseExpired = FirebaseAuth.instance.currentUser == null;
 
     if (noSession || wrongRole || firebaseExpired) {
-      if (firebaseExpired || noSession) {
-        await AuthService().clearSession();
-      }
+      // Always clear the cached session when bouncing to login — previously a
+      // wrong-role user was bounced but kept their stale prefs (review #27).
+      await AuthService().clearSession();
       if (context.mounted) {
         Navigator.pushAndRemoveUntil(
           context,
