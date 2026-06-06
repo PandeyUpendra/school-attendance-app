@@ -27,11 +27,8 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
-    // Gallery photos (original / compressed / watermarked variants).
-    match /schools/{schoolId}/gallery/{allPaths=**} {
-      allow read:  if isSignedIn();
-      allow write: if isSignedIn() && isAllowedImage();
-    }
+    // (The gallery feature was removed from the app; its storage path is gone —
+    // the catch-all deny below covers any residual schools/{id}/gallery files.)
 
     // School policy assets (e.g. ideal-dress reference photo).
     match /schools/{schoolId}/policy/{allPaths=**} {

@@ -1267,29 +1267,9 @@ service cloud.firestore {
     }
 
 
-    // ════════════════════════════════════════════════════════════════
-    // GALLERY — Albums & Photos
-    // (/schools/{sid}/albums/{albumId}, /schools/{sid}/photos/{photoId})
-    //
-    // Published items are publicly readable (share links, parent portals).
-    // Write: coordinator | principal | admin | owner.
-    // ════════════════════════════════════════════════════════════════
-    // Reads require authentication (these are minors' photos). The previous
-    // `|| resource.data.published == true` public clause both (a) exposed
-    // children's photos to the open internet and (b) never matched anyway —
-    // the model writes `isPublished`, not `published` (review #77, #210). It is
-    // removed; signed-out share links are intentionally not supported. Whether
-    // to reintroduce public reads (with watermark + consent gating + the
-    // correct field name) is revisited in the Gallery pass.
-    match /schools/{sid}/albums/{albumId} {
-      allow read:  if isSignedIn() && inSchool(sid);
-      allow write: if isSignedIn() && inSchool(sid) && isManagement();
-    }
-
-    match /schools/{sid}/photos/{photoId} {
-      allow read:  if isSignedIn() && inSchool(sid);
-      allow write: if isSignedIn() && inSchool(sid) && isManagement();
-    }
+    // (The GALLERY feature — albums/photos — was removed from the app, so its
+    // Firestore rules are deleted too; the default-deny catch-all covers any
+    // residual schools/{sid}/albums or /photos docs.)
 
 
     // ════════════════════════════════════════════════════════════════
