@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../utils/pdf_theme.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
@@ -164,7 +165,8 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
           children: [
             pw.Text('Attendance Report',
                 style: pw.TextStyle(
-                    fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                    fontSize: 20, fontWeight: pw.FontWeight.bold,
+                    color: PdfTheme.primary)),
             pw.SizedBox(height: 4),
             pw.Text(
               '${widget.className}   |   ${_monthLabel(_month)}   |   '
@@ -173,14 +175,14 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
               style: const pw.TextStyle(
                   fontSize: 10, color: PdfColors.grey700),
             ),
-            pw.Divider(color: PdfColors.grey400),
+            pw.Divider(color: PdfTheme.primary),
             pw.SizedBox(height: 4),
           ],
         ),
         build: (_) => [
           pw.Table(
             border: pw.TableBorder.all(
-                color: PdfColors.grey300, width: 0.5),
+                color: PdfTheme.primaryLight, width: 0.5),
             columnWidths: {
               0: const pw.FixedColumnWidth(36),
               1: const pw.FlexColumnWidth(3),
@@ -194,7 +196,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
               // Header
               pw.TableRow(
                 decoration:
-                    const pw.BoxDecoration(color: PdfColors.indigo50),
+                    const pw.BoxDecoration(color: PdfTheme.primaryTint),
                 children: ['Roll', 'Name', 'P', 'A', 'L', '%', 'Status']
                     .map((h) => pw.Padding(
                           padding: const pw.EdgeInsets.symmetric(
@@ -202,7 +204,8 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                           child: pw.Text(h,
                               style: pw.TextStyle(
                                   fontWeight: pw.FontWeight.bold,
-                                  fontSize: 9)),
+                                  fontSize: 9,
+                                  color: PdfTheme.primaryDark)),
                         ))
                     .toList(),
               ),

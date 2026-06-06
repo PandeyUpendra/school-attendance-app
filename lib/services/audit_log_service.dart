@@ -59,6 +59,22 @@ class AuditEntry {
   }
 }
 
+// ─── AuditActor model ─────────────────────────────────────────────────────────
+
+/// A distinct actor (owner / principal / coordinator / teacher …) that appears
+/// in the audit trail. Used to populate the actor filter dropdown so logs can
+/// be filtered by `actorUid` without typing a raw UID or email.
+class AuditActor {
+  final String uid;
+  final String name;
+  final String role;
+
+  const AuditActor({required this.uid, required this.name, required this.role});
+
+  /// Human-friendly label, e.g. "Asha Verma (coordinator)".
+  String get label => role.isEmpty ? name : '$name ($role)';
+}
+
 // ─── AuditService ─────────────────────────────────────────────────────────────
 
 /// Append-only audit trail for sensitive operations.
@@ -203,6 +219,44 @@ class AuditService extends BaseFirestoreService {
     final entries = snap.docs.map(AuditEntry.fromDoc).toList();
     final cursor  = snap.docs.isNotEmpty ? snap.docs.last : null;
     return (entries: entries, cursor: cursor);
+  }
+
+  /// Returns the distinct actors that appear in the audit trail, newest-first,
+  /// for populating the actor filter dropdown.
+  ///
+  /// Scans recent entries (capped to protect memory) and de-duplicates by
+  /// [AuditActor.uid]. Guardians are excluded — only roles that create or
+  /// modify data (owner, principal, coordinator, teachers …) are returned.
+  /// The first-seen name/role wins, so the most recent label is used.
+  Future<List<AuditActor>> fetchActors() async {
+    final byUid = <String, AuditActor>{};
+    DocumentSnapshot? cursor;
+    const batchSize = 500;
+    var scanned = 0;
+
+    while (scanned < 2000) {
+      final page = await fetchPage(limit: batchSize, after: cursor);
+      for (final e in page.entries) {
+        if (e.actorUid.isEmpty) continue;
+        if (e.actorRole == 'guardian') continue;
+        byUid.putIfAbsent(
+          e.actorUid,
+          () => AuditActor(
+            uid:  e.actorUid,
+            name: e.actorName,
+            role: e.actorRole,
+          ),
+        );
+      }
+      scanned += page.entries.length;
+      cursor = page.cursor;
+      if (page.entries.length < batchSize) break;
+    }
+
+    final actors = byUid.values.toList()
+      ..sort((a, b) =>
+          a.label.toLowerCase().compareTo(b.label.toLowerCase()));
+    return actors;
   }
 
   /// Fetches ALL entries matching the given filters (for CSV export).

@@ -12,6 +12,7 @@ import '../../theme.dart';
 import '../../utils/validators.dart';
 import '../../widgets/email_text_form_field.dart';
 import '../../widgets/index_building_notice.dart';
+import '../../widgets/managed_dropdown.dart';
 
 class EditSchoolSettingsScreen extends StatefulWidget {
   const EditSchoolSettingsScreen({super.key});
@@ -167,8 +168,10 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
       _yearCtrl = TextEditingController(text: p.establishedYear);
       _tagCtrl = TextEditingController(text: p.schoolTagline);
       _websiteCtrl = TextEditingController(text: p.schoolWebsite);
-      _type = _types.contains(p.schoolType) ? p.schoolType : 'Private';
-      _board = _boards.contains(p.board) ? p.board : 'CBSE';
+      // Accept custom (managed) values too — the dropdown surfaces them as
+      // options, so don't force them back to the built-in default on load.
+      _type  = p.schoolType.isNotEmpty ? p.schoolType : 'Private';
+      _board = p.board.isNotEmpty       ? p.board      : 'CBSE';
       _logoUrl = p.schoolLogo;
       _init = true;
     }
@@ -250,10 +253,12 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
         _field(_nameCtrl, 'School Name *', Icons.school_outlined, readOnly: !widget.editing),
         const SizedBox(height: 12),
         _dropdown('School Type', _type, _types, Icons.business_outlined,
-            (v) => setState(() => _type = v!), enabled: widget.editing),
+            (v) => setState(() => _type = v!), enabled: widget.editing,
+            fieldKey: 'school_type'),
         const SizedBox(height: 12),
         _dropdown('Board', _board, _boards, Icons.menu_book_outlined,
-            (v) => setState(() => _board = v!), enabled: widget.editing),
+            (v) => setState(() => _board = v!), enabled: widget.editing,
+            fieldKey: 'school_board'),
         const SizedBox(height: 12),
         _field(_phoneCtrl, 'Phone', Icons.phone_outlined,
             type: TextInputType.phone, readOnly: !widget.editing),
@@ -1003,18 +1008,33 @@ Widget _dropdown(
   IconData icon,
   void Function(String?) onChanged, {
   bool enabled = true,
-}) =>
-    DropdownButtonFormField<String>(
+  String? fieldKey,
+}) {
+  // When editing and a fieldKey is supplied, use the user-manageable dropdown
+  // so owners can add/remove school-specific values (board, type, …). When
+  // read-only (not editing) fall back to a plain, non-interactive dropdown.
+  if (enabled && fieldKey != null) {
+    return ManagedDropdown(
+      fieldKey: fieldKey,
+      label: label,
+      seeds: items,
       value: value,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        isDense: true,
-      ),
-      items: items.map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(),
-      onChanged: enabled ? onChanged : null,
+      prefixIcon: Icon(icon),
+      onChanged: onChanged,
     );
+  }
+  return DropdownButtonFormField<String>(
+    value: value,
+    decoration: InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      isDense: true,
+    ),
+    items: items.map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(),
+    onChanged: enabled ? onChanged : null,
+  );
+}
 
 Widget _saveBtn(bool saving, VoidCallback onSave) => SizedBox(
       width: double.infinity,

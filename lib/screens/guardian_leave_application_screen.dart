@@ -7,6 +7,7 @@ import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/index_building_notice.dart';
+import '../widgets/managed_dropdown.dart';
 
 /// Guardian applies for leave on behalf of their child.
 /// The request is sent to the class teacher who can approve / reject / forward.
@@ -379,18 +380,11 @@ class _GuardianLeaveApplicationScreenState
           _card(
             label: 'Reason for Leave',
             child: Column(children: [
-              DropdownButtonFormField<String>(
+              ManagedDropdown(
+                fieldKey: 'leave_reason',
+                seeds: _reasonOptions,
                 value: _reason,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.notes_outlined, size: 20),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 12),
-                ),
-                items: _reasonOptions
-                    .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                    .toList(),
+                prefixIcon: const Icon(Icons.notes_outlined, size: 20),
                 onChanged: (v) {
                   if (v != null) setState(() => _reason = v);
                 },

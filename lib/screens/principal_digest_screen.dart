@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../utils/pdf_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../services/principal_digest_service.dart';
@@ -207,7 +208,7 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
           margin: const pw.EdgeInsets.only(top: 12),
           padding: const pw.EdgeInsets.all(10),
           decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
+            border: pw.Border.all(color: PdfTheme.primaryLight, width: 0.5),
             borderRadius: pw.BorderRadius.circular(4),
           ),
           child: pw.Column(
@@ -217,10 +218,10 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
                   style: pw.TextStyle(
                       fontSize: 10,
                       fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.grey800,
+                      color: PdfTheme.primaryDark,
                       letterSpacing: 1.2)),
               pw.SizedBox(height: 6),
-              pw.Divider(thickness: 0.5, color: PdfColors.grey300),
+              pw.Divider(thickness: 0.5, color: PdfTheme.primaryLight),
               ...children,
             ],
           ),
@@ -239,7 +240,8 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
         // Header
         pw.Text(s.schoolName.toUpperCase(),
             style: pw.TextStyle(
-                fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                fontSize: 18, fontWeight: pw.FontWeight.bold,
+                color: PdfTheme.primaryDark)),
         pw.SizedBox(height: 2),
         pw.Text("End-of-Day Principal Digest",
             style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
@@ -248,14 +250,14 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
             '${_fmtDate(s.generatedAt)} · generated ${_fmtTime(s.generatedAt)}',
             style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
         pw.SizedBox(height: 6),
-        pw.Divider(thickness: 1.5),
+        pw.Divider(thickness: 1.5, color: PdfTheme.primary),
 
         // Headline %
         pw.SizedBox(height: 8),
         pw.Container(
           padding: const pw.EdgeInsets.all(12),
           decoration: pw.BoxDecoration(
-            color: PdfColors.grey100,
+            color: PdfTheme.primaryTint,
             borderRadius: pw.BorderRadius.circular(6),
           ),
           child: pw.Row(
@@ -297,7 +299,7 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
         section('PER-CLASS BREAKDOWN', [
           pw.SizedBox(height: 4),
           pw.Table(
-            border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.4),
+            border: pw.TableBorder.all(color: PdfTheme.primaryLight, width: 0.4),
             columnWidths: {
               0: const pw.FlexColumnWidth(3),
               1: const pw.FlexColumnWidth(1),
@@ -308,7 +310,7 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
             },
             children: [
               pw.TableRow(
-                decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                decoration: const pw.BoxDecoration(color: PdfTheme.primaryTint),
                 children: [
                   _hdr('Class'),
                   _hdr('Total'),
@@ -426,7 +428,8 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
         padding: const pw.EdgeInsets.all(4),
         child: pw.Text(s,
             style: pw.TextStyle(
-                fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                fontSize: 9, fontWeight: pw.FontWeight.bold,
+                color: PdfTheme.primaryDark)),
       );
 
   pw.Widget _cell(String s) => pw.Padding(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../utils/pdf_theme.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../services/timetable_service.dart';
@@ -151,7 +152,8 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
                 ? '$forClass — Timetable'
                 : 'School Timetable',
             style: pw.TextStyle(
-                fontSize: 18, fontWeight: pw.FontWeight.bold),
+                fontSize: 18, fontWeight: pw.FontWeight.bold,
+                color: PdfTheme.primary),
           ),
           pw.SizedBox(height: 12),
           for (final cls in classes) ...[
@@ -161,7 +163,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
                       fontSize: 13, fontWeight: pw.FontWeight.bold)),
             if (classes.length > 1) pw.SizedBox(height: 6),
             pw.Table(
-              border: pw.TableBorder.all(color: PdfColors.grey400),
+              border: pw.TableBorder.all(color: PdfTheme.primaryLight),
               columnWidths: {
                 0: const pw.FixedColumnWidth(60),
                 for (int b = 1; b <= _bellCount; b++)
@@ -171,7 +173,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
                 // Header
                 pw.TableRow(
                   decoration:
-                      const pw.BoxDecoration(color: PdfColors.indigo700),
+                      const pw.BoxDecoration(color: PdfTheme.primary),
                   children: [
                     _pdfCell('Day', bold: true, light: true),
                     for (int b = 1; b <= _bellCount; b++)

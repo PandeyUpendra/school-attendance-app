@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../utils/pdf_theme.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
@@ -162,11 +163,12 @@ class _AttendanceCertificateScreenState
             pw.Text(
               _schoolName.toUpperCase(),
               style: pw.TextStyle(
-                  fontSize: 20, fontWeight: pw.FontWeight.bold),
+                  fontSize: 20, fontWeight: pw.FontWeight.bold,
+                  color: PdfTheme.primaryDark),
               textAlign: pw.TextAlign.center,
             ),
             pw.SizedBox(height: 4),
-            pw.Divider(thickness: 2),
+            pw.Divider(thickness: 2, color: PdfTheme.primary),
             pw.SizedBox(height: 16),
 
             // ── Certificate title ──────────────────────────────────────────
@@ -174,14 +176,14 @@ class _AttendanceCertificateScreenState
               padding: const pw.EdgeInsets.symmetric(
                   horizontal: 24, vertical: 10),
               decoration: pw.BoxDecoration(
-                border: pw.Border.all(width: 1.5),
+                border: pw.Border.all(width: 1.5, color: PdfTheme.primary),
                 borderRadius: pw.BorderRadius.circular(6),
               ),
               child: pw.Text(
                 'ATTENDANCE CERTIFICATE',
                 style: pw.TextStyle(
                     fontSize: 16, fontWeight: pw.FontWeight.bold,
-                    letterSpacing: 2),
+                    letterSpacing: 2, color: PdfTheme.primaryDark),
               ),
             ),
             pw.SizedBox(height: 24),
@@ -197,7 +199,7 @@ class _AttendanceCertificateScreenState
 
             // ── Student details table ──────────────────────────────────────
             pw.Table(
-              border: pw.TableBorder.all(color: PdfColors.grey400),
+              border: pw.TableBorder.all(color: PdfTheme.primaryLight),
               columnWidths: {
                 0: const pw.FlexColumnWidth(2),
                 1: const pw.FlexColumnWidth(3),
@@ -217,8 +219,8 @@ class _AttendanceCertificateScreenState
             pw.Container(
               padding: const pw.EdgeInsets.all(16),
               decoration: pw.BoxDecoration(
-                color: PdfColors.grey100,
-                border: pw.Border.all(color: PdfColors.grey400),
+                color: PdfTheme.primaryTint,
+                border: pw.Border.all(color: PdfTheme.primaryLight),
                 borderRadius: pw.BorderRadius.circular(6),
               ),
               child: pw.Column(
@@ -226,7 +228,8 @@ class _AttendanceCertificateScreenState
                 children: [
                   pw.Text('ATTENDANCE SUMMARY',
                       style: pw.TextStyle(
-                          fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                          fontSize: 12, fontWeight: pw.FontWeight.bold,
+                          color: PdfTheme.primaryDark)),
                   pw.SizedBox(height: 10),
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceAround,

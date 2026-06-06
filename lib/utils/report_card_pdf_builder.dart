@@ -4,17 +4,18 @@ import 'package:pdf/widgets.dart' as pw;
 import '../models/exam.dart';
 import '../models/report_card_template.dart';
 import '../models/student.dart';
+import 'pdf_theme.dart';
 
 // ─── Shared PDF constants ─────────────────────────────────────────────────────
 
 const double _kMarginMm  = 12.0;
 const double _kMargin    = _kMarginMm * PdfPageFormat.mm;
 
-// Brand colours for the report-card PDF (kept in sync with AppTheme).
-// Names retained to avoid churn; values are the teal-green palette.
-const _kViolet    = PdfColor.fromInt(0xFF003D33); // brand primary
-const _kVioletDk  = PdfColor.fromInt(0xFF002A24); // brand dark
-const _kAccent    = PdfColor.fromInt(0xFF2E8B74); // brand accent
+// Brand colours for the report-card PDF — the app's teal-green palette.
+// Names retained to avoid churn; see [PdfTheme] for the shared source.
+const _kViolet    = PdfTheme.primary;     // #003D33 brand primary
+const _kVioletDk  = PdfTheme.primaryDark; // #002A24 brand dark
+const _kAccent    = PdfTheme.accent;      // #2E8B74 brand accent
 const _kGrey50    = PdfColor.fromInt(0xFFF5F5F5);
 const _kGrey200   = PdfColor.fromInt(0xFFEEEEEE);
 const _kGrey400   = PdfColor.fromInt(0xFFBDBDBD);

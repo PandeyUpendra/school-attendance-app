@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
@@ -46,12 +45,13 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
 
   // ── Filter state ───────────────────────────────────────────────────────────
   String    _entityFilter = '';
-  String    _actorFilter  = '';
+  String    _actorFilter  = ''; // selected actorUid, '' = all actors
   DateTime? _from;
   DateTime? _to;
 
-  final _actorCtrl = TextEditingController();
-  Timer? _debounce;
+  // ── Actor dropdown state ─────────────────────────────────────────────────────
+  List<AuditActor> _actors        = [];
+  bool             _actorsLoading = true;
 
   // ── Pagination state ───────────────────────────────────────────────────────
   static const _pageSize = 50;
@@ -65,13 +65,22 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
   void initState() {
     super.initState();
     _fetchPage();
+    _loadActors();
   }
 
-  @override
-  void dispose() {
-    _actorCtrl.dispose();
-    _debounce?.cancel();
-    super.dispose();
+  // ── Actor dropdown ───────────────────────────────────────────────────────────
+
+  Future<void> _loadActors() async {
+    try {
+      final actors = await _svc.fetchActors();
+      if (!mounted) return;
+      setState(() {
+        _actors        = actors;
+        _actorsLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _actorsLoading = false);
+    }
   }
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
@@ -222,19 +231,18 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       body: Column(
         children: [
           _FilterBar(
-            entityFilter: _entityFilter,
-            actorCtrl:    _actorCtrl,
-            from:         _from,
-            to:           _to,
+            entityFilter:  _entityFilter,
+            actorFilter:   _actorFilter,
+            actors:        _actors,
+            actorsLoading: _actorsLoading,
+            from:          _from,
+            to:            _to,
             onEntityChanged: (v) {
               setState(() => _entityFilter = v);
             },
             onActorChanged: (v) {
-              _debounce?.cancel();
-              _debounce = Timer(const Duration(milliseconds: 500), () {
-                setState(() => _actorFilter = v);
-                _applyFilters();
-              });
+              setState(() => _actorFilter = v);
+              _applyFilters();
             },
             onPickFrom:   _pickFrom,
             onPickTo:     _pickTo,
@@ -244,7 +252,6 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                 _actorFilter  = '';
                 _from = null;
                 _to   = null;
-                _actorCtrl.clear();
               });
               _applyFilters();
             },
@@ -294,7 +301,9 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
 
 class _FilterBar extends StatelessWidget {
   final String            entityFilter;
-  final TextEditingController actorCtrl;
+  final String            actorFilter;
+  final List<AuditActor>  actors;
+  final bool              actorsLoading;
   final DateTime?         from;
   final DateTime?         to;
   final ValueChanged<String> onEntityChanged;
@@ -306,7 +315,9 @@ class _FilterBar extends StatelessWidget {
 
   const _FilterBar({
     required this.entityFilter,
-    required this.actorCtrl,
+    required this.actorFilter,
+    required this.actors,
+    required this.actorsLoading,
     required this.from,
     required this.to,
     required this.onEntityChanged,
@@ -324,7 +335,7 @@ class _FilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasFilter = entityFilter.isNotEmpty || from != null || to != null ||
-        actorCtrl.text.isNotEmpty;
+        actorFilter.isNotEmpty;
 
     return Container(
       color: Colors.white,
@@ -363,11 +374,11 @@ class _FilterBar extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               flex: 3,
-              child: TextField(
-                controller: actorCtrl,
-                onChanged:  onActorChanged,
+              child: DropdownButtonFormField<String>(
+                value: actorFilter,
+                isExpanded: true,
                 decoration: InputDecoration(
-                  labelText: 'Actor UID / email',
+                  labelText: actorsLoading ? 'Loading actors…' : 'Actor',
                   isDense: true,
                   filled: true,
                   fillColor: AppTheme.background,
@@ -377,7 +388,24 @@ class _FilterBar extends StatelessWidget {
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8)),
                 ),
-                style: const TextStyle(fontSize: 12),
+                items: [
+                  const DropdownMenuItem(
+                    value: '',
+                    child: Text('All actors',
+                        style: TextStyle(fontSize: 12)),
+                  ),
+                  ...actors.map((a) => DropdownMenuItem(
+                        value: a.uid,
+                        child: Text(a.label,
+                            style: const TextStyle(fontSize: 12),
+                            overflow: TextOverflow.ellipsis),
+                      )),
+                ],
+                onChanged: actorsLoading
+                    ? null
+                    : (v) {
+                        if (v != null) onActorChanged(v);
+                      },
               ),
             ),
           ]),

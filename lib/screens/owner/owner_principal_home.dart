@@ -18,6 +18,7 @@ import '../../services/school_settings_service.dart';
 import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
+import '../../utils/announcement_templates.dart';
 import '../../widgets/email_text_form_field.dart';
 import '../../utils/role_guard.dart';
 import '../onboarding/school_onboarding_screen.dart';
@@ -796,8 +797,20 @@ class _OPManagePageState extends State<_OPManagePage> {
   final _annTitleCtrl = TextEditingController();
   final _annMsgCtrl = TextEditingController();
   String _annTarget = 'All Staff';
+  String? _annTemplate; // selected common-title template, null = custom
   bool _annSaving = false;
   List<Map<String, dynamic>> _announcements = [];
+
+  /// Applies a common-title template: fills the title and a default editable
+  /// message. Both fields stay editable so the author can tweak before sending.
+  void _applyAnnTemplate(String? title) {
+    setState(() {
+      _annTemplate = title;
+      if (title == null) return;
+      _annTitleCtrl.text = title;
+      _annMsgCtrl.text   = kAnnouncementTemplates[title] ?? '';
+    });
+  }
 
   @override
   void initState() {
@@ -878,7 +891,10 @@ class _OPManagePageState extends State<_OPManagePage> {
     try {
       await AnnouncementService().postAnnouncement(Announcement(id: '', title: title, body: body, postedBy: widget.email, postedByRole: widget.role, audience: _annTarget, isPinned: false));
       _annTitleCtrl.clear(); _annMsgCtrl.clear();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Announcement sent'), backgroundColor: AppTheme.success));
+      if (mounted) {
+        setState(() => _annTemplate = null);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Announcement sent'), backgroundColor: AppTheme.success));
+      }
       await _loadAnnouncements();
     } catch (e) { if (mounted) _snack('Error: $e'); }
     if (mounted) setState(() => _annSaving = false);
@@ -897,8 +913,16 @@ class _OPManagePageState extends State<_OPManagePage> {
       // of falling back to the default 'school_1'.
       await _svc.addAllowedUser(email, '', _createRole, name: name, schoolId: AuthService.currentSchoolId, createdByEmail: widget.email, createdByRole: widget.role);
       _nameCtrl.clear(); _emailCtrl.clear();
+      // Read the stored display name back from the freshly created profile so
+      // the confirmation reflects what was actually saved (falls back to the
+      // entered name, then the email).
+      final profile     = await _svc.getAllowedUserDoc(email);
+      final createdName  = (profile?['name'] as String?)?.trim();
+      final displayName  = (createdName != null && createdName.isNotEmpty)
+          ? createdName
+          : (name.isNotEmpty ? name : email);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${RolePermissionService.roleDisplayName(_createRole)} account created'), backgroundColor: AppTheme.success));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Account created for $displayName – ${RolePermissionService.roleDisplayName(_createRole)}'), backgroundColor: AppTheme.success));
         await _loadUsers();
       }
     } on RoleConflictException catch (e) {
@@ -995,6 +1019,12 @@ class _OPManagePageState extends State<_OPManagePage> {
             ])),
             _opHeader('ANNOUNCEMENTS'),
             _OPCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              DropdownButtonFormField<String>(value: _annTemplate, isExpanded: true,
+                decoration: InputDecoration(labelText: 'Quick template (optional)', prefixIcon: const Icon(Icons.bolt_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true),
+                hint: const Text('Choose a common title'),
+                items: kAnnouncementTemplates.keys.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                onChanged: _applyAnnTemplate),
+              const SizedBox(height: 10),
               _opField(_annTitleCtrl, 'Announcement Title', Icons.title_outlined),
               const SizedBox(height: 10),
               TextField(controller: _annMsgCtrl, maxLines: 3, textCapitalization: TextCapitalization.sentences,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import '../../utils/pdf_theme.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../models/meeting.dart';
 import '../../models/teacher.dart';
@@ -273,7 +274,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 
   Future<Uint8List> buildMeetingPdf(Meeting m) async {
     final doc = pw.Document();
-    const purple = PdfColor.fromInt(0xFF003D33);
+    const purple = PdfTheme.primary; // app brand violet
 
     final dateStr = _fmtDate(m.date);
 
@@ -333,7 +334,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           rowDecoration: pw.BoxDecoration(
             border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
           ),
-          oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+          oddRowDecoration: const pw.BoxDecoration(color: PdfTheme.primaryTint),
         ),
         pw.SizedBox(height: 20),
         pw.Container(
@@ -758,7 +759,7 @@ Future<void> shareMeetingPdf(Meeting m) async {
           headerDecoration: const pw.BoxDecoration(color: purple),
           cellStyle: const pw.TextStyle(fontSize: 9),
           rowDecoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey300, width: 0.5)),
-          oddRowDecoration: const pw.BoxDecoration(color: PdfColors.grey100),
+          oddRowDecoration: const pw.BoxDecoration(color: PdfTheme.primaryTint),
         ),
       pw.SizedBox(height: 20),
       pw.Container(

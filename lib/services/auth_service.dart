@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'base_firestore_service.dart';
 
 import 'audit_log_service.dart';
+import 'dropdown_options_service.dart';
 
 /// Outcome of a self-service password-reset request.
 enum ResetResult {
@@ -326,6 +327,8 @@ class AuthService {
     // Drop the in-memory school so it can't leak into the next session and
     // leave school-scoped streams bound to the previous user's school.
     BaseFirestoreService.currentSchoolId = null;
+    // Drop cached per-school dropdown options for the same reason.
+    DropdownOptionsService().clearCache();
   }
 
   /// Returns a human-readable message for a [FirebaseAuthException].

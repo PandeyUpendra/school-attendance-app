@@ -5,6 +5,7 @@ import '../theme.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../utils/pdf_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/student.dart';
 import '../models/teacher.dart';
@@ -294,7 +295,8 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
         children: [
           pw.Text('Daily Call Report',
               style: pw.TextStyle(
-                  fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                  fontSize: 20, fontWeight: pw.FontWeight.bold,
+                  color: PdfTheme.primary)),
           pw.SizedBox(height: 4),
           pw.Text('Class: ${widget.className}   Date: $dateStr',
               style: const pw.TextStyle(fontSize: 12,
@@ -323,7 +325,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
             children: [
               // Header
               pw.TableRow(
-                decoration: const pw.BoxDecoration(color: PdfColors.red900),
+                decoration: const pw.BoxDecoration(color: PdfTheme.primary),
                 children: [
                   _pdfCell('Roll', isHeader: true),
                   _pdfCell('Name', isHeader: true),

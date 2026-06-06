@@ -4,6 +4,7 @@ import '../theme.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../utils/pdf_theme.dart';
 import '../models/fee.dart';
 import '../models/student.dart';
 import '../services/fee_service.dart';
@@ -772,14 +773,15 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
           pw.Center(
             child: pw.Text('FEE RECEIPT',
                 style: pw.TextStyle(
-                    fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                    fontSize: 20, fontWeight: pw.FontWeight.bold,
+                    color: PdfTheme.primaryDark)),
           ),
           pw.SizedBox(height: 6),
           pw.Center(
             child: pw.Text('Receipt No: ${p.receiptNo}',
                 style: const pw.TextStyle(fontSize: 11)),
           ),
-          pw.Divider(height: 20),
+          pw.Divider(height: 20, color: PdfTheme.primaryLight),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
@@ -801,7 +803,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
             pw.SizedBox(height: 4),
             pw.Text('Instalment: ${p.installmentName}'),
           ],
-          pw.Divider(height: 20),
+          pw.Divider(height: 20, color: PdfTheme.primaryLight),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
@@ -809,7 +811,8 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                   style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
               pw.Text('₹${p.amount.toStringAsFixed(0)}',
                   style: pw.TextStyle(
-                      fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                      fontSize: 18, fontWeight: pw.FontWeight.bold,
+                      color: PdfTheme.accent)),
             ],
           ),
           if (st.totalAnnualFee > 0) ...[
@@ -823,7 +826,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
             pw.SizedBox(height: 8),
             pw.Text('Note: ${p.note}'),
           ],
-          pw.Divider(height: 24),
+          pw.Divider(height: 24, color: PdfTheme.primaryLight),
           pw.Center(
             child: pw.Text(
               'This is a computer-generated receipt.',

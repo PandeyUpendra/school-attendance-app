@@ -18,6 +18,7 @@ import '../../services/school_settings_service.dart';
 import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
+import '../../utils/announcement_templates.dart';
 import '../../widgets/email_text_form_field.dart';
 import '../../utils/role_guard.dart';
 import '../onboarding/school_onboarding_screen.dart';
@@ -1095,9 +1096,18 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
           name: name, schoolId: AuthService.currentSchoolId,
           createdByEmail: widget.email, createdByRole: widget.role);
       _nameCtrl.clear(); _emailCtrl.clear();
+      // Read the stored display name back from the freshly created profile so
+      // the confirmation reflects what was actually saved (falls back to the
+      // entered name, then the email).
+      final profile     = await _svc.getAllowedUserDoc(email);
+      final createdName  = (profile?['name'] as String?)?.trim();
+      final displayName  = (createdName != null && createdName.isNotEmpty)
+          ? createdName
+          : (name.isNotEmpty ? name : email);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${RolePermissionService.roleDisplayName(_createRole)} account created'),
+          content: Text('Account created for $displayName – '
+              '${RolePermissionService.roleDisplayName(_createRole)}'),
           backgroundColor: AppTheme.success,
         ));
         await _loadUsers();
@@ -1404,10 +1414,22 @@ class _AnnouncementsPageState extends State<_AnnouncementsPage> {
   final _titleCtrl = TextEditingController();
   final _msgCtrl   = TextEditingController();
   String _target   = 'All Staff';
+  String? _template; // selected common-title template, null = custom
   bool _sending    = false;
 
   List<Map<String, dynamic>> _announcements = [];
   bool _loading = true;
+
+  /// Applies a common-title template: fills the title and a default editable
+  /// message. Both fields stay editable so the owner can tweak before sending.
+  void _applyTemplate(String? title) {
+    setState(() {
+      _template = title;
+      if (title == null) return;
+      _titleCtrl.text = title;
+      _msgCtrl.text   = kAnnouncementTemplates[title] ?? '';
+    });
+  }
 
   @override
   void initState() {
@@ -1465,6 +1487,7 @@ class _AnnouncementsPageState extends State<_AnnouncementsPage> {
       _titleCtrl.clear();
       _msgCtrl.clear();
       if (mounted) {
+        setState(() => _template = null);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Announcement sent'),
           backgroundColor: AppTheme.success,
@@ -1500,6 +1523,22 @@ class _AnnouncementsPageState extends State<_AnnouncementsPage> {
             _sectionHeader('NEW ANNOUNCEMENT'),
             _OwnerCard(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                DropdownButtonFormField<String>(
+                  value: _template,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: 'Quick template (optional)',
+                    prefixIcon: const Icon(Icons.bolt_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    isDense: true,
+                  ),
+                  hint: const Text('Choose a common title'),
+                  items: kAnnouncementTemplates.keys
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .toList(),
+                  onChanged: _applyTemplate,
+                ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: _titleCtrl,
                   decoration: InputDecoration(

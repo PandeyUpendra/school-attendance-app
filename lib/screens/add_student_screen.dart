@@ -12,6 +12,7 @@ import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
 import '../widgets/email_text_form_field.dart';
+import '../widgets/managed_dropdown.dart';
 import 'consent/parental_consent_flow.dart';
 
 class AddStudentScreen extends StatefulWidget {
@@ -545,21 +546,19 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
             ),
             const SizedBox(height: 14),
             // Transport Mode dropdown
-            DropdownButtonFormField<String>(
+            ManagedDropdown(
+              fieldKey: 'student_transport_mode',
+              label: 'Transport Mode (optional)',
+              hint: 'Select transport mode',
+              prefixIcon: const Icon(Icons.directions_bus_outlined),
+              isDense: false,
               value: _transportMode,
-              decoration: InputDecoration(
-                labelText: 'Transport Mode (optional)',
-                prefixIcon: const Icon(Icons.directions_bus_outlined),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              ),
-              hint: const Text('Select transport mode'),
-              items: const [
-                DropdownMenuItem(value: 'School Bus',       child: Text('School Bus')),
-                DropdownMenuItem(value: 'Walking',          child: Text('Walking')),
-                DropdownMenuItem(value: 'Personal Vehicle', child: Text('Personal Vehicle')),
-                DropdownMenuItem(value: 'Auto / Rickshaw',  child: Text('Auto / Rickshaw')),
-                DropdownMenuItem(value: 'Other',            child: Text('Other')),
+              seeds: const [
+                'School Bus',
+                'Walking',
+                'Personal Vehicle',
+                'Auto / Rickshaw',
+                'Other',
               ],
               onChanged: (v) => setState(() => _transportMode = v),
             ),
