@@ -287,13 +287,19 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   List<Widget> _buildContentChildren() => [
     if (!_hasConsent) ...[
       const SizedBox(height: 12),
-      ConsentPendingBanner(
-        hasConsent:  false,
-        isReConsent: _needsReConsent,
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: ConsentPendingBanner(
+          hasConsent:  false,
+          isReConsent: _needsReConsent,
+        ),
       ),
     ],
     const SizedBox(height: 12),
-    _TodayBanner(status: _todayStatus),
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: _TodayBanner(status: _todayStatus),
+    ),
 
     const _SectionHeader('ACADEMICS'),
     _FeatureTile(
@@ -573,7 +579,9 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
               onRefresh: _loadAll,
               color: AppTheme.primary,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                // Full-bleed list — matches teacher / coordinator / principal
+                // dashboards (edge-to-edge white rows on the lavender page).
+                padding: EdgeInsets.zero,
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: _loading
                     ? [const SizedBox(height: 60),
