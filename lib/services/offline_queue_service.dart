@@ -19,15 +19,25 @@ import 'student_service.dart';
 class OfflineQueueService {
   static const _queueKey = 'attendance_offline_queue';
 
+  /// A queued entry is abandoned once it has failed this many sync attempts or
+  /// is older than [_maxAgeDays] — so a permanently-rejected record (e.g. a
+  /// deleted class) stops re-failing on every connectivity change (#66).
+  static const _maxAttempts = 5;
+  static const _maxAgeDays  = 21;
+
   static final OfflineQueueService _instance = OfflineQueueService._();
   factory OfflineQueueService() => _instance;
   OfflineQueueService._();
 
   // ── Enqueue ────────────────────────────────────────────────────────────────
 
+  /// Queues attendance for [className] on [date] (defaults to today). Passing
+  /// the actual date being edited keeps backdated attendance taken offline from
+  /// being saved under today's date on sync (#63).
   Future<void> enqueue({
     required String className,
     required Map<int, String> attendance,
+    DateTime? date,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final raw   = prefs.getString(_queueKey);
@@ -37,7 +47,7 @@ class OfflineQueueService {
                 Map<String, dynamic>.from(e as Map)))
         : <Map<String, dynamic>>[];
 
-    final dateKey = _todayKey();
+    final dateKey = _dateKey(date ?? DateTime.now());
 
     // Replace existing entry for same class+day (last write wins)
     list.removeWhere((e) =>
@@ -48,6 +58,7 @@ class OfflineQueueService {
       'dateKey':   dateKey,
       'rolls':     attendance.map((k, v) => MapEntry(k.toString(), v)),
       'queuedAt':  DateTime.now().millisecondsSinceEpoch,
+      'attempts':  0,
     });
 
     await prefs.setString(_queueKey, jsonEncode(list));
@@ -76,6 +87,7 @@ class OfflineQueueService {
 
     int synced = 0;
     final failed = <Map<String, dynamic>>[];
+    final nowMs  = DateTime.now().millisecondsSinceEpoch;
 
     for (final entry in list) {
       try {
@@ -96,8 +108,16 @@ class OfflineQueueService {
           className: className, attendance: attendance, date: date);
         synced++;
       } catch (_) {
-        // Keep failed entries for retry
-        failed.add(entry);
+        // Bump the attempt count and re-queue for retry — UNLESS the entry has
+        // exhausted its attempts or aged out, in which case it is abandoned so
+        // a permanently-rejected record can't re-fail forever (#66).
+        final attempts = ((entry['attempts'] as num?)?.toInt() ?? 0) + 1;
+        final queuedAt = (entry['queuedAt'] as num?)?.toInt() ?? nowMs;
+        final ageDays  = (nowMs - queuedAt) / (24 * 60 * 60 * 1000);
+        if (attempts < _maxAttempts && ageDays <= _maxAgeDays) {
+          failed.add({...entry, 'attempts': attempts});
+        }
+        // else: drop the entry (give up).
       }
     }
 
@@ -113,7 +133,8 @@ class OfflineQueueService {
 
   // ── Load today's cached attendance (if any) ────────────────────────────────
 
-  Future<Map<int, String>?> getCachedAttendance(String className) async {
+  Future<Map<int, String>?> getCachedAttendance(String className,
+      {DateTime? date}) async {
     final prefs   = await SharedPreferences.getInstance();
     final raw     = prefs.getString(_queueKey);
     if (raw == null) return null;
@@ -122,7 +143,7 @@ class OfflineQueueService {
         (jsonDecode(raw) as List).map((e) =>
             Map<String, dynamic>.from(e as Map)));
 
-    final dateKey = _todayKey();
+    final dateKey = _dateKey(date ?? DateTime.now());
     final entry   = list.where((e) =>
         e['className'] == className && e['dateKey'] == dateKey).firstOrNull;
 
@@ -139,8 +160,5 @@ class OfflineQueueService {
     await prefs.remove(_queueKey);
   }
 
-  String _todayKey() {
-    final d = DateTime.now();
-    return '${d.year}-${d.month}-${d.day}';
-  }
+  String _dateKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
 }

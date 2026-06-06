@@ -48,6 +48,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   List<Student>    _students   = [];
   final Map<int, String> _attendance = {}; // roll → 'Present' | 'Leave' | 'Absent'
+  // Last persisted statuses, used to send guardian absence notices ONLY for
+  // students whose status newly changed to Absent/Leave — so re-saving a day
+  // (e.g. after a correction) doesn't re-alert every absent student (#74).
+  final Map<int, String> _savedStatuses = {};
   bool   _loading        = true;
   bool   _dirty          = false;
   bool   _isOnline       = true;   // current connectivity status
@@ -209,7 +213,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       if (widget.date == null) {
         saved = await _service.loadTodayAttendance(className: _attendanceKey);
         if (saved.isEmpty) {
-          final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
+          final cached = await _offlineQueue.getCachedAttendance(_attendanceKey, date: widget.date);
           if (cached != null) saved = cached;
         }
       } else {
@@ -234,7 +238,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         students = [];
       }
       if (widget.date == null) {
-        final cached = await _offlineQueue.getCachedAttendance(_attendanceKey);
+        final cached = await _offlineQueue.getCachedAttendance(_attendanceKey, date: widget.date);
         if (cached != null) saved = cached;
       }
     }
@@ -264,6 +268,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         // Initial state is unmarked ('') so counter starts at 0
         _attendance[s.roll] = saved[s.roll] ?? '';
       }
+      // Seed the last-persisted snapshot so the first save only notifies
+      // genuinely new absences (#74).
+      _savedStatuses
+        ..clear()
+        ..addAll(saved);
       _loading = false;
       _dirty   = saved.isEmpty && students.isNotEmpty;
     });
@@ -360,7 +369,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _attendance.entries.where((e) => e.value.isNotEmpty));
 
     if (!online) {
-      await _offlineQueue.enqueue(className: _attendanceKey, attendance: toSave);
+      await _offlineQueue.enqueue(className: _attendanceKey, attendance: toSave, date: widget.date);
       final pending = await _offlineQueue.pendingCount();
       if (mounted) setState(() { _pendingCount = pending; _dirty = false; });
       return;
@@ -396,10 +405,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           }
 
           // Absence notices are secondary — a failure here must NEVER block the
-          // save confirmation, so each is awaited inside its own guard.
+          // save confirmation, so each is awaited inside its own guard. Notify
+          // ONLY students whose status actually changed to Absent/Leave since
+          // the last save, so re-saving doesn't duplicate alerts (#74).
           for (final s in _students) {
             final status = _attendance[s.roll];
-            if (status == 'Absent' || status == 'Leave') {
+            final wasStatus = _savedStatuses[s.roll];
+            if ((status == 'Absent' || status == 'Leave') && status != wasStatus) {
               try {
                 await NotificationService().addAbsenceNotice(
                   className:   _className,
@@ -410,6 +422,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               } catch (_) {/* non-fatal */}
             }
           }
+          // Update the persisted snapshot to what we just saved.
+          _savedStatuses
+            ..clear()
+            ..addAll(toSave);
 
           if (!mounted) return;
           setState(() {
@@ -425,7 +441,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           // without persisting anything, so the button looked dead and the
           // marks were lost. Fall back to the offline queue so the marks are
           // preserved and will sync later, and tell the teacher what happened.
-          await _offlineQueue.enqueue(className: _attendanceKey, attendance: toSave);
+          await _offlineQueue.enqueue(className: _attendanceKey, attendance: toSave, date: widget.date);
           final pending = await _offlineQueue.pendingCount();
           if (!mounted) return;
           setState(() {
@@ -440,7 +456,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       }
 
       // Offline from the start — queue locally.
-      await _offlineQueue.enqueue(className: _attendanceKey, attendance: toSave);
+      await _offlineQueue.enqueue(className: _attendanceKey, attendance: toSave, date: widget.date);
       final pending = await _offlineQueue.pendingCount();
       if (!mounted) return;
       setState(() {
