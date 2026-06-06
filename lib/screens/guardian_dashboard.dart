@@ -1934,6 +1934,7 @@ class GuardianTimetableScreen extends StatefulWidget {
 
 class _GuardianTimetableScreenState extends State<GuardianTimetableScreen> {
   String _selectedDay = 'Monday';
+  late final PageController _pageController;
 
   static const _days = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
@@ -1970,13 +1971,118 @@ class _GuardianTimetableScreenState extends State<GuardianTimetableScreen> {
     if (_days.contains(todayName)) {
       _selectedDay = todayName;
     }
+    _pageController = PageController(initialPage: _days.indexOf(_selectedDay));
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  /// Builds the period list for a single [day]. Each [PageView] page renders
+  /// one of these so the guardian can swipe left/right between days.
+  Widget _buildDayBody(String day) {
+    final dayPeriods = widget.classTimetable[day] ?? {};
+    final bellCount = widget.bellSettings.length;
+
+    if (bellCount == 0 || dayPeriods.isEmpty) {
+      return Center(
+        child: Text('No timetable for $day',
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: bellCount,
+      itemBuilder: (context, i) {
+        final bell = i + 1;
+        final isLunch = (widget.bellSettings[i]['isLunch'] as bool?) ?? false;
+        final time = _bellTime(i);
+        final entry = dayPeriods[bell];
+
+        if (isLunch) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(children: [
+              const Icon(Icons.lunch_dining_outlined, size: 16, color: Colors.orange),
+              const SizedBox(width: 8),
+              Text(time, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              const SizedBox(width: 12),
+              Text('Lunch Break',
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.orange.shade700,
+                      fontWeight: FontWeight.w500)),
+            ]),
+          );
+        }
+
+        String subject = '—';
+        String teacherName = '';
+        Color periodColor = Colors.white;
+
+        if (entry != null && !entry.isEmpty) {
+          final teacher = widget.teacherById[entry.teacherId];
+          subject = entry.subject ?? (teacher?.subject ?? '—');
+          teacherName = teacher?.name ?? '';
+          periodColor = AppTheme.primary.withValues(alpha: 0.05);
+        }
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: periodColor,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(children: [
+            Container(
+              width: 28, height: 28,
+              decoration: BoxDecoration(
+                color: entry != null && !entry.isEmpty ? AppTheme.primary : Colors.grey.shade300,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text('$bell',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 80,
+              child: Text(time, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(subject,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  if (teacherName.isNotEmpty)
+                    Text(teacherName,
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                ],
+              ),
+            ),
+          ]),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final todayPeriods = widget.classTimetable[_selectedDay] ?? {};
-    final bellCount = widget.bellSettings.length;
-
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
@@ -1994,7 +2100,11 @@ class _GuardianTimetableScreenState extends State<GuardianTimetableScreen> {
                 children: _days.map((d) {
                   final sel = d == _selectedDay;
                   return GestureDetector(
-                    onTap: () => setState(() => _selectedDay = d),
+                    onTap: () => _pageController.animateToPage(
+                      _days.indexOf(d),
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOut,
+                    ),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       margin: const EdgeInsets.only(right: 8),
@@ -2019,97 +2129,12 @@ class _GuardianTimetableScreenState extends State<GuardianTimetableScreen> {
           ),
           const Divider(height: 1),
           Expanded(
-            child: bellCount == 0 || todayPeriods.isEmpty
-                ? Center(
-                    child: Text('No timetable for $_selectedDay',
-                        style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: bellCount,
-                    itemBuilder: (context, i) {
-                      final bell = i + 1;
-                      final isLunch = (widget.bellSettings[i]['isLunch'] as bool?) ?? false;
-                      final time = _bellTime(i);
-                      final entry = todayPeriods[bell];
-
-                      if (isLunch) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.shade50,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(children: [
-                            const Icon(Icons.lunch_dining_outlined, size: 16, color: Colors.orange),
-                            const SizedBox(width: 8),
-                            Text(time, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                            const SizedBox(width: 12),
-                            Text('Lunch Break',
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.orange.shade700,
-                                    fontWeight: FontWeight.w500)),
-                          ]),
-                        );
-                      }
-
-                      String subject = '—';
-                      String teacherName = '';
-                      Color periodColor = Colors.white;
-
-                      if (entry != null && !entry.isEmpty) {
-                        final teacher = widget.teacherById[entry.teacherId];
-                        subject = entry.subject ?? (teacher?.subject ?? '—');
-                        teacherName = teacher?.name ?? '';
-                        periodColor = AppTheme.primary.withValues(alpha: 0.05);
-                      }
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: periodColor,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Row(children: [
-                          Container(
-                            width: 28, height: 28,
-                            decoration: BoxDecoration(
-                              color: entry != null && !entry.isEmpty ? AppTheme.primary : Colors.grey.shade300,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text('$bell',
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white)),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          SizedBox(
-                            width: 80,
-                            child: Text(time, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                          ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(subject,
-                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                                if (teacherName.isNotEmpty)
-                                  Text(teacherName,
-                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-                              ],
-                            ),
-                          ),
-                        ]),
-                      );
-                    },
-                  ),
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: _days.length,
+              onPageChanged: (i) => setState(() => _selectedDay = _days[i]),
+              itemBuilder: (context, i) => _buildDayBody(_days[i]),
+            ),
           ),
         ],
       ),
