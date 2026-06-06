@@ -431,6 +431,11 @@ class TimetableService extends BaseFirestoreService {
       return <String, dynamic>{
         'email':           d.id,
         'role':            (data['role']         as String? ?? 'teacher'),
+        'name':            (data['name']         as String? ?? ''),
+        // Account lifecycle status: 'pending' (invited, not yet activated),
+        // 'active', or 'inactive'/'disabled'. Legacy docs created before the
+        // field existed have no status — treat them as active.
+        'status':          (data['status']       as String? ?? 'active'),
         'studentClass':    (data['studentClass'] as String? ?? ''),
         'studentRoll':     (data['studentRoll']  as int?    ?? 0),
         'assignedClasses': rawClasses != null

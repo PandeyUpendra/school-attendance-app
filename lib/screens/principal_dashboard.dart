@@ -26,6 +26,7 @@ import 'notifications_screen.dart';
 import 'analytics_screen.dart';
 import 'principal_digest_screen.dart';
 import 'tasks/unified_staff_task_screen.dart';
+import 'staff_remarks_screen.dart';
 import 'coordinator_dashboard.dart';
 import 'coordinator_management_screen.dart';
 import 'owner/edit_school_settings_screen.dart';
@@ -339,6 +340,18 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 subtitle: 'Create, assign and track task completion in one place',
                 onTap: () => _navigate(UnifiedStaffTaskScreen(
                   role: 'principal',
+                  userEmail: _principalEmail,
+                  userName: _principalEmail,
+                )),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.rate_review_outlined,
+                color: AppTheme.primary,
+                title: 'Staff Remarks',
+                subtitle: 'Give feedback to teachers and coordinators',
+                onTap: () => _navigate(StaffRemarksScreen(
+                  role: _sessionRole,
                   userEmail: _principalEmail,
                   userName: _principalEmail,
                 )),

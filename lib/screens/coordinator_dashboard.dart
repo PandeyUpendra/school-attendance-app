@@ -28,6 +28,7 @@ import 'copy_check_overview_screen.dart';
 import 'homework_overview_screen.dart';
 import 'analytics_screen.dart';
 import 'student_remarks_screen.dart';
+import 'staff_remarks_screen.dart';
 import 'tasks/unified_staff_task_screen.dart';
 import 'coordinator/absent_teachers_screen.dart';
 import '../services/staff_task_service.dart';
@@ -269,6 +270,18 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               onTap: () => _navigate(CoordinatorMeetingRecordsScreen(
                 coordinatorEmail: _coordEmail,
                 coordinatorName:  _coordEmail,
+              )),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.rate_review_outlined,
+              color: _cPurple,
+              title: 'Staff Remarks',
+              subtitle: 'Give feedback to teachers and view remarks from the principal',
+              onTap: () => _navigate(StaffRemarksScreen(
+                role: 'coordinator',
+                userEmail: _coordEmail,
+                userName: _coordEmail,
               )),
             ),
 

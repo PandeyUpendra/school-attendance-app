@@ -23,6 +23,7 @@ import '../../utils/role_guard.dart';
 import '../onboarding/school_onboarding_screen.dart';
 import '../principal_dashboard.dart';
 import '../role_selection_screen.dart';
+import 'staff_directory_helpers.dart';
 import '../../widgets/refreshable_data.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -446,10 +447,13 @@ class _OPStaffPageState extends State<_OPStaffPage> {
     if (mounted) setState(() => _loading = true);
     try {
       final all = await _svc.getAllowedUsers();
-      final teachers = all.where((u) => u['role'] == 'teacher' || u['role'] == 'subjectTeacher').toList();
+      // All staff roles (teachers, coordinators, principals, …), excluding
+      // guardians.
+      final staff = all.where((u) => u['role'] != 'guardian').toList()
+        ..sort(staffByRoleThenName);
       final leaves = await _svc.getLeaveApplications(status: 'pending');
       if (!mounted) return;
-      setState(() { _teachers = teachers; _leaves = leaves; _loading = false; });
+      setState(() { _teachers = staff; _leaves = leaves; _loading = false; });
     } catch (_) { if (mounted) setState(() => _loading = false); }
   }
 
@@ -469,8 +473,8 @@ class _OPStaffPageState extends State<_OPStaffPage> {
         appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: const Text('Staff')),
         body: _opShimmer());
     }
-    final today = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
-    final onLeave = _leaves.where((l) => (l['fromDate'] as String? ?? '') == today).length;
+    final activeCount  = _teachers.where((t) => staffStatusOf(t) == 'active').length;
+    final pendingCount = _teachers.where((t) => staffStatusOf(t) == 'pending').length;
     final filtered = _teachers.where((t) {
       if (_search.isEmpty) return true;
       return (t['email'] as String? ?? '').toLowerCase().contains(_search) || (t['name'] as String? ?? '').toLowerCase().contains(_search);
@@ -486,9 +490,9 @@ class _OPStaffPageState extends State<_OPStaffPage> {
           SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Row(children: [
             Expanded(child: _OPStatCard(label: 'Total', value: '${_teachers.length}', icon: Icons.people_outline, color: _primary, compact: true)),
             const SizedBox(width: 10),
-            Expanded(child: _OPStatCard(label: 'On Leave', value: '$onLeave', icon: Icons.event_busy_outlined, color: AppTheme.warning, compact: true)),
+            Expanded(child: _OPStatCard(label: 'Active', value: '$activeCount', icon: Icons.check_circle_outline, color: AppTheme.success, compact: true)),
             const SizedBox(width: 10),
-            Expanded(child: _OPStatCard(label: 'Active', value: '${_teachers.length - onLeave}', icon: Icons.check_circle_outline, color: AppTheme.success, compact: true)),
+            Expanded(child: _OPStatCard(label: 'Pending', value: '$pendingCount', icon: Icons.hourglass_empty_outlined, color: AppTheme.warning, compact: true)),
           ]))),
           if (_leaves.isNotEmpty) ...[
             SliverToBoxAdapter(child: _opHeader('PENDING LEAVES', trailing: _opBadge(_leaves.length))),
@@ -517,30 +521,41 @@ class _OPStaffPageState extends State<_OPStaffPage> {
               }).toList(),
             ))),
           ],
-          SliverToBoxAdapter(child: _opHeader('TEACHER LIST')),
+          SliverToBoxAdapter(child: _opHeader('STAFF LIST')),
           SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 8), child: TextField(
-            decoration: const InputDecoration(hintText: 'Search teachers…', prefixIcon: Icon(Icons.search, color: Colors.grey), isDense: true),
+            decoration: const InputDecoration(hintText: 'Search staff…', prefixIcon: Icon(Icons.search, color: Colors.grey), isDense: true),
             onChanged: (v) => setState(() => _search = v.toLowerCase()),
           ))),
           SliverToBoxAdapter(child: filtered.isEmpty
-              ? _opEmpty(Icons.people_outline, 'No teachers found')
+              ? _opEmpty(Icons.people_outline, 'No staff found')
               : Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Column(
                   children: filtered.map((t) {
                     final email = t['email'] as String? ?? '';
-                    final name = t['name'] as String? ?? email;
+                    final name = (t['name'] as String? ?? '').isNotEmpty ? t['name'] as String : email;
+                    final role = t['role'] as String? ?? 'teacher';
                     final classes = List<String>.from(t['assignedClasses'] as List? ?? []);
                     final isOnLeave = _leaves.any((l) => (l['teacherId'] as String? ?? '') == email);
+                    final status = staffStatusOf(t);
                     return _OPCard(margin: const EdgeInsets.only(bottom: 8), child: Row(children: [
-                      CircleAvatar(radius: 20, backgroundColor: _primary.withValues(alpha: 0.12), child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'T', style: const TextStyle(color: _primary, fontWeight: FontWeight.bold))),
+                      CircleAvatar(radius: 20, backgroundColor: staffRoleColor(role).withValues(alpha: 0.12), child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'S', style: TextStyle(color: staffRoleColor(role), fontWeight: FontWeight.bold))),
                       const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        Row(children: [
+                          Flexible(child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis)),
+                          const SizedBox(width: 6),
+                          StaffRolePill(role: role),
+                        ]),
                         Text(email, style: const TextStyle(color: Colors.grey, fontSize: 11), overflow: TextOverflow.ellipsis),
                         if (classes.isNotEmpty) Text(classes.join(', '), style: TextStyle(color: _primary.withValues(alpha: 0.7), fontSize: 11)),
                       ])),
-                      Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(color: isOnLeave ? AppTheme.warning.withValues(alpha: 0.1) : AppTheme.success.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                        child: Text(isOnLeave ? 'On Leave' : 'Active', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isOnLeave ? AppTheme.warning : AppTheme.success))),
+                      const SizedBox(width: 6),
+                      Column(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
+                        StaffStatusPill(status: status),
+                        if (isOnLeave) ...[
+                          const SizedBox(height: 4),
+                          const Text('On Leave', style: TextStyle(fontSize: 9, color: AppTheme.warning, fontWeight: FontWeight.w600)),
+                        ],
+                      ]),
                     ]));
                   }).toList(),
                 ))),

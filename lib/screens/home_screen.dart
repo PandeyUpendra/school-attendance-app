@@ -27,6 +27,7 @@ import 'copy_checking_screen.dart';
 import 'homework_screen.dart';
 import 'substitution_history_screen.dart';
 import 'student_remarks_screen.dart';
+import 'staff_remarks_screen.dart';
 import 'staff_tasks_screen.dart';
 import 'meeting/teacher_meeting_tasks_screen.dart';
 import '../services/meeting_service.dart';
@@ -564,6 +565,25 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          const _SectionHeader('REMARKS'),
+          _FeatureTile(
+            icon: Icons.rate_review_outlined,
+            color: AppTheme.primary,
+            title: 'My Remarks',
+            subtitle: 'Feedback from your coordinator and principal',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StaffRemarksScreen(
+                  role: 'teacher',
+                  userEmail: teacher?.email ?? '',
+                  userName: teacher?.name ?? '',
+                  teacherId: teacher?.id,
+                ),
+              ),
+            ),
+          ),
+
           const _SectionHeader('MY TASKS'),
           _FeatureTile(
             icon: Icons.task_outlined,
@@ -837,6 +857,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     role: 'teacher',
                     section: teacher?.section ?? '',
                     allowedClasses: teacher?.assignedClasses ?? [])),
+          ),
+        ),
+
+        const _SectionHeader('REMARKS'),
+        _FeatureTile(
+          icon: Icons.rate_review_outlined,
+          color: AppTheme.primary,
+          title: 'My Remarks',
+          subtitle: 'Feedback from your coordinator and principal',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => StaffRemarksScreen(
+                role: 'teacher',
+                userEmail: teacher?.email ?? '',
+                userName: teacher?.name ?? '',
+                teacherId: teacher?.id,
+              ),
+            ),
           ),
         ),
 

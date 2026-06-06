@@ -940,6 +940,44 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
+    // STAFF REMARKS  (/schools/{sid}/staff_remarks/{remarkId})
+    //
+    // Feedback notes given by management to staff:
+    //   • coordinator → teacher
+    //   • principal/owner → teacher | coordinator
+    //
+    // Read:   the giver, the recipient (teacher by teacherId, coordinator by
+    //         email), or top management (principal/admin/owner).
+    // Create: principal/admin/owner (any recipient) OR coordinator (teachers
+    //         only). The creator must stamp themselves as fromEmail.
+    // Delete: the giver, or top management.
+    // Update: not allowed (remarks are immutable once sent).
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/staff_remarks/{remarkId} {
+
+      allow read: if isSignedIn() && inSchool(sid) && (
+        hasAnyRole(['principal', 'admin', 'owner', 'ownerPrincipal']) ||
+        userEmail() == resource.data.fromEmail ||
+        userEmail() == resource.data.toEmail ||
+        (userTeacherId() != null
+          && userTeacherId() == resource.data.toTeacherId)
+      );
+
+      allow create: if isSignedIn() && inSchool(sid)
+        && request.resource.data.fromEmail == userEmail()
+        && (
+          hasAnyRole(['principal', 'admin', 'owner', 'ownerPrincipal']) ||
+          (isRole('coordinator') && request.resource.data.toRole == 'teacher')
+        );
+
+      allow delete: if isSignedIn() && inSchool(sid) && (
+        hasAnyRole(['principal', 'admin', 'owner', 'ownerPrincipal']) ||
+        userEmail() == resource.data.fromEmail
+      );
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
     // NOTIFICATIONS  (/schools/{sid}/notifications/{notifId})
     //
     // Audience field formats written by NotificationService:
