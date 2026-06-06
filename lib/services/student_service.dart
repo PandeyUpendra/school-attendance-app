@@ -160,19 +160,17 @@ class StudentService extends BaseFirestoreService {
   /// per-class scoping (class teacher → own class) and class-wise grouping
   /// (coordinator / principal) are done in the UI.
   Stream<List<DeletedStudent>> watchDeletedStudents() {
-    return _deletedStudentsRef.snapshots().map((snap) {
-      final list = snap.docs
-          .map((d) => DeletedStudent.fromJson(d.id, d.data()))
-          .toList();
-      list.sort((a, b) {
-        final ta = a.deletedAt, tb = b.deletedAt;
-        if (ta == null && tb == null) return 0;
-        if (ta == null) return 1;
-        if (tb == null) return -1;
-        return tb.compareTo(ta);
-      });
-      return list;
-    });
+    // Bound the read: order newest-first server-side and cap the result, so a
+    // school that has deleted thousands of students over the years doesn't pull
+    // and sort the entire collection on the client every snapshot (#119). The
+    // "Deleted Students" UI only needs recent tombstones.
+    return _deletedStudentsRef
+        .orderBy('deletedAt', descending: true)
+        .limit(300)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => DeletedStudent.fromJson(d.id, d.data()))
+            .toList());
   }
 
   /// Returns null on success, error string on duplicate roll.

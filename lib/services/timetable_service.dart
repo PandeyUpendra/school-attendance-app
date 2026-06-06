@@ -39,8 +39,12 @@ class TimetableService extends BaseFirestoreService {
   TimetableService._();
   factory TimetableService() => _instance;
 
-  // In-memory cache for settings (invalidated on every saveSettings call)
+  // In-memory cache for settings. Invalidated on every saveSettings call, AND
+  // expires after [_settingsCacheTtl] so a change made on ANOTHER device is
+  // picked up within minutes instead of requiring an app restart (#112).
   static Map<String, dynamic>? _settingsCache;
+  static DateTime? _settingsCacheAt;
+  static const Duration _settingsCacheTtl = Duration(minutes: 5);
 
   // ── School-scoped collection helpers ────────────────────────────────────────
   // Everything except allowed_users lives under schools/{schoolId}/.
@@ -268,9 +272,14 @@ class TimetableService extends BaseFirestoreService {
   // ── Settings ──────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> getSettings({String? schoolId}) async {
-    // Return cached copy if available — avoids a Firestore round-trip every
-    // time the coordinator dashboard (or any other screen) calls this.
-    if (_settingsCache != null) return _settingsCache!;
+    // Return cached copy if still fresh — avoids a Firestore round-trip every
+    // time the coordinator dashboard (or any other screen) calls this, while
+    // the TTL bounds how stale a cross-device change can be (#112).
+    if (_settingsCache != null &&
+        _settingsCacheAt != null &&
+        DateTime.now().difference(_settingsCacheAt!) < _settingsCacheTtl) {
+      return _settingsCache!;
+    }
 
     final doc = await _settings.doc('main').get();
     Map<String, dynamic> result;
@@ -318,12 +327,14 @@ class TimetableService extends BaseFirestoreService {
     }
 
     result['numberOfBells'] = (result['bells'] as List).length;
-    _settingsCache = result; // cache for all subsequent calls this session
+    _settingsCache   = result; // cache for subsequent calls (until TTL/invalidate)
+    _settingsCacheAt = DateTime.now();
     return result;
   }
 
   Future<void> saveSettings(String schoolId, Map<String, dynamic> settings) async {
-    _settingsCache = null; // invalidate so next getSettings re-fetches
+    _settingsCache   = null; // invalidate so next getSettings re-fetches
+    _settingsCacheAt = null;
     await _settings.doc('main').set(settings);
   }
 
@@ -331,7 +342,10 @@ class TimetableService extends BaseFirestoreService {
   /// Call this after another service (e.g. SchoolSettingsService, when the
   /// owner edits the class list) writes to settings/main, so screens reading
   /// classes through getSettings pick up the change within the same session.
-  static void invalidateSettingsCache() => _settingsCache = null;
+  static void invalidateSettingsCache() {
+    _settingsCache   = null;
+    _settingsCacheAt = null;
+  }
 
   /// Adds [className] to the school's class list (if not already present) and
   /// returns the updated, de-duplicated list. Lets admins create classes on the

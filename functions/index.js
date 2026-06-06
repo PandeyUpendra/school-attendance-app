@@ -132,7 +132,7 @@ exports.sendPasswordEmail = onCall(
     };
 
     try {
-      await sgMail.send(msg);
+      await sendWithRetry(msg);
     } catch (err) {
       logger.error("SendGrid send failed", err && err.response ? err.response.body : err);
       throw new HttpsError("internal", "Could not send the email.");
@@ -141,6 +141,30 @@ exports.sendPasswordEmail = onCall(
     return { ok: true };
   }
 );
+
+/**
+ * Sends a SendGrid message with bounded exponential-backoff retries, so a
+ * transient SendGrid error (5xx / network blip) doesn't silently lose the
+ * invite or reset email (#115). Non-retryable 4xx responses fail fast.
+ */
+async function sendWithRetry(msg, { attempts = 3, baseDelayMs = 400 } = {}) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await sgMail.send(msg);
+    } catch (err) {
+      lastErr = err;
+      const status = err && err.code;
+      // Don't retry client errors (bad request / unauthorized) — they won't
+      // succeed on retry. Only retry on 429 / 5xx / unknown (transient).
+      const retryable =
+        typeof status !== "number" || status === 429 || status >= 500;
+      if (!retryable || i === attempts - 1) break;
+      await new Promise((r) => setTimeout(r, baseDelayMs * Math.pow(2, i)));
+    }
+  }
+  throw lastErr;
+}
 
 // Roles permitted to delete accounts.
 const DELETE_ROLES = ["admin", "owner", "ownerPrincipal", "principal", "coordinator"];
@@ -228,9 +252,20 @@ exports.deleteAccount = onCall(
         .collection("allowed_users")
         .where("schoolId", "==", targetSchoolId)
         .get();
-      for (const doc of members.docs) {
-        await deleteAuth(doc.id);
-        await doc.ref.delete();
+      // Delete Auth logins in bounded-parallel chunks and member docs in batched
+      // writes, instead of a fully serial getUserByEmail+delete per member —
+      // a large school previously risked exceeding the function timeout and
+      // leaving the school half-deleted (#113).
+      const memberEmails = members.docs.map((d) => d.id);
+      const authChunk = 25;
+      for (let i = 0; i < memberEmails.length; i += authChunk) {
+        await Promise.all(memberEmails.slice(i, i + authChunk).map(deleteAuth));
+      }
+      const docChunk = 450; // under Firestore's 500-op batch limit
+      for (let i = 0; i < members.docs.length; i += docChunk) {
+        const batch = db.batch();
+        members.docs.slice(i, i + docChunk).forEach((d) => batch.delete(d.ref));
+        await batch.commit();
       }
       // Wipe the entire school subtree (students, teachers, attendance, fees, …).
       await db.recursiveDelete(db.collection("schools").doc(targetSchoolId));
