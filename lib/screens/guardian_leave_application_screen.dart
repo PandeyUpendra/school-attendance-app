@@ -171,6 +171,7 @@ class _GuardianLeaveApplicationScreenState
       NotificationService().addStudentLeaveSubmitted(
         studentName:  widget.student.name,
         studentClass: widget.student.className,
+        studentRoll:  widget.student.roll,
         days:         _numberOfDays,
         startDate:    dateStr,
       );

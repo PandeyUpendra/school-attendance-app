@@ -28,6 +28,7 @@ import 'copy_check_overview_screen.dart';
 import 'homework_overview_screen.dart';
 import 'analytics_screen.dart';
 import 'student_remarks_screen.dart';
+import 'deleted_students_screen.dart';
 import 'tasks/unified_staff_task_screen.dart';
 import 'coordinator/absent_teachers_screen.dart';
 import '../services/staff_task_service.dart';
@@ -393,6 +394,14 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               subtitle: 'Add and view observations for any student',
               onTap: () => _navigate(
                   const StudentRemarksScreen(role: 'coordinator')),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.person_off_outlined,
+              color: AppTheme.danger,
+              title: 'Deleted Students',
+              subtitle: 'Read-only history of removed students, class-wise',
+              onTap: () => _navigate(const DeletedStudentsScreen()),
             ),
 
             // Student Deletion Requests are reviewed by the PRINCIPAL only

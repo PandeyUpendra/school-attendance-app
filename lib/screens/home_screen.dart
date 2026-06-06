@@ -13,6 +13,7 @@ import '../utils/role_guard.dart';
 import '../widgets/index_building_notice.dart';
 import 'attendance_screen.dart';
 import 'student_list_screen.dart';
+import 'deleted_students_screen.dart';
 import 'my_timetable_screen.dart';
 import 'role_selection_screen.dart';
 import 'class_picker_screen.dart';
@@ -445,6 +446,22 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.person_off_outlined,
+            color: AppTheme.danger,
+            title: 'Deleted Students',
+            subtitle: 'Read-only history of removed students in your class',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => DeletedStudentsScreen(
+                  classNameFilter: teacher!.classTeacherOf!,
+                  sectionFilter:   teacher!.section,
+                ),
+              ),
+            ),
+          ),
           const _Divider(),
           _FeatureTile(
             icon: Icons.comment_outlined,
