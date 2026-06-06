@@ -182,6 +182,7 @@ class _AssignTabState extends State<_AssignTab> {
   DateTime?     _dueDate;
   bool          _loadingPeople        = true;
   bool          _saving               = false;
+  String?       _loadError;
 
   @override
   void initState() {
@@ -197,20 +198,36 @@ class _AssignTabState extends State<_AssignTab> {
   }
 
   Future<void> _loadPeople() async {
-    final teachers = await TimetableService().getTeachers();
-    // Only principals can delegate tasks to coordinators.
-    final coords = widget.assignerRole == 'principal'
-        ? await TimetableService().getCoordinators(AuthService.currentSchoolId)
-        : <Map<String, dynamic>>[];
-    if (!mounted) return;
-    setState(() {
-      _teachers      = teachers..sort((a, b) => a.name.compareTo(b.name));
-      _coordinators  = coords
-        ..sort((a, b) => (a['name'] ?? a['email'] ?? '')
-            .toString()
-            .compareTo((b['name'] ?? b['email'] ?? '').toString()));
-      _loadingPeople = false;
-    });
+    if (mounted) {
+      setState(() {
+        _loadingPeople = true;
+        _loadError     = null;
+      });
+    }
+    try {
+      final teachers = await TimetableService().getTeachers();
+      // Only principals can delegate tasks to coordinators.
+      final coords = widget.assignerRole == 'principal'
+          ? await TimetableService().getCoordinators(AuthService.currentSchoolId)
+          : <Map<String, dynamic>>[];
+      if (!mounted) return;
+      setState(() {
+        _teachers      = teachers..sort((a, b) => a.name.compareTo(b.name));
+        _coordinators  = coords
+          ..sort((a, b) => (a['name'] ?? a['email'] ?? '')
+              .toString()
+              .compareTo((b['name'] ?? b['email'] ?? '').toString()));
+        _loadingPeople = false;
+      });
+    } catch (e) {
+      // Without this, any Firestore error (permission/network) would leave the
+      // "Assign To" section spinning forever.
+      if (!mounted) return;
+      setState(() {
+        _loadingPeople = false;
+        _loadError     = e.toString();
+      });
+    }
   }
 
   Future<void> _pickDueDate() async {
@@ -461,6 +478,8 @@ class _AssignTabState extends State<_AssignTab> {
               ? const Center(
                   child: CircularProgressIndicator(
                       color: AppTheme.primary, strokeWidth: 2))
+              : _loadError != null
+              ? _buildLoadError()
               : DropdownButtonFormField<String>(
                   value: _selectedTeacherId,
                   hint: const Text('Select a teacher or coordinator'),
@@ -659,6 +678,41 @@ class _AssignTabState extends State<_AssignTab> {
     );
   }
 
+  Widget _buildLoadError() => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.danger.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppTheme.danger.withValues(alpha: 0.2)),
+        ),
+        child: Column(children: [
+          Icon(Icons.cloud_off_outlined,
+              color: AppTheme.danger.withValues(alpha: 0.7), size: 28),
+          const SizedBox(height: 8),
+          Text(
+            'Couldn\'t load the staff list.',
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade700),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Check your connection and try again.',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          TextButton.icon(
+            onPressed: _loadPeople,
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Retry'),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.primary),
+          ),
+        ]),
+      );
+
   Color _priorityColor(TaskPriority p) {
     switch (p) {
       case TaskPriority.high:   return AppTheme.danger;
@@ -751,6 +805,10 @@ class _AllTasksTabState extends State<_AllTasksTab> {
               }
               if (snap.hasError && isIndexBuildingError(snap.error)) {
                 return IndexBuildingNotice(
+                    onRetry: () => setState(() => _refreshTick++));
+              }
+              if (snap.hasError) {
+                return _TaskLoadError(
                     onRetry: () => setState(() => _refreshTick++));
               }
               var tasks = snap.data ?? [];
@@ -857,6 +915,9 @@ class _AnalyticsTab extends StatelessWidget {
         }
         if (snap.hasError && isIndexBuildingError(snap.error)) {
           return const IndexBuildingNotice();
+        }
+        if (snap.hasError) {
+          return const _TaskLoadError();
         }
         final tasks = snap.data ?? [];
         if (tasks.isEmpty) {
@@ -1555,5 +1616,40 @@ class _Label extends StatelessWidget {
         child: Text(text,
             style: const TextStyle(
                 fontSize: 13, fontWeight: FontWeight.w600)),
+      );
+}
+
+/// Shown when a task stream errors for a non-index reason (permission/network),
+/// instead of silently rendering an empty "No tasks yet" state.
+class _TaskLoadError extends StatelessWidget {
+  final VoidCallback? onRetry;
+  const _TaskLoadError({this.onRetry});
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.cloud_off_outlined,
+                size: 48, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text("Couldn't load tasks",
+                style: TextStyle(fontSize: 15, color: Colors.grey.shade600)),
+            const SizedBox(height: 6),
+            Text('Check your connection and try again.',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                textAlign: TextAlign.center),
+            if (onRetry != null) ...[
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Retry'),
+                style:
+                    TextButton.styleFrom(foregroundColor: AppTheme.primary),
+              ),
+            ],
+          ]),
+        ),
       );
 }

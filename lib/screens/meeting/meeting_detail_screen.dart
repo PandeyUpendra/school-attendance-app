@@ -37,7 +37,6 @@ class MeetingDetailScreen extends StatefulWidget {
 class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   final _svc         = MeetingService();
   final _titleCtrl   = TextEditingController(); // used only for "Custom..." title
-  final _pointCtrl   = TextEditingController();
   final _formKey     = GlobalKey<FormState>();
 
   bool              _isNew    = true;
@@ -82,7 +81,6 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   @override
   void dispose() {
     _titleCtrl.dispose();
-    _pointCtrl.dispose();
     super.dispose();
   }
 
@@ -132,8 +130,8 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 
   // ── Add a discussion point ────────────────────────────────────────────────
 
-  void _addPoint() {
-    final text = _pointCtrl.text.trim();
+  void _addPoint(String rawText) {
+    final text = rawText.trim();
     if (text.isEmpty) return;
     final point = MeetingPoint(
       id:      '${DateTime.now().millisecondsSinceEpoch}',
@@ -142,10 +140,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       addedAt: DateTime.now(),
     );
     final updated = [..._points, point];
-    setState(() {
-      _points = updated;
-      _pointCtrl.clear();
-    });
+    setState(() => _points = updated);
     if (_meetingId != null) {
       final m = _meeting;
       if (m != null) {
@@ -155,6 +150,19 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         _svc.updatePoints(_meetingId!, updated);
       }
     }
+  }
+
+  /// Appends an agenda point to an already-saved (live) meeting.
+  void _addLivePoint(Meeting m, String rawText) {
+    final text = rawText.trim();
+    if (text.isEmpty) return;
+    final point = MeetingPoint(
+      id:      '${DateTime.now().millisecondsSinceEpoch}_${Object.hash(DateTime.now(), 0)}',
+      text:    text,
+      addedBy: widget.createdBy,
+      addedAt: DateTime.now(),
+    );
+    _svc.updatePoints(m.id, [...m.points, point]);
   }
 
   // ── Toggle checked state ──────────────────────────────────────────────────
@@ -525,24 +533,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                     fontSize: 13,
                     color: Colors.grey.shade600)),
             const SizedBox(height: 8),
-            Row(children: [
-              Expanded(
-                child: TextField(
-                  controller: _pointCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Add a discussion point...',
-                    prefixIcon: Icon(Icons.add_circle_outline),
-                    isDense: true,
-                  ),
-                  onSubmitted: (_) => _addPoint(),
-                ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: _addPoint,
-                child: const Text('Add'),
-              ),
-            ]),
+            _AgendaPicker(onAdd: _addPoint),
             const SizedBox(height: 8),
             ..._points.asMap().entries.map((e) => _PointRow(
                   index:   e.key,
@@ -653,47 +644,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                         fontSize: 13,
                         color: Colors.grey.shade600)),
                 const SizedBox(height: 8),
-                Row(children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _pointCtrl,
-                      decoration: const InputDecoration(
-                        hintText: 'Add agenda point...',
-                        prefixIcon: Icon(Icons.add_circle_outline),
-                        isDense: true,
-                      ),
-                      onSubmitted: (_) {
-                        // add to live meeting
-                        final text = _pointCtrl.text.trim();
-                        if (text.isEmpty) return;
-                        final point = MeetingPoint(
-                          id:      '${DateTime.now().millisecondsSinceEpoch}_${Object.hash(DateTime.now(), 0)}',
-                          text:    text,
-                          addedBy: widget.createdBy,
-                          addedAt: DateTime.now(),
-                        );
-                        _pointCtrl.clear();
-                        _svc.updatePoints(m.id, [...m.points, point]);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () {
-                      final text = _pointCtrl.text.trim();
-                      if (text.isEmpty) return;
-                      final point = MeetingPoint(
-                        id:      '${DateTime.now().millisecondsSinceEpoch}_${Object.hash(DateTime.now(), 0)}',
-                        text:    text,
-                        addedBy: widget.createdBy,
-                        addedAt: DateTime.now(),
-                      );
-                      _pointCtrl.clear();
-                      _svc.updatePoints(m.id, [...m.points, point]);
-                    },
-                    child: const Text('Add'),
-                  ),
-                ]),
+                _AgendaPicker(onAdd: (text) => _addLivePoint(m, text)),
                 const SizedBox(height: 16),
               ],
 
@@ -915,6 +866,124 @@ class _AssignTeacherDialog extends StatelessWidget {
               child: const Text('Cancel')),
         ],
       );
+}
+
+// ── Agenda picker ─────────────────────────────────────────────────────────────
+
+/// Dropdown of the most common meeting agendas plus a "Custom agenda" option
+/// that reveals a free-text field. Selecting a preset adds it immediately;
+/// the custom field adds on submit / the Add button. Calls [onAdd] with the
+/// chosen agenda text.
+class _AgendaPicker extends StatefulWidget {
+  final void Function(String text) onAdd;
+  const _AgendaPicker({required this.onAdd});
+
+  @override
+  State<_AgendaPicker> createState() => _AgendaPickerState();
+}
+
+class _AgendaPickerState extends State<_AgendaPicker> {
+  final _customCtrl = TextEditingController();
+  String? _selected;
+
+  static const _customLabel = 'Custom agenda...';
+  static const _commonAgendas = <String>[
+    'Academic Review',
+    'Parent Meeting',
+    'Staff Training',
+    'Disciplinary Matter',
+    'Holiday Planning',
+    'Examination Planning',
+    'Result Analysis',
+    'Syllabus Progress',
+    'Fee & Finance Review',
+    'Event / Function Planning',
+    'Admissions Review',
+    'Infrastructure & Safety',
+    'Co-curricular Activities',
+    _customLabel,
+  ];
+
+  @override
+  void dispose() {
+    _customCtrl.dispose();
+    super.dispose();
+  }
+
+  void _addCustom() {
+    final text = _customCtrl.text.trim();
+    if (text.isEmpty) return;
+    widget.onAdd(text);
+    _customCtrl.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<String>(
+          value: _selected,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Add Agenda',
+            prefixIcon: Icon(Icons.list_alt_outlined),
+            isDense: true,
+          ),
+          hint: const Text('Pick a common agenda'),
+          items: _commonAgendas.map((a) {
+            final isCustom = a == _customLabel;
+            return DropdownMenuItem<String>(
+              value: a,
+              child: Text(
+                a,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontStyle: isCustom ? FontStyle.italic : FontStyle.normal,
+                  color: isCustom ? Colors.grey.shade600 : Colors.black87,
+                ),
+              ),
+            );
+          }).toList(),
+          onChanged: (val) {
+            if (val == null) return;
+            if (val == _customLabel) {
+              // Reveal the free-text field for a one-off custom agenda.
+              setState(() => _selected = val);
+            } else {
+              // Preset agenda — add immediately and reset the dropdown so more
+              // can be added in quick succession.
+              widget.onAdd(val);
+              setState(() => _selected = null);
+            }
+          },
+        ),
+        if (_selected == _customLabel) ...[
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _customCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Type a custom agenda...',
+                  prefixIcon: Icon(Icons.edit_outlined),
+                  isDense: true,
+                ),
+                textCapitalization: TextCapitalization.sentences,
+                onSubmitted: (_) => _addCustom(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: _addCustom,
+              child: const Text('Add'),
+            ),
+          ]),
+        ],
+      ],
+    );
+  }
 }
 
 // ── Widgets ───────────────────────────────────────────────────────────────────
