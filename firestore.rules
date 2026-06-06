@@ -633,6 +633,26 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
+    // DELETED STUDENTS  (/schools/{sid}/deleted_students/{tombstoneId})
+    //
+    // Read-only history of permanently-removed students, surfaced in the
+    // "Deleted Students" section of the class-teacher, coordinator and
+    // principal dashboards. Unlike student_deletion_requests (principal-only),
+    // these tombstones are readable by ANY staff member; the class-teacher view
+    // scopes to its own class client-side.
+    //
+    // Read:   any staff (mirrors the students collection read rule).
+    // Create: written by the principal-approved deletion flow → management.
+    // Delete: management (housekeeping). No updates — records are immutable.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/deleted_students/{tombstoneId} {
+      allow read:   if isSignedIn() && inSchool(sid) && isAnyStaff();
+      allow create: if isSignedIn() && inSchool(sid) && isManagement();
+      allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
     // ATTENDANCE  (/schools/{sid}/attendance/{cls})
     //
     // Document ID = "<classKey>_<section>_<Y-M-D>" (spaces → underscores),

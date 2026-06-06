@@ -102,9 +102,7 @@ class _TeacherMeetingTasksScreenState
                   return IndexBuildingNotice(onRetry: () => setState(() {}));
                 }
                 if (snap.hasError) {
-                  return Center(
-                      child: Text('Error: ${snap.error}',
-                          style: TextStyle(color: Colors.grey.shade500)));
+                  return _noMeetingsState();
                 }
 
                 final tasks    = _applyFilter(snap.data ?? []);
@@ -195,6 +193,22 @@ class _TeacherMeetingTasksScreenState
             decoration: BoxDecoration(
                 color: Colors.white, borderRadius: BorderRadius.circular(14)),
           ),
+        ),
+      );
+
+  Widget _noMeetingsState() => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.event_busy_outlined,
+                size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text(
+              'No meetings available at the moment.',
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
+              textAlign: TextAlign.center,
+            ),
+          ]),
         ),
       );
 

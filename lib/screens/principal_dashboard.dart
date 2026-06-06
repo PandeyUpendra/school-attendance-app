@@ -16,6 +16,7 @@ import 'free_bells_screen.dart';
 import 'leave_requests_screen.dart';
 import 'teacher_deletion_requests_screen.dart';
 import 'student_deletion_requests_screen.dart';
+import 'deleted_students_screen.dart';
 import '../services/teacher_deletion_service.dart';
 import '../services/base_firestore_service.dart';
 import 'my_timetable_screen.dart';
@@ -412,6 +413,14 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                         _navigate(const StudentDeletionRequestsScreen()),
                   );
                 },
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.person_off_outlined,
+                color: AppTheme.danger,
+                title: 'Deleted Students',
+                subtitle: 'Read-only history of removed students, class-wise',
+                onTap: () => _navigate(const DeletedStudentsScreen()),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(

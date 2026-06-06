@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../models/deleted_student.dart';
 import '../models/student.dart';
 import '../models/student_remark.dart';
 import '../models/guardian_provided_details.dart';
@@ -69,7 +70,17 @@ class StudentService extends BaseFirestoreService {
 
   // ── Students ────────────────────────────────────────────────────────────────
 
-  Future<List<Student>> getStudents() => _repo.fetchAll();
+  /// Strips out students that have been marked for deletion so they vanish
+  /// from every role-based roster and detail screen (teacher, coordinator,
+  /// principal, analytics, fees, …). The principal's deletion-requests screen
+  /// reads the separate `student_deletion_requests` collection, so approvals
+  /// keep working; and internal lookups (`removeStudent`, guardian portal) go
+  /// straight to the repository, bypassing this filter.
+  static List<Student> _visibleOnly(List<Student> students) =>
+      students.where((s) => !s.deletionPending).toList();
+
+  Future<List<Student>> getStudents() async =>
+      _visibleOnly(await _repo.fetchAll());
 
   /// Fetch students for a class/section, optionally scoped to one teacher.
   /// Pass [teacherId] to return only students added by that class teacher.
@@ -83,8 +94,9 @@ class StudentService extends BaseFirestoreService {
     String section = '',
     String? teacherId,
     String? schoolId,
-  }) =>
-      _repo.fetchByClass(className, section, teacherId: teacherId);
+  }) async =>
+      _visibleOnly(
+          await _repo.fetchByClass(className, section, teacherId: teacherId));
 
   /// Real-time stream of students for a class/section.
   /// Emits a new sorted list on every Firestore change (add / update / delete).
@@ -94,20 +106,54 @@ class StudentService extends BaseFirestoreService {
     String? teacherId,
     String? schoolId,
   }) =>
-      _repo.watchByClass(className, section, teacherId: teacherId);
+      _repo
+          .watchByClass(className, section, teacherId: teacherId)
+          .map(_visibleOnly);
 
   /// Real-time stream of ALL students across every class.
-  Stream<List<Student>> watchStudents({String? schoolId}) => _repo.watchAll();
+  Stream<List<Student>> watchStudents({String? schoolId}) =>
+      _repo.watchAll().map(_visibleOnly);
 
   /// Returns a single student by class + section + roll (used by Guardian Portal).
+  /// Returns null for students marked for deletion so no role can open their
+  /// details. Internal flows (`removeStudent`, `setGuardianEmail`) read the
+  /// repository directly and are unaffected.
   Future<Student?> getStudentByRoll(String className, int roll,
-          {String section = ''}) =>
-      _repo.fetchByRoll(className, section, roll);
+      {String section = ''}) async {
+    final student = await _repo.fetchByRoll(className, section, roll);
+    if (student == null || student.deletionPending) return null;
+    return student;
+  }
 
   /// Fetch multiple students by list of rolls within a class.
   Future<List<Student>> getStudentsByRolls(
-          String className, List<int> rolls, {String section = ''}) =>
-      _repo.fetchByRolls(className, section, rolls);
+          String className, List<int> rolls, {String section = ''}) async =>
+      _visibleOnly(await _repo.fetchByRolls(className, section, rolls));
+
+  // ── Deleted students (read-only history) ────────────────────────────────────
+
+  CollectionReference<Map<String, dynamic>> get _deletedStudentsRef =>
+      schoolCollection(_schoolId, 'deleted_students');
+
+  /// Live stream of removed-student tombstones across the school, newest
+  /// first. Ordering is by `deletedAt` only (no composite index needed);
+  /// per-class scoping (class teacher → own class) and class-wise grouping
+  /// (coordinator / principal) are done in the UI.
+  Stream<List<DeletedStudent>> watchDeletedStudents() {
+    return _deletedStudentsRef.snapshots().map((snap) {
+      final list = snap.docs
+          .map((d) => DeletedStudent.fromJson(d.id, d.data()))
+          .toList();
+      list.sort((a, b) {
+        final ta = a.deletedAt, tb = b.deletedAt;
+        if (ta == null && tb == null) return 0;
+        if (ta == null) return 1;
+        if (tb == null) return -1;
+        return tb.compareTo(ta);
+      });
+      return list;
+    });
+  }
 
   /// Returns null on success, error string on duplicate roll.
   Future<String?> addStudent({required Student student}) async {
@@ -255,10 +301,15 @@ class StudentService extends BaseFirestoreService {
     // 2. Delete remarks subcollection before the student document.
     await _cascadeDeleteRemarks(student.id);
 
-    // 3. Delete student document.
+    // 3. Record a tombstone so the deleted student stays visible in the
+    //    read-only "Deleted Students" history (best-effort — must not abort
+    //    the deletion if the write fails).
+    await _recordDeletedStudent(student);
+
+    // 4. Delete student document.
     await _repo.delete(student.id);
 
-    // 4. Cascade-delete attendance, notifications, exam results, fee records.
+    // 5. Cascade-delete attendance, notifications, exam results, fee records.
     //    These are BEST-EFFORT cleanups — the student document (the record that
     //    matters) is already gone. A permission hiccup on a secondary collection
     //    (e.g. reading a guardian's allowed_users doc that no longer exists,
@@ -271,6 +322,10 @@ class StudentService extends BaseFirestoreService {
       AppLogger.e('StudentService', 'cascade attendance delete failed: $e', e);
     }
     await _cascadeDeleteStudentNotifications(className, roll);
+    await _cascadeDeleteStudentLeaveNotifications(
+        className, roll, student.name);
+    await _cascadeDeleteStudentLeaveApplications(className, roll,
+        section: section);
     await _cascadeDeleteExamResults(className, roll);
     await _cascadeDeleteFeePayments(className, roll);
 
@@ -284,7 +339,7 @@ class StudentService extends BaseFirestoreService {
       reason: 'principal-approved deletion',
     );
 
-    // 5. Revoke guardian login (best-effort — never block the deletion on it).
+    // 6. Revoke guardian login (best-effort — never block the deletion on it).
     final guardianEmail = student.guardianEmail;
     if (guardianEmail != null && guardianEmail.trim().isNotEmpty) {
       try {
@@ -787,6 +842,24 @@ class StudentService extends BaseFirestoreService {
 
   // ── Private helpers ─────────────────────────────────────────────────────────
 
+  /// Writes a read-only tombstone for [student] into `deleted_students` so the
+  /// removal is preserved in the "Deleted Students" history. Best-effort: a
+  /// failure here is logged and skipped — it must not abort the deletion.
+  Future<void> _recordDeletedStudent(Student student) async {
+    try {
+      await _deletedStudentsRef.add(DeletedStudent(
+        roll:          student.roll,
+        name:          student.name,
+        className:     student.className,
+        section:       student.section,
+        guardianEmail: student.guardianEmail,
+        teacherId:     student.teacherId,
+      ).toJson());
+    } catch (e) {
+      AppLogger.e('StudentService', 'deleted-student tombstone failed: $e', e);
+    }
+  }
+
   /// Deletes every remark in the student's `remarks` subcollection.
   Future<void> _cascadeDeleteRemarks(String studentDocId) async {
     try {
@@ -812,6 +885,69 @@ class StudentService extends BaseFirestoreService {
       if (snap.docs.isEmpty) return;
       final batch = FirebaseFirestore.instance.batch();
       for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    } catch (_) {}
+  }
+
+  /// Purges leave-request notifications tied to this student.
+  ///
+  /// The "leave submitted" notice is addressed to the class teacher
+  /// (`audience: class_teacher:{class}`), so it is NOT keyed by roll and is
+  /// missed by [_cascadeDeleteStudentNotifications] (which targets the
+  /// guardian audience — that path already removes the "leave resolved"
+  /// notices). Here we scope to the class-teacher channel and delete the
+  /// entries belonging to the deleted student by the `studentRoll` field
+  /// stamped on the document, falling back to the student name in the title
+  /// for legacy notices written before that field existed.
+  Future<void> _cascadeDeleteStudentLeaveNotifications(
+      String className, int roll, String studentName) async {
+    try {
+      final snap = await schoolCollection(_schoolId, 'notifications')
+          .where('audience', isEqualTo: 'class_teacher:$className')
+          .get();
+      final wantTitle = 'Leave request: $studentName';
+      final matches = snap.docs.where((d) {
+        final data = d.data();
+        if (data['type'] != 'student_leave_submitted') return false;
+        final r = (data['studentRoll'] as num?)?.toInt();
+        // Newer notices carry the roll; legacy ones fall back to the name.
+        return r != null ? r == roll : data['title'] == wantTitle;
+      }).toList();
+      if (matches.isEmpty) return;
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in matches) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    } catch (_) {}
+  }
+
+  /// Deletes the student's own (guardian-filed) leave applications so a removed
+  /// student's pending/approved leave no longer lingers in the class teacher's
+  /// "student leave requests" screen. Rolls repeat across sections within a
+  /// class, so when [section] is given we additionally narrow to it (filtered
+  /// client-side to avoid a wider composite index).
+  Future<void> _cascadeDeleteStudentLeaveApplications(
+      String className, int roll, {String section = ''}) async {
+    try {
+      final snap = await schoolCollection(_schoolId, 'leave_applications')
+          .where('applicantType', isEqualTo: 'guardian')
+          .where('studentClass',  isEqualTo: className)
+          .where('studentRoll',   isEqualTo: roll)
+          .get();
+      final wantSection = section.trim();
+      final matches = wantSection.isEmpty
+          ? snap.docs
+          : snap.docs
+              .where((d) =>
+                  ((d.data()['studentSection'] as String?) ?? '').trim() ==
+                  wantSection)
+              .toList();
+      if (matches.isEmpty) return;
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in matches) {
         batch.delete(doc.reference);
       }
       await batch.commit();

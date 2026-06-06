@@ -184,19 +184,27 @@ class NotificationService extends BaseFirestoreService {
   }
 
   /// Called when a guardian submits a student leave — notifies the class teacher.
+  ///
+  /// The `studentClass` / `studentRoll` fields are stamped on the document (in
+  /// addition to the class-wide `audience`) so the notice can be purged when
+  /// that specific student is deleted — see
+  /// `StudentService._cascadeDeleteStudentLeaveNotifications`.
   Future<void> addStudentLeaveSubmitted({
     required String studentName,
     required String studentClass,
+    required int    studentRoll,
     required int    days,
     required String startDate,
   }) async {
     await _coll.add({
-      'type':      'student_leave_submitted',
-      'title':     'Leave request: $studentName',
-      'body':      'Guardian applied $days day(s) leave for $studentName '
-                   '($studentClass) starting $startDate. Tap to review.',
-      'audience':  'class_teacher:$studentClass',
-      'createdAt': FieldValue.serverTimestamp(),
+      'type':         'student_leave_submitted',
+      'title':        'Leave request: $studentName',
+      'body':         'Guardian applied $days day(s) leave for $studentName '
+                      '($studentClass) starting $startDate. Tap to review.',
+      'audience':     'class_teacher:$studentClass',
+      'studentClass': studentClass,
+      'studentRoll':  studentRoll,
+      'createdAt':    FieldValue.serverTimestamp(),
     });
   }
 

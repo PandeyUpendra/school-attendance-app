@@ -232,12 +232,28 @@ void main() {
       {'roll': 1, 'className': 'Class 8', 'section': 'A'},
     ], true);
 
+    // The flag is persisted on the record (read straight from the repository,
+    // which is not subject to the service-level deletion filter).
+    final ivyRaw  = await repo.fetchByRoll('Class 8', 'A', 1);
+    final jackRaw = await repo.fetchByRoll('Class 8', 'A', 2);
+    expect(ivyRaw?.deletionPending, isTrue,
+        reason: 'Requested student must be flagged for deletion');
+    expect(jackRaw?.deletionPending, isFalse,
+        reason: 'Untouched student must stay active');
+
+    // …and a flagged student must be invisible to every role-based read path,
+    // while the untouched student stays visible.
     final ivy  = await service.getStudentByRoll('Class 8', 1, section: 'A');
     final jack = await service.getStudentByRoll('Class 8', 2, section: 'A');
-    expect(ivy?.deletionPending, isTrue,
-        reason: 'Requested student must be deactivated');
+    expect(ivy, isNull,
+        reason: 'A student marked for deletion must not be viewable');
     expect(jack?.deletionPending, isFalse,
-        reason: 'Untouched student must stay active');
+        reason: 'Untouched student must remain viewable');
+
+    final roster =
+        await service.getStudentsByClass(className: 'Class 8', section: 'A');
+    expect(roster.map((s) => s.name), ['Jack'],
+        reason: 'Class roster must exclude the student marked for deletion');
   });
 
   // ── 12. rejectDeletionRequest — reactivates the students ─────────────────────
