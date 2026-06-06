@@ -860,6 +860,7 @@ service cloud.firestore {
         );
       }
 
+      // (fee_meta counter rule is defined as a sibling match below.)
       match /students/{roll}/payments/{paymentId} {
         // Guardian reads only their own child's payments — scoped by both the
         // class node and the roll, so no intra-class or cross-class leak.
@@ -871,6 +872,17 @@ service cloud.firestore {
         );
         allow write: if isSignedIn() && inSchool(sid) && isManagement();
       }
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // FEE META  (/schools/{sid}/fee_meta/{docId})
+    //
+    // Atomic counters (e.g. the gapless receipt-number sequence allocated in
+    // FeeService.addPayment). Management only.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/fee_meta/{docId} {
+      allow read, write: if isSignedIn() && inSchool(sid) && isManagement();
     }
 
 

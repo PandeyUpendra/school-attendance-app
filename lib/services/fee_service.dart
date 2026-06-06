@@ -56,40 +56,100 @@ class FeeService extends BaseFirestoreService {
 
   // ── Payments ───────────────────────────────────────────────────────────────
 
+  /// Per-school atomic receipt-number counter. Lives outside fee_payments so a
+  /// single doc serialises receipt allocation across all cashiers/classes.
+  DocumentReference<Map<String, dynamic>> get _receiptCounter =>
+      schoolCollection(_sid, 'fee_meta').doc('counters');
+
   Future<List<Payment>> getPayments({String? schoolId, required String className, required int roll}) async {
     final snap = await _paymentsCol(className, roll)
         .orderBy('paidOn', descending: true)
         .get();
-    return snap.docs.map((d) {
-      return Payment.fromDoc(d.id, Map<String, dynamic>.from(d.data() as Map));
-    }).toList();
+    return snap.docs
+        .map((d) =>
+            Payment.fromDoc(d.id, Map<String, dynamic>.from(d.data() as Map)))
+        // Reversed payments are retained in Firestore (audit/recoverability)
+        // but excluded from listings and every total (#53).
+        .where((p) => !p.reversed)
+        .toList();
   }
 
-  Future<void> addPayment({String? schoolId, required String className, required int roll, required Payment payment}) async {
-    final ref = await _paymentsCol(className, roll).add(payment.toJson());
+  /// Records a payment and returns its allocated receipt number.
+  ///
+  /// Runs in a single transaction that (a) allocates a GAPLESS, sequential
+  /// receipt number from an atomic per-school counter — two cashiers can no
+  /// longer collide, and the number is no longer a client-side timestamp
+  /// (#46) — and (b) is IDEMPOTENT: pass a stable [clientTxnId] so a retry /
+  /// double-submit writes to the same doc id instead of duplicating the
+  /// payment (#48).
+  Future<String> addPayment({
+    String? schoolId,
+    required String className,
+    required int    roll,
+    required Payment payment,
+    String? clientTxnId,
+  }) async {
+    final col = _paymentsCol(className, roll);
+    final ref = (clientTxnId != null && clientTxnId.isNotEmpty)
+        ? col.doc(clientTxnId)
+        : col.doc();
+
+    final receiptNo = await db.runTransaction<String>((tx) async {
+      // Idempotency guard — a retry with the same clientTxnId finds the doc
+      // already written and reuses its receipt rather than allocating again.
+      final existing = await tx.get(ref);
+      if (existing.exists) {
+        final data = Map<String, dynamic>.from(existing.data()! as Map);
+        return (data['receiptNo'] as String?) ?? payment.receiptNo;
+      }
+
+      final counterSnap = await tx.get(_receiptCounter);
+      final current = counterSnap.exists
+          ? ((counterSnap.data()?['receiptSeq']) as num?)?.toInt() ?? 0
+          : 0;
+      final next = current + 1;
+      final rno  = 'RCP-${DateTime.now().year}-${next.toString().padLeft(6, '0')}';
+
+      final data = Map<String, dynamic>.from(payment.toJson())
+        ..['receiptNo'] = rno;
+      tx.set(_receiptCounter, {'receiptSeq': next}, SetOptions(merge: true));
+      tx.set(ref, data);
+      return rno;
+    });
+
     AuditService.emit(
       action:   'create',
       entity:   'fee_payment',
       entityId: ref.id,
       after:    payment.toJson()
         ..['className'] = className
-        ..['roll']      = roll,
+        ..['roll']      = roll
+        ..['receiptNo'] = receiptNo,
     );
+    return receiptNo;
   }
 
-  /// Deletes a single payment record. Logs a 'delete' audit entry.
+  /// Reverses a payment. Money records are NEVER hard-deleted (#53): the doc is
+  /// flagged `reversed` (excluded from listings/totals) and kept for audit and
+  /// recoverability, rather than erased — so collection history can't be wiped.
   Future<void> deletePayment({
     required String className,
     required int    roll,
     required String paymentId,
+    String? reason,
   }) async {
-    final doc = await _paymentsCol(className, roll).doc(paymentId).get();
+    final ref = _paymentsCol(className, roll).doc(paymentId);
+    final doc = await ref.get();
     final before = doc.exists && doc.data() != null
         ? Map<String, dynamic>.from(doc.data()! as Map)
         : null;
-    await _paymentsCol(className, roll).doc(paymentId).delete();
+    await ref.set({
+      'reversed':       true,
+      'reversedAt':     FieldValue.serverTimestamp(),
+      if (reason != null && reason.isNotEmpty) 'reversedReason': reason,
+    }, SetOptions(merge: true));
     AuditService.emit(
-      action:   'delete',
+      action:   'reverse',
       entity:   'fee_payment',
       entityId: paymentId,
       before:   before,
@@ -205,6 +265,7 @@ class FeeService extends BaseFirestoreService {
 
     double collected = 0, pending = 0, overdue = 0;
     final defaulters = <Map<String, dynamic>>[];
+    final now = DateTime.now();
 
     for (final entry in byClass.entries) {
       final cls   = entry.key;
@@ -237,7 +298,7 @@ class FeeService extends BaseFirestoreService {
             'name':      sData['name']       ?? '',
             'className': cls,
             'amount':    totalDue,
-            'daysOverdue': 0,
+            'daysOverdue': _daysOverdue(structure, paid, now),
             'phone':     sData['parentPhone'] ?? sData['phone'] ?? '',
           });
         } else {
@@ -246,15 +307,16 @@ class FeeService extends BaseFirestoreService {
             'name':      sData['name']       ?? '',
             'className': cls,
             'amount':    totalDue - paid,
-            'daysOverdue': 0,
+            'daysOverdue': _daysOverdue(structure, paid, now),
             'phone':     sData['parentPhone'] ?? sData['phone'] ?? '',
           });
         }
       }
     }
 
-    defaulters.sort(
-        (a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+    // num→double so a stored int amount can't throw on the cast (#158).
+    defaulters.sort((a, b) =>
+        (b['amount'] as num).toDouble().compareTo((a['amount'] as num).toDouble()));
 
     return {
       'collected': collected,
@@ -264,12 +326,29 @@ class FeeService extends BaseFirestoreService {
     };
   }
 
-  // ── Receipt numbering ──────────────────────────────────────────────────────
+  // Receipt numbers are now allocated atomically inside [addPayment] from a
+  // per-school counter (gapless + collision-free), replacing the old
+  // client-side timestamp generator (#46, #155).
 
-  static String generateReceiptNo(String className, int roll) {
-    final prefix = className.replaceAll(' ', '').substring(
-        0, className.replaceAll(' ', '').length.clamp(0, 3)).toUpperCase();
-    final ts = DateTime.now().millisecondsSinceEpoch % 100000;
-    return 'RCP-$prefix-$roll-$ts';
+  /// Days a student's fee has been overdue, derived from the class instalment
+  /// schedule: the gap between today and the earliest instalment due-date that
+  /// the student's payments do not yet cover. Returns 0 when fully covered, not
+  /// yet due, or when no instalment schedule is configured (can't age without a
+  /// due date) — replacing the hardcoded 0 in the defaulters report (#51).
+  static int _daysOverdue(FeeStructure structure, double paid, DateTime now) {
+    if (structure.installments.isEmpty) return 0;
+    final schedule = [...structure.installments]
+      ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+    var cumulative = 0.0;
+    for (final inst in schedule) {
+      cumulative += inst.amount;
+      if (paid < cumulative) {
+        // This is the earliest instalment not fully covered by payments.
+        return inst.dueDate.isBefore(now)
+            ? now.difference(inst.dueDate).inDays
+            : 0;
+      }
+    }
+    return 0;
   }
 }

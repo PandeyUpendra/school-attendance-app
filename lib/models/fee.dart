@@ -101,6 +101,7 @@ class Payment {
   final String   receiptNo;     // auto-generated
   final String?  note;
   final String?  installmentName; // optional — which FeeInstallment this covers
+  final bool     reversed;        // soft-reversal flag (money records are never hard-deleted)
 
   const Payment({
     required this.id,
@@ -110,6 +111,7 @@ class Payment {
     required this.receiptNo,
     this.note,
     this.installmentName,
+    this.reversed = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -119,6 +121,7 @@ class Payment {
         'receiptNo':       receiptNo,
         'note':            note,
         'installmentName': installmentName,
+        'reversed':        reversed,
       };
 
   factory Payment.fromDoc(String id, Map<String, dynamic> data) {
@@ -131,6 +134,7 @@ class Payment {
       receiptNo:       (data['receiptNo']        as String?) ?? '',
       note:            (data['note']             as String?),
       installmentName: (data['installmentName']  as String?),
+      reversed:        (data['reversed']         as bool?)   ?? false,
     );
   }
 }

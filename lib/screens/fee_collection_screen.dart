@@ -537,6 +537,11 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
     String? selectedInstalment; // null = no instalment linked
     bool saving = false;
 
+    // Stable id for THIS payment entry, generated once when the sheet opens.
+    // Passed to addPayment so a network retry / double-submit writes to the
+    // same doc instead of recording the payment twice (#48).
+    final clientTxnId = '${DateTime.now().microsecondsSinceEpoch}_${widget.student.roll}';
+
     final hasInstalments = widget.structure.installments.isNotEmpty;
 
     final added = await showModalBottomSheet<bool>(
@@ -600,6 +605,14 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                       final n = double.tryParse(v.trim());
                       if (n == null || n <= 0) {
                         return 'Must be greater than 0';
+                      }
+                      // Overpayment guard: when a positive annual fee is
+                      // configured, a single payment can't exceed the
+                      // outstanding due — previously any amount was accepted,
+                      // corrupting collected totals (#47). (₹1 tolerance for
+                      // rounding.)
+                      if (widget.structure.totalAnnualFee > 0 && n > _due + 1) {
+                        return 'Cannot exceed outstanding due of ₹${_due.toStringAsFixed(0)}';
                       }
                       return null;
                     },
@@ -711,26 +724,24 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                                       amountCtrl.text.trim()) ??
                                   0;
                               setS(() => saving = true);
-                              final receiptNo =
-                                  FeeService.generateReceiptNo(
-                                widget.student.className,
-                                widget.student.roll,
-                              );
+                              // receiptNo is allocated atomically server-side in
+                              // addPayment; pass empty here (#46).
                               final payment = Payment(
                                 id:              '',
                                 amount:          amt,
                                 paidOn:          DateTime.now(),
                                 mode:            mode,
-                                receiptNo:       receiptNo,
+                                receiptNo:       '',
                                 installmentName: selectedInstalment,
                                 note: noteCtrl.text.trim().isEmpty
                                     ? null
                                     : noteCtrl.text.trim(),
                               );
                               await _feeService.addPayment(
-                                className: widget.student.className,
-                                roll:      widget.student.roll,
-                                payment:   payment,
+                                className:   widget.student.className,
+                                roll:        widget.student.roll,
+                                payment:     payment,
+                                clientTxnId: clientTxnId,
                               );
                               if (ctx.mounted) {
                                 Navigator.pop(ctx, true);
