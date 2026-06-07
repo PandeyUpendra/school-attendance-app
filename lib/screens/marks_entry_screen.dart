@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/exam.dart';
 import '../models/student.dart';
+import '../services/auth_service.dart';
 import '../services/exam_service.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
@@ -29,6 +30,10 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
   // roll → subject → marks controller
   Map<int, Map<String, TextEditingController>> _controllers = {};
 
+  // Email of the staff member entering marks — stamped on each result so grade
+  // changes are attributable (previously saved as an empty string).
+  String _enteredBy = '';
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +49,9 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     ]);
     final students    = results[0] as List<Student>;
     final examResults = results[1] as List<ExamResult>;
+
+    final session = await AuthService().getSession();
+    _enteredBy = (session?['email'] as String?) ?? '';
 
     assert(students.length == {for (final s in students) s.roll: s}.length,
         'Duplicate rolls detected in class ${exam.className}');
@@ -113,7 +121,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
         examName:    exam.name,
         marks:       marks,
         maxMarks:    exam.maxMarks,
-        enteredBy:   '',
+        enteredBy:   _enteredBy,
       );
       futures.add(_examService.saveResult(examId: exam.id, result: result));
     }

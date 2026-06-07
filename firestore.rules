@@ -593,6 +593,40 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
+    // PROVIDED DETAILS  (detail-correction workflows under a student)
+    //   /schools/{sid}/students/{studentId}/guardianProvidedDetails/{id}
+    //   /schools/{sid}/students/{studentId}/schoolProvidedDetails/{id}
+    //
+    // Used by StudentService.submit*ProvidedDetails / watch* / update*Status.
+    // These had NO rule, so every read/write was default-denied and the whole
+    // detail-sync workflow silently failed (review finding). Scoped like
+    // consents/remarks.
+    //   guardianProvidedDetails: guardian raises a correction; staff resolves.
+    //   schoolProvidedDetails:   school authors; guardian acknowledges/reads.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/students/{studentId}/guardianProvidedDetails/{detailId} {
+      allow read: if isSignedIn() && (
+        isAnyStaff() ||
+        (inSchool(sid) && isRole('guardian') && studentId == guardianStudentId())
+      );
+      allow create: if isSignedIn() && inSchool(sid)
+        && isRole('guardian') && studentId == guardianStudentId();
+      allow update: if isSignedIn() && inSchool(sid) && isManagement();
+      allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+    match /schools/{sid}/students/{studentId}/schoolProvidedDetails/{detailId} {
+      allow read: if isSignedIn() && (
+        isAnyStaff() ||
+        (inSchool(sid) && isRole('guardian') && studentId == guardianStudentId())
+      );
+      allow create, update: if isSignedIn() && inSchool(sid)
+        && (isManagement() || isAnyTeacher());
+      allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
     // CONSENT WITHDRAWALS  (/schools/{sid}/consent_withdrawals/{wfId})
     //
     // Workflow documents created when a guardian withdraws consent.

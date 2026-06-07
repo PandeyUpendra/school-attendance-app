@@ -81,11 +81,16 @@ class _LoginScreenState extends State<LoginScreen> {
       final status    = userData['status']   as String? ?? 'active';
       final teacherId = userData['teacherId'] as String?;
 
-      if (status == 'suspended') {
+      // Block both suspended AND disabled here. Previously only 'suspended' was
+      // checked, so a 'disabled' account could still sign in fresh and was only
+      // ejected on the next cold start by the splash gate — inconsistent.
+      if (status == 'suspended' || status == 'disabled') {
         await AuthService().signOut();
         setState(() {
           _loading = false;
-          _error = 'Your account has been suspended. Contact your administrator.';
+          _error = status == 'disabled'
+              ? 'This account has been disabled. Contact your administrator.'
+              : 'Your account has been suspended. Contact your administrator.';
         });
         return;
       }
