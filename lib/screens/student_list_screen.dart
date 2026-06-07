@@ -15,6 +15,7 @@ import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../utils/phone_utils.dart';
 import '../utils/csv_export.dart';
+import '../utils/consent_gate.dart';
 import '../theme.dart';
 import '../utils/app_logger.dart';
 import '../utils/validators.dart';
@@ -995,6 +996,13 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
 
   Future<void> _whatsapp() async {
     if (_student.phone.isEmpty) return;
+    // Consent gate (#108): WhatsApp sends the child's data to a third party.
+    if (!await ConsentGate.allowsThirdPartyShare(context,
+        roll: _student.roll,
+        className: _student.className,
+        section: _student.section)) {
+      return;
+    }
     final digits = PhoneUtils.whatsAppNumber(_student.phone);
     if (digits.isEmpty) return;
     final uri = Uri.parse('https://wa.me/$digits');

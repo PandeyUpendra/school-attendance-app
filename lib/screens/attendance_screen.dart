@@ -14,6 +14,7 @@ import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_queue_service.dart';
 import '../utils/phone_utils.dart';
+import '../utils/consent_gate.dart';
 import '../utils/app_logger.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/student_remark.dart';
@@ -1671,9 +1672,15 @@ class _WhatsAppNotifySheet extends StatelessWidget {
         '— School Management';
   }
 
-  Future<void> _openWhatsApp(String phone, String message) async {
+  Future<void> _openWhatsApp(
+      BuildContext context, Student s, String message) async {
+    // Consent gate (#108): WhatsApp sends the child's data to a third party.
+    if (!await ConsentGate.allowsThirdPartyShare(context,
+        roll: s.roll, className: s.className, section: s.section)) {
+      return;
+    }
     // Normalise to a wa.me-ready number (digits + country code, #62).
-    final digits = PhoneUtils.whatsAppNumber(phone);
+    final digits = PhoneUtils.whatsAppNumber(s.phone);
     if (digits.isEmpty) return;
     final url = Uri.parse(
         'https://wa.me/$digits?text=${Uri.encodeComponent(message)}');
@@ -1747,14 +1754,14 @@ class _WhatsAppNotifySheet extends StatelessWidget {
                 _label('Absent', const Color(0xFFC62828)),
                 ...absent.map((s) => _NotifyRow(
                       student: s, message: _message(s),
-                      onSend: () => _openWhatsApp(s.phone, _message(s)),
+                      onSend: () => _openWhatsApp(context, s, _message(s)),
                     )),
               ],
               if (onLeave.isNotEmpty) ...[
                 _label('On Leave', const Color(0xFFF57F17)),
                 ...onLeave.map((s) => _NotifyRow(
                       student: s, message: _message(s),
-                      onSend: () => _openWhatsApp(s.phone, _message(s)),
+                      onSend: () => _openWhatsApp(context, s, _message(s)),
                     )),
               ],
             ],

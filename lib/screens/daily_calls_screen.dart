@@ -12,6 +12,7 @@ import '../models/teacher.dart';
 import '../services/student_service.dart';
 import '../utils/app_logger.dart';
 import '../utils/phone_utils.dart';
+import '../utils/consent_gate.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  DailyCallsScreen — permanent calls tracking for class teacher
@@ -155,6 +156,12 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
 
   Future<void> _openWhatsApp(Student s) async {
     if (s.phone.isEmpty) return;
+    // Consent gate (#108): WhatsApp sends the child's data to a third party.
+    if (!await ConsentGate.allowsThirdPartyShare(context,
+        roll: s.roll, className: s.className, section: s.section)) {
+      return;
+    }
+    if (!mounted) return;
     final msg = _waMessage(s);
     final digits = PhoneUtils.whatsAppNumber(s.phone);
     if (digits.isEmpty) return;

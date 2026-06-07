@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
 import '../utils/validators.dart';
+import '../l10n/app_strings.dart';
 import '../widgets/email_text_form_field.dart';
 import 'role_selection_screen.dart';
 
@@ -133,7 +134,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Reset Password'),
+        title: Text(context.tr('resetPassword')),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -163,7 +164,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
               const SizedBox(height: 24),
 
               Text(
-                _sent ? 'Check Your Email' : 'Forgot Your Password?',
+                _sent
+                    ? context.tr('checkYourEmail')
+                    : context.tr('forgotPasswordTitle'),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 22,
@@ -173,13 +176,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
               ),
               const SizedBox(height: 10),
               Text(
+                // Neutral wording — must not confirm the address is
+                // registered (#19/#84).
                 _sent
-                    // Neutral wording — must not confirm the address is
-                    // registered (#19/#84).
-                    ? 'If an account exists for that email, we\'ve sent a '
-                        'password reset link. Check your inbox (and spam folder).'
-                    : 'Enter the email address registered with your school account '
-                        'and we\'ll send you a secure link to reset your password.',
+                    ? context.tr('resetSentDesc')
+                    : context.tr('forgotPasswordDesc'),
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.5),
               ),
@@ -191,7 +192,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _loading ? null : _sendReset(),
                   decoration: InputDecoration(
-                    labelText: 'Email Address',
+                    labelText: context.tr('emailAddress'),
                     prefixIcon: const Icon(Icons.email_outlined),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
@@ -239,9 +240,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white),
                           )
-                        : const Text(
-                            'Send Reset Link',
-                            style: TextStyle(
+                        : Text(
+                            context.tr('sendResetLink'),
+                            style: const TextStyle(
                                 fontSize: 16, fontWeight: FontWeight.w600),
                           ),
                   ),
@@ -318,7 +319,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                     _error       = null;
                     _emailCtrl.clear();
                   }),
-                  child: const Text('Try a different email'),
+                  child: Text(context.tr('tryDifferentEmail')),
                 ),
               ],
 
@@ -326,8 +327,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
               Center(
                 child: TextButton(
                   onPressed: _goToSignIn,
-                  child: const Text('Back to Sign In',
-                      style: TextStyle(color: AppTheme.primary)),
+                  child: Text(context.tr('backToSignIn'),
+                      style: const TextStyle(color: AppTheme.primary)),
                 ),
               ),
             ],

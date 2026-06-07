@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import 'login_screen.dart';
 import 'guardian_login_screen.dart';
 import 'admin_login_screen.dart';
@@ -59,7 +60,7 @@ class RoleSelectionScreen extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         color: Colors.white)),
                 const SizedBox(height: 6),
-                Text('Choose how to sign in',
+                Text(context.tr('chooseHowToSignIn'),
                     style: TextStyle(
                         fontSize: 16,
                         color: Colors.white.withValues(alpha: 0.7))),
@@ -68,8 +69,8 @@ class RoleSelectionScreen extends StatelessWidget {
                 // ── Staff (teacher / coordinator / principal / owner) ───────
                 _RoleCard(
                   icon: Icons.badge_outlined,
-                  title: 'Staff Login',
-                  subtitle: 'Teacher, Coordinator, Principal, Owner',
+                  title: context.tr('staffLogin'),
+                  subtitle: context.tr('staffLoginSubtitle'),
                   onTap: () => Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -80,8 +81,8 @@ class RoleSelectionScreen extends StatelessWidget {
                 // ── Guardian ──────────────────────────────────────────────
                 _RoleCard(
                   icon: Icons.family_restroom_outlined,
-                  title: 'Guardian',
-                  subtitle: "View your child's attendance & progress",
+                  title: context.tr('role_guardian'),
+                  subtitle: context.tr('guardianSubtitle'),
                   onTap: () => Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
@@ -93,8 +94,8 @@ class RoleSelectionScreen extends StatelessWidget {
                 // ── Admin ─────────────────────────────────────────────────
                 _RoleCard(
                   icon: Icons.manage_accounts_outlined,
-                  title: 'Admin',
-                  subtitle: 'Manage registered users & login access',
+                  title: context.tr('role_admin'),
+                  subtitle: context.tr('adminSubtitle'),
                   onTap: () => _openAdmin(context),
                 ),
 
