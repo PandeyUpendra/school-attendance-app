@@ -1,8 +1,10 @@
 import 'dart:ui';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -47,6 +49,18 @@ void main() async {
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     return true;
   };
+
+  // App Check (#2): attest requests come from a genuine app build. Activation
+  // is harmless until enforcement is turned on in the Firebase console — debug
+  // builds use the debug provider (token printed to logcat for registration),
+  // release uses Play Integrity / App Attest. Best-effort: never block startup.
+  try {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider:
+          kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+      appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
+    );
+  } catch (_) {/* App Check unavailable — continue without it */}
 
   final messaging = FirebaseMessaging.instance;
   await messaging.requestPermission(

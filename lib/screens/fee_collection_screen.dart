@@ -737,14 +737,28 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                                     ? null
                                     : noteCtrl.text.trim(),
                               );
-                              await _feeService.addPayment(
-                                className:   widget.student.className,
-                                roll:        widget.student.roll,
-                                payment:     payment,
-                                clientTxnId: clientTxnId,
-                              );
-                              if (ctx.mounted) {
-                                Navigator.pop(ctx, true);
+                              try {
+                                await _feeService.addPayment(
+                                  className:   widget.student.className,
+                                  roll:        widget.student.roll,
+                                  payment:     payment,
+                                  clientTxnId: clientTxnId,
+                                );
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx, true);
+                                }
+                              } catch (e) {
+                                // Over-payment guard or any write failure:
+                                // surface it and let the cashier retry/adjust.
+                                setS(() => saving = false);
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                                    content: Text(e is FeeOverpaymentException
+                                        ? e.message
+                                        : 'Could not record payment. Please try again.'),
+                                    backgroundColor: Colors.red,
+                                  ));
+                                }
                               }
                             },
                       icon: const Icon(Icons.check, size: 18),

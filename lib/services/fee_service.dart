@@ -4,6 +4,14 @@ import 'audit_log_service.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
 
+/// Raised when a payment would push a student's total paid past the annual fee.
+class FeeOverpaymentException implements Exception {
+  final String message;
+  FeeOverpaymentException(this.message);
+  @override
+  String toString() => message;
+}
+
 /// Firestore-backed fee management service.
 ///
 /// Schema (school-scoped):
@@ -82,13 +90,39 @@ class FeeService extends BaseFirestoreService {
   /// (#46) — and (b) is IDEMPOTENT: pass a stable [clientTxnId] so a retry /
   /// double-submit writes to the same doc id instead of duplicating the
   /// payment (#48).
+  /// Thrown by [addPayment] when a payment would push the student's total paid
+  /// past the configured annual fee. Callers can pass `enforceCap: false` to
+  /// deliberately allow it (e.g. recording an advance/adjustment).
   Future<String> addPayment({
     String? schoolId,
     required String className,
     required int    roll,
     required Payment payment,
     String? clientTxnId,
+    bool enforceCap = true,
   }) async {
+    // Server-side over-payment guard (#24), in addition to the UI validator —
+    // covers programmatic callers and is computed against the freshly-summed
+    // total. (A pre-read, not transactional: simultaneous cashiers on the SAME
+    // student is rare; a fully race-proof cap needs the per-student paid
+    // counter from the aggregation work, #25.)
+    if (enforceCap && !payment.reversed) {
+      final structure = await getFeeStructure(className: className);
+      final capPaise = structure.totalAnnualFeePaise;
+      if (capPaise > 0) {
+        final alreadyPaise = rupeesToPaise(
+            await getTotalPaid(className: className, roll: roll));
+        // ₹1 (100 paise) tolerance for rounding.
+        if (alreadyPaise + payment.amountPaise > capPaise + 100) {
+          final remaining = paiseToRupees(
+              (capPaise - alreadyPaise).clamp(0, capPaise));
+          throw FeeOverpaymentException(
+              'Payment exceeds the outstanding due of '
+              '₹${remaining.toStringAsFixed(0)}.');
+        }
+      }
+    }
+
     final col = _paymentsCol(className, roll);
     final ref = (clientTxnId != null && clientTxnId.isNotEmpty)
         ? col.doc(clientTxnId)

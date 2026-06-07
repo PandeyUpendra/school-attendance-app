@@ -50,6 +50,7 @@ dependencies:
   firebase_storage: ^11.7.0
   firebase_messaging: ^14.7.10
   firebase_crashlytics: ^3.5.0
+  firebase_app_check: ^0.2.1
   cloud_functions: ^4.6.0
   flutter_local_notifications: ^17.2.3
   fl_chart: ^0.68.0
