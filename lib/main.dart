@@ -59,16 +59,67 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   );
 }
 
-class SchoolApp extends StatelessWidget {
+/// Navigator key for the root MaterialApp — lets non-widget code (e.g. the
+/// idle-lock below) navigate without a BuildContext.
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
+class SchoolApp extends StatefulWidget {
   final String languageCode;
   const SchoolApp({super.key, this.languageCode = 'en'});
+
+  @override
+  State<SchoolApp> createState() => _SchoolAppState();
+}
+
+class _SchoolAppState extends State<SchoolApp> with WidgetsBindingObserver {
+  /// Auto sign-out after this much time spent in the background, so a shared
+  /// staff device left unattended doesn't stay authenticated (#22). The cold-
+  /// start 7-day check in _SplashGate complements this for fully-closed apps.
+  static const _idleLockThreshold = Duration(minutes: 15);
+  DateTime? _backgroundedAt;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _backgroundedAt = DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      _maybeLock();
+    }
+  }
+
+  Future<void> _maybeLock() async {
+    final since = _backgroundedAt;
+    _backgroundedAt = null;
+    if (since == null) return;
+    if (DateTime.now().difference(since) < _idleLockThreshold) return;
+    // Only force a re-login when there is actually a session to protect.
+    final session = await AuthService().getSession();
+    if (session == null) return;
+    await AuthService().clearSession();
+    rootNavigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SchoolSettingsProvider()),
-        ChangeNotifierProvider(create: (_) => LocaleProvider(languageCode)),
+        ChangeNotifierProvider(create: (_) => LocaleProvider(widget.languageCode)),
       ],
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: const SystemUiOverlayStyle(
@@ -82,6 +133,7 @@ class SchoolApp extends StatelessWidget {
         ),
         child: Consumer<LocaleProvider>(
           builder: (context, localeProvider, _) => MaterialApp(
+            navigatorKey: rootNavigatorKey,
             debugShowCheckedModeBanner: false,
             title: 'School App',
             theme: AppTheme.light,

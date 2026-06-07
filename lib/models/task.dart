@@ -11,6 +11,9 @@ class Task {
   final DateTime? dueDate;
   // studentStatuses: Map<String, bool> where key is 'className_roll'
   final Map<String, bool> studentStatuses;
+  // Tenant scope — this is a cross-school ROOT collection, so each doc carries
+  // its schoolId and reads are filtered/permitted by it (#6).
+  final String schoolId;
 
   Task({
     required this.id,
@@ -22,6 +25,7 @@ class Task {
     required this.createdAt,
     this.dueDate,
     this.studentStatuses = const {},
+    this.schoolId = '',
   });
 
   factory Task.fromJson(Map<String, dynamic> json, String id) {
@@ -35,6 +39,7 @@ class Task {
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       dueDate: json['dueDate'] != null ? (json['dueDate'] as Timestamp).toDate() : null,
       studentStatuses: Map<String, bool>.from(json['studentStatuses'] ?? {}),
+      schoolId: json['schoolId'] as String? ?? '',
     );
   }
 
@@ -48,6 +53,7 @@ class Task {
       'createdAt': Timestamp.fromDate(createdAt),
       'dueDate': dueDate != null ? Timestamp.fromDate(dueDate!) : null,
       'studentStatuses': studentStatuses,
+      'schoolId': schoolId,
     };
   }
 }

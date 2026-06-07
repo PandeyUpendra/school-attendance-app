@@ -37,6 +37,7 @@ const ROOT_COLLECTIONS = [
   "homework",
   "copy_checks",
   "substitution_history",
+  "tasks", // class-task collection; tenant-scoped reads now require schoolId (#6)
 ];
 
 /** Collection-group leaf names (matched at any depth) that need schoolId. */

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/school_clock.dart';
 import 'student_service.dart';
 
 /// Stores pending attendance saves locally when the device is offline.
@@ -47,7 +48,9 @@ class OfflineQueueService {
                 Map<String, dynamic>.from(e as Map)))
         : <Map<String, dynamic>>[];
 
-    final dateKey = _dateKey(date ?? DateTime.now());
+    // Default "today" to the school timezone so an offline mark queues under the
+    // same calendar day the online path would use (#43).
+    final dateKey = _dateKey(date ?? SchoolClock.now());
 
     // Replace existing entry for same class+day (last write wins)
     list.removeWhere((e) =>
@@ -143,7 +146,7 @@ class OfflineQueueService {
         (jsonDecode(raw) as List).map((e) =>
             Map<String, dynamic>.from(e as Map)));
 
-    final dateKey = _dateKey(date ?? DateTime.now());
+    final dateKey = _dateKey(date ?? SchoolClock.now());
     final entry   = list.where((e) =>
         e['className'] == className && e['dateKey'] == dateKey).firstOrNull;
 

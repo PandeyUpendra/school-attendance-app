@@ -248,28 +248,38 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     // TASKS  (/tasks/{taskId})
     // ════════════════════════════════════════════════════════════════
+    // Phase 3 tenancy: `tasks` is a root (cross-school) collection scoped by a
+    // `schoolId` field. Reads were previously open to ANY authenticated user of
+    // ANY school — a cross-tenant leak of class/student task data (#6). They are
+    // now confined to the caller's school; queries must add .where('schoolId').
     match /tasks/{taskId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn()
+        && (isRootAdmin() || resource.data.schoolId == userSchoolId());
 
-      // Staff create/delete and fully edit tasks.
-      allow create, delete: if isSignedIn() && isAnyStaff();
+      // Staff create/delete in their own school (create must stamp schoolId).
+      allow create: if isSignedIn() && isAnyStaff()
+        && request.resource.data.schoolId == userSchoolId();
+      allow delete: if isSignedIn() && isAnyStaff()
+        && (isRootAdmin() || resource.data.schoolId == userSchoolId());
 
-      // Staff may update any field. A guardian may update ONLY the
+      // Staff may update any field (own school). A guardian may update ONLY the
       // studentStatuses map, AND only the entry for their OWN child — enforced
       // server-side here (previously "scoping to their own child" was a
       // client-only promise, so a guardian could mark/unmark every student).
       // The map key is "{studentClass}_{studentRoll}" (TaskService.updateStudentStatus);
       // we diff the sub-map and require the only changed key to be the
       // guardian's own child key.
-      allow update: if isSignedIn() && (
-        isAnyStaff() ||
-        (isRole('guardian')
-          && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['studentStatuses'])
-          && request.resource.data.studentStatuses
-               .diff(resource.data.studentStatuses).affectedKeys()
-               .hasOnly([userStudentClass() + '_' + string(userStudentRoll())]))
-      );
+      allow update: if isSignedIn()
+        && (isRootAdmin() || resource.data.schoolId == userSchoolId())
+        && (
+          isAnyStaff() ||
+          (isRole('guardian')
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['studentStatuses'])
+            && request.resource.data.studentStatuses
+                 .diff(resource.data.studentStatuses).affectedKeys()
+                 .hasOnly([userStudentClass() + '_' + string(userStudentRoll())]))
+        );
     }
 
 

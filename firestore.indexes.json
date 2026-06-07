@@ -1,6 +1,22 @@
 {
   "indexes": [
     {
+      "collectionGroup": "tasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "schoolId",        "order": "ASCENDING" },
+        { "fieldPath": "assignedClasses", "arrayConfig": "CONTAINS" }
+      ]
+    },
+    {
+      "collectionGroup": "tasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "schoolId",  "order": "ASCENDING" },
+        { "fieldPath": "createdBy", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "student_deletion_requests",
       "queryScope": "COLLECTION",
       "fields": [

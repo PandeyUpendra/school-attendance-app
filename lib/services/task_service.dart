@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task.dart';
+import 'auth_service.dart';
 
 class TaskService {
   static final _db = FirebaseFirestore.instance;
@@ -9,8 +10,14 @@ class TaskService {
   TaskService._();
   factory TaskService() => _instance;
 
+  // `tasks` is a cross-school ROOT collection. Every read MUST be filtered by
+  // schoolId so it (a) returns only this school's tasks and (b) is permitted by
+  // the tenant-scoped read rule (rules are not filters, #6).
+  String get _sid => AuthService.currentSchoolId;
+
   Stream<List<Task>> getTasksForTeacher({required String className}) {
     return _tasks
+        .where('schoolId', isEqualTo: _sid)
         .where('assignedClasses', arrayContains: className)
         .snapshots()
         .map((snap) => snap.docs
@@ -21,6 +28,7 @@ class TaskService {
 
   Stream<List<Task>> getTasksCreatedBy(String email) {
     return _tasks
+        .where('schoolId', isEqualTo: _sid)
         .where('createdBy', isEqualTo: email)
         .snapshots()
         .map((snap) => snap.docs
@@ -31,6 +39,7 @@ class TaskService {
 
   Stream<List<Task>> getAllTasks() {
     return _tasks
+        .where('schoolId', isEqualTo: _sid)
         .snapshots()
         .map((snap) => snap.docs
             .map((doc) => Task.fromJson(doc.data(), doc.id))

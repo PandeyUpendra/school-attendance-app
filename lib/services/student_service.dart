@@ -7,6 +7,7 @@ import '../models/guardian_provided_details.dart';
 import '../models/school_provided_details.dart';
 import '../repositories/student_repository.dart';
 import '../utils/app_logger.dart';
+import '../utils/school_clock.dart';
 import 'audit_log_service.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
@@ -462,7 +463,8 @@ class StudentService extends BaseFirestoreService {
   //       They will migrate to AttendanceRepository in a follow-up PR.
 
   String _todayKey(String className) {
-    final now = DateTime.now();
+    // Anchor "today" to the school timezone, not the device's (#43).
+    final now = SchoolClock.now();
     return '${className.replaceAll(' ', '_')}_${now.year}-${now.month}-${now.day}';
   }
 
@@ -528,10 +530,10 @@ class StudentService extends BaseFirestoreService {
 
   /// Marks a student as 'Leave' for every day in the given range.
   ///
-  /// Sundays are skipped. NOTE: this assumes a 6-day school week; schools with
-  /// working/alternate Saturdays or other holidays in the range will get a
-  /// 'Leave' mark on a non-working day (tracked separately as #44 — needs the
-  /// school's working-days/holiday config to resolve fully).
+  /// Non-working days are skipped based on the school's configured working week
+  /// (`workingDays` = 'Mon-Sat' or 'Mon-Fri', #44) — so a Mon-Fri school no
+  /// longer gets a spurious Saturday 'Leave'. Arbitrary one-off holidays from
+  /// the calendar are still not consulted (would need the holiday list here).
   ///
   /// A day already recorded as 'Present' is NOT overwritten (#45): the student
   /// was actually in school that day, and an approved leave must not erase a
@@ -543,15 +545,30 @@ class StudentService extends BaseFirestoreService {
     required DateTime startDate,
     required int numberOfDays,
   }) async {
+    final offDays = await _nonWorkingWeekdays();
     // Each date writes to a distinct attendance document, so the per-day
     // read+conditional-write operations are independent — run them in parallel.
     final futures = <Future<void>>[];
     for (int i = 0; i < numberOfDays; i++) {
       final date = startDate.add(Duration(days: i));
-      if (date.weekday == DateTime.sunday) continue;
+      if (offDays.contains(date.weekday)) continue;
       futures.add(_markLeavePreservingPresent(className, roll, date));
     }
     await Future.wait(futures);
+  }
+
+  /// Weekday numbers (DateTime.monday..sunday) that are NOT school days,
+  /// derived from the school's `workingDays` setting. Defaults to Sunday-only
+  /// (Mon-Sat) when the setting is missing or unrecognised.
+  Future<Set<int>> _nonWorkingWeekdays() async {
+    try {
+      final settings = await TimetableService().getSettings(schoolId: _schoolId);
+      final workingDays = (settings['workingDays'] as String?) ?? 'Mon-Sat';
+      if (workingDays == 'Mon-Fri') {
+        return {DateTime.saturday, DateTime.sunday};
+      }
+    } catch (_) {/* fall through to the safe default */}
+    return {DateTime.sunday};
   }
 
   /// Sets [roll] to 'Leave' on [date] unless that day is already 'Present'.
@@ -621,7 +638,7 @@ class StudentService extends BaseFirestoreService {
     }
 
     // 2. Build attendance doc key(s) per class.
-    final now     = DateTime.now();
+    final now     = SchoolClock.now();
     final dateSfx = '_${now.year}-${now.month}-${now.day}';
 
     final classToKeys = <String, List<String>>{};
@@ -715,7 +732,7 @@ class StudentService extends BaseFirestoreService {
   /// Returns roll → absent+leave count over the last [days] days (default 14).
   Future<Map<int, int>> loadRecentAbsenceDays(
       {required String className, int days = 14}) async {
-    final now    = DateTime.now();
+    final now    = SchoolClock.now();
     final prefix = className.replaceAll(' ', '_');
 
     final docs = await Future.wait(
@@ -801,7 +818,7 @@ class StudentService extends BaseFirestoreService {
   /// counting backwards from today. Days with no record are skipped.
   Future<Map<int, int>> loadConsecutiveAbsenceDays(String className,
       {int maxDays = 20}) async {
-    final now    = DateTime.now();
+    final now    = SchoolClock.now();
     final prefix = className.replaceAll(' ', '_');
 
     final docs = await Future.wait(
