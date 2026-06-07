@@ -13,6 +13,7 @@ import '../models/guardian_provided_details.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
+import '../utils/phone_utils.dart';
 import '../theme.dart';
 import '../utils/app_logger.dart';
 import '../utils/validators.dart';
@@ -954,7 +955,8 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
 
   Future<void> _whatsapp() async {
     if (_student.phone.isEmpty) return;
-    final digits = _student.phone.replaceAll(RegExp(r'\D'), '');
+    final digits = PhoneUtils.whatsAppNumber(_student.phone);
+    if (digits.isEmpty) return;
     final uri = Uri.parse('https://wa.me/$digits');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }

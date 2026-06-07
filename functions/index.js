@@ -21,6 +21,28 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 // Roles permitted to delete accounts.
 const DELETE_ROLES = ["admin", "owner", "ownerPrincipal", "principal", "coordinator"];
 
+// Role hierarchy used to gate WHO may delete WHOM. A caller may only delete a
+// target they STRICTLY outrank (higher number), and deleting an owner —
+// which cascades to a full-school wipe — additionally requires the caller to be
+// at owner rank (or the root admin). Without this, the function only checked
+// "same school", so a coordinator could call deleteAccount({email: <owner>})
+// and recursively wipe the entire school, or delete the principal/peers
+// (review #1, #2, #3).
+const ROLE_RANK = {
+  admin: 100,
+  owner: 90,
+  ownerPrincipal: 90,
+  principal: 70,
+  coordinator: 50,
+  teacher: 30,
+  subjectTeacher: 30,
+  guardian: 10,
+};
+const OWNER_RANK = 90;
+function rankOf(role) {
+  return Object.prototype.hasOwnProperty.call(ROLE_RANK, role) ? ROLE_RANK[role] : 0;
+}
+
 // The single permanent system administrator. Mirrors AuthService.rootAdminEmail
 // in the app and isRootAdmin() in the Firestore rules. The root admin signs in
 // but deliberately has NO allowed_users document, so its role cannot be read
@@ -100,6 +122,31 @@ exports.deleteAccount = onCall(
       callerSchoolId && targetSchoolId && callerSchoolId === targetSchoolId;
     if (!isAdmin && !sameSchool) {
       throw new HttpsError("permission-denied", "You can only delete accounts in your own school.");
+    }
+
+    // Role-hierarchy enforcement (review #1–#3). The root admin is exempt; every
+    // other caller must STRICTLY outrank the target so peers and superiors
+    // cannot be deleted (e.g. a coordinator deleting the principal, or a
+    // principal deleting another principal).
+    if (!isAdmin) {
+      const callerRank = rankOf(callerRole);
+      const targetRank = rankOf(targetRole);
+      if (callerRank <= targetRank) {
+        throw new HttpsError(
+          "permission-denied",
+          "You can only delete accounts below your own role.",
+        );
+      }
+      // Deleting an owner / ownerPrincipal cascades to a FULL-SCHOOL WIPE, so it
+      // is restricted to owner-rank callers (or the root admin handled above) —
+      // never a principal or coordinator.
+      if ((targetRole === "owner" || targetRole === "ownerPrincipal") &&
+          callerRank < OWNER_RANK) {
+        throw new HttpsError(
+          "permission-denied",
+          "Only an owner (or the system administrator) can delete an owner account.",
+        );
+      }
     }
 
     const deleteAuth = async (e) => {

@@ -11,6 +11,7 @@ import '../models/student.dart';
 import '../models/teacher.dart';
 import '../services/student_service.dart';
 import '../utils/app_logger.dart';
+import '../utils/phone_utils.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  DailyCallsScreen — permanent calls tracking for class teacher
@@ -155,7 +156,8 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
   Future<void> _openWhatsApp(Student s) async {
     if (s.phone.isEmpty) return;
     final msg = _waMessage(s);
-    final digits = s.phone.replaceAll(RegExp(r'[^0-9]'), '');
+    final digits = PhoneUtils.whatsAppNumber(s.phone);
+    if (digits.isEmpty) return;
     final url = Uri.parse(
         'https://wa.me/$digits?text=${Uri.encodeComponent(msg)}');
     if (await canLaunchUrl(url)) {

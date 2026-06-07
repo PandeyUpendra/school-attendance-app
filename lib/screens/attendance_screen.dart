@@ -13,6 +13,7 @@ import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_queue_service.dart';
+import '../utils/phone_utils.dart';
 import '../utils/app_logger.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/student_remark.dart';
@@ -1671,8 +1672,9 @@ class _WhatsAppNotifySheet extends StatelessWidget {
   }
 
   Future<void> _openWhatsApp(String phone, String message) async {
-    // Clean phone: keep digits only
-    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    // Normalise to a wa.me-ready number (digits + country code, #62).
+    final digits = PhoneUtils.whatsAppNumber(phone);
+    if (digits.isEmpty) return;
     final url = Uri.parse(
         'https://wa.me/$digits?text=${Uri.encodeComponent(message)}');
     if (await canLaunchUrl(url)) {

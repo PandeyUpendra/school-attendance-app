@@ -468,16 +468,26 @@ class StudentService extends BaseFirestoreService {
 
   /// Returns 'Present' | 'Absent' | 'Leave' per roll number.
   /// Backward-compatible: old bool values are migrated automatically.
+  /// Parses a `rolls` map (roll-string → status) into roll-int → status,
+  /// SKIPPING any malformed (non-numeric) key. A single bad key previously
+  /// crashed the whole class load via int.parse (#50).
+  static Map<int, String> _parseRolls(Map<String, dynamic> rolls) {
+    final out = <int, String>{};
+    rolls.forEach((k, v) {
+      final roll = int.tryParse(k);
+      if (roll == null) return;
+      out[roll] = v is bool ? (v ? 'Present' : 'Absent') : v.toString();
+    });
+    return out;
+  }
+
   Future<Map<int, String>> loadTodayAttendance(
       {required String className}) async {
     final doc = await _attendance.doc(_todayKey(className)).get();
     if (!doc.exists || doc.data() == null) return {};
     final rolls = Map<String, dynamic>.from(
         (doc.data()!['rolls'] as Map?) ?? {});
-    return rolls.map((k, v) {
-      if (v is bool) return MapEntry(int.parse(k), v ? 'Present' : 'Absent');
-      return MapEntry(int.parse(k), v as String);
-    });
+    return _parseRolls(rolls);
   }
 
   Future<void> saveAttendance(
@@ -517,26 +527,51 @@ class StudentService extends BaseFirestoreService {
   }
 
   /// Marks a student as 'Leave' for every day in the given range.
-  /// Sundays are skipped. Uses merge so other students are untouched.
+  ///
+  /// Sundays are skipped. NOTE: this assumes a 6-day school week; schools with
+  /// working/alternate Saturdays or other holidays in the range will get a
+  /// 'Leave' mark on a non-working day (tracked separately as #44 — needs the
+  /// school's working-days/holiday config to resolve fully).
+  ///
+  /// A day already recorded as 'Present' is NOT overwritten (#45): the student
+  /// was actually in school that day, and an approved leave must not erase a
+  /// real attendance record. Days that are unmarked or marked Absent are set to
+  /// Leave. Uses merge so other students are untouched.
   Future<void> markLeaveForDateRange({
     required String className,
     required int roll,
     required DateTime startDate,
     required int numberOfDays,
   }) async {
-    // Each date writes to a distinct attendance document, so the writes are
-    // independent — fire them in parallel instead of awaiting each in turn.
+    // Each date writes to a distinct attendance document, so the per-day
+    // read+conditional-write operations are independent — run them in parallel.
     final futures = <Future<void>>[];
     for (int i = 0; i < numberOfDays; i++) {
       final date = startDate.add(Duration(days: i));
       if (date.weekday == DateTime.sunday) continue;
-      futures.add(saveAttendanceForDate(
-        className: className,
-        attendance: {roll: 'Leave'},
-        date: date,
-      ));
+      futures.add(_markLeavePreservingPresent(className, roll, date));
     }
     await Future.wait(futures);
+  }
+
+  /// Sets [roll] to 'Leave' on [date] unless that day is already 'Present'.
+  Future<void> _markLeavePreservingPresent(
+      String className, int roll, DateTime date) async {
+    final key =
+        '${className.replaceAll(' ', '_')}_${date.year}-${date.month}-${date.day}';
+    final doc = await _attendance.doc(key).get();
+    if (doc.exists && doc.data() != null) {
+      final rolls =
+          Map<String, dynamic>.from((doc.data()!['rolls'] as Map?) ?? {});
+      final cur = rolls[roll.toString()];
+      final curStatus = cur is bool ? (cur ? 'Present' : 'Absent') : cur;
+      if (curStatus == 'Present') return; // don't erase a recorded presence
+    }
+    await saveAttendanceForDate(
+      className: className,
+      attendance: {roll: 'Leave'},
+      date: date,
+    );
   }
 
   // ── Reasons (call notes after follow-up) ───────────────────────────────────
@@ -558,7 +593,12 @@ class StudentService extends BaseFirestoreService {
     if (!doc.exists || doc.data() == null) return {};
     final raw =
         Map<String, dynamic>.from((doc.data()!['reasons'] as Map?) ?? {});
-    return raw.map((k, v) => MapEntry(int.parse(k), v as String));
+    final out = <int, String>{};
+    raw.forEach((k, v) {
+      final roll = int.tryParse(k);
+      if (roll != null) out[roll] = v.toString();
+    });
+    return out;
   }
 
   // ── Coordinator summary across all classes ─────────────────────────────────
@@ -629,11 +669,15 @@ class StudentService extends BaseFirestoreService {
         final reasonsRaw =
             Map<String, dynamic>.from((data['reasons'] as Map?) ?? {});
         rollsRaw.forEach((k, v) {
-          attendance[int.parse(k)] =
-              v is bool ? (v ? 'Present' : 'Absent') : (v as String);
+          final roll = int.tryParse(k);
+          if (roll == null) return;
+          attendance[roll] =
+              v is bool ? (v ? 'Present' : 'Absent') : v.toString();
         });
-        reasonsRaw
-            .forEach((k, v) => reasons[int.parse(k)] = v as String);
+        reasonsRaw.forEach((k, v) {
+          final roll = int.tryParse(k);
+          if (roll != null) reasons[roll] = v.toString();
+        });
       }
 
       final present =
@@ -716,8 +760,12 @@ class StudentService extends BaseFirestoreService {
     if (!doc.exists || doc.data() == null) return {};
     final raw =
         Map<String, dynamic>.from((doc.data()!['called'] as Map?) ?? {});
-    return raw
-        .map((k, v) => MapEntry(int.parse(k), v as bool? ?? false));
+    final out = <int, bool>{};
+    raw.forEach((k, v) {
+      final roll = int.tryParse(k);
+      if (roll != null) out[roll] = v as bool? ?? false;
+    });
+    return out;
   }
 
   /// Loads every attendance document for a class in a given month.
@@ -744,12 +792,7 @@ class StudentService extends BaseFirestoreService {
       final rolls = Map<String, dynamic>.from(
           (doc.data()!['rolls'] as Map?) ?? {});
       if (rolls.isEmpty) continue;
-      result[i + 1] = rolls.map((k, v) {
-        if (v is bool) {
-          return MapEntry(int.parse(k), v ? 'Present' : 'Absent');
-        }
-        return MapEntry(int.parse(k), v as String);
-      });
+      result[i + 1] = _parseRolls(rolls);
     }
     return result;
   }

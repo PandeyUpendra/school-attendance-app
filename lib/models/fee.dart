@@ -1,45 +1,80 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Money is stored canonically as **integer paise** (1 rupee = 100 paise) to
+/// eliminate the floating-point rounding drift that accumulates when many
+/// `double` amounts are summed (review #31). The public API still exposes
+/// rupees as `double` getters so call sites and UI are unchanged; only the
+/// stored representation and arithmetic changed.
+///
+/// • Storage: each money field is written as `<field>Paise` (int) AND the legacy
+///   rupee `double` field (for any older reader during the transition).
+/// • Reading: the paise field is preferred; a legacy doc without it falls back
+///   to the rupee field, rounded to the nearest paisa.
+/// • Backfill of existing docs: functions/scripts/backfill_paise.js (idempotent).
+int rupeesToPaise(num rupees) => (rupees * 100).round();
+double paiseToRupees(int paise) => paise / 100.0;
+
+int _readPaise(Map<String, dynamic> json, String paiseKey, String rupeeKey) {
+  final p = json[paiseKey];
+  if (p is int) return p;
+  if (p is num) return p.round();
+  final r = json[rupeeKey];
+  return r is num ? rupeesToPaise(r) : 0;
+}
+
 /// Fee structure for a single class — stored as a single doc per class.
 class FeeStructure {
   final String className;
-  final double totalAnnualFee;
+  final int totalAnnualFeePaise;
   final List<FeeComponent>   components;
   final List<FeeInstallment> installments;
 
-  const FeeStructure({
+  /// Rupee view of the annual fee (display/compat).
+  double get totalAnnualFee => paiseToRupees(totalAnnualFeePaise);
+
+  /// Construct from a rupee amount (UI/legacy call sites stay unchanged).
+  FeeStructure({
     required this.className,
-    required this.totalAnnualFee,
+    required double totalAnnualFee,
+    required this.components,
+    this.installments = const [],
+  }) : totalAnnualFeePaise = rupeesToPaise(totalAnnualFee);
+
+  const FeeStructure._paise({
+    required this.className,
+    required this.totalAnnualFeePaise,
     required this.components,
     this.installments = const [],
   });
 
   Map<String, dynamic> toJson() => {
-        'className':     className,
-        'totalAnnualFee': totalAnnualFee,
-        'components':    components.map((c) => c.toJson()).toList(),
-        'installments':  installments.map((i) => i.toJson()).toList(),
+        'className':            className,
+        'totalAnnualFeePaise': totalAnnualFeePaise,
+        // Legacy rupee field kept for backward-compatible readers.
+        'totalAnnualFee':      totalAnnualFee,
+        'components':          components.map((c) => c.toJson()).toList(),
+        'installments':        installments.map((i) => i.toJson()).toList(),
       };
 
-  factory FeeStructure.fromJson(Map<String, dynamic> json) => FeeStructure(
-        className:      json['className']      as String? ?? '',
-        totalAnnualFee: (json['totalAnnualFee'] as num?)?.toDouble() ?? 0,
-        components:     ((json['components']   as List?) ?? const [])
+  factory FeeStructure.fromJson(Map<String, dynamic> json) => FeeStructure._paise(
+        className:           json['className'] as String? ?? '',
+        totalAnnualFeePaise: _readPaise(json, 'totalAnnualFeePaise', 'totalAnnualFee'),
+        components:          ((json['components']   as List?) ?? const [])
             .map((c) => FeeComponent.fromJson(
                 Map<String, dynamic>.from(c as Map)))
             .toList(),
-        installments:   ((json['installments'] as List?) ?? const [])
+        installments:        ((json['installments'] as List?) ?? const [])
             .map((i) => FeeInstallment.fromJson(
                 Map<String, dynamic>.from(i as Map)))
             .toList(),
       );
 
   /// Default structure if none has been configured yet.
-  factory FeeStructure.empty(String className) => FeeStructure(
-        className:      className,
-        totalAnnualFee: 0,
-        components:     const [],
-        installments:   const [],
+  factory FeeStructure.empty(String className) => FeeStructure._paise(
+        className:           className,
+        totalAnnualFeePaise: 0,
+        components:          const [],
+        installments:        const [],
       );
 }
 
@@ -47,15 +82,21 @@ class FeeStructure {
 
 class FeeComponent {
   final String name;   // e.g. 'Tuition', 'Transport', 'Exam'
-  final double amount;
+  final int amountPaise;
 
-  const FeeComponent({required this.name, required this.amount});
+  double get amount => paiseToRupees(amountPaise);
 
-  Map<String, dynamic> toJson() => {'name': name, 'amount': amount};
+  FeeComponent({required this.name, required double amount})
+      : amountPaise = rupeesToPaise(amount);
 
-  factory FeeComponent.fromJson(Map<String, dynamic> json) => FeeComponent(
-        name:   json['name']   as String? ?? '',
-        amount: (json['amount'] as num?)?.toDouble() ?? 0,
+  const FeeComponent._paise({required this.name, required this.amountPaise});
+
+  Map<String, dynamic> toJson() =>
+      {'name': name, 'amountPaise': amountPaise, 'amount': amount};
+
+  factory FeeComponent.fromJson(Map<String, dynamic> json) => FeeComponent._paise(
+        name:        json['name'] as String? ?? '',
+        amountPaise: _readPaise(json, 'amountPaise', 'amount'),
       );
 }
 
@@ -65,27 +106,36 @@ class FeeComponent {
 /// Defined at the class level (FeeStructure), tracked per-student via Payment.installmentName.
 class FeeInstallment {
   final String   name;     // e.g. 'Term 1', 'April', 'Q1'
-  final double   amount;
+  final int      amountPaise;
   final DateTime dueDate;
 
-  const FeeInstallment({
+  double get amount => paiseToRupees(amountPaise);
+
+  FeeInstallment({
     required this.name,
-    required this.amount,
+    required double amount,
+    required this.dueDate,
+  }) : amountPaise = rupeesToPaise(amount);
+
+  const FeeInstallment._paise({
+    required this.name,
+    required this.amountPaise,
     required this.dueDate,
   });
 
   Map<String, dynamic> toJson() => {
-        'name':    name,
-        'amount':  amount,
-        'dueDate': Timestamp.fromDate(dueDate),
+        'name':        name,
+        'amountPaise': amountPaise,
+        'amount':      amount,
+        'dueDate':     Timestamp.fromDate(dueDate),
       };
 
   factory FeeInstallment.fromJson(Map<String, dynamic> json) {
     final ts = json['dueDate'];
-    return FeeInstallment(
-      name:    json['name']   as String? ?? '',
-      amount:  (json['amount'] as num?)?.toDouble() ?? 0,
-      dueDate: ts is Timestamp ? ts.toDate() : DateTime.now(),
+    return FeeInstallment._paise(
+      name:        json['name'] as String? ?? '',
+      amountPaise: _readPaise(json, 'amountPaise', 'amount'),
+      dueDate:     ts is Timestamp ? ts.toDate() : DateTime.now(),
     );
   }
 }
@@ -95,7 +145,7 @@ class FeeInstallment {
 /// A single payment record.
 class Payment {
   final String   id;
-  final double   amount;
+  final int      amountPaise;
   final DateTime paidOn;
   final String   mode;          // 'Cash' | 'UPI' | 'Bank' | 'Cheque'
   final String   receiptNo;     // auto-generated
@@ -103,9 +153,22 @@ class Payment {
   final String?  installmentName; // optional — which FeeInstallment this covers
   final bool     reversed;        // soft-reversal flag (money records are never hard-deleted)
 
-  const Payment({
+  double get amount => paiseToRupees(amountPaise);
+
+  Payment({
     required this.id,
-    required this.amount,
+    required double amount,
+    required this.paidOn,
+    required this.mode,
+    required this.receiptNo,
+    this.note,
+    this.installmentName,
+    this.reversed = false,
+  }) : amountPaise = rupeesToPaise(amount);
+
+  const Payment._paise({
+    required this.id,
+    required this.amountPaise,
     required this.paidOn,
     required this.mode,
     required this.receiptNo,
@@ -115,6 +178,8 @@ class Payment {
   });
 
   Map<String, dynamic> toJson() => {
+        'amountPaise':     amountPaise,
+        // Legacy rupee field kept for backward-compatible readers.
         'amount':          amount,
         'paidOn':          Timestamp.fromDate(paidOn),
         'mode':            mode,
@@ -126,9 +191,9 @@ class Payment {
 
   factory Payment.fromDoc(String id, Map<String, dynamic> data) {
     final ts = data['paidOn'];
-    return Payment(
+    return Payment._paise(
       id:              id,
-      amount:          (data['amount']          as num?)?.toDouble() ?? 0,
+      amountPaise:     _readPaise(data, 'amountPaise', 'amount'),
       paidOn:          ts is Timestamp ? ts.toDate() : DateTime.now(),
       mode:            (data['mode']             as String?) ?? 'Cash',
       receiptNo:       (data['receiptNo']        as String?) ?? '',

@@ -322,8 +322,13 @@ service cloud.firestore {
         && request.resource.data.teacherId == userTeacherId()
         && request.resource.data.schoolId == userSchoolId();
 
-      allow update, delete: if isSignedIn() && (isManagement() || isAnyTeacher())
-        && (isRootAdmin() || resource.data.schoolId == userSchoolId());
+      // A teacher may edit/delete only their OWN homework; management may edit
+      // any. Previously any teacher could edit/delete any other teacher's
+      // homework in the same school (review #13).
+      allow update, delete: if isSignedIn()
+        && (isRootAdmin() || resource.data.schoolId == userSchoolId())
+        && (isManagement()
+            || (isAnyTeacher() && resource.data.teacherId == userTeacherId()));
     }
 
 
@@ -341,7 +346,16 @@ service cloud.firestore {
     match /copy_checks/{checkId} {
       allow read:  if isSignedIn() && isAnyStaff()
         && (isRootAdmin() || resource.data.schoolId == userSchoolId());
-      allow write: if isSignedIn() && (isManagement() || isAnyTeacher());
+
+      // Writes are tenant-scoped (review #7): the old `allow write` had NO
+      // schoolId check, so any teacher of ANY school could create/overwrite/
+      // delete any copy-check doc in this root collection. Create requires the
+      // new doc to carry the caller's schoolId; update/delete require the
+      // existing doc to belong to the caller's school.
+      allow create: if isSignedIn() && (isManagement() || isAnyTeacher())
+        && request.resource.data.schoolId == userSchoolId();
+      allow update, delete: if isSignedIn() && (isManagement() || isAnyTeacher())
+        && (isRootAdmin() || resource.data.schoolId == userSchoolId());
 
       match /statuses/{statusId} {
         allow read:  if isSignedIn() && isAnyStaff();
@@ -1062,11 +1076,13 @@ service cloud.firestore {
         userTeacherId() == resource.data.assignedTo
       );
 
+      // ownerPrincipal (combined owner+principal) must be included or that role
+      // cannot create/manage staff tasks at all (review #115).
       allow create, delete: if isSignedIn() && inSchool(sid)
-        && hasAnyRole(['principal', 'admin', 'owner']);
+        && hasAnyRole(['principal', 'admin', 'owner', 'ownerPrincipal']);
 
       allow update: if isSignedIn() && inSchool(sid) && (
-        hasAnyRole(['principal', 'admin', 'owner']) ||
+        hasAnyRole(['principal', 'admin', 'owner', 'ownerPrincipal']) ||
 
         // Assignee may only update status and completion timestamps.
         (userTeacherId() == resource.data.assignedTo
@@ -1203,9 +1219,20 @@ service cloud.firestore {
       // 'class_teacher:..', resolved-leave to 'teacher:..'.
       allow create: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        ('audience' in request.resource.data
+        // Teachers (trusted staff): any TARGETED audience — never the broadcast
+        // groups. Covers absent alerts, leave-submitted to coordinator/principal,
+        // resolved-leave to a teacher, and class notices.
+        (isAnyTeacher()
+          && 'audience' in request.resource.data
           && request.resource.data.audience is string
-          && !(request.resource.data.audience in ['all', 'teachers', 'guardians']))
+          && !(request.resource.data.audience in ['all', 'teachers', 'guardians'])) ||
+        // Guardians: ONLY the legitimate student-leave notice addressed to their
+        // OWN child's class teacher. Previously a guardian could post to
+        // 'coordinator'/'principal' or 'guardian:<otherClass>:<roll>' with an
+        // arbitrary title/body — an impersonation/phishing vector (review #5).
+        (isRole('guardian')
+          && 'audience' in request.resource.data
+          && request.resource.data.audience == ('class_teacher:' + userStudentClass()))
       );
 
       // Editing/deleting an existing notice is a moderation action — management
@@ -1424,9 +1451,11 @@ service cloud.firestore {
 
     // Custom calendar events (CalendarService) — global calendar today.
     // (settings/calendar overrides are covered by the legacy /settings rule.)
+    // Writes restricted to management — previously ANY staff member of ANY
+    // school could mutate the shared calendar (review #8).
     match /calendar_events/{eventId} {
       allow read:  if isSignedIn();
-      allow write: if isSignedIn() && isAnyStaff();
+      allow write: if isSignedIn() && isManagement();
     }
 
     // Substitution history (SubstitutionHistoryService).

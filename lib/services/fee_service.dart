@@ -161,7 +161,9 @@ class FeeService extends BaseFirestoreService {
 
   Future<double> getTotalPaid({String? schoolId, required String className, required int roll}) async {
     final payments = await getPayments(className: className, roll: roll);
-    return payments.fold<double>(0.0, (acc, p) => acc + p.amount);
+    // Sum in integer paise, then convert once — no floating-point drift (#31).
+    final paise = payments.fold<int>(0, (acc, p) => acc + p.amountPaise);
+    return paiseToRupees(paise);
   }
 
   // ── Installment-aware helpers ──────────────────────────────────────────────
@@ -173,14 +175,14 @@ class FeeService extends BaseFirestoreService {
     required int    roll,
   }) async {
     final payments = await getPayments(className: className, roll: roll);
-    final result   = <String, double>{};
+    final paise    = <String, int>{};
     for (final p in payments) {
       final name = p.installmentName;
       if (name != null && name.isNotEmpty) {
-        result[name] = (result[name] ?? 0) + p.amount;
+        paise[name] = (paise[name] ?? 0) + p.amountPaise;
       }
     }
-    return result;
+    return paise.map((k, v) => MapEntry(k, paiseToRupees(v)));
   }
 
   // ── Class-wide fee overview ────────────────────────────────────────────────
@@ -230,8 +232,11 @@ class FeeService extends BaseFirestoreService {
       final structure = results[0] as FeeStructure;
       final paidMap   = results[1] as Map<int, double>;
 
-      final totalCollected = paidMap.values.fold(0.0, (a, b) => a + b);
-      final totalDue       = structure.totalAnnualFee * studs.length;
+      // Aggregate in integer paise to avoid floating-point drift (#31).
+      final totalCollected = paiseToRupees(
+          paidMap.values.fold<int>(0, (a, b) => a + rupeesToPaise(b)));
+      final totalDue       =
+          paiseToRupees(structure.totalAnnualFeePaise * studs.length);
       final fullyPaid      = studs.where((s) {
         final r = (s['roll'] as num?)?.toInt() ?? 0;
         return r > 0 &&
@@ -266,7 +271,14 @@ class FeeService extends BaseFirestoreService {
       byClass.putIfAbsent(cls, () => []).add(data);
     }
 
-    double collected = 0, pending = 0, overdue = 0;
+    // Accumulate in integer paise (no float drift, #31) and convert once.
+    //   collected = actual cash received, capped per student at the amount due
+    //   pending   = total outstanding (due − paid) across all students
+    //   overdue   = the outstanding portion whose instalment due-date has passed
+    // Previously "collected" added the full due ONLY for fully-paid students, so
+    // partial payments contributed nothing and the figure never reconciled with
+    // the receipt ledger (#32); defaulters reported the wrong amount (#33).
+    int collectedP = 0, pendingP = 0, overdueP = 0;
     final defaulters = <Map<String, dynamic>>[];
     final now = DateTime.now();
 
@@ -285,37 +297,36 @@ class FeeService extends BaseFirestoreService {
 
       final structure = results[0] as FeeStructure;
       final paidMap   = results[1] as Map<int, double>;
-      final totalDue  = structure.totalAnnualFee;
-      if (totalDue <= 0) continue;
+      final duePaise  = structure.totalAnnualFeePaise;
+      if (duePaise <= 0) continue;
 
       for (final sData in studs) {
         final roll = (sData['roll'] as num?)?.toInt() ?? 0;
         if (roll <= 0) continue;
-        final paid = paidMap[roll] ?? 0;
+        final paidPaise = rupeesToPaise(paidMap[roll] ?? 0);
 
-        if (paid >= totalDue) {
-          collected += totalDue;
-        } else if (paid == 0) {
-          overdue += totalDue;
+        // Cash actually collected toward this student's fee, capped at the due.
+        collectedP += paidPaise < duePaise ? paidPaise : duePaise;
+
+        final shortfallPaise = duePaise - paidPaise;
+        if (shortfallPaise > 0) {
+          pendingP += shortfallPaise;
+          final days = _daysOverdue(structure, paiseToRupees(paidPaise), now);
+          if (days > 0) overdueP += shortfallPaise;
           defaulters.add({
-            'name':      sData['name']       ?? '',
+            'name':      sData['name'] ?? '',
             'className': cls,
-            'amount':    totalDue,
-            'daysOverdue': _daysOverdue(structure, paid, now),
-            'phone':     sData['parentPhone'] ?? sData['phone'] ?? '',
-          });
-        } else {
-          pending += totalDue - paid;
-          defaulters.add({
-            'name':      sData['name']       ?? '',
-            'className': cls,
-            'amount':    totalDue - paid,
-            'daysOverdue': _daysOverdue(structure, paid, now),
+            'amount':    paiseToRupees(shortfallPaise),
+            'daysOverdue': days,
             'phone':     sData['parentPhone'] ?? sData['phone'] ?? '',
           });
         }
       }
     }
+
+    final collected = paiseToRupees(collectedP);
+    final pending   = paiseToRupees(pendingP);
+    final overdue   = paiseToRupees(overdueP);
 
     // num→double so a stored int amount can't throw on the cast (#158).
     defaulters.sort((a, b) =>

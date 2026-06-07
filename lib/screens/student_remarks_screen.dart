@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
+import '../utils/phone_utils.dart';
 
 // ── Remark presets ────────────────────────────────────────────────────────────
 
@@ -248,13 +249,11 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
   }
 
   Future<void> _openWhatsApp(String rawPhone, String message, String studentName) async {
-    final digits = rawPhone.replaceAll(RegExp(r'\D'), '');
-    if (digits.isEmpty) {
+    final phone = PhoneUtils.whatsAppNumber(rawPhone);
+    if (phone.isEmpty) {
       _snack('No phone number saved for this student', color: Colors.orange);
       return;
     }
-    // Prepend country code 91 if not present
-    final phone = digits.startsWith('91') && digits.length > 10 ? digits : '91$digits';
     final encoded = Uri.encodeComponent(message);
     final uri = Uri.parse('https://wa.me/$phone?text=$encoded');
     // launchUrl can throw (e.g. WhatsApp not installed) even when canLaunchUrl
