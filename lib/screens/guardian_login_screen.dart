@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
@@ -182,7 +183,7 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Sign in to view your child\'s progress',
+                  context.tr('guardianSignInSubtitle'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 15, color: Colors.white.withValues(alpha: 0.75)),
@@ -211,7 +212,7 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
                         controller: _emailCtrl,
                         textInputAction: TextInputAction.next,
                         decoration: InputDecoration(
-                          labelText: 'Email Address',
+                          labelText: context.tr('emailAddress'),
                           prefixIcon: const Icon(Icons.email_outlined),
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12)),
@@ -226,7 +227,7 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
                         textInputAction: TextInputAction.done,
                         onSubmitted: (_) => _loading ? null : _signIn(),
                         decoration: InputDecoration(
-                          labelText: 'Password',
+                          labelText: context.tr('password'),
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -251,9 +252,9 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
                             MaterialPageRoute(
                                 builder: (_) => const ForgotPasswordScreen()),
                           ),
-                          child: const Text(
-                            'Forgot Password?',
-                            style: TextStyle(color: AppTheme.primary),
+                          child: Text(
+                            context.tr('forgotPassword'),
+                            style: const TextStyle(color: AppTheme.primary),
                           ),
                         ),
                       ),
@@ -303,9 +304,9 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2, color: Colors.white),
                                 )
-                              : const Text(
-                                  'Sign In',
-                                  style: TextStyle(
+                              : Text(
+                                  context.tr('signIn'),
+                                  style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600),
                                 ),

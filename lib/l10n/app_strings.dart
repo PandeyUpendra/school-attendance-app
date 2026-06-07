@@ -56,6 +56,25 @@ class AppStrings {
     'tryDifferentEmail':   {'en': 'Try a different email', 'hi': 'दूसरा ईमेल आज़माएँ'},
     'backToSignIn':        {'en': 'Back to Sign In',     'hi': 'साइन इन पर वापस जाएँ'},
 
+    // ── Guardian login / phone OTP ───────────────────────────────────────
+    'guardianSignInSubtitle': {'en': "Sign in to view your child's progress", 'hi': 'अपने बच्चे की प्रगति देखने के लिए साइन इन करें'},
+    'signInWithPhone':  {'en': 'Sign In with Phone', 'hi': 'फ़ोन से साइन इन करें'},
+    'phoneNumber':      {'en': 'Phone Number',     'hi': 'फ़ोन नंबर'},
+    'sendOtp':          {'en': 'Send OTP',         'hi': 'OTP भेजें'},
+    'sixDigitCode':     {'en': '6-digit code',     'hi': '6 अंकों का कोड'},
+    'verify':           {'en': 'Verify',           'hi': 'सत्यापित करें'},
+    'resendOtp':        {'en': 'Resend OTP',       'hi': 'OTP दोबारा भेजें'},
+
+    // ── Notifications ────────────────────────────────────────────────────
+    'notifications':         {'en': 'Notifications',          'hi': 'सूचनाएँ'},
+    'markAllRead':           {'en': 'Mark all read',          'hi': 'सभी पढ़ा हुआ चिह्नित करें'},
+    'clearAll':              {'en': 'Clear All',              'hi': 'सभी हटाएँ'},
+    'clearAllNotifications': {'en': 'Clear All Notifications', 'hi': 'सभी सूचनाएँ हटाएँ'},
+    'noNotificationsYet':    {'en': 'No notifications yet',   'hi': 'अभी कोई सूचना नहीं'},
+    'delete':                {'en': 'Delete',                 'hi': 'हटाएँ'},
+    'selectAll':             {'en': 'Select all',             'hi': 'सभी चुनें'},
+    'deselectAll':           {'en': 'Deselect all',           'hi': 'चयन हटाएँ'},
+
     // ── Role selection ───────────────────────────────────────────────────
     'chooseHowToSignIn':   {'en': 'Choose how to sign in', 'hi': 'साइन इन का तरीका चुनें'},
     'staffLogin':          {'en': 'Staff Login',         'hi': 'स्टाफ़ लॉगिन'},

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
@@ -279,7 +280,7 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Sign In with Phone'),
+        title: Text(context.tr('signInWithPhone')),
         leading: BackButton(
           onPressed: () {
             if (_inOtpStep) {
@@ -354,7 +355,7 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
                 maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 onSubmitted: (_) => _loading ? null : _sendOtp(),
                 decoration: InputDecoration(
-                  labelText: 'Phone Number',
+                  labelText: context.tr('phoneNumber'),
                   hintText: '+91 98765 43210',
                   prefixIcon: const Icon(Icons.phone_outlined),
                   border: OutlineInputBorder(
@@ -390,8 +391,8 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
                           width: 22, height: 22,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white))
-                      : const Text('Send OTP',
-                          style: TextStyle(
+                      : Text(context.tr('sendOtp'),
+                          style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
               ),
@@ -455,7 +456,7 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
                     letterSpacing: 8,
                     fontWeight: FontWeight.bold),
                 decoration: InputDecoration(
-                  labelText: '6-digit code',
+                  labelText: context.tr('sixDigitCode'),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                   counterText: '',
@@ -484,8 +485,8 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
                           width: 22, height: 22,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white))
-                      : const Text('Verify',
-                          style: TextStyle(
+                      : Text(context.tr('verify'),
+                          style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
               ),
@@ -500,8 +501,8 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
                       )
                     : TextButton(
                         onPressed: () => _sendOtp(resend: true),
-                        child: const Text('Resend OTP',
-                            style: TextStyle(color: AppTheme.primary)),
+                        child: Text(context.tr('resendOtp'),
+                            style: const TextStyle(color: AppTheme.primary)),
                       ),
               ),
             ],

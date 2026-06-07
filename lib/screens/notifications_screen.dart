@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/teacher.dart';
 import '../services/notification_service.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import 'announcements_screen.dart';
 import 'leave_application_screen.dart';
 import 'leave_requests_screen.dart';
@@ -149,11 +150,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(context.tr('delete')),
           ),
         ],
       ),
@@ -167,17 +168,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Clear All Notifications'),
+        title: Text(context.tr('clearAllNotifications')),
         content: const Text(
             'Delete all notifications? This removes them for everyone.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Clear All'),
+            child: Text(context.tr('clearAll')),
           ),
         ],
       ),
@@ -355,14 +356,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   AppBar _buildNormalAppBar(bool hasUnread) => AppBar(
-        title: const Text('Notifications',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+        title: Text(context.tr('notifications'),
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
         actions: [
           if (hasUnread)
             TextButton(
               onPressed: _markAllRead,
-              child: const Text('Mark all read',
-                  style: TextStyle(color: Colors.white70, fontSize: 12)),
+              child: Text(context.tr('markAllRead'),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
             ),
           if (_items.isNotEmpty)
             IconButton(
@@ -399,7 +400,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         TextButton(
           onPressed: _allSelected ? _exitSelectionMode : _selectAll,
           child: Text(
-            _allSelected ? 'Deselect all' : 'Select all',
+            _allSelected ? context.tr('deselectAll') : context.tr('selectAll'),
             style:
                 const TextStyle(color: Colors.white70, fontSize: 12),
           ),
@@ -421,7 +422,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             size: 64, color: Colors.grey.shade300),
         const SizedBox(height: 14),
         Center(
-          child: Text('No notifications yet',
+          child: Text(context.tr('noNotificationsYet'),
               style:
                   TextStyle(fontSize: 14, color: Colors.grey.shade500)),
         ),
