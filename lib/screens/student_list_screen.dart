@@ -14,6 +14,7 @@ import '../models/student.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../utils/phone_utils.dart';
+import '../utils/csv_export.dart';
 import '../theme.dart';
 import '../utils/app_logger.dart';
 import '../utils/validators.dart';
@@ -337,6 +338,39 @@ class _StudentListScreenState extends State<StudentListScreen> {
     // Stream auto-refreshes after a student is added.
   }
 
+  /// Exports the current roster to a CSV and opens the share sheet (#71).
+  Future<void> _exportCSV() async {
+    final students = [..._students]..sort((a, b) => a.roll.compareTo(b.roll));
+    if (students.isEmpty) return;
+    final rows = <List<dynamic>>[
+      ['Roll', 'Name', 'Father', 'Mother', 'Phone', 'Guardian Email', 'Section', 'Fee Status'],
+      for (final s in students)
+        [
+          s.roll,
+          s.name,
+          s.fatherName,
+          s.motherName ?? '',
+          s.phone,
+          s.guardianEmail ?? '',
+          s.section,
+          s.feeStatus,
+        ],
+    ];
+    final cls = widget.className.replaceAll(' ', '_');
+    final sec = widget.section.trim().isEmpty ? '' : '_${widget.section.trim()}';
+    try {
+      await CsvExport.share(
+        filename: 'students_$cls$sec.csv',
+        rows: rows,
+        shareText: '${widget.className} student list (${students.length})',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')));
+    }
+  }
+
   Future<void> _importCSV() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -362,7 +396,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
     final firstRow = rows[0].map((e) => e.toString().trim().toLowerCase()).toList();
     if (firstRow.any((c) => ['roll', 'name', 'student'].any((k) => c.contains(k)))) {
       dataStart = 1;
-      final headers = ['roll', 'name', 'father', 'mother', 'phone', 'fee'];
+      final headers = ['roll', 'name', 'father', 'mother', 'phone', 'email', 'fee'];
       for (final h in headers) {
         final idx = firstRow.indexWhere((c) => c.contains(h));
         if (idx >= 0) colMap[h] = idx;
@@ -402,6 +436,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
         fatherName: get('father'),
         motherName: get('mother').isNotEmpty ? get('mother') : null,
         phone: get('phone'),
+        guardianEmail: get('email').isNotEmpty ? get('email').toLowerCase() : null,
         feeStatus: get('fee').isNotEmpty ? get('fee') : 'Pending',
         teacherId: widget.teacherId,
       ));
@@ -534,15 +569,20 @@ class _StudentListScreenState extends State<StudentListScreen> {
                       _selectedRolls.isNotEmpty ? _deleteSelected : null,
                 ),
               ]
-            : widget.isClassTeacher
-                ? [
-                    IconButton(
-                      icon: const Icon(Icons.upload_file_outlined),
-                      tooltip: 'Import from CSV',
-                      onPressed: _importCSV,
-                    ),
-                  ]
-                : null,
+            : [
+                if (_students.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.download_outlined),
+                    tooltip: 'Export to CSV',
+                    onPressed: _exportCSV,
+                  ),
+                if (widget.isClassTeacher)
+                  IconButton(
+                    icon: const Icon(Icons.upload_file_outlined),
+                    tooltip: 'Import from CSV',
+                    onPressed: _importCSV,
+                  ),
+              ],
       ),
       floatingActionButton: !_selectMode && widget.isClassTeacher
           ? FloatingActionButton.extended(

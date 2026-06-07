@@ -6,6 +6,7 @@ import '../services/timetable_service.dart';
 import 'fee_collection_screen.dart';
 import 'fee_structure_screen.dart';
 import '../widgets/refreshable_data.dart';
+import '../utils/csv_export.dart';
 
 /// Top-level fee screen shown to principal / owner / coordinator.
 /// Displays school-wide collection stats and one card per class.
@@ -81,6 +82,12 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
           ],
         ),
         actions: [
+          if (_summaries.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.download_outlined),
+              tooltip: 'Export to CSV',
+              onPressed: _exportCSV,
+            ),
           // Coordinator can jump straight to fee structure config
           if (widget.role == 'coordinator')
             IconButton(
@@ -146,6 +153,38 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
                   ),
                 ),
     );
+  }
+
+  /// Exports the class-wise collection summary to CSV and shares it (#71).
+  Future<void> _exportCSV() async {
+    final rows = <List<dynamic>>[
+      ['Class', 'Students', 'Fully Paid', 'Annual Fee', 'Total Due', 'Collected', 'Pending', 'Collection %'],
+      for (final c in _summaries)
+        [
+          c.className,
+          c.studentCount,
+          c.fullyPaid,
+          c.totalAnnualFee.toStringAsFixed(2),
+          c.totalDue.toStringAsFixed(2),
+          c.totalCollected.toStringAsFixed(2),
+          c.pendingAmount.toStringAsFixed(2),
+          (c.collectionPct * 100).toStringAsFixed(1),
+        ],
+      ['TOTAL', _schoolStudents, _schoolFullyPaid, '', _schoolTotalDue.toStringAsFixed(2),
+       _schoolTotalCollected.toStringAsFixed(2),
+       (_schoolTotalDue - _schoolTotalCollected).toStringAsFixed(2), ''],
+    ];
+    try {
+      await CsvExport.share(
+        filename: 'fee_collection_summary.csv',
+        rows: rows,
+        shareText: 'Fee collection summary',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')));
+    }
   }
 
   void _openClass(String className) {
