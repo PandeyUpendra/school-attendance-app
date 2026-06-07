@@ -11,6 +11,7 @@
  */
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 
@@ -221,5 +222,44 @@ exports.deleteAccount = onCall(
     await db.collection("allowed_users").doc(email).delete().catch(() => {});
 
     return { ok: true, role: targetRole || "unknown" };
+  }
+);
+
+/**
+ * Firestore trigger: send an FCM push whenever a notification document is
+ * created (#52). Publishes to the topic that corresponds to the notification's
+ * audience; client devices subscribe to the topics they're allowed to see
+ * (PushService). Topic naming MUST match the client exactly:
+ *   topic = "s_{schoolId}_{audience}"  with every non [A-Za-z0-9_-] char → "_"
+ *
+ * Best-effort: a send failure is logged and never throws (the in-app
+ * notifications feed is the source of truth; push is a convenience layer).
+ */
+const sanitizeTopic = (s) => String(s).replace(/[^A-Za-z0-9_-]/g, "_");
+
+exports.pushOnNotificationCreate = onDocumentCreated(
+  { document: "schools/{sid}/notifications/{notifId}", region: "us-central1" },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const data = snap.data() || {};
+    const audience = String(data.audience || "");
+    if (!audience) return;
+
+    const sid = event.params.sid;
+    const topic = `s_${sanitizeTopic(sid)}_${sanitizeTopic(audience)}`;
+    const title = String(data.title || "School App");
+    const body = String(data.body || data.message || "");
+
+    try {
+      await admin.messaging().send({
+        topic,
+        notification: { title, body },
+        android: { priority: "high", notification: { channelId: "default" } },
+        data: { type: String(data.type || ""), audience },
+      });
+    } catch (err) {
+      logger.warn(`push send failed for topic ${topic}`, err && err.message);
+    }
   }
 );

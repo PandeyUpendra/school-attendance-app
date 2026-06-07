@@ -342,8 +342,10 @@ pw.TableRow _buildSubjectRow({
   required ReportCardTemplate template,
 }) {
   final marks   = result.marks[subject];
-  final pct     = marks != null ? (marks / maxMarks * 100) : 0.0;
-  final passed  = marks != null && marks >= maxMarks * 0.33;
+  // Guard against a misconfigured exam with maxMarks 0 — dividing by it would
+  // render Infinity/NaN on the report card (#36).
+  final pct     = (marks != null && maxMarks > 0) ? (marks / maxMarks * 100) : 0.0;
+  final passed  = marks != null && maxMarks > 0 && marks >= maxMarks * 0.33;
   final marksStr = marks != null ? marks.toStringAsFixed(0) : 'AB';
   final pctStr   = marks != null ? '${pct.toStringAsFixed(1)}%' : '—';
   final gradeStr = marks != null

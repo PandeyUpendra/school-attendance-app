@@ -4,6 +4,7 @@ import 'base_firestore_service.dart';
 
 import 'audit_log_service.dart';
 import 'dropdown_options_service.dart';
+import 'push_service.dart';
 
 /// Outcome of a self-service password-reset request.
 ///
@@ -234,6 +235,16 @@ class AuthService {
       await prefs.remove(_keyStudentLinks);
     }
     await prefs.setInt('last_activity_timestamp', DateTime.now().millisecondsSinceEpoch);
+
+    // Subscribe this device to its push topics for the new session (#52).
+    // Fire-and-forget — push setup must never block or fail login.
+    PushService().syncForSession(
+      role:         role,
+      schoolId:     schoolId,
+      teacherId:    teacherId,
+      studentClass: studentClass,
+      studentRoll:  studentRoll,
+    );
   }
 
   /// Returns session map with keys: email, role, and optional role-specific
@@ -277,6 +288,10 @@ class AuthService {
   /// All logout paths (dashboard buttons, role_guard) call this, so Firebase
   /// Auth state is always kept in sync with the local session.
   Future<void> clearSession() async {
+    // Unsubscribe this device from the previous user's push topics (#52) so a
+    // shared device stops receiving their notifications after logout.
+    await PushService().clear();
+
     // Sign out of Firebase Auth (no-op if no user is signed in).
     try {
       await _auth.signOut();
