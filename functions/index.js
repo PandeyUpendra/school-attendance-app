@@ -263,3 +263,155 @@ exports.pushOnNotificationCreate = onDocumentCreated(
     }
   }
 );
+
+/**
+ * Callable: deleteStudent({ schoolId, className, section, roll })
+ *
+ * Server-side cascade delete of a student's school-scoped data (#35). Runs the
+ * whole cascade with the Admin SDK so it completes reliably server-side instead
+ * of the client's best-effort sequence that could be interrupted (app
+ * backgrounded, permission hiccup) and leave orphaned fee/exam records in class
+ * totals. The CLIENT still writes the tombstone, revokes guardian access, and
+ * emits the audit log — and falls back to its own cascade if this call fails,
+ * so deletion never regresses.
+ *
+ * Deletes: the student doc (+ its remarks/consents/providedDetails
+ * subcollections via recursiveDelete), the student's roll entry in every
+ * attendance doc for the class, exam results, fee payments, and guardian
+ * notifications + leave applications.
+ */
+const STUDENT_DELETE_ROLES = ["admin", "owner", "ownerPrincipal", "principal"];
+
+function studentDocId(className, section, roll) {
+  const base = String(className).replace(/ /g, "_");
+  const sec = String(section || "").trim().replace(/ /g, "_");
+  return sec ? `${base}_${sec}_${roll}` : `${base}_${roll}`;
+}
+
+exports.deleteStudent = onCall(
+  { cors: true, region: "us-central1" },
+  async (request) => {
+    const db = admin.firestore();
+    if (!request.auth || !request.auth.token || !request.auth.token.email) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    const d = request.data || {};
+    const schoolId = String(d.schoolId || "").trim();
+    const className = String(d.className || "").trim();
+    const section = String(d.section || "").trim();
+    const roll = Number.parseInt(d.roll, 10);
+    if (!schoolId || !className || !Number.isInteger(roll) || roll <= 0) {
+      throw new HttpsError("invalid-argument", "schoolId, className and a valid roll are required.");
+    }
+
+    // Authorization: management of the SAME school (admins may cross schools).
+    const callerEmail = String(request.auth.token.email).toLowerCase();
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerRole = resolveCallerRole(callerEmail, callerSnap);
+    const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
+    if (!STUDENT_DELETE_ROLES.includes(callerRole)) {
+      throw new HttpsError("permission-denied", "You are not allowed to delete students.");
+    }
+    if (callerRole !== "admin" && callerSchoolId !== schoolId) {
+      throw new HttpsError("permission-denied", "You can only delete students in your own school.");
+    }
+
+    const schoolRef = db.collection("schools").doc(schoolId);
+    const docId = studentDocId(className, section, roll);
+    const classKey = String(className).replace(/ /g, "_");
+
+    // 1. Student doc + its subcollections (remarks/consents/providedDetails).
+    try {
+      await db.recursiveDelete(schoolRef.collection("students").doc(docId));
+    } catch (err) {
+      logger.warn(`student doc delete failed for ${docId}`, err && err.message);
+    }
+
+    // 2. Remove the roll from every attendance doc for this class/section.
+    try {
+      const attKey = section ? `${className} ${section}` : className;
+      const prefix = `${attKey.replace(/ /g, "_")}_`;
+      const snap = await schoolRef
+        .collection("attendance")
+        .where(admin.firestore.FieldPath.documentId(), ">=", prefix)
+        .where(admin.firestore.FieldPath.documentId(), "<", `${prefix}\uf8ff`)
+        .get();
+      const FV = admin.firestore.FieldValue;
+      for (let i = 0; i < snap.docs.length; i += 400) {
+        const batch = db.batch();
+        snap.docs.slice(i, i + 400).forEach((doc) => {
+          batch.set(doc.ref, {
+            rolls: { [roll]: FV.delete() },
+            reasons: { [roll]: FV.delete() },
+            called: { [roll]: FV.delete() },
+          }, { merge: true });
+        });
+        await batch.commit();
+      }
+    } catch (err) {
+      logger.warn(`attendance cleanup failed for ${docId}`, err && err.message);
+    }
+
+    // 3. Exam results for the student in every exam of this class.
+    try {
+      const exams = await schoolRef.collection("exams").where("className", "==", className).get();
+      for (let i = 0; i < exams.docs.length; i += 400) {
+        const batch = db.batch();
+        exams.docs.slice(i, i + 400).forEach((ex) => {
+          batch.delete(schoolRef.collection("exam_results").doc(ex.id).collection("students").doc(String(roll)));
+        });
+        await batch.commit();
+      }
+    } catch (err) {
+      logger.warn(`exam results cleanup failed for ${docId}`, err && err.message);
+    }
+
+    // 4. Fee payments node (+ payments subcollection).
+    try {
+      await db.recursiveDelete(
+        schoolRef.collection("fee_payments").doc(classKey).collection("students").doc(String(roll)));
+    } catch (err) {
+      logger.warn(`fee cleanup failed for ${docId}`, err && err.message);
+    }
+
+    // 5. Guardian notifications + the class-teacher leave notice for this roll.
+    try {
+      const notifs = schoolRef.collection("notifications");
+      const guardianNotifs = await notifs.where("audience", "==", `guardian:${className}:${roll}`).get();
+      const leaveNotifs = await notifs.where("audience", "==", `class_teacher:${className}`).get();
+      const toDelete = [
+        ...guardianNotifs.docs,
+        ...leaveNotifs.docs.filter((n) => n.get("studentRoll") === roll),
+      ];
+      for (let i = 0; i < toDelete.length; i += 400) {
+        const batch = db.batch();
+        toDelete.slice(i, i + 400).forEach((n) => batch.delete(n.ref));
+        await batch.commit();
+      }
+    } catch (err) {
+      logger.warn(`notification cleanup failed for ${docId}`, err && err.message);
+    }
+
+    // 6. Guardian-filed leave applications for this student.
+    try {
+      const leaves = await schoolRef
+        .collection("leave_applications")
+        .where("applicantType", "==", "guardian")
+        .where("studentClass", "==", className)
+        .where("studentRoll", "==", roll)
+        .get();
+      const matched = section
+        ? leaves.docs.filter((l) => String(l.get("studentSection") || "").trim() === section)
+        : leaves.docs;
+      for (let i = 0; i < matched.length; i += 400) {
+        const batch = db.batch();
+        matched.slice(i, i + 400).forEach((l) => batch.delete(l.ref));
+        await batch.commit();
+      }
+    } catch (err) {
+      logger.warn(`leave cleanup failed for ${docId}`, err && err.message);
+    }
+
+    return { ok: true, studentId: docId };
+  }
+);

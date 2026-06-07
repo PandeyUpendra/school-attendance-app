@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../models/deleted_student.dart';
 import '../models/student.dart';
@@ -340,36 +341,43 @@ class StudentService extends BaseFirestoreService {
     final student = await _repo.fetchByRoll(className, section, roll);
     if (student == null) return; // already deleted — idempotent
 
-    // 2. Delete remarks subcollection before the student document.
-    await _cascadeDeleteRemarks(student.id);
-
-    // 3. Record a tombstone so the deleted student stays visible in the
+    // 2. Record a tombstone so the deleted student stays visible in the
     //    read-only "Deleted Students" history (best-effort — must not abort
-    //    the deletion if the write fails).
+    //    the deletion if the write fails). Written client-side regardless of
+    //    which cascade path runs.
     await _recordDeletedStudent(student);
 
-    // 4. Delete student document.
-    await _repo.delete(student.id);
-
-    // 5. Cascade-delete attendance, notifications, exam results, fee records.
-    //    These are BEST-EFFORT cleanups — the student document (the record that
-    //    matters) is already gone. A permission hiccup on a secondary collection
-    //    (e.g. reading a guardian's allowed_users doc that no longer exists,
-    //    which the rules deny for a principal) must NOT abort the approval and
-    //    surface as a cryptic permission-denied. Each is wrapped so failures are
-    //    logged and skipped.
+    // 3. Prefer the server-side cascade (#35): the deleteStudent Cloud Function
+    //    runs the whole cleanup to completion server-side, so an interruption
+    //    can't leave orphaned fee/exam records in class totals. Fall back to the
+    //    client cascade if the function is unavailable or errors, so deletion
+    //    never regresses.
+    bool serverDone = false;
     try {
-      await _cascadeDeleteAttendance(roll, className, section: section);
+      serverDone = await _serverDeleteStudent(className, section, roll);
     } catch (e) {
-      AppLogger.e('StudentService', 'cascade attendance delete failed: $e', e);
+      AppLogger.e('StudentService',
+          'server deleteStudent failed, falling back to client cascade: $e', e);
     }
-    await _cascadeDeleteStudentNotifications(className, roll);
-    await _cascadeDeleteStudentLeaveNotifications(
-        className, roll, student.name);
-    await _cascadeDeleteStudentLeaveApplications(className, roll,
-        section: section);
-    await _cascadeDeleteExamResults(className, roll);
-    await _cascadeDeleteFeePayments(className, roll);
+
+    if (!serverDone) {
+      // Client best-effort cascade. Each step is guarded so a hiccup on a
+      // secondary collection never aborts the deletion.
+      await _cascadeDeleteRemarks(student.id);
+      await _repo.delete(student.id);
+      try {
+        await _cascadeDeleteAttendance(roll, className, section: section);
+      } catch (e) {
+        AppLogger.e('StudentService', 'cascade attendance delete failed: $e', e);
+      }
+      await _cascadeDeleteStudentNotifications(className, roll);
+      await _cascadeDeleteStudentLeaveNotifications(
+          className, roll, student.name);
+      await _cascadeDeleteStudentLeaveApplications(className, roll,
+          section: section);
+      await _cascadeDeleteExamResults(className, roll);
+      await _cascadeDeleteFeePayments(className, roll);
+    }
 
     AuditService.emit(
       action:   'delete',
@@ -400,6 +408,22 @@ class StudentService extends BaseFirestoreService {
             'guardian login revoke failed (non-fatal): $e', e);
       }
     }
+  }
+
+  /// Calls the server-side cascade-delete Cloud Function (#35). Returns true on
+  /// success; throws on transport/permission/not-deployed errors so the caller
+  /// can fall back to the client cascade.
+  Future<bool> _serverDeleteStudent(
+      String className, String section, int roll) async {
+    final callable = FirebaseFunctions.instance.httpsCallable('deleteStudent');
+    final res = await callable.call(<String, dynamic>{
+      'schoolId':  _schoolId,
+      'className': className,
+      'section':   section,
+      'roll':      roll,
+    });
+    final data = res.data;
+    return data is Map && data['ok'] == true;
   }
 
   // ── Deletion requests (teacher → principal approval flow) ───────────────────

@@ -15,6 +15,7 @@ import '../services/notification_service.dart';
 import '../services/offline_queue_service.dart';
 import '../utils/phone_utils.dart';
 import '../utils/consent_gate.dart';
+import '../utils/school_clock.dart';
 import '../utils/app_logger.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/student_remark.dart';
@@ -63,6 +64,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool   _noAssignment   = false; // teacher has no assigned class/section
   bool   _saving         = false; // a _save() is in flight (guards double-tap)
 
+  // Attendance edit-lock (#34): non-management staff may not edit attendance
+  // for a date older than this many days, so historical records can't be
+  // silently rewritten. Management (coordinator/principal/admin/owner) is
+  // exempt. Today's attendance (widget.date == null) is never locked.
+  bool _isManagement = false;
+  static const int _attendanceEditWindowDays = 7;
+
+  bool get _isLocked {
+    if (widget.date == null || _isManagement) return false;
+    final d = widget.date!;
+    final days = SchoolClock.today()
+        .difference(DateTime(d.year, d.month, d.day))
+        .inDays;
+    return days > _attendanceEditWindowDays;
+  }
+
   // Feedback settings
   bool _soundEnabled = true;
   bool _vibrationEnabled = true;
@@ -100,9 +117,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     _className = widget.className;
     _section   = widget.section;
     _loadSettings();
+    _loadRole();
     _checkConnectivity();
     _connectSub = _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
     _load();
+  }
+
+  /// Determines whether the viewer is management (exempt from the edit lock, #34).
+  Future<void> _loadRole() async {
+    final session = await AuthService().getSession();
+    final role = session?['role'] as String?;
+    const mgmt = ['coordinator', 'principal', 'admin', 'owner', 'ownerPrincipal'];
+    if (mounted) setState(() => _isManagement = mgmt.contains(role));
   }
 
   Future<void> _loadSettings() async {
@@ -363,6 +389,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       setState(() { _attendance[roll] = status; _dirty = true; });
 
   Future<void> _saveQuietly() async {
+    if (_isLocked) return; // edit lock (#34)
     if (!_dirty) return;
     final results = await _connectivity.checkConnectivity();
     final online  = results.any((r) => r != ConnectivityResult.none);
@@ -386,6 +413,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Future<void> _save() async {
+    // Edit lock (#34): non-management can't persist edits to an old date.
+    if (_isLocked) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'This attendance date is locked. Ask a coordinator or principal to make changes.'),
+          backgroundColor: Colors.orange,
+        ));
+      }
+      return;
+    }
     // Guard against double-taps / re-entry while a save is already running.
     if (_saving) return;
     setState(() => _saving = true);
@@ -842,11 +880,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             ),
             const SizedBox(height: 36),
             ElevatedButton.icon(
-              onPressed: () => setState(() => _isMarking = true),
-              icon: const Icon(Icons.how_to_reg_outlined, size: 22),
-              label: Text(widget.date == null 
-                  ? 'Take Attendance for Today'
-                  : 'Update Attendance for ${_formatDate(widget.date!)}',
+              onPressed: _isLocked ? null : () => setState(() => _isMarking = true),
+              icon: Icon(_isLocked ? Icons.lock_outline : Icons.how_to_reg_outlined,
+                  size: 22),
+              label: Text(
+                  _isLocked
+                      ? 'Attendance locked for ${_formatDate(widget.date!)}'
+                      : widget.date == null
+                          ? 'Take Attendance for Today'
+                          : 'Update Attendance for ${_formatDate(widget.date!)}',
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
