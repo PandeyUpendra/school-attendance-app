@@ -310,14 +310,20 @@ service cloud.firestore {
     // Create: teacher (own teacherId, no impersonation) or management.
     // Update/Delete: teacher or management.
     // ════════════════════════════════════════════════════════════════
+    // Phase 3 tenancy: homework is a root (cross-school) collection scoped by a
+    // schoolId field (Phase 1 writes + Phase 2 backfill). Reads/edits are
+    // confined to the caller's school; queries must add .where('schoolId', ...).
     match /homework/{docId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn()
+        && (isRootAdmin() || resource.data.schoolId == userSchoolId());
 
       allow create: if isSignedIn()
         && (isManagement() || isAnyTeacher())
-        && request.resource.data.teacherId == userTeacherId();
+        && request.resource.data.teacherId == userTeacherId()
+        && request.resource.data.schoolId == userSchoolId();
 
-      allow update, delete: if isSignedIn() && (isManagement() || isAnyTeacher());
+      allow update, delete: if isSignedIn() && (isManagement() || isAnyTeacher())
+        && (isRootAdmin() || resource.data.schoolId == userSchoolId());
     }
 
 
@@ -328,8 +334,13 @@ service cloud.firestore {
     // `statuses` subcollection). Staff-only — contains per-student PII, no
     // guardian use-case.
     // ════════════════════════════════════════════════════════════════
+    // Phase 3 tenancy: copy_checks reads are confined to the caller's school
+    // (schoolId stamped Phase 1 + backfilled). Queries must add
+    // .where('schoolId', ...). The statuses subcollection has no schoolId of its
+    // own but is only reachable via a parent check the caller can already read.
     match /copy_checks/{checkId} {
-      allow read:  if isSignedIn() && isAnyStaff();
+      allow read:  if isSignedIn() && isAnyStaff()
+        && (isRootAdmin() || resource.data.schoolId == userSchoolId());
       allow write: if isSignedIn() && (isManagement() || isAnyTeacher());
 
       match /statuses/{statusId} {
@@ -352,9 +363,12 @@ service cloud.firestore {
       // (Previously also allowed UNAUTHENTICATED read of any 'owner' doc for
       //  "bootstrapping" — that leaked every owner's email/name/phone to the
       //  public internet. Bootstrapping is done by the hardcoded root admin.)
+      // Phase 3 tenancy: owner/ownerPrincipal are NOT a cross-school super-role
+      // here — they're covered by the school-scoped isManagement() branch, so an
+      // owner can only read user docs in their OWN school. (The old standalone
+      // `isRole('owner')` branch let any owner read every school's user docs.)
       allow read: if isRootAdmin() || (isSignedIn() && (
         userEmail() == email ||
-        isRole('owner') ||
         (isManagement() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId)
       ));
 
@@ -367,8 +381,9 @@ service cloud.firestore {
       //    Coordinators may NOT create coordinators (no peer creation),
       //    principals, admins, owners, or guardians.
       // OR unauthenticated create if the new document's role is 'owner' (for bootstrapping).
+      // owner/ownerPrincipal create via the school-scoped isStrictAdmin() branch
+      // (Phase 3 tenancy) — they can only create accounts in their own school.
       allow create: if isRootAdmin() || (isSignedIn() && (
-        isRole('owner') ||
         (isStrictAdmin() && 'schoolId' in request.resource.data && userSchoolId() == request.resource.data.schoolId) ||
         (isRole('principal')
           && 'schoolId' in request.resource.data
@@ -392,8 +407,8 @@ service cloud.firestore {
       // hardcoded root admin (isRootAdmin), and further owners by an existing owner.
 
       allow update: if isRootAdmin() || (isSignedIn() && (
-        isRole('owner') ||
-        // Admin: full update power within own school.
+        // Admin/owner/ownerPrincipal: full update power within own school
+        // (school-scoped via isStrictAdmin — Phase 3 tenancy; no cross-school).
         (isStrictAdmin() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId) ||
 
         // Principal: may update non-management staff in their own school.
@@ -440,7 +455,7 @@ service cloud.firestore {
       // (covered above, with role/schoolId pinned).
 
       allow delete: if isRootAdmin() || (isSignedIn() && (
-        isRole('owner') ||
+        // owner/ownerPrincipal delete via school-scoped isStrictAdmin (Phase 3).
         (isStrictAdmin() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId) ||
         // Principal: may delete non-management staff in their own school.
         (isRole('principal')
@@ -1381,8 +1396,11 @@ service cloud.firestore {
     }
 
     // Substitution history (SubstitutionHistoryService).
+    // Phase 3 tenancy: reads confined to the caller's school (schoolId stamped
+    // Phase 1 + backfilled). Queries must add .where('schoolId', ...).
     match /substitution_history/{recordId} {
-      allow read:  if isSignedIn() && isAnyStaff();
+      allow read:  if isSignedIn() && isAnyStaff()
+        && (isRootAdmin() || resource.data.schoolId == userSchoolId());
       allow write: if isSignedIn() && isManagement();
     }
 

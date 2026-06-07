@@ -22,6 +22,7 @@ class HomeworkService {
   // ── Teacher: get their own posts, newest first ────────────────────────────
   Future<List<Homework>> getHomeworkForTeacher(String schoolId, String teacherId) async {
     final snap = await _col
+        .where('schoolId', isEqualTo: schoolId)
         .where('teacherId', isEqualTo: teacherId)
         .get();
     final list = snap.docs
@@ -34,6 +35,7 @@ class HomeworkService {
   // ── Guardian / Student: get homework for a class, newest first ────────────
   Future<List<Homework>> getHomeworkForClass(String schoolId, String className) async {
     final snap = await _col
+        .where('schoolId', isEqualTo: schoolId)
         .where('className', isEqualTo: className)
         .get();
     final list = snap.docs
@@ -45,7 +47,7 @@ class HomeworkService {
 
   // ── Coordinator: all homework across all classes, newest first ────────────
   Future<List<Homework>> getAllHomework(String schoolId, {int limit = 100}) async {
-    final snap = await _col.get();
+    final snap = await _col.where('schoolId', isEqualTo: schoolId).get();
     final list = snap.docs
         .map((d) => Homework.fromDoc(d.id, d.data() as Map<String, dynamic>))
         .toList();

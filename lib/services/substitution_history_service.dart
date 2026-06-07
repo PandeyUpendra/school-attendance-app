@@ -26,7 +26,10 @@ class SubstitutionHistoryService {
   // ── Coordinator: full history, newest first ────────────────────────────────
 
   Future<List<SubstitutionRecord>> getHistory({int limit = 100}) async {
+    // schoolId filter required by the tenant-scoped read rule (needs the
+    // schoolId+createdAt composite index in firestore.indexes.json).
     final snap = await _col
+        .where('schoolId', isEqualTo: AuthService.currentSchoolId)
         .orderBy('createdAt', descending: true)
         .limit(limit)
         .get();
@@ -44,6 +47,7 @@ class SubstitutionHistoryService {
     // (which, when missing, throws FAILED_PRECONDITION and would hang the
     // screen). Sort newest-first client-side instead.
     final snap = await _col
+        .where('schoolId', isEqualTo: AuthService.currentSchoolId)
         .where('substituteTeacherId', isEqualTo: teacherId)
         .get();
     final records = snap.docs
@@ -59,7 +63,10 @@ class SubstitutionHistoryService {
 
   Future<Map<String, int>> getSubstituteCounts({int days = 30}) async {
     final since = DateTime.now().subtract(Duration(days: days));
+    // schoolId filter required by the tenant-scoped read rule (needs the
+    // schoolId+date composite index in firestore.indexes.json).
     final snap  = await _col
+        .where('schoolId', isEqualTo: AuthService.currentSchoolId)
         .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
         .get();
 

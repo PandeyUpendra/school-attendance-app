@@ -145,7 +145,10 @@ class CopyCheckService {
     required String teacherId,
     String? className,
   }) async {
-    Query q = _coll.where('teacherId', isEqualTo: teacherId);
+    // schoolId filter required by the tenant-scoped copy_checks read rule.
+    Query q = _coll
+        .where('schoolId', isEqualTo: AuthService.currentSchoolId)
+        .where('teacherId', isEqualTo: teacherId);
     if (className != null) {
       q = q.where('className', isEqualTo: className);
     }
@@ -160,7 +163,8 @@ class CopyCheckService {
 
   /// Get ALL checking sessions — for coordinator overview.
   Future<List<CopyCheck>> getAllChecks({String? className}) async {
-    Query q = _coll;
+    // schoolId filter required by the tenant-scoped copy_checks read rule.
+    Query q = _coll.where('schoolId', isEqualTo: AuthService.currentSchoolId);
     if (className != null) {
       q = q.where('className', isEqualTo: className);
     }
