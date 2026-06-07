@@ -48,3 +48,6 @@ app.*.map.json
 *.keystore
 key.properties
 android/key.properties
+
+# Node dependencies (never commit)
+node_modules/
