@@ -1,4 +1,3 @@
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'base_firestore_service.dart';
@@ -35,7 +34,6 @@ class AuthService {
   static const _keyStudentLinks    = 'auth_student_links';
 
   static final _auth = FirebaseAuth.instance;
-  static final _functions = FirebaseFunctions.instance;
 
   /// The single, permanent system administrator.
   ///
@@ -74,51 +72,34 @@ class AuthService {
     );
   }
 
-  /// Sends a password setup / reset email via the `sendPasswordEmail` Cloud
-  /// Function, which delivers through an authenticated SendGrid domain so the
-  /// message lands in the inbox instead of Gmail's spam folder.
+  /// Sends a password setup / reset email using Firebase Auth's BUILT-IN email
+  /// (no SendGrid / Cloud Function). Used both for self-service "forgot
+  /// password" and as the first-time "set your password" invite when a
+  /// management user creates an account (the new Auth account already exists,
+  /// so the reset email doubles as the set-password email).
   ///
-  /// [invite] = true is the privileged path used when a management user creates
-  /// an account (the function verifies the caller's role). [invite] = false is
-  /// self-service "forgot password".
-  ///
-  /// Falls back to Firebase Auth's built-in email if the function call fails
-  /// (e.g. not deployed yet), so account creation / reset is never blocked.
-  /// The fallback's own failure is allowed to propagate so callers that need to
-  /// report success/failure truthfully still can.
+  /// [invite] is kept for call-site compatibility but no longer changes behavior
+  /// — Firebase sends the same reset template either way.
   Future<void> sendPasswordEmailViaFunction(String email,
       {bool invite = false}) async {
-    final normEmail = email.trim().toLowerCase();
-    try {
-      await _functions.httpsCallable('sendPasswordEmail').call(<String, dynamic>{
-        'email': normEmail,
-        'type': invite ? 'invite' : 'reset',
-      });
-    } on FirebaseFunctionsException {
-      // Function unavailable / not deployed — fall back to the built-in email so
-      // the user is never blocked. Let a fallback failure propagate.
-      await _auth.sendPasswordResetEmail(email: normEmail);
-    }
+    await _auth.sendPasswordResetEmail(email: email.trim().toLowerCase());
   }
 
-  /// Self-service password reset. The Cloud Function sends a link only to
-  /// registered emails but returns the SAME neutral response either way, so the
-  /// client cannot (and must not) reveal whether the address is enrolled
-  /// (#19, #84). If the function is unreachable, falls back to a best-effort
-  /// Firebase reset email and returns [ResetResult.unknown]; the UI shows the
-  /// same neutral confirmation for both [sent] and [unknown].
+  /// Self-service password reset via Firebase Auth's built-in email.
+  ///
+  /// Never reveals whether the address is enrolled (#19, #84): a `user-not-found`
+  /// is swallowed and reported the same as success, and the UI shows the same
+  /// neutral "if an account exists…" message for both [sent] and [unknown].
   Future<ResetResult> sendResetIfRegistered(String email) async {
     final normEmail = email.trim().toLowerCase();
     try {
-      await _functions
-          .httpsCallable('sendPasswordEmail')
-          .call(<String, dynamic>{'email': normEmail, 'type': 'reset'});
+      await _auth.sendPasswordResetEmail(email: normEmail);
       return ResetResult.sent;
-    } on FirebaseFunctionsException {
-      // Function unavailable — best-effort fallback (also doesn't reveal existence).
-      try {
-        await _auth.sendPasswordResetEmail(email: normEmail);
-      } catch (_) {}
+    } on FirebaseAuthException catch (e) {
+      // Treat "no such user" as success so the response can't be used to
+      // enumerate enrolled families. Other errors → neutral "unknown".
+      return e.code == 'user-not-found' ? ResetResult.sent : ResetResult.unknown;
+    } catch (_) {
       return ResetResult.unknown;
     }
   }

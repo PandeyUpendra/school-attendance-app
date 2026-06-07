@@ -1,6 +1,6 @@
 {
   "name": "functions",
-  "description": "Cloud Functions for the school app — authenticated transactional email (password setup / reset) via SendGrid.",
+  "description": "Cloud Functions for the school app — account deletion cascade (deleteAccount).",
   "engines": {
     "node": "20"
   },
@@ -12,7 +12,6 @@
     "logs": "firebase functions:log"
   },
   "dependencies": {
-    "@sendgrid/mail": "^8.1.4",
     "firebase-admin": "^12.6.0",
     "firebase-functions": "^6.1.0"
   }
