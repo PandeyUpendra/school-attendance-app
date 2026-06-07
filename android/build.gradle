@@ -9,6 +9,22 @@ rootProject.buildDir = '../build'
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
+// Force every Android plugin module to compile against a modern SDK. Some
+// plugins (e.g. printing) pin an older compileSdk, which fails the release-only
+// verifyReleaseResources task with "resource android:attr/lStar not found"
+// (lStar is API 31+). compileSdk only affects compile-time APIs, not min/target.
+// Registered BEFORE evaluationDependsOn(':app') below, or the projects would
+// already be evaluated and afterEvaluate would throw.
+subprojects {
+    afterEvaluate { proj ->
+        if (proj.hasProperty('android')) {
+            proj.android {
+                compileSdkVersion 36
+            }
+        }
+    }
+}
+
 subprojects {
     project.evaluationDependsOn(':app')
 }
