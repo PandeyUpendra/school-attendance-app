@@ -131,24 +131,66 @@ class _AdminScreenState extends State<AdminScreen> {
   // ── Remove ─────────────────────────────────────────────────────────────────
 
   Future<void> _remove(String email) async {
+    // Deleting an owner cascades to the owner's ENTIRE school (every account,
+    // student, attendance, fee record — see the deleteAccount Cloud Function).
+    // That is irreversible, so require the admin to type the exact email to
+    // confirm rather than a single tap.
+    final confirmCtrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Remove Access'),
-        content: Text('Remove login access for $email?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Remove'),
-          ),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          final matches =
+              confirmCtrl.text.trim().toLowerCase() == email.toLowerCase();
+          return AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Delete Owner Account'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This permanently deletes $email AND the entire school it '
+                  'owns — every account, student, attendance and fee record. '
+                  'This cannot be undone.',
+                  style: const TextStyle(fontSize: 13.5),
+                ),
+                const SizedBox(height: 16),
+                Text('Type the email to confirm:',
+                    style:
+                        TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: confirmCtrl,
+                  autofocus: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: InputDecoration(
+                    hintText: email,
+                    isDense: true,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onChanged: (_) => setLocal(() {}),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel')),
+              TextButton(
+                onPressed: matches ? () => Navigator.pop(ctx, true) : null,
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete Permanently'),
+              ),
+            ],
+          );
+        },
       ),
     );
+    confirmCtrl.dispose();
     if (ok != true) return;
     try {
       final full = await _service.deleteAccountFully(email);

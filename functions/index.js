@@ -21,6 +21,21 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 // Roles permitted to delete accounts.
 const DELETE_ROLES = ["admin", "owner", "ownerPrincipal", "principal", "coordinator"];
 
+// The single permanent system administrator. Mirrors AuthService.rootAdminEmail
+// in the app and isRootAdmin() in the Firestore rules. The root admin signs in
+// but deliberately has NO allowed_users document, so its role cannot be read
+// from Firestore — it must be resolved from the email. Without this, deleteAccount
+// rejects the admin as a roleless caller (the UNAUTHENTICATED/permission-denied
+// failure when the admin tries to delete an owner).
+const ROOT_ADMIN_EMAIL = "mandvishal@gmail.com";
+
+// Resolves a caller's effective role. The root admin is authoritative by email
+// (it has no allowed_users doc); every other caller's role comes from their doc.
+function resolveCallerRole(callerEmail, snap) {
+  if (callerEmail === ROOT_ADMIN_EMAIL) return "admin";
+  return snap.exists ? snap.get("role") : null;
+}
+
 /**
  * Callable: deleteAccount({ email })
  *
@@ -61,7 +76,7 @@ exports.deleteAccount = onCall(
       db.collection("allowed_users").doc(callerEmail).get(),
       db.collection("allowed_users").doc(email).get(),
     ]);
-    const callerRole = callerSnap.exists ? callerSnap.get("role") : null;
+    const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
 
     if (!DELETE_ROLES.includes(callerRole)) {
