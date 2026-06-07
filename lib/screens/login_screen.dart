@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
 import '../utils/validators.dart';
+import '../l10n/app_strings.dart';
 import '../widgets/email_text_form_field.dart';
 import 'coordinator_dashboard.dart';
 import 'home_screen.dart';
@@ -282,7 +283,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Sign in to your account',
+                    context.tr('signInSubtitle'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 15, color: Colors.white.withValues(alpha: 0.75)),
@@ -315,7 +316,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           maxLength: 254,
                           textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
-                            labelText: 'Email Address',
+                            labelText: context.tr('emailAddress'),
                             prefixIcon: const Icon(Icons.email_outlined),
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12)),
@@ -333,7 +334,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           textInputAction: TextInputAction.done,
                           onSubmitted: (_) => _loading ? null : _signIn(),
                           decoration: InputDecoration(
-                            labelText: 'Password',
+                            labelText: context.tr('password'),
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(
@@ -360,9 +361,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   builder: (_) =>
                                       const ForgotPasswordScreen()),
                             ),
-                            child: const Text(
-                              'Forgot Password?',
-                              style: TextStyle(color: AppTheme.primary),
+                            child: Text(
+                              context.tr('forgotPassword'),
+                              style: const TextStyle(color: AppTheme.primary),
                             ),
                           ),
                         ),
@@ -416,9 +417,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                         strokeWidth: 2,
                                         color: Colors.white),
                                   )
-                                : const Text(
-                                    'Sign In',
-                                    style: TextStyle(
+                                : Text(
+                                    context.tr('signIn'),
+                                    style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600),
                                   ),

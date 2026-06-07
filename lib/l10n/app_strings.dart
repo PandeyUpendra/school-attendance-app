@@ -33,6 +33,13 @@ class AppStrings {
     'cancel':          {'en': 'Cancel',            'hi': 'रद्द करें'},
     'logout':          {'en': 'Logout',            'hi': 'लॉग आउट'},
 
+    // ── Login ────────────────────────────────────────────────────────────
+    'signInSubtitle':  {'en': 'Sign in to your account', 'hi': 'अपने खाते में साइन इन करें'},
+    'emailAddress':    {'en': 'Email Address',     'hi': 'ईमेल पता'},
+    'password':        {'en': 'Password',          'hi': 'पासवर्ड'},
+    'forgotPassword':  {'en': 'Forgot Password?',  'hi': 'पासवर्ड भूल गए?'},
+    'signIn':          {'en': 'Sign In',           'hi': 'साइन इन करें'},
+
     // ── Guardian ─────────────────────────────────────────────────────────
     'viewing':         {'en': 'VIEWING',           'hi': 'देख रहे हैं'},
 

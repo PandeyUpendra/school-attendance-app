@@ -5,6 +5,7 @@ import '../models/student_remark.dart';
 import '../services/auth_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
+import '../services/consent_service.dart';
 import '../theme.dart';
 import '../utils/phone_utils.dart';
 
@@ -111,6 +112,7 @@ class StudentRemarksScreen extends StatefulWidget {
 class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
   final _studentService = StudentService();
   final _ttService      = TimetableService();
+  final _consentSvc     = ConsentService();
   final _customCtrl     = TextEditingController();
 
   String  _myEmail     = '';
@@ -236,10 +238,25 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
       _loadRemarks(s);
 
       if (sendWhatsApp) {
-        final phone = (s.parentPhone?.isNotEmpty == true)
-            ? s.parentPhone!
-            : s.phone;
-        await _openWhatsApp(phone, text, s.name);
+        // Consent gate (#108): sending a child's behavioural remark over
+        // WhatsApp transmits their personal data to a third party, so it
+        // requires parental consent on record. The remark itself is still
+        // saved (internal processing) — only the third-party send is gated.
+        final hasConsent = await _consentSvc.hasActiveConsent(
+            Student.buildDocId(s.roll, s.className, s.section));
+        if (!mounted) return;
+        if (!hasConsent) {
+          _snack(
+            'Remark saved. WhatsApp not sent — parental consent to share this '
+            "child's data is not on record.",
+            color: Colors.orange,
+          );
+        } else {
+          final phone = (s.parentPhone?.isNotEmpty == true)
+              ? s.parentPhone!
+              : s.phone;
+          await _openWhatsApp(phone, text, s.name);
+        }
       }
     } catch (e) {
       if (!mounted) return;
