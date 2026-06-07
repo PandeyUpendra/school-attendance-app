@@ -3,6 +3,12 @@ import 'guardian_student_details.dart';
 
 class Student {
   final String id; // Unique Student ID (e.g. Admission Number or UUID); may be empty for new records
+  /// Stable cross-year identity that survives class promotion (#70). Unlike the
+  /// Firestore doc id (class_section_roll, which changes when a student moves up
+  /// a class), this never changes once assigned, so a student's history can be
+  /// linked across academic years. Defaults to the current doc id for legacy
+  /// records that predate the field.
+  final String admissionId;
   final int roll;
   final String name;
   final String className;
@@ -38,8 +44,14 @@ class Student {
   /// removed) or rejected (flag cleared).
   final bool deletionPending;
 
+  /// True once the student has been promoted out of this class into the next
+  /// academic year (#70). The old-class record is kept (so its attendance/fee
+  /// history stays intact) but hidden from active rosters.
+  final bool promoted;
+
   const Student({
     this.id = '',
+    this.admissionId = '',
     required this.roll,
     required this.name,
     this.className = '',
@@ -65,10 +77,12 @@ class Student {
     this.allergies,
     this.transportMode,
     this.deletionPending = false,
+    this.promoted = false,
   });
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        'admissionId': admissionId,
         'roll': roll,
         'name': name,
         'className': className,
@@ -94,6 +108,7 @@ class Student {
         if (allergies != null) 'allergies': allergies,
         if (transportMode != null) 'transportMode': transportMode,
         if (deletionPending) 'deletionPending': true,
+        if (promoted) 'promoted': true,
       };
 
   static String buildDocId(int roll, String className, String section) {
@@ -105,6 +120,14 @@ class Student {
   factory Student.fromJson(Map<String, dynamic> json) => Student(
         id: json['id'] as String? ??
             (json['roll'] != null
+                ? buildDocId(
+                    json['roll'] as int,
+                    json['className'] as String? ?? '',
+                    json['section'] as String? ?? '')
+                : ''),
+        admissionId: (json['admissionId'] as String?)?.trim().isNotEmpty == true
+            ? json['admissionId'] as String
+            : (json['roll'] != null
                 ? buildDocId(
                     json['roll'] as int,
                     json['className'] as String? ?? '',
@@ -138,10 +161,13 @@ class Student {
         allergies: json['allergies'] as String?,
         transportMode: json['transportMode'] as String?,
         deletionPending: json['deletionPending'] as bool? ?? false,
+        promoted: json['promoted'] as bool? ?? false,
       );
 
   Student copyWith({
     String? id,
+    String? admissionId,
+    int? roll,
     String? name,
     String? className,
     String? section,
@@ -166,10 +192,12 @@ class Student {
     String? allergies,
     String? transportMode,
     bool? deletionPending,
+    bool? promoted,
   }) =>
       Student(
         id: id ?? this.id,
-        roll: roll,
+        admissionId: admissionId ?? this.admissionId,
+        roll: roll ?? this.roll,
         name: name ?? this.name,
         className: className ?? this.className,
         section: section ?? this.section,
@@ -194,5 +222,6 @@ class Student {
         allergies: allergies ?? this.allergies,
         transportMode: transportMode ?? this.transportMode,
         deletionPending: deletionPending ?? this.deletionPending,
+        promoted: promoted ?? this.promoted,
       );
 }

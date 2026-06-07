@@ -12,6 +12,7 @@ import 'teacher_management_screen.dart';
 import 'timetable_settings_screen.dart';
 import 'assign_duties_screen.dart';
 import 'student_details_screen.dart';
+import 'promotion_screen.dart';
 import 'my_timetable_screen.dart';
 import 'role_selection_screen.dart';
 import 'free_bells_screen.dart';
@@ -399,6 +400,14 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               title: 'Student Details',
               subtitle: 'View and manage student records by class',
               onTap: () => _navigate(const StudentDetailsScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.upgrade_outlined,
+              color: _cPurple,
+              title: 'Promote Class',
+              subtitle: 'Move a class up for the new academic year',
+              onTap: () => _navigate(const PromotionScreen()),
             ),
             const _Divider(),
             _FeatureTile(

@@ -72,7 +72,7 @@ class StudentService extends BaseFirestoreService {
   /// keep working; and internal lookups (`removeStudent`, guardian portal) go
   /// straight to the repository, bypassing this filter.
   static List<Student> _visibleOnly(List<Student> students) =>
-      students.where((s) => !s.deletionPending).toList();
+      students.where((s) => !s.deletionPending && !s.promoted).toList();
 
   Future<List<Student>> getStudents() async =>
       _visibleOnly(await _repo.fetchAll());
@@ -168,6 +168,13 @@ class StudentService extends BaseFirestoreService {
             .toList());
   }
 
+  /// Generates a stable cross-year admission id (#70). Format: STU-<ms>-<rand>.
+  static String _newAdmissionId() {
+    final ms   = DateTime.now().microsecondsSinceEpoch;
+    final rand = (ms % 100000).toString().padLeft(5, '0');
+    return 'STU-$ms-$rand';
+  }
+
   /// Returns null on success, error string on duplicate roll.
   Future<String?> addStudent({required Student student}) async {
     if (await _repo.existsByRoll(
@@ -176,6 +183,11 @@ class StudentService extends BaseFirestoreService {
           student.section.isNotEmpty ? ' Section ${student.section}' : '';
       return 'Roll number ${student.roll} already exists in '
           '${student.className}$sec.';
+    }
+    // Stamp a stable admissionId on first creation so the student keeps one
+    // identity across class promotions (#70).
+    if (student.admissionId.trim().isEmpty) {
+      student = student.copyWith(admissionId: _newAdmissionId());
     }
     await _repo.upsert(student);
     AuditService.emit(
@@ -212,6 +224,20 @@ class StudentService extends BaseFirestoreService {
           : '${updated.className}_${updated.section}_${updated.roll}',
       before: before?.toJson(),
       after:  updated.toJson(),
+    );
+  }
+
+  /// Marks the source-class record as promoted (#70) so it leaves active rosters
+  /// while its attendance/fee history stays intact under the old class.
+  Future<void> markPromoted(Student student) async {
+    await _repo.upsert(student.copyWith(promoted: true));
+    AuditService.emit(
+      action:   'update',
+      entity:   'student',
+      entityId: student.id.isNotEmpty
+          ? student.id
+          : '${student.className}_${student.section}_${student.roll}',
+      reason:   'promoted to next class',
     );
   }
 
