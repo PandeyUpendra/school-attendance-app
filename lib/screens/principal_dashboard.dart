@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import 'profile_screen.dart';
 import '../services/auth_service.dart';
 import '../services/student_service.dart';
@@ -263,11 +264,11 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             ),
             if (!_loading) ...[
               // ── Active Tasks ───────────────────────────────────────────
-              const _SectionHeader('ACTIVE TASKS'),
+              _SectionHeader(context.tr('secActiveTasks')),
               _buildTasksSection(),
 
               // ── Birthdays ─────────────────────────────────────────────
-              const _SectionHeader('BIRTHDAYS'),
+              _SectionHeader(context.tr('secBirthdays')),
               BirthdayBanner(
                 role: 'principal',
                 onTap: () => _navigate(const BirthdaysScreen(role: 'principal')),
@@ -275,41 +276,41 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               _FeatureTile(
                 icon: Icons.cake_outlined,
                 color: AppTheme.accent,
-                title: 'Birthdays',
-                subtitle: 'Staff and student birthday wishes',
+                title: context.tr('birthdays'),
+                subtitle: context.tr('subBirthdaysDesc'),
                 onTap: () => _navigate(const BirthdaysScreen(role: 'principal')),
               ),
               const Divider(height: 1, indent: 72),
 
               // ── Analytics ─────────────────────────────────────────────
-              const _SectionHeader('ANALYTICS'),
+              _SectionHeader(context.tr('secAnalytics')),
               _FeatureTile(
                 icon: Icons.analytics_outlined,
                 color: AppTheme.primary,
-                title: 'Analytics Dashboard',
-                subtitle: 'Attendance trends, absences, fee progress & charts',
+                title: context.tr('analyticsDashboard'),
+                subtitle: context.tr('subAnalyticsDesc'),
                 onTap: () => _navigate(const AnalyticsScreen()),
               ),
               const Divider(height: 1, indent: 72),
 
               // ── Finance ───────────────────────────────────────────────
-              const _SectionHeader('FINANCE'),
+              _SectionHeader(context.tr('secFinance')),
               _FeatureTile(
                 icon: Icons.currency_rupee_outlined,
                 color: AppTheme.success,
-                title: 'Fee Collection',
-                subtitle: 'Class-wise collection, instalments & payment history',
+                title: context.tr('feeCollection'),
+                subtitle: context.tr('subFeeCollectionDesc'),
                 onTap: () => _navigate(const FeeOverviewScreen(role: 'principal')),
               ),
               const Divider(height: 1, indent: 72),
 
               // ── Tools ─────────────────────────────────────────────────
-              const _SectionHeader('TOOLS'),
+              _SectionHeader(context.tr('secTools')),
               _FeatureTile(
                 icon: Icons.manage_accounts_outlined,
                 color: AppTheme.primary,
-                title: 'Manage Coordinators',
-                subtitle: 'Add, edit or remove coordinator accounts & class assignments',
+                title: context.tr('manageCoordinators'),
+                subtitle: context.tr('subManageCoordinatorsDesc'),
                 onTap: () => _navigate(CoordinatorManagementScreen(
                   principalEmail: _principalEmail,
                 )),
@@ -318,8 +319,8 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               _FeatureTile(
                 icon: Icons.history_edu_outlined,
                 color: AppTheme.primary,
-                title: 'Meeting Records',
-                subtitle: 'View all meeting records, tasks and PDFs',
+                title: context.tr('meetingRecords'),
+                subtitle: context.tr('subMeetingRecordsPrincipalDesc'),
                 onTap: () => _navigate(PrincipalMeetingRecordsScreen(
                   principalEmail: _principalEmail,
                   principalName:  _principalEmail,
@@ -329,16 +330,16 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               _FeatureTile(
                 icon: Icons.tune_outlined,
                 color: AppTheme.primaryMid,
-                title: 'School Settings',
-                subtitle: 'Edit school info, academic, fees & communication',
+                title: context.tr('schoolSettings'),
+                subtitle: context.tr('subSchoolSettingsDesc'),
                 onTap: () => _navigate(const EditSchoolSettingsScreen()),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(
                 icon: Icons.task_outlined,
                 color: AppTheme.primary,
-                title: 'Staff Tasks',
-                subtitle: 'Create, assign and track task completion in one place',
+                title: context.tr('staffTasks'),
+                subtitle: context.tr('subStaffTasksUnifiedDesc'),
                 onTap: () => _navigate(UnifiedStaffTaskScreen(
                   role: 'principal',
                   userEmail: _principalEmail,
@@ -349,8 +350,8 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               _FeatureTile(
                 icon: Icons.rate_review_outlined,
                 color: AppTheme.primary,
-                title: 'Staff Remarks',
-                subtitle: 'Give feedback to teachers and coordinators',
+                title: context.tr('staffRemarks'),
+                subtitle: context.tr('subStaffRemarksPrincipalDesc'),
                 onTap: () => _navigate(StaffRemarksScreen(
                   role: _sessionRole,
                   userEmail: _principalEmail,
@@ -362,15 +363,15 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 icon: Icons.summarize_outlined,
                 color: AppTheme.primary,
                 title: "Today's Digest",
-                subtitle: 'EOD summary · attendance, leaves, fees, copy-check',
+                subtitle: context.tr('subPrincipalDigestDesc'),
                 onTap: () => _navigate(const PrincipalDigestScreen()),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(
                 icon: Icons.campaign_outlined,
                 color: AppTheme.primary,
-                title: 'Announcements',
-                subtitle: 'Post and view school notices',
+                title: context.tr('announcements'),
+                subtitle: context.tr('subAnnouncementsPrincipalDesc'),
                 onTap: () => _navigate(AnnouncementsScreen(
                   viewerRole: 'principal',
                   posterName: _principalEmail,
@@ -380,8 +381,8 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               _FeatureTile(
                 icon: Icons.hourglass_top_outlined,
                 color: AppTheme.warning,
-                title: 'Leave Requests',
-                subtitle: 'Review & approve pending applications from teachers',
+                title: context.tr('leaveRequests'),
+                subtitle: context.tr('subLeaveApproveDesc'),
                 badge: _pendingLeaveCount > 0 ? '$_pendingLeaveCount' : null,
                 onTap: () => _navigate(const LeaveRequestsScreen(viewerRole: 'principal')),
               ),
@@ -389,8 +390,8 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               _FeatureTile(
                 icon: Icons.no_accounts_outlined,
                 color: AppTheme.danger,
-                title: 'Teacher Deletion Requests',
-                subtitle: 'Review & approve coordinator requests to remove teachers',
+                title: context.tr('teacherDeletionRequests'),
+                subtitle: context.tr('subTeacherDeletionDesc'),
                 badge: _pendingTeacherDelCount > 0
                     ? '$_pendingTeacherDelCount'
                     : null,
@@ -405,7 +406,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   return _FeatureTile(
                     icon: Icons.person_remove_outlined,
                     color: AppTheme.danger,
-                    title: 'Student Deletion Requests',
+                    title: context.tr('studentDeletionRequests'),
                     subtitle:
                         'Review & approve teacher requests to remove student records',
                     badge: n > 0 ? '$n' : null,
@@ -418,16 +419,16 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               _FeatureTile(
                 icon: Icons.person_off_outlined,
                 color: AppTheme.danger,
-                title: 'Deleted Students',
-                subtitle: 'Read-only history of removed students, class-wise',
+                title: context.tr('deletedStudents'),
+                subtitle: context.tr('subDeletedStudentsDesc'),
                 onTap: () => _navigate(const DeletedStudentsScreen()),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(
                 icon: Icons.bar_chart_outlined,
                 color: AppTheme.primary,
-                title: 'Attendance Reports',
-                subtitle: 'Monthly history, % per student & low-attendance flags',
+                title: context.tr('attendanceReports'),
+                subtitle: context.tr('subAttendanceReportsDesc'),
                 onTap: () async {
                   final pick = await Navigator.push<ClassSectionPick>(
                     context,
@@ -448,47 +449,47 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               _FeatureTile(
                 icon: Icons.table_chart_outlined,
                 color: AppTheme.primary,
-                title: 'School Timetable',
-                subtitle: 'View & share class timetables as PDF',
+                title: context.tr('schoolTimetable'),
+                subtitle: context.tr('subViewTimetablesDesc'),
                 onTap: () => _navigate(const MyTimetableScreen()),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(
                 icon: Icons.people_outlined,
                 color: AppTheme.primary,
-                title: 'Student Records',
-                subtitle: 'View student details and contact info by class',
+                title: context.tr('studentRecords'),
+                subtitle: context.tr('subStudentRecordsDesc'),
                 onTap: () => _navigate(const StudentDetailsScreen()),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(
                 icon: Icons.security_outlined,
                 color: AppTheme.primary,
-                title: 'Audit Log',
-                subtitle: 'View all create/update/delete actions with before/after diff',
+                title: context.tr('auditLog'),
+                subtitle: context.tr('subAuditLogDesc'),
                 onTap: () => _navigate(const AuditLogScreen()),
               ),
 
               // ── Owner-Principal: Coordinator Tools ────────────────────────
               if (_sessionRole == 'ownerPrincipal') ...[
                 const Divider(height: 1, indent: 72),
-                const _SectionHeader('COORDINATOR TOOLS'),
+                _SectionHeader(context.tr('secCoordinatorTools')),
                 _FeatureTile(
                   icon: Icons.admin_panel_settings_outlined,
                   color: AppTheme.primaryMid,
-                  title: 'Coordinator Tools',
-                  subtitle: 'Access timetable, substitutions, leave management & more',
+                  title: context.tr('coordinatorTools'),
+                  subtitle: context.tr('subCoordinatorToolsDesc'),
                   onTap: () => _navigate(const CoordinatorDashboard()),
                 ),
               ],
 
               // ── My To-Do List ───────────────────────────────────────────
-              const _SectionHeader('MY TO-DO LIST'),
+              _SectionHeader(context.tr('secMyTodoList')),
               _FeatureTile(
                 icon: Icons.checklist_outlined,
                 color: AppTheme.primary,
-                title: 'My To-Do List',
-                subtitle: 'Personal tasks with reminders and due dates',
+                title: context.tr('myTodoList'),
+                subtitle: context.tr('subTodoDesc'),
                 onTap: () => _navigate(TodoListScreen(
                   userId: _principalEmail,
                   role: _sessionRole,
