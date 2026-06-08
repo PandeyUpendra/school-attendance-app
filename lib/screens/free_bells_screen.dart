@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../models/substitution_record.dart';
@@ -148,9 +149,9 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Free Bells  &  Substitution',
-                style:
-                    TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(context.tr('freeBellsSubstitution'),
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold)),
             Text(_today,
                 style:
                     const TextStyle(fontSize: 11, color: Colors.white70)),
@@ -159,7 +160,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.history_outlined),
-            tooltip: 'Substitution History',
+            tooltip: context.tr('substitutionHistory'),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -232,7 +233,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text('Bell $bell',
+              child: Text('${context.tr('bellPrefix')} $bell',
                   style: const TextStyle(
                       fontSize: 14, fontWeight: FontWeight.w600)),
             ),
@@ -251,7 +252,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
                         : Colors.green.shade200),
               ),
               child: Text(
-                '${freeTeachers.length} free',
+                '${freeTeachers.length} ${context.tr('freeWord')}',
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -343,8 +344,8 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
               ),
               child: Text(
                 currentSubTeacher != null
-                    ? 'Substitute: ${currentSubTeacher.name}'
-                    : 'Unassigned',
+                    ? '${context.tr('substituteColon')} ${currentSubTeacher.name}'
+                    : context.tr('unassigned'),
                 style: TextStyle(
                     fontSize: 11,
                     color: isSub
@@ -360,7 +361,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
             value: validValue,
             isExpanded: true,
             decoration: InputDecoration(
-              labelText: 'Select Teacher',
+              labelText: context.tr('selectTeacher'),
               labelStyle:
                   const TextStyle(fontSize: 11, color: AppTheme.primary),
               border: OutlineInputBorder(
@@ -381,14 +382,14 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               isDense: true,
             ),
-            hint: const Text('Select Teacher',
-                style: TextStyle(fontSize: 11)),
+            hint: Text(context.tr('selectTeacher'),
+                style: const TextStyle(fontSize: 11)),
             items: [
               if (validValue != null)
-                const DropdownMenuItem<String>(
+                DropdownMenuItem<String>(
                   value: '',
-                  child: Text('— Remove substitute —',
-                      style: TextStyle(fontSize: 11, color: Colors.red)),
+                  child: Text(context.tr('removeSubstitute'),
+                      style: const TextStyle(fontSize: 11, color: Colors.red)),
                 ),
               ...itemTeachers.asMap().entries.map((e) {
                 final t     = e.value;
@@ -398,7 +399,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
                   value: t.id,
                   child: Text(
                     '${isTop ? '★ ' : ''}${t.name}  ·  ${t.subject}'
-                    '${isTop ? '  ($count subs)' : ''}',
+                    '${isTop ? '  ($count ${context.tr('subsWord')})' : ''}',
                     style: const TextStyle(fontSize: 11),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -422,11 +423,11 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
       Icon(Icons.event_busy_outlined,
           size: 64, color: Colors.grey.shade300),
       const SizedBox(height: 16),
-      Text('No free periods or substitutions assigned',
+      Text(context.tr('noFreePeriods'),
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 16, color: Colors.grey.shade400)),
       const SizedBox(height: 6),
-      Text('Configure the timetable in Timetable & Settings',
+      Text(context.tr('configureTimetableSettings'),
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
     ],

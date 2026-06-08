@@ -385,6 +385,19 @@ class AppStrings {
     'noTasksAssigned':       {'en': 'No tasks assigned',  'hi': 'कोई कार्य नहीं सौंपा गया'},
     'allCaughtUp':           {'en': 'You are all caught up!', 'hi': 'आपका सब कुछ पूरा है!'},
 
+    // ── Free bells / substitution screen ─────────────────────────────────
+    'freeBellsSubstitution': {'en': 'Free Bells  &  Substitution', 'hi': 'खाली घंटी और स्थानापन्न'},
+    'substitutionHistory':   {'en': 'Substitution History', 'hi': 'स्थानापन्न इतिहास'},
+    'bellPrefix':            {'en': 'Bell',               'hi': 'घंटी'},
+    'freeWord':              {'en': 'free',               'hi': 'खाली'},
+    'substituteColon':       {'en': 'Substitute:',        'hi': 'स्थानापन्न:'},
+    'unassigned':            {'en': 'Unassigned',         'hi': 'अनिर्धारित'},
+    'selectTeacher':         {'en': 'Select Teacher',     'hi': 'शिक्षक चुनें'},
+    'removeSubstitute':      {'en': '— Remove substitute —', 'hi': '— स्थानापन्न हटाएँ —'},
+    'subsWord':              {'en': 'subs',               'hi': 'स्थानापन्न'},
+    'noFreePeriods':         {'en': 'No free periods or substitutions assigned', 'hi': 'कोई खाली पीरियड या स्थानापन्न नहीं'},
+    'configureTimetableSettings':{'en': 'Configure the timetable in Timetable & Settings', 'hi': 'समय-सारिणी और सेटिंग्स में समय-सारिणी सेट करें'},
+
     // ── Assign duties screen ─────────────────────────────────────────────
     'dutiesSavedToday':      {'en': 'Duties saved for today', 'hi': 'आज की ड्यूटी सहेजी गई'},
     'customDutyPrefix':      {'en': 'Custom Duty —',      'hi': 'कस्टम ड्यूटी —'},
