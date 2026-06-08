@@ -11,11 +11,44 @@
  */
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
+
+/**
+ * Firestore trigger: mirror each user's {role, schoolId} into their Firebase
+ * Auth CUSTOM CLAIMS whenever their allowed_users doc changes (#3). Storage
+ * Security Rules can't read Firestore, so these claims are how storage.rules
+ * tenant-scopes per-school assets. Best-effort: a pending invite with no Auth
+ * account yet is skipped (claims get set on the next write once they sign up,
+ * or via scripts/backfill_claims.js).
+ *
+ * Claims take effect on the user's NEXT ID-token refresh (the app forces one at
+ * login).
+ */
+exports.syncUserClaims = onDocumentWritten(
+  { document: "allowed_users/{email}", region: "us-central1" },
+  async (event) => {
+    const email = event.params.email; // doc id is the lowercased email
+    try {
+      const user = await admin.auth().getUserByEmail(email);
+      const after = event.data && event.data.after;
+      if (!after || !after.exists) {
+        await admin.auth().setCustomUserClaims(user.uid, null); // doc deleted
+        return;
+      }
+      const d = after.data() || {};
+      const claims = {};
+      if (d.role) claims.role = String(d.role);
+      if (d.schoolId) claims.schoolId = String(d.schoolId);
+      await admin.auth().setCustomUserClaims(user.uid, claims);
+    } catch (err) {
+      logger.warn(`claims sync skipped for ${email}`, err && err.code);
+    }
+  }
+);
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 

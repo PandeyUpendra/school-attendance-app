@@ -236,6 +236,11 @@ class AuthService {
     }
     await prefs.setInt('last_activity_timestamp', DateTime.now().millisecondsSinceEpoch);
 
+    // Refresh the ID token so freshly-minted custom claims (role/schoolId from
+    // syncUserClaims, used by the tenant-scoped Storage rules, #3) take effect
+    // without waiting up to an hour. Fire-and-forget.
+    _auth.currentUser?.getIdToken(true);
+
     // Subscribe this device to its push topics for the new session (#52).
     // Fire-and-forget — push setup must never block or fail login.
     PushService().syncForSession(

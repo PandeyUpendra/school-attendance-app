@@ -3,14 +3,20 @@ rules_version = '2';
 // ════════════════════════════════════════════════════════════════════════════
 // School App — Cloud Storage Security Rules
 //
-// NOTE on tenancy: Storage rules cannot read Firestore, so without custom
-// auth claims they can only check that the caller is authenticated — not their
-// role or schoolId. The hard guarantees here are therefore:
-//   • No unauthenticated read/write anywhere (previously gallery was world-open).
-//   • Writes must be images and under a sane size cap.
-// Role/school scoping for uploads is additionally enforced by the Firestore
-// rules on the matching metadata docs (albums/photos/policy). A future
-// hardening step is to mint custom claims (role, schoolId) and gate on them.
+// Tenant isolation (#3): Storage rules can't read Firestore, so per-school
+// assets are scoped via the `schoolId` CUSTOM CLAIM minted by the syncUserClaims
+// Cloud Function (mirrored from allowed_users). A caller may only read/write
+// files under their OWN school. The root admin (matched by email) may read
+// across schools for support.
+//
+// DEPLOY ORDER: run functions/scripts/backfill_claims.js (and deploy
+// syncUserClaims) BEFORE deploying these rules — a user without the schoolId
+// claim is denied all per-school storage. The app forces an ID-token refresh at
+// login so claims take effect promptly.
+//
+// Previously only `schools/{id}/policy/**` was allowed (so teacher photos and
+// logos under schools/{id}/teachers|logo were actually DENIED), and reads/writes
+// were open to ANY signed-in user of ANY school (cross-tenant). Both fixed here.
 // ════════════════════════════════════════════════════════════════════════════
 
 service firebase.storage {
@@ -20,6 +26,17 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    // The caller's schoolId custom claim, or null when absent.
+    function tokenSchoolId() {
+      return isSignedIn() && 'schoolId' in request.auth.token
+          ? request.auth.token.schoolId : null;
+    }
+
+    function isRootAdmin() {
+      return isSignedIn()
+        && request.auth.token.email == 'mandvishal@gmail.com';
+    }
+
     // Image-only, ≤ 15 MB. resource is null on create, so guard both.
     function isAllowedImage() {
       return request.resource != null
@@ -27,13 +44,12 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
-    // (The gallery feature was removed from the app; its storage path is gone —
-    // the catch-all deny below covers any residual schools/{id}/gallery files.)
-
-    // School policy assets (e.g. ideal-dress reference photo).
-    match /schools/{schoolId}/policy/{allPaths=**} {
-      allow read:  if isSignedIn();
-      allow write: if isSignedIn() && isAllowedImage();
+    // All per-school assets: policy reference photos, teacher photos, the school
+    // logo, etc. Read confined to the caller's own school (root admin exempt);
+    // writes additionally must be images.
+    match /schools/{schoolId}/{allPaths=**} {
+      allow read:  if isRootAdmin() || tokenSchoolId() == schoolId;
+      allow write: if tokenSchoolId() == schoolId && isAllowedImage();
     }
 
     // Everything else: denied.
