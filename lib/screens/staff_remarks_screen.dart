@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../theme.dart';
 import '../models/staff_remark.dart';
 import '../models/teacher.dart';
@@ -56,11 +57,11 @@ class _StaffRemarksScreenState extends State<StaffRemarksScreen> {
     final views = <Widget>[];
 
     if (_canReceive) {
-      tabs.add(const Tab(text: 'Received'));
+      tabs.add(Tab(text: context.tr('receivedTab')));
       views.add(_buildReceived());
     }
     if (_canGive) {
-      tabs.add(const Tab(text: 'Given'));
+      tabs.add(Tab(text: context.tr('givenTab')));
       views.add(_buildGiven());
     }
 
@@ -71,7 +72,7 @@ class _StaffRemarksScreenState extends State<StaffRemarksScreen> {
         appBar: AppBar(
           backgroundColor: AppTheme.primaryDark,
           foregroundColor: Colors.white,
-          title: const Text('Remarks'),
+          title: Text(context.tr('remarksTitle')),
           bottom: tabs.length > 1
               ? TabBar(
                   indicatorColor: Colors.white,
@@ -86,7 +87,7 @@ class _StaffRemarksScreenState extends State<StaffRemarksScreen> {
                 backgroundColor: AppTheme.accent,
                 foregroundColor: Colors.white,
                 icon: const Icon(Icons.rate_review_outlined),
-                label: const Text('Give Remark'),
+                label: Text(context.tr('giveRemark')),
                 onPressed: _openGiveRemark,
               )
             : null,
@@ -115,8 +116,8 @@ class _StaffRemarksScreenState extends State<StaffRemarksScreen> {
         if (items.isEmpty) {
           return _emptyState(
             Icons.inbox_outlined,
-            'No remarks yet',
-            'Feedback from your coordinator or principal will appear here.',
+            context.tr('noRemarksYet'),
+            context.tr('remarksAppearHere'),
           );
         }
         return ListView.separated(
@@ -146,8 +147,8 @@ class _StaffRemarksScreenState extends State<StaffRemarksScreen> {
         if (items.isEmpty) {
           return _emptyState(
             Icons.rate_review_outlined,
-            'No remarks given yet',
-            'Tap "Give Remark" to send feedback to staff.',
+            context.tr('noRemarksGivenYet'),
+            context.tr('tapGiveRemarkHint'),
           );
         }
         return ListView.separated(
@@ -168,16 +169,16 @@ class _StaffRemarksScreenState extends State<StaffRemarksScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete remark?'),
-        content: Text('Remove the remark sent to ${remark.toName}?'),
+        title: Text(context.tr('deleteRemarkQ')),
+        content: Text('${context.tr('removeRemarkSentToPrefix')} ${remark.toName}?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
               style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
-              child: const Text('Delete')),
+              child: Text(context.tr('delete'))),
         ],
       ),
     );
@@ -240,7 +241,7 @@ class _StaffRemarksScreenState extends State<StaffRemarksScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Remark sent to ${recipient.name}')),
+        SnackBar(content: Text('${context.tr('remarkSentToPrefix')} ${recipient.name}')),
       );
     }
   }
@@ -285,7 +286,7 @@ class _RemarkCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final person = showFrom ? remark.fromName : remark.toName;
     final personRole = showFrom ? remark.fromRole : remark.toRole;
-    final label = showFrom ? 'From' : 'To';
+    final label = showFrom ? context.tr('fromLabel') : context.tr('toLabel');
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -316,7 +317,7 @@ class _RemarkCard extends StatelessWidget {
                   Text('$label: $person',
                       style: const TextStyle(
                           fontSize: 14, fontWeight: FontWeight.w600)),
-                  Text(_prettyRole(personRole),
+                  Text(_prettyRole(context, personRole),
                       style: TextStyle(
                           fontSize: 11, color: Colors.grey.shade500)),
                 ],
@@ -343,18 +344,18 @@ class _RemarkCard extends StatelessWidget {
     );
   }
 
-  static String _prettyRole(String role) {
+  static String _prettyRole(BuildContext context, String role) {
     switch (role) {
       case 'teacher':
       case 'subjectTeacher':
-        return 'Teacher';
+        return context.trRole('teacher');
       case 'coordinator':
-        return 'Coordinator';
+        return context.trRole('coordinator');
       case 'principal':
-        return 'Principal';
+        return context.trRole('principal');
       case 'owner':
       case 'ownerPrincipal':
-        return 'Owner';
+        return context.trRole('owner');
       default:
         return role;
     }
@@ -450,9 +451,9 @@ class _RecipientPickerState extends State<_RecipientPicker> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: Row(
                   children: [
-                    const Expanded(
-                      child: Text('Select recipient',
-                          style: TextStyle(
+                    Expanded(
+                      child: Text(context.tr('selectRecipient'),
+                          style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w700)),
                     ),
                     IconButton(
@@ -466,9 +467,9 @@ class _RecipientPickerState extends State<_RecipientPicker> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(value: false, label: Text('Teachers')),
-                      ButtonSegment(value: true, label: Text('Coordinators')),
+                    segments: [
+                      ButtonSegment(value: false, label: Text(context.tr('teachersTab'))),
+                      ButtonSegment(value: true, label: Text(context.tr('coordinatorsTab'))),
                     ],
                     selected: {_showCoordinators},
                     onSelectionChanged: (s) =>
@@ -479,7 +480,7 @@ class _RecipientPickerState extends State<_RecipientPicker> {
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
                 child: TextField(
                   decoration: InputDecoration(
-                    hintText: 'Search by name',
+                    hintText: context.tr('searchByName'),
                     prefixIcon: const Icon(Icons.search),
                     isDense: true,
                     border: OutlineInputBorder(
@@ -533,7 +534,7 @@ class _RecipientPickerState extends State<_RecipientPicker> {
     if (filtered.isEmpty) {
       return Center(
         child: Text(
-          _showCoordinators ? 'No coordinators found' : 'No teachers found',
+          _showCoordinators ? context.tr('noCoordinatorsFound') : context.tr('noTeachersFound'),
           style: TextStyle(color: Colors.grey.shade500),
         ),
       );
@@ -555,7 +556,7 @@ class _RecipientPickerState extends State<_RecipientPicker> {
             ),
           ),
           title: Text(r.name),
-          subtitle: Text(r.role == 'coordinator' ? 'Coordinator' : 'Teacher'),
+          subtitle: Text(r.role == 'coordinator' ? context.trRole('coordinator') : context.trRole('teacher')),
           onTap: () => Navigator.pop(context, r),
         );
       },
@@ -585,26 +586,26 @@ class _RemarkComposerState extends State<_RemarkComposer> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Remark for ${widget.recipientName}'),
+      title: Text('${context.tr('remarkForPrefix')} ${widget.recipientName}'),
       content: TextField(
         controller: _controller,
         autofocus: true,
         maxLines: 5,
         minLines: 3,
         textCapitalization: TextCapitalization.sentences,
-        decoration: const InputDecoration(
-          hintText: 'Write your feedback…',
-          border: OutlineInputBorder(),
+        decoration: InputDecoration(
+          hintText: context.tr('writeFeedbackHint'),
+          border: const OutlineInputBorder(),
         ),
       ),
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel')),
+            child: Text(context.tr('cancel'))),
         FilledButton(
           style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
           onPressed: () => Navigator.pop(context, _controller.text),
-          child: const Text('Send'),
+          child: Text(context.tr('sendAction')),
         ),
       ],
     );
