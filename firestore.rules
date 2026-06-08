@@ -1334,13 +1334,20 @@ service cloud.firestore {
       allow read: if isSignedIn() && inSchool(sid)
         && hasAnyRole(['principal', 'admin', 'owner', 'coordinator']);
 
-      // Append-only, and the log MUST be attributed to the creating user:
-      // actorUid is pinned to request.auth.uid so a user cannot forge an entry
-      // blaming someone else. Combined with the immutable-update + no-delete
-      // rules below, the actor on every record is now tamper-evident.
-      // (AuditService stamps actorUid = FirebaseAuth.currentUser.uid.)
-      allow create: if isSignedIn() && inSchool(sid)
-        && request.resource.data.actorUid == request.auth.uid;
+      // Server-side only (#1): audit entries are written by the `writeAudit`
+      // Cloud Function via the Admin SDK, which BYPASSES these rules. Direct
+      // client creation is denied, so a user cannot forge entries under another
+      // actor, spoof a role, or flood the log — the function stamps actor
+      // identity from the verified token.
+      //
+      // ⚠ DEPLOY ORDER: deploy the writeAudit function (and ship the app build
+      // that routes through it) BEFORE deploying this rule. The app keeps a
+      // direct-write fallback that this `false` will (intentionally) deny once
+      // live, so until both are out, leave this as the previous attributed-write
+      // rule:
+      //   allow create: if isSignedIn() && inSchool(sid)
+      //     && request.resource.data.actorUid == request.auth.uid;
+      allow create: if false;
 
       // Soft-delete only: admin may stamp a reason but cannot alter
       // any original audit fields (action, entity, before, after, etc.)

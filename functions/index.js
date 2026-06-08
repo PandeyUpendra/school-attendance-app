@@ -448,3 +448,61 @@ exports.deleteStudent = onCall(
     return { ok: true, studentId: docId };
   }
 );
+
+/**
+ * Callable: writeAudit({ schoolId, action, entity, entityId, before, after, reason })
+ *
+ * Server-side audit writer (#1). The actor identity (uid, email, role, name) is
+ * stamped from the VERIFIED token + the caller's allowed_users doc — never from
+ * client input — so entries can't be attributed to someone else or carry a
+ * spoofed role, and (once the audit_logs create rule is locked to Admin SDK
+ * only) clients can't write arbitrary or flooded entries directly. The
+ * before/after payloads are still supplied by the caller (the server can't know
+ * the "true" diff of an arbitrary client operation), but they are now bound to a
+ * server-verified actor.
+ */
+exports.writeAudit = onCall(
+  { cors: true, region: "us-central1" },
+  async (request) => {
+    const db = admin.firestore();
+    if (!request.auth || !request.auth.token || !request.auth.token.email) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    const d = request.data || {};
+    const action = String(d.action || "");
+    const entity = String(d.entity || "");
+    if (!action || !entity) {
+      throw new HttpsError("invalid-argument", "action and entity are required.");
+    }
+
+    const callerEmail = String(request.auth.token.email).toLowerCase();
+    const snap = await db.collection("allowed_users").doc(callerEmail).get();
+    const role = resolveCallerRole(callerEmail, snap); // 'admin' for root admin
+    const callerSchoolId = snap.exists ? snap.get("schoolId") : null;
+    // Confine the entry to the caller's own school; the root admin may target
+    // any school via the request payload.
+    const schoolId = role === "admin"
+      ? String(d.schoolId || callerSchoolId || "")
+      : callerSchoolId;
+    if (!schoolId) {
+      throw new HttpsError("failed-precondition", "No school for the audit entry.");
+    }
+
+    const entry = {
+      action,
+      entity,
+      entityId: String(d.entityId || ""),
+      actorUid: request.auth.uid,
+      actorEmail: callerEmail,
+      actorName: (snap.exists && snap.get("name")) || callerEmail,
+      actorRole: role || "unknown",
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (d.before && typeof d.before === "object") entry.before = d.before;
+    if (d.after && typeof d.after === "object") entry.after = d.after;
+    if (d.reason) entry.reason = String(d.reason);
+
+    await db.collection("schools").doc(schoolId).collection("audit_logs").add(entry);
+    return { ok: true };
+  }
+);

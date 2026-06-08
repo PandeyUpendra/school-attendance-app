@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/app_logger.dart';
 import 'auth_service.dart';
@@ -135,6 +136,28 @@ class AuditService extends BaseFirestoreService {
     Map<String, dynamic>? after,
     String? reason,
   }) async {
+    // Prefer the server-side writer (#1): the Cloud Function stamps the actor
+    // identity from the verified token, so entries can't be forged/flooded once
+    // the audit_logs create rule is locked to Admin SDK only. Falls back to the
+    // direct client write below if the function is unavailable (e.g. not yet
+    // deployed / offline) — that fallback is denied once the lockdown rule is
+    // live, by design.
+    try {
+      await FirebaseFunctions.instance.httpsCallable('writeAudit').call({
+        'schoolId': AuthService.currentSchoolId,
+        'action':   action,
+        'entity':   entity,
+        'entityId': entityId,
+        if (before != null) 'before': _sanitize(before),
+        if (after  != null) 'after':  _sanitize(after),
+        if (reason != null) 'reason': reason,
+      });
+      return;
+    } catch (e) {
+      AppLogger.e('AuditService',
+          'server writeAudit failed, trying direct write: $e', e);
+    }
+
     try {
       final session  = await AuthService().getSession() ?? {};
       final fbUser   = FirebaseAuth.instance.currentUser;
