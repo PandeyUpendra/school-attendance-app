@@ -4,6 +4,7 @@ import '../services/homework_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import '../widgets/refreshable_data.dart';
 
 /// Coordinator screen — view all homework across classes.
@@ -58,16 +59,16 @@ class _HomeworkOverviewScreenState extends State<HomeworkOverviewScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Homework?'),
+        title: Text(context.tr('deleteHomeworkQ')),
         content: Text('Delete "${hw.title}" posted by ${hw.teacherName}?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete',
-                  style: TextStyle(color: Colors.red))),
+              child: Text(context.tr('delete'),
+                  style: const TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -82,14 +83,14 @@ class _HomeworkOverviewScreenState extends State<HomeworkOverviewScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Homework Overview',
-                style: TextStyle(
+            Text(context.tr('homeworkOverview'),
+                style: const TextStyle(
                     fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('All assignments across classes',
-                style: TextStyle(fontSize: 12, color: Colors.white70)),
+            Text(context.tr('subHomeworkOverviewAll'),
+                style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
         actions: [

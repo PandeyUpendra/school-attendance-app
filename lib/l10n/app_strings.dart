@@ -302,6 +302,10 @@ class AppStrings {
     'noPaymentsYet':         {'en': 'No payments recorded yet.', 'hi': 'अभी कोई भुगतान दर्ज नहीं।'},
     'printReceipt':          {'en': 'Print Receipt',      'hi': 'रसीद प्रिंट करें'},
 
+    // ── Homework overview screen ─────────────────────────────────────────
+    'subHomeworkOverviewAll':{'en': 'All assignments across classes', 'hi': 'सभी कक्षाओं के असाइनमेंट'},
+    'deleteHomeworkQ':       {'en': 'Delete Homework?',   'hi': 'गृहकार्य हटाएँ?'},
+
     // ── Coordinator / Principal dashboards: tile subtitles ───────────────
     'subStaffTasksDesc':         {'en': 'Assign tasks to teachers and track progress', 'hi': 'शिक्षकों को कार्य सौंपें और प्रगति ट्रैक करें'},
     'subMeetingRecordsDesc':     {'en': 'Manage meetings, agenda points and teacher task assignments', 'hi': 'बैठकें, एजेंडा और शिक्षक कार्य प्रबंधित करें'},
