@@ -1074,6 +1074,14 @@ class AppStrings {
     'noMeetingsMatch':         {'en': 'No meetings match',    'hi': 'इससे मेल खाती कोई मीटिंग नहीं'},
     'noMeetingsYet':           {'en': 'No meetings yet',      'hi': 'अभी कोई मीटिंग नहीं'},
     'tapPlusNewMeeting':       {'en': 'Tap + to create a new meeting', 'hi': 'नई मीटिंग बनाने के लिए + दबाएँ'},
+    'thisMonthLabel':          {'en': 'This month',            'hi': 'इस महीने'},
+    'meetingsHeld':            {'en': 'meetings held',         'hi': 'मीटिंग हुईं'},
+    'allTime':                 {'en': 'All-time',              'hi': 'कुल'},
+    'totalMeetings':           {'en': 'total meetings',        'hi': 'कुल मीटिंग'},
+    'byLabel':                 {'en': 'By',                    'hi': 'द्वारा'},
+    'moreSuffix':              {'en': 'more',                  'hi': 'और'},
+    'viewDetails':             {'en': 'View Details',          'hi': 'विवरण देखें'},
+    'tapPlusFirstMeeting':     {'en': 'Tap + to create the first meeting', 'hi': 'पहली मीटिंग बनाने के लिए + दबाएँ'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then

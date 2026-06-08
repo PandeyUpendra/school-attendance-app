@@ -1,10 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/meeting.dart';
 import '../../services/meeting_service.dart';
 import '../../theme.dart';
 import '../../widgets/index_building_notice.dart';
 import 'meeting_detail_screen.dart';
+
+/// Localised label for a meeting filter (filter values stay English).
+String _localizedFilter(BuildContext c, String f) => switch (f) {
+      'This Month' => c.tr('filterThisMonth'),
+      'Completed' => c.tr('completedLabel'),
+      'Draft' => c.tr('draft'),
+      _ => c.tr('filterAll'),
+    };
+
+/// Localised label for a meeting status (stored status stays English).
+String _localizedStatus(BuildContext c, MeetingStatus s) => switch (s) {
+      MeetingStatus.draft => c.tr('draft'),
+      MeetingStatus.active => c.tr('statusActive'),
+      MeetingStatus.completed => c.tr('completedLabel'),
+    };
 
 class PrincipalMeetingRecordsScreen extends StatefulWidget {
   final String principalEmail;
@@ -70,7 +86,7 @@ class _PrincipalMeetingRecordsScreenState
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Meeting Records'),
+        title: Text(context.tr('meetingRecords')),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -87,7 +103,7 @@ class _PrincipalMeetingRecordsScreenState
               onChanged: (v) => setState(() => _search = v),
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: 'Search meetings...',
+                hintText: context.tr('searchMeetings'),
                 hintStyle: const TextStyle(color: Colors.white60),
                 prefixIcon: const Icon(Icons.search, color: Colors.white60),
                 suffixIcon: _search.isNotEmpty
@@ -121,7 +137,7 @@ class _PrincipalMeetingRecordsScreenState
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: FilterChip(
-                    label: Text(f),
+                    label: Text(_localizedFilter(context, f)),
                     selected: active,
                     onSelected: (_) => setState(() => _filter = f),
                     selectedColor: AppTheme.primary,
@@ -208,7 +224,7 @@ class _PrincipalMeetingRecordsScreenState
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppTheme.primary,
         icon: const Icon(Icons.add),
-        label: const Text('New Meeting'),
+        label: Text(context.tr('newMeeting')),
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(
@@ -229,7 +245,7 @@ class _PrincipalMeetingRecordsScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF error: $e')),
+          SnackBar(content: Text('${context.tr('pdfError')} $e')),
         );
       }
     }
@@ -261,13 +277,13 @@ class _PrincipalMeetingRecordsScreenState
             const SizedBox(height: 12),
             Text(
               _search.isNotEmpty
-                  ? 'No meetings match "$_search"'
-                  : 'No meetings yet',
+                  ? '${context.tr('noMeetingsMatch')} "$_search"'
+                  : context.tr('noMeetingsYet'),
               style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
             ),
             const SizedBox(height: 6),
             Text(
-              'Tap + to create the first meeting',
+              context.tr('tapPlusFirstMeeting'),
               style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
             ),
           ]),
@@ -296,11 +312,11 @@ class _MonthlySummaryCard extends StatelessWidget {
           const Icon(Icons.history_edu, color: Colors.white70, size: 28),
           const SizedBox(width: 14),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('This month: $meetingsThisMonth meetings held',
+            Text('${context.tr('thisMonthLabel')}: $meetingsThisMonth ${context.tr('meetingsHeld')}',
                 style: const TextStyle(color: Colors.white, fontSize: 14,
                     fontWeight: FontWeight.w600)),
             const SizedBox(height: 2),
-            Text('All-time: $totalMeetings total meetings',
+            Text('${context.tr('allTime')}: $totalMeetings ${context.tr('totalMeetings')}',
                 style: const TextStyle(color: Colors.white70, fontSize: 12)),
           ]),
         ]),
@@ -362,7 +378,7 @@ class _MeetingCard extends StatelessWidget {
                 color: _statusColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Text(meeting.status.label,
+              child: Text(_localizedStatus(context, meeting.status),
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -375,14 +391,14 @@ class _MeetingCard extends StatelessWidget {
               style: const TextStyle(
                   fontSize: 15, fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
-          Text('By: ${meeting.createdByName} · ${meeting.createdByRole}',
+          Text('${context.tr('byLabel')}: ${meeting.createdByName} · ${context.trRole(meeting.createdByRole)}',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
           const SizedBox(height: 10),
 
           // Points progress
           Row(children: [
-            Text('${meeting.points.length} points · '
-                '${meeting.discussedCount} discussed',
+            Text('${meeting.points.length} ${context.tr('pointsLower')} · '
+                '${meeting.discussedCount} ${context.tr('discussedLower')}',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
           ]),
           const SizedBox(height: 4),
@@ -407,7 +423,7 @@ class _MeetingCard extends StatelessWidget {
                 child: Text(
                   meeting.assignedTeacherNames.take(3).join(', ') +
                       (meeting.assignedTeacherNames.length > 3
-                          ? ' +${meeting.assignedTeacherNames.length - 3} more'
+                          ? ' +${meeting.assignedTeacherNames.length - 3} ${context.tr('moreSuffix')}'
                           : ''),
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                   maxLines: 1,
@@ -422,7 +438,7 @@ class _MeetingCard extends StatelessWidget {
             Expanded(
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.visibility_outlined, size: 16),
-                label: const Text('View Details', style: TextStyle(fontSize: 12)),
+                label: Text(context.tr('viewDetails'), style: const TextStyle(fontSize: 12)),
                 style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.primary,
                     side: const BorderSide(color: AppTheme.primary),
@@ -434,7 +450,7 @@ class _MeetingCard extends StatelessWidget {
             Expanded(
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.share_outlined, size: 16),
-                label: const Text('Share PDF', style: TextStyle(fontSize: 12)),
+                label: Text(context.tr('sharePdf'), style: const TextStyle(fontSize: 12)),
                 style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.danger,
                     side: const BorderSide(color: AppTheme.danger),
