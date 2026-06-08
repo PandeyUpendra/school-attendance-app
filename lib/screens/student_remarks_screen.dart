@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../l10n/app_strings.dart';
 import '../models/student.dart';
 import '../models/student_remark.dart';
 import '../services/auth_service.dart';
@@ -234,7 +235,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
       if (!mounted) return;
       setState(() { _saving = false; _resetInput(); });
 
-      _snack('Remark saved', color: Colors.green);
+      _snack(context.tr('remarkSaved'), color: Colors.green);
       _loadRemarks(s);
 
       if (sendWhatsApp) {
@@ -247,8 +248,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
         if (!mounted) return;
         if (!hasConsent) {
           _snack(
-            'Remark saved. WhatsApp not sent — parental consent to share this '
-            "child's data is not on record.",
+            context.tr('remarkSavedNoConsent'),
             color: Colors.orange,
           );
         } else {
@@ -268,7 +268,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
   Future<void> _openWhatsApp(String rawPhone, String message, String studentName) async {
     final phone = PhoneUtils.whatsAppNumber(rawPhone);
     if (phone.isEmpty) {
-      _snack('No phone number saved for this student', color: Colors.orange);
+      _snack(context.tr('noPhoneSaved'), color: Colors.orange);
       return;
     }
     final encoded = Uri.encodeComponent(message);
@@ -279,10 +279,10 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
       final launched = await canLaunchUrl(uri) &&
           await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!launched && mounted) {
-        _snack('WhatsApp is not available on this device', color: Colors.orange);
+        _snack(context.tr('whatsappNotAvailable'), color: Colors.orange);
       }
     } catch (_) {
-      if (mounted) _snack('WhatsApp is not available on this device', color: Colors.orange);
+      if (mounted) _snack(context.tr('whatsappNotAvailable'), color: Colors.orange);
     }
   }
 
@@ -293,15 +293,15 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete Remark'),
-        content: const Text('Remove this remark permanently?'),
+        title: Text(context.tr('deleteRemarkTitle')),
+        content: Text(context.tr('removeRemarkPermanently')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(context.tr('delete')),
           ),
         ],
       ),
@@ -338,12 +338,12 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Student Remarks',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('studentRemarks'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
             Text(
               widget.role == 'guardian'
-                  ? 'Send a message to the school'
-                  : 'Send observations to parents',
+                  ? context.tr('sendMessageToSchool')
+                  : context.tr('sendObservationsToParents'),
               style: const TextStyle(fontSize: 11, color: Colors.white60),
             ),
           ],
@@ -354,7 +354,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
         children: [
           // Class picker (coordinator)
           if (widget.role == 'coordinator' || widget.role == 'ownerPrincipal') ...[
-            _sectionLabel('Select Class'),
+            _sectionLabel(context.tr('selectClass')),
             _ClassDropdown(
               classes: _classes, selected: _selectedClass,
               onChanged: _onClassSelected,
@@ -364,17 +364,17 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
 
           // Student picker (teacher / coordinator)
           if (widget.role != 'guardian') ...[
-            _sectionLabel('Select Student'),
+            _sectionLabel(context.tr('selectStudent')),
             if (_selectedClass == null &&
                 (widget.role == 'coordinator' || widget.role == 'ownerPrincipal'))
-              _hintCard('Pick a class above first')
+              _hintCard(context.tr('pickClassFirst'))
             else if (_loadingStudents)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_classStudents.isEmpty)
-              _hintCard('No students found')
+              _hintCard(context.tr('noStudentsFound'))
             else
               _StudentDropdown(
                 students: _classStudents, selected: _selectedStudent,
@@ -391,7 +391,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
 
           // Add remark panel
           if (_selectedStudent != null) ...[
-            _sectionLabel('Add Remark'),
+            _sectionLabel(context.tr('addRemark')),
             _AddRemarkPanel(
               role:           widget.role,
               student:        _selectedStudent!,
@@ -414,14 +414,14 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
             const SizedBox(height: 24),
 
             // Remarks history
-            _sectionLabel('Remarks History'),
+            _sectionLabel(context.tr('remarksHistory')),
             if (_loadingRemarks)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_remarks.isEmpty)
-              _hintCard('No remarks yet for this student')
+              _hintCard(context.tr('noRemarksForStudent'))
             else
               ..._remarks.map((r) => _RemarkCard(
                     remark:   r,
@@ -494,8 +494,8 @@ class _AddRemarkPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final concernPresets = _isGuardian ? _kGuardianConcernPresets : _kNegativePresets;
     final praisePresets  = _isGuardian ? _kGuardianPraisePresets  : _kPositivePresets;
-    final concernLabel   = _isGuardian ? 'Concern / Information'  : 'Concern / Negative';
-    final praiseLabel    = _isGuardian ? 'Praise / Appreciation'  : 'Praise / Positive';
+    final concernLabel   = _isGuardian ? context.tr('concernInformation') : context.tr('concernNegative');
+    final praiseLabel    = _isGuardian ? context.tr('praiseAppreciation') : context.tr('praisePositive');
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -543,8 +543,8 @@ class _AddRemarkPanel extends StatelessWidget {
             onChanged:  (_) => setInner(() {}),
             decoration: InputDecoration(
               hintText: _isGuardian
-                  ? 'Tap a quick message above or type your own…'
-                  : 'Tap a quick remark above or type a custom message…',
+                  ? context.tr('guardianRemarkHint')
+                  : context.tr('teacherRemarkHint'),
               hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
               counterStyle: TextStyle(color: Colors.grey.shade400, fontSize: 11),
               filled: true,
@@ -576,8 +576,8 @@ class _AddRemarkPanel extends StatelessWidget {
                       width: 16, height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.send_rounded, size: 17),
-              label: const Text('Send to School',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              label: Text(context.tr('sendToSchool'),
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
@@ -596,7 +596,7 @@ class _AddRemarkPanel extends StatelessWidget {
                         width: 16, height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.save_alt_rounded, size: 17),
-                label: const Text('Save', style: TextStyle(fontWeight: FontWeight.w600)),
+                label: Text(context.tr('save'), style: const TextStyle(fontWeight: FontWeight.w600)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppTheme.primary,
                   side: const BorderSide(color: AppTheme.primary),
@@ -615,8 +615,8 @@ class _AddRemarkPanel extends StatelessWidget {
                         width: 16, height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.send_rounded, size: 17),
-                label: const Text('Save & Send WhatsApp',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                label: Text(context.tr('saveAndSendWhatsApp'),
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF25D366),
                   foregroundColor: Colors.white,
@@ -720,12 +720,12 @@ class _RemarkCard extends StatelessWidget {
     }
   }
 
-  String _roleLabel(String role) {
+  String _roleLabel(BuildContext context, String role) {
     switch (role) {
-      case 'principal':   return 'Principal';
-      case 'coordinator': return 'Coordinator';
-      case 'guardian':    return 'Guardian';
-      default:            return 'Teacher';
+      case 'principal':   return context.trRole('principal');
+      case 'coordinator': return context.trRole('coordinator');
+      case 'guardian':    return context.trRole('guardian');
+      default:            return context.trRole('teacher');
     }
   }
 
@@ -773,7 +773,7 @@ class _RemarkCard extends StatelessWidget {
                 Icon(isPositive ? Icons.star_rounded : Icons.warning_amber_rounded,
                     size: 10, color: accentColor),
                 const SizedBox(width: 3),
-                Text(isPositive ? 'Positive' : 'Concern',
+                Text(isPositive ? context.tr('positiveLabel') : context.tr('concernLabelShort'),
                     style: TextStyle(
                         fontSize: 10, fontWeight: FontWeight.w700,
                         color: accentColor)),
@@ -788,7 +788,7 @@ class _RemarkCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: roleColor.withValues(alpha: 0.3)),
               ),
-              child: Text(_roleLabel(remark.role),
+              child: Text(_roleLabel(context, remark.role),
                   style: TextStyle(
                       fontSize: 10, fontWeight: FontWeight.w700,
                       color: roleColor)),
@@ -801,8 +801,8 @@ class _RemarkCard extends StatelessWidget {
                   color: AppTheme.accent,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text('NEW',
-                    style: TextStyle(
+                child: Text(context.tr('newBadge'),
+                    style: const TextStyle(
                         fontSize: 9, fontWeight: FontWeight.w800,
                         color: Colors.white, letterSpacing: 0.5)),
               ),
@@ -810,9 +810,9 @@ class _RemarkCard extends StatelessWidget {
             const Spacer(),
             // WhatsApp sent indicator
             if (remark.whatsappSent)
-              const Tooltip(
-                message: 'Sent via WhatsApp',
-                child: Icon(Icons.send_rounded, size: 13, color: Color(0xFF25D366)),
+              Tooltip(
+                message: context.tr('sentViaWhatsapp'),
+                child: const Icon(Icons.send_rounded, size: 13, color: Color(0xFF25D366)),
               ),
             const SizedBox(width: 6),
             Text(_fmtTime(remark.timestamp),
@@ -858,7 +858,7 @@ class _ClassDropdown extends StatelessWidget {
     child: DropdownButtonHideUnderline(
       child: DropdownButton<String>(
         value: selected, isExpanded: true,
-        hint: Text('Choose a class',
+        hint: Text(context.tr('chooseClass'),
             style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
         items: classes.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
         onChanged: (v) { if (v != null) onChanged(v); },
@@ -888,11 +888,11 @@ class _StudentDropdown extends StatelessWidget {
     child: DropdownButtonHideUnderline(
       child: DropdownButton<Student>(
         value: selected, isExpanded: true,
-        hint: Text('Choose a student',
+        hint: Text(context.tr('chooseStudent'),
             style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
         items: students.map((s) => DropdownMenuItem(
           value: s,
-          child: Text('Roll ${s.roll}  —  ${s.name}',
+          child: Text('${context.tr('roll')} ${s.roll}  —  ${s.name}',
               overflow: TextOverflow.ellipsis),
         )).toList(),
         onChanged: (v) { if (v != null) onChanged(v); },
@@ -928,7 +928,7 @@ class _StudentCard extends StatelessWidget {
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(student.name,
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-        Text('${student.className}  ·  Roll ${student.roll}',
+        Text('${student.className}  ·  ${context.tr('roll')} ${student.roll}',
             style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
       ]),
     ]),
