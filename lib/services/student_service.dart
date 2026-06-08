@@ -54,6 +54,40 @@ class StudentService extends BaseFirestoreService {
   CollectionReference<Map<String, dynamic>> get _attendance =>
       schoolCollection(_schoolId, 'attendance');
 
+  // ── Attendance day-doc read cache (#72/#177) ────────────────────────────────
+  // Dashboards (coordinator/principal/owner/analytics) recompute recent- and
+  // consecutive-absence by fetching ~14–20 day docs PER class on every open,
+  // and the same day docs are re-fetched across `loadRecentAbsenceDays`,
+  // `loadConsecutiveAbsenceDays` and `loadMonthAttendance`. PAST day docs are
+  // effectively immutable (historical edits are lock-gated, #34), so caching
+  // them for a short TTL collapses those repeated reads. TODAY's doc is never
+  // cached (it mutates as marks come in), and any write invalidates its key.
+  static const Duration _dayDocTtl = Duration(seconds: 120);
+  static final Map<String, _DayDocEntry> _dayDocCache = {};
+
+  /// Fetches an attendance day doc's data, served from the short-TTL cache when
+  /// [cacheable] (i.e. a past day). Returns null when the doc doesn't exist.
+  Future<Map<String, dynamic>?> _dayDocData(String key,
+      {required bool cacheable}) async {
+    // Namespace by school — an owner can switch schools in-session and class
+    // names + date keys would otherwise collide across tenants.
+    final cacheKey = '$_schoolId/$key';
+    if (cacheable) {
+      final hit = _dayDocCache[cacheKey];
+      if (hit != null &&
+          DateTime.now().difference(hit.at) < _dayDocTtl) {
+        return hit.data;
+      }
+    }
+    final doc  = await _attendance.doc(key).get();
+    final data = doc.exists ? doc.data() : null;
+    if (cacheable) _dayDocCache[cacheKey] = _DayDocEntry(data, DateTime.now());
+    return data;
+  }
+
+  /// Drops a day-doc from the cache after a write so the next read is fresh.
+  void _invalidateDayDoc(String key) => _dayDocCache.remove('$_schoolId/$key');
+
   /// Direct students reference — used only by cascade-delete helpers.
   /// All normal CRUD goes through [_repo].
   CollectionReference<Map<String, dynamic>> get _studentsRef =>
@@ -566,6 +600,7 @@ class StudentService extends BaseFirestoreService {
         .doc(docKey)
         .set({'rolls': rolls, 'updatedAt': FieldValue.serverTimestamp()},
             SetOptions(merge: true));
+    _invalidateDayDoc(docKey);
     AuditService.emit(
       action:   isUpdate ? 'update' : 'create',
       entity:   'attendance',
@@ -589,6 +624,7 @@ class StudentService extends BaseFirestoreService {
         .doc(key)
         .set({'rolls': rolls, 'updatedAt': FieldValue.serverTimestamp()},
             SetOptions(merge: true));
+    _invalidateDayDoc(key);
   }
 
   /// Marks a student as 'Leave' for every day in the given range.
@@ -798,19 +834,18 @@ class StudentService extends BaseFirestoreService {
     final now    = SchoolClock.now();
     final prefix = className.replaceAll(' ', '_');
 
-    final docs = await Future.wait(
+    final datas = await Future.wait(
       List.generate(days, (i) {
         final date = now.subtract(Duration(days: i));
         final key  = '${prefix}_${date.year}-${date.month}-${date.day}';
-        return _attendance.doc(key).get();
+        return _dayDocData(key, cacheable: i != 0); // i==0 is today
       }),
     );
 
     final result = <int, int>{};
-    for (final doc in docs) {
-      if (!doc.exists || doc.data() == null) continue;
-      final rolls = Map<String, dynamic>.from(
-          (doc.data()!['rolls'] as Map?) ?? {});
+    for (final data in datas) {
+      if (data == null) continue;
+      final rolls = Map<String, dynamic>.from((data['rolls'] as Map?) ?? {});
       rolls.forEach((rollStr, status) {
         if (status == 'Absent' || status == 'Leave' || status == false) {
           final roll = int.tryParse(rollStr);
@@ -857,20 +892,24 @@ class StudentService extends BaseFirestoreService {
       String? schoolId}) async {
     final prefix      = className.replaceAll(' ', '_');
     final daysInMonth = DateTime(year, month + 1, 0).day;
+    final now         = SchoolClock.now();
+    final today       = DateTime(now.year, now.month, now.day);
 
-    final docs = await Future.wait(
+    final datas = await Future.wait(
       List.generate(daysInMonth, (i) {
         final day = i + 1;
-        return _attendance.doc('${prefix}_$year-$month-$day').get();
+        // Cache strictly-past days only; today (and any future day in the
+        // current month) is always read fresh.
+        final cacheable = DateTime(year, month, day).isBefore(today);
+        return _dayDocData('${prefix}_$year-$month-$day', cacheable: cacheable);
       }),
     );
 
     final result = <int, Map<int, String>>{};
-    for (var i = 0; i < docs.length; i++) {
-      final doc = docs[i];
-      if (!doc.exists || doc.data() == null) continue;
-      final rolls = Map<String, dynamic>.from(
-          (doc.data()!['rolls'] as Map?) ?? {});
+    for (var i = 0; i < datas.length; i++) {
+      final data = datas[i];
+      if (data == null) continue;
+      final rolls = Map<String, dynamic>.from((data['rolls'] as Map?) ?? {});
       if (rolls.isEmpty) continue;
       result[i + 1] = _parseRolls(rolls);
     }
@@ -884,21 +923,22 @@ class StudentService extends BaseFirestoreService {
     final now    = SchoolClock.now();
     final prefix = className.replaceAll(' ', '_');
 
-    final docs = await Future.wait(
+    // Ordered today→past; Future.wait preserves order so the streak walk below
+    // still sees days newest-first.
+    final datas = await Future.wait(
       List.generate(maxDays, (i) {
         final date = now.subtract(Duration(days: i));
         final key  = '${prefix}_${date.year}-${date.month}-${date.day}';
-        return _attendance.doc(key).get();
+        return _dayDocData(key, cacheable: i != 0); // i==0 is today
       }),
     );
 
     final streaks = <int, int>{};
     final broken  = <int>{};
 
-    for (final doc in docs) {
-      if (!doc.exists || doc.data() == null) continue;
-      final rolls = Map<String, dynamic>.from(
-          (doc.data()!['rolls'] as Map?) ?? {});
+    for (final data in datas) {
+      if (data == null) continue;
+      final rolls = Map<String, dynamic>.from((data['rolls'] as Map?) ?? {});
       if (rolls.isEmpty) continue;
 
       rolls.forEach((rollStr, status) {
@@ -1217,6 +1257,15 @@ class StudentService extends BaseFirestoreService {
   }
 }
 
+
+/// Cache entry for a past attendance day doc (#72/#177). [data] is null when the
+/// doc does not exist (a no-attendance day) — cached too so we don't re-fetch
+/// known-empty days.
+class _DayDocEntry {
+  final Map<String, dynamic>? data;
+  final DateTime at;
+  const _DayDocEntry(this.data, this.at);
+}
 
 // ── Data classes for summary (public — used by coordinator screens) ───────────
 
