@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../theme.dart';
 import '../widgets/email_text_form_field.dart';
 import '../services/auth_service.dart';
@@ -73,7 +74,7 @@ class _AdminScreenState extends State<AdminScreen> {
         _loading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not load users: $e'),
+        content: Text('${context.tr('couldNotLoadUsers')} $e'),
         backgroundColor: Colors.red.shade700,
         duration: const Duration(seconds: 8),
       ));
@@ -87,11 +88,11 @@ class _AdminScreenState extends State<AdminScreen> {
 
     if (email.isEmpty ||
         !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
-      _snack('Enter a valid email address');
+      _snack(context.tr('enterValidEmailAddress'));
       return;
     }
     if (_users.any((u) => u['email'] == email)) {
-      _snack('Email already registered');
+      _snack(context.tr('emailAlreadyRegistered'));
       return;
     }
 
@@ -111,7 +112,7 @@ class _AdminScreenState extends State<AdminScreen> {
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('$email added as Owner — setup link sent'),
+        content: Text('$email ${context.tr('addedAsOwnerSuffix')}'),
         backgroundColor: Colors.green.shade700,
         duration: const Duration(seconds: 3),
       ));
@@ -119,7 +120,7 @@ class _AdminScreenState extends State<AdminScreen> {
       AppLogger.e('AdminScreen', '_add failed for $email: $e', e);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not add $email: $e'),
+        content: Text('${context.tr('couldNotAdd')} $email: $e'),
         backgroundColor: Colors.red.shade700,
         duration: const Duration(seconds: 8),
       ));
@@ -145,19 +146,17 @@ class _AdminScreenState extends State<AdminScreen> {
           return AlertDialog(
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('Delete Owner Account'),
+            title: Text(context.tr('deleteOwnerAccount')),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'This permanently deletes $email AND the entire school it '
-                  'owns — every account, student, attendance and fee record. '
-                  'This cannot be undone.',
+                  '${context.tr('deleteOwnerBodyPre')} $email ${context.tr('deleteOwnerBodyPost')}',
                   style: const TextStyle(fontSize: 13.5),
                 ),
                 const SizedBox(height: 16),
-                Text('Type the email to confirm:',
+                Text(context.tr('typeEmailToConfirm'),
                     style:
                         TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                 const SizedBox(height: 8),
@@ -179,11 +178,11 @@ class _AdminScreenState extends State<AdminScreen> {
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancel')),
+                  child: Text(context.tr('cancel'))),
               TextButton(
                 onPressed: matches ? () => Navigator.pop(ctx, true) : null,
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Delete Permanently'),
+                child: Text(context.tr('deletePermanently')),
               ),
             ],
           );
@@ -197,15 +196,15 @@ class _AdminScreenState extends State<AdminScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(full
-            ? '$email and all related school data deleted'
-            : 'Access revoked for $email — deploy the deletion function for full cleanup'),
+            ? '$email ${context.tr('ownerDeletedSuffix')}'
+            : '${context.tr('accessRevokedPre')} $email — ${context.tr('accessRevokedPost')}'),
         backgroundColor: full ? Colors.green.shade700 : Colors.orange.shade800,
         duration: const Duration(seconds: 5),
       ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not delete $email: $e'),
+        content: Text('${context.tr('couldNotDelete')} $email: $e'),
         backgroundColor: Colors.red.shade700,
         duration: const Duration(seconds: 8),
       ));
@@ -220,16 +219,16 @@ class _AdminScreenState extends State<AdminScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Log Out'),
-        content: const Text('Are you sure you want to log out?'),
+        title: Text(context.tr('logOut')),
+        content: Text(context.tr('logoutConfirm')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
-            child: const Text('Log Out'),
+            child: Text(context.tr('logOut')),
           ),
         ],
       ),
@@ -303,7 +302,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   _buildInfoBanner(),
                   const SizedBox(height: 22),
                   Row(children: [
-                    _fieldLabel('REGISTERED OWNERS'),
+                    _fieldLabel(context.tr('registeredOwners')),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -350,13 +349,13 @@ class _AdminScreenState extends State<AdminScreen> {
                   color: AppTheme.primary, size: 20),
             ),
             const SizedBox(width: 12),
-            const Text('Add Owner',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(context.tr('addOwner'),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ]),
           const SizedBox(height: 18),
 
           // Role — fixed to Owner (admin creates owners only), shown read-only.
-          _fieldLabel('ROLE'),
+          _fieldLabel(context.tr('roleCaps')),
           const SizedBox(height: 6),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
@@ -368,9 +367,9 @@ class _AdminScreenState extends State<AdminScreen> {
             child: Row(children: [
               Icon(_roleIcon('owner'), color: _roleColor('owner'), size: 18),
               const SizedBox(width: 10),
-              const Text('Owner',
+              Text(context.trRole('owner'),
                   style:
-                      TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
               const Spacer(),
               Icon(Icons.lock_outline, size: 14, color: Colors.grey.shade400),
             ]),
@@ -378,7 +377,7 @@ class _AdminScreenState extends State<AdminScreen> {
           const SizedBox(height: 14),
 
           // Email
-          _fieldLabel('EMAIL ADDRESS'),
+          _fieldLabel(context.tr('emailAddressCaps')),
           const SizedBox(height: 6),
           EmailTextFormField(
             controller: _emailCtrl,
@@ -409,7 +408,7 @@ class _AdminScreenState extends State<AdminScreen> {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                'A password-setup link is emailed automatically.',
+                context.tr('passwordSetupLinkEmailed'),
                 style: TextStyle(fontSize: 11.5, color: Colors.grey.shade500),
               ),
             ),
@@ -434,7 +433,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.send_rounded, size: 18),
-              label: Text(_saving ? 'Sending…' : 'Add & Send Invite',
+              label: Text(_saving ? context.tr('sendingEllipsis') : context.tr('addAndSendInvite'),
                   style: const TextStyle(
                       fontSize: 15, fontWeight: FontWeight.w600)),
             ),
@@ -459,8 +458,7 @@ class _AdminScreenState extends State<AdminScreen> {
         const SizedBox(width: 10),
         Expanded(
           child: Text(
-            'Admins create Owner accounts only. Each role then creates the '
-            'roles below it in the hierarchy.',
+            context.tr('adminCreateOwnersNote'),
             style: TextStyle(
                 fontSize: 12.5,
                 height: 1.35,
@@ -487,10 +485,10 @@ class _AdminScreenState extends State<AdminScreen> {
         child: Column(children: [
           Icon(Icons.group_outlined, size: 54, color: Colors.grey.shade300),
           const SizedBox(height: 12),
-          Text('No owners registered yet',
+          Text(context.tr('noOwnersRegistered'),
               style: TextStyle(fontSize: 14.5, color: Colors.grey.shade400)),
           const SizedBox(height: 4),
-          Text('Add an email above to send an invite',
+          Text(context.tr('addEmailToInvite'),
               style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
         ]),
       );
@@ -535,7 +533,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: color.withValues(alpha: 0.3)),
                 ),
-                child: Text(role[0].toUpperCase() + role.substring(1),
+                child: Text(context.trRole(role),
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -562,7 +560,7 @@ class _AdminScreenState extends State<AdminScreen> {
           icon: const Icon(Icons.delete_outline,
               color: AppTheme.danger, size: 20),
           onPressed: () => _remove(email),
-          tooltip: 'Remove',
+          tooltip: context.tr('removeAction'),
         ),
       ]),
     );
@@ -599,8 +597,8 @@ class _AdminHero extends StatelessWidget {
                   const Icon(Icons.shield_outlined,
                       color: Colors.white70, size: 14),
                   const SizedBox(width: 6),
-                  const Text('ADMIN PANEL',
-                      style: TextStyle(
+                  Text(context.tr('adminPanel'),
+                      style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -609,8 +607,8 @@ class _AdminHero extends StatelessWidget {
                   TextButton.icon(
                     onPressed: onLogout,
                     icon: const Icon(Icons.logout, color: Colors.white, size: 18),
-                    label: const Text('Log Out',
-                        style: TextStyle(
+                    label: Text(context.tr('logOut'),
+                        style: const TextStyle(
                             color: Colors.white,
                             fontSize: 13,
                             fontWeight: FontWeight.w600)),
@@ -618,19 +616,19 @@ class _AdminHero extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 8)),
                   ),
                 ]),
-                const Padding(
-                  padding: EdgeInsets.only(left: 14, top: 6),
+                Padding(
+                  padding: const EdgeInsets.only(left: 14, top: 6),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Manage Access',
-                          style: TextStyle(
+                      Text(context.tr('manageAccess'),
+                          style: const TextStyle(
                               color: Colors.white,
                               fontSize: 24,
                               fontWeight: FontWeight.bold)),
-                      SizedBox(height: 4),
-                      Text('Create and manage owner login accounts',
-                          style: TextStyle(
+                      const SizedBox(height: 4),
+                      Text(context.tr('manageAccessSubtitle'),
+                          style: const TextStyle(
                               color: Colors.white70, fontSize: 12.5)),
                     ],
                   ),
