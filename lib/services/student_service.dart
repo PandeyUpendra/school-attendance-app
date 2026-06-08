@@ -232,6 +232,19 @@ class StudentService extends BaseFirestoreService {
   /// while its attendance/fee history stays intact under the old class.
   Future<void> markPromoted(Student student) async {
     await _repo.upsert(student.copyWith(promoted: true));
+    // Stale-notification window (#39): promotion archives the source record in
+    // place, leaving its guardian-targeted notices ('guardian:{oldClass}:{roll}')
+    // behind. If a future admission reuses that vacated class+roll, it would
+    // inherit the previous child's notices. Purge them now — the guardian has
+    // moved to the new class record and these old notices are no longer theirs.
+    // Best-effort: a failure here never blocks the promotion.
+    try {
+      await _cascadeDeleteStudentNotifications(student.className, student.roll);
+      await _cascadeDeleteStudentLeaveNotifications(
+          student.className, student.roll, student.name);
+    } catch (e) {
+      AppLogger.e('StudentService', 'promote notification purge failed: $e', e);
+    }
     AuditService.emit(
       action:   'update',
       entity:   'student',
