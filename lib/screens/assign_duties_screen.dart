@@ -1,7 +1,24 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../models/teacher.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
+
+/// Maps a stored (English) duty name to its localised label. Stored values stay
+/// in English for stability; only the display is translated. Custom duties the
+/// user typed are passed through unchanged.
+String _localizedDuty(BuildContext context, String duty) {
+  const keys = {
+    'Assembly':        'dutyAssembly',
+    'Lunch Bell Duty': 'dutyLunchBell',
+    'Gate Duty':       'dutyGate',
+    'Morning Duty':    'dutyMorning',
+    'Exam Duty':       'dutyExam',
+    'Library Duty':    'dutyLibrary',
+  };
+  final key = keys[duty];
+  return key == null ? duty : context.tr(key);
+}
 
 class AssignDutiesScreen extends StatefulWidget {
   const AssignDutiesScreen({super.key});
@@ -70,10 +87,10 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           backgroundColor: AppTheme.primaryDark,
           duration: const Duration(seconds: 2),
-          content: const Row(children: [
-            Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
-            SizedBox(width: 10),
-            Text('Duties saved for today'),
+          content: Row(children: [
+            const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Text(context.tr('dutiesSavedToday')),
           ]),
         ),
       );
@@ -97,14 +114,14 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
       builder: (ctx) => AlertDialog(
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Custom Duty — ${teacher.name}',
+        title: Text('${context.tr('customDutyPrefix')} ${teacher.name}',
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
           decoration: InputDecoration(
-            hintText: 'Enter duty name…',
+            hintText: context.tr('enterDutyName'),
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10)),
             focusedBorder: OutlineInputBorder(
@@ -120,7 +137,7 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.tr('cancel')),
           ),
           ElevatedButton(
             onPressed: () {
@@ -130,7 +147,7 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white),
-            child: const Text('Assign'),
+            child: Text(context.tr('assignAction')),
           ),
         ],
       ),
@@ -161,8 +178,8 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Assign Duties',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('assignDuties'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
             Text(_dateLabel(),
                 style:
                     const TextStyle(fontSize: 11, color: Colors.white70)),
@@ -178,8 +195,8 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
                       height: 18,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
-                  : const Text('Save',
-                      style: TextStyle(
+                  : Text(context.tr('save'),
+                      style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 15)),
@@ -196,11 +213,11 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
                     color: AppTheme.primary,
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
                     child: Row(children: [
-                      _StatBadge('${_teachers.length}', 'Teachers'),
+                      _StatBadge('${_teachers.length}', context.tr('teachersLabel')),
                       const SizedBox(width: 8),
-                      _StatBadge('$assigned',   'Assigned'),
+                      _StatBadge('$assigned',   context.tr('assignedLabel')),
                       const SizedBox(width: 8),
-                      _StatBadge('$unassigned', 'Free'),
+                      _StatBadge('$unassigned', context.tr('freeLabel')),
                     ]),
                   ),
                   Expanded(
@@ -237,10 +254,10 @@ class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       Icon(Icons.people_outline, size: 72, color: Colors.grey.shade300),
       const SizedBox(height: 16),
-      Text('No teachers added yet',
+      Text(context.tr('noTeachersAdded'),
           style: TextStyle(fontSize: 16, color: Colors.grey.shade400)),
       const SizedBox(height: 6),
-      Text('Add teachers in Manage Teachers first',
+      Text(context.tr('addTeachersFirst'),
           style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
     ]),
   );
@@ -361,7 +378,7 @@ class _DutyDropdown extends StatelessWidget {
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 110),
             child: Text(
-              hasDuty ? value : 'Assign Duty',
+              hasDuty ? _localizedDuty(context, value) : context.tr('assignDutyLabel'),
               style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -397,12 +414,12 @@ class _DutyDropdown extends StatelessWidget {
                 color: Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2)),
           ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text('Select Duty',
-                  style: TextStyle(
+              child: Text(context.tr('selectDuty'),
+                  style: const TextStyle(
                       fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
@@ -411,8 +428,8 @@ class _DutyDropdown extends StatelessWidget {
           if (value.isNotEmpty)
             ListTile(
               leading: const Icon(Icons.clear, color: Colors.red, size: 20),
-              title: const Text('Remove duty',
-                  style: TextStyle(color: Colors.red)),
+              title: Text(context.tr('removeDuty'),
+                  style: const TextStyle(color: Colors.red)),
               onTap: () {
                 Navigator.pop(context);
                 onChanged('');
@@ -426,7 +443,7 @@ class _DutyDropdown extends StatelessWidget {
                 color: duty == value ? color : Colors.grey.shade400,
                 size: 20,
               ),
-              title: Text(duty),
+              title: Text(_localizedDuty(context, duty)),
               trailing: duty == value
                   ? Icon(Icons.check, color: color, size: 18)
                   : null,
@@ -439,8 +456,8 @@ class _DutyDropdown extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.add_circle_outline,
                 color: AppTheme.primary, size: 20),
-            title: const Text('Custom duty…',
-                style: TextStyle(color: AppTheme.primary)),
+            title: Text(context.tr('customDutyDots'),
+                style: const TextStyle(color: AppTheme.primary)),
             onTap: () {
               Navigator.pop(context);
               onCustom();

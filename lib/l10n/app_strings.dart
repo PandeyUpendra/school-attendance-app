@@ -385,6 +385,27 @@ class AppStrings {
     'noTasksAssigned':       {'en': 'No tasks assigned',  'hi': 'कोई कार्य नहीं सौंपा गया'},
     'allCaughtUp':           {'en': 'You are all caught up!', 'hi': 'आपका सब कुछ पूरा है!'},
 
+    // ── Assign duties screen ─────────────────────────────────────────────
+    'dutiesSavedToday':      {'en': 'Duties saved for today', 'hi': 'आज की ड्यूटी सहेजी गई'},
+    'customDutyPrefix':      {'en': 'Custom Duty —',      'hi': 'कस्टम ड्यूटी —'},
+    'enterDutyName':         {'en': 'Enter duty name…',   'hi': 'ड्यूटी का नाम दर्ज करें…'},
+    'assignAction':          {'en': 'Assign',             'hi': 'सौंपें'},
+    'teachersLabel':         {'en': 'Teachers',           'hi': 'शिक्षक'},
+    'assignedLabel':         {'en': 'Assigned',           'hi': 'सौंपी गई'},
+    'freeLabel':             {'en': 'Free',               'hi': 'खाली'},
+    'noTeachersAdded':       {'en': 'No teachers added yet', 'hi': 'अभी तक कोई शिक्षक नहीं जोड़ा गया'},
+    'addTeachersFirst':      {'en': 'Add teachers in Manage Teachers first', 'hi': 'पहले शिक्षक प्रबंधन में शिक्षक जोड़ें'},
+    'assignDutyLabel':       {'en': 'Assign Duty',        'hi': 'ड्यूटी सौंपें'},
+    'selectDuty':            {'en': 'Select Duty',        'hi': 'ड्यूटी चुनें'},
+    'removeDuty':            {'en': 'Remove duty',        'hi': 'ड्यूटी हटाएँ'},
+    'customDutyDots':        {'en': 'Custom duty…',       'hi': 'कस्टम ड्यूटी…'},
+    'dutyAssembly':          {'en': 'Assembly',           'hi': 'सभा'},
+    'dutyLunchBell':         {'en': 'Lunch Bell Duty',    'hi': 'लंच बेल ड्यूटी'},
+    'dutyGate':              {'en': 'Gate Duty',          'hi': 'गेट ड्यूटी'},
+    'dutyMorning':           {'en': 'Morning Duty',       'hi': 'सुबह की ड्यूटी'},
+    'dutyExam':              {'en': 'Exam Duty',          'hi': 'परीक्षा ड्यूटी'},
+    'dutyLibrary':           {'en': 'Library Duty',       'hi': 'पुस्तकालय ड्यूटी'},
+
     // ── Student selection (guardian) ─────────────────────────────────────
     'selectStudent':         {'en': 'Select Student',     'hi': 'छात्र चुनें'},
     'welcomeBack':           {'en': 'Welcome Back!',      'hi': 'वापसी पर स्वागत है!'},
