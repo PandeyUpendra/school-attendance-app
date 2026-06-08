@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/deleted_student.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
@@ -33,7 +34,7 @@ class DeletedStudentsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Deleted Students'),
+        title: Text(context.tr('deletedStudents')),
       ),
       body: StreamBuilder<List<DeletedStudent>>(
         stream: StudentService().watchDeletedStudents(),
@@ -60,13 +61,14 @@ class DeletedStudentsScreen extends StatelessWidget {
             // Stream is live; pull just gives tactile feedback.
             onRefresh: () async =>
                 Future<void>.delayed(const Duration(milliseconds: 400)),
-            loadingMessage: 'Loading deleted students…',
+            loadingMessage: context.tr('loadingDeletedStudents'),
             emptyMessage: _scoped
-                ? 'No deleted students in this class'
-                : 'No deleted students yet',
-            errorMessage: 'Could not load deleted students',
-            builder: (context) =>
-                _scoped ? _buildFlat(items) : _buildGroupedByClass(items),
+                ? context.tr('noDeletedStudentsInClass')
+                : context.tr('noDeletedStudentsYet'),
+            errorMessage: context.tr('couldNotLoadDeletedStudents'),
+            builder: (context) => _scoped
+                ? _buildFlat(items)
+                : _buildGroupedByClass(context, items),
           );
         },
       ),
@@ -83,10 +85,11 @@ class DeletedStudentsScreen extends StatelessWidget {
   }
 
   /// Coordinator / principal view: grouped under per-class section headers.
-  Widget _buildGroupedByClass(List<DeletedStudent> items) {
+  Widget _buildGroupedByClass(BuildContext context, List<DeletedStudent> items) {
     final groups = <String, List<DeletedStudent>>{};
     for (final s in items) {
-      final cls = s.className.trim().isEmpty ? 'Unknown class' : s.className;
+      final cls =
+          s.className.trim().isEmpty ? context.tr('unknownClass') : s.className;
       groups.putIfAbsent(cls, () => []).add(s);
     }
     final classKeys = groups.keys.toList()..sort(_compareClasses);
@@ -150,7 +153,7 @@ class _ClassHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              '$count student${count == 1 ? '' : 's'}',
+              '$count ${count == 1 ? context.tr('studentWord') : context.tr('studentsWord')}',
               style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -170,8 +173,8 @@ class _DeletedStudentCard extends StatelessWidget {
 
   const _DeletedStudentCard({required this.student});
 
-  String _fmtDate(Timestamp? ts) {
-    if (ts == null) return 'Date unknown';
+  String _fmtDate(BuildContext context, Timestamp? ts) {
+    if (ts == null) return context.tr('dateUnknown');
     final d = ts.toDate();
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -184,8 +187,9 @@ class _DeletedStudentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sectionBit =
-        student.section.trim().isEmpty ? '' : ' · Sec ${student.section}';
+    final sectionBit = student.section.trim().isEmpty
+        ? ''
+        : ' · ${context.tr('secPrefix')} ${student.section}';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -226,7 +230,7 @@ class _DeletedStudentCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Roll ${student.roll} · ${student.className}$sectionBit',
+                    '${context.tr('roll')} ${student.roll} · ${student.className}$sectionBit',
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 4),
@@ -236,7 +240,7 @@ class _DeletedStudentCard extends StatelessWidget {
                           size: 12, color: Colors.grey.shade500),
                       const SizedBox(width: 4),
                       Text(
-                        'Deleted ${_fmtDate(student.deletedAt)}',
+                        '${context.tr('deletedPrefix')} ${_fmtDate(context, student.deletedAt)}',
                         style: TextStyle(
                             fontSize: 11, color: Colors.grey.shade500),
                       ),

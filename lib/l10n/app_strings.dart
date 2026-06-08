@@ -385,6 +385,25 @@ class AppStrings {
     'noTasksAssigned':       {'en': 'No tasks assigned',  'hi': 'कोई कार्य नहीं सौंपा गया'},
     'allCaughtUp':           {'en': 'You are all caught up!', 'hi': 'आपका सब कुछ पूरा है!'},
 
+    // ── Student selection (guardian) ─────────────────────────────────────
+    'selectStudent':         {'en': 'Select Student',     'hi': 'छात्र चुनें'},
+    'welcomeBack':           {'en': 'Welcome Back!',      'hi': 'वापसी पर स्वागत है!'},
+    'pleaseSelectStudentDash':{'en': 'Please select a student to view their dashboard.', 'hi': 'डैशबोर्ड देखने के लिए एक छात्र चुनें।'},
+    'rollNoColon':           {'en': 'Roll No:',           'hi': 'रोल नंबर:'},
+    'studentLabel':          {'en': 'Student',            'hi': 'छात्र'},
+
+    // ── Deleted students screen ──────────────────────────────────────────
+    'loadingDeletedStudents':{'en': 'Loading deleted students…', 'hi': 'हटाए गए छात्र लोड हो रहे हैं…'},
+    'noDeletedStudentsInClass':{'en': 'No deleted students in this class', 'hi': 'इस कक्षा में कोई हटाया गया छात्र नहीं'},
+    'noDeletedStudentsYet':  {'en': 'No deleted students yet', 'hi': 'अभी तक कोई हटाया गया छात्र नहीं'},
+    'couldNotLoadDeletedStudents':{'en': 'Could not load deleted students', 'hi': 'हटाए गए छात्र लोड नहीं हो सके'},
+    'unknownClass':          {'en': 'Unknown class',      'hi': 'अज्ञात कक्षा'},
+    'studentWord':           {'en': 'student',            'hi': 'छात्र'},
+    'studentsWord':          {'en': 'students',           'hi': 'छात्र'},
+    'dateUnknown':           {'en': 'Date unknown',       'hi': 'तिथि अज्ञात'},
+    'secPrefix':             {'en': 'Sec',                'hi': 'सेक्शन'},
+    'deletedPrefix':         {'en': 'Deleted',            'hi': 'हटाया गया'},
+
     // ── To-do list screen ────────────────────────────────────────────────
     'addTask':               {'en': 'Add Task',           'hi': 'कार्य जोड़ें'},
     'addTodoTask':           {'en': 'Add To-Do Task',     'hi': 'टू-डू कार्य जोड़ें'},

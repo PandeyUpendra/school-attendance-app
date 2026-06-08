@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../theme.dart';
 import 'guardian_dashboard.dart';
 
@@ -12,7 +13,7 @@ class StudentSelectionScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Select Student'),
+        title: Text(context.tr('selectStudent')),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -23,21 +24,21 @@ class StudentSelectionScreen extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             color: AppTheme.primary,
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome Back!',
-                  style: TextStyle(
+                  context.tr('welcomeBack'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
-                  'Please select a student to view their dashboard.',
-                  style: TextStyle(
+                  context.tr('pleaseSelectStudentDash'),
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 14,
                   ),
@@ -53,7 +54,8 @@ class StudentSelectionScreen extends StatelessWidget {
                 final parts = links[index].split('|');
                 final sClass = parts[0];
                 final sRoll = parts[1];
-                final sName = parts.length > 2 ? parts[2] : 'Student';
+                final sName =
+                    parts.length > 2 ? parts[2] : context.tr('studentLabel');
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -104,7 +106,7 @@ class StudentSelectionScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '$sClass · Roll No: $sRoll',
+                                  '$sClass · ${context.tr('rollNoColon')} $sRoll',
                                   style: TextStyle(
                                     color: Colors.grey.shade600,
                                     fontSize: 14,
