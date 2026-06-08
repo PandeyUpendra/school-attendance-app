@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/school_onboarding.dart';
 import '../../theme.dart';
+
+/// Localised label for a fee frequency (stored value stays English).
+String _localizedFreq(BuildContext c, String f) => switch (f) {
+      'Quarterly' => c.tr('freqQuarterly'),
+      'Half-Yearly' => c.tr('freqHalfYearly'),
+      'Annually' => c.tr('freqAnnually'),
+      _ => c.tr('freqMonthly'),
+    };
 
 class Step4Fees extends StatefulWidget {
   final SchoolOnboarding initial;
@@ -64,14 +73,14 @@ class Step4FeesState extends State<Step4Fees> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _label('Fee Frequency *'),
+          _label('${context.tr('feeFrequencyLabel')} *'),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: _frequencies.map((f) {
               final sel = f == _frequency;
               return ChoiceChip(
-                label: Text(f),
+                label: Text(_localizedFreq(context, f)),
                 selected: sel,
                 selectedColor: AppTheme.primaryLight,
                 onSelected: (_) {
@@ -82,7 +91,7 @@ class Step4FeesState extends State<Step4Fees> {
             }).toList(),
           ),
           const SizedBox(height: 18),
-          _label('Fee Due Date *'),
+          _label('${context.tr('feeDueDateLabel')} *'),
           DropdownButtonFormField<int>(
             value: _dueDate,
             decoration: InputDecoration(
@@ -91,7 +100,7 @@ class Step4FeesState extends State<Step4Fees> {
               isDense: true,
             ),
             items: List.generate(28, (i) => i + 1)
-                .map((n) => DropdownMenuItem(value: n, child: Text('${_ordinal(n)} of every month')))
+                .map((n) => DropdownMenuItem(value: n, child: Text('${_ordinal(n)} ${context.tr('ofEveryMonth')}')))
                 .toList(),
             onChanged: (v) {
               if (v != null) {
@@ -104,8 +113,8 @@ class Step4FeesState extends State<Step4Fees> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Late Fee Applicable',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              Text(context.tr('lateFeeApplicable'),
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
               Switch(
                 value: _lateEnabled,
                 activeColor: AppTheme.primary,
@@ -122,7 +131,7 @@ class Step4FeesState extends State<Step4Fees> {
               controller: _lateCtrl,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                labelText: 'Late Fee Per Day (₹) *',
+                labelText: '${context.tr('lateFeePerDayLabel')} *',
                 prefixIcon: const Icon(Icons.currency_rupee_outlined),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 isDense: true,
@@ -131,14 +140,14 @@ class Step4FeesState extends State<Step4Fees> {
               validator: _lateEnabled
                   ? (v) {
                       final n = int.tryParse(v ?? '');
-                      if (n == null || n <= 0) return 'Enter a valid amount';
+                      if (n == null || n <= 0) return context.tr('enterValidAmount');
                       return null;
                     }
                   : null,
             ),
           ],
           const SizedBox(height: 18),
-          _label('Reminder Days Before Due  ($_reminderDays days)'),
+          _label('${context.tr('reminderDaysBeforeDue')}  ($_reminderDays ${context.tr('daysLower')})'),
           Row(children: [
             IconButton(
               icon: const Icon(Icons.remove_circle_outline),

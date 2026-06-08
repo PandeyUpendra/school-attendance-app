@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/school_onboarding.dart';
 import '../../services/auth_service.dart';
 import '../../theme.dart';
@@ -97,7 +98,7 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
       setState(() => _uploadingLogo = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Logo upload failed: $e')));
+            SnackBar(content: Text('${context.tr('logoUploadFailed')} $e')));
       }
     }
   }
@@ -113,14 +114,14 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
           const SizedBox(height: 20),
           _field(
             controller: _nameCtrl,
-            label: 'School Name *',
+            label: '${context.tr('schoolNameLabel')} *',
             icon: Icons.school_outlined,
             onChanged: (_) => _notify(),
-            validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+            validator: (v) => (v ?? '').trim().isEmpty ? context.tr('validationRequired') : null,
           ),
           const SizedBox(height: 14),
           _dropdown(
-            label: 'School Type *',
+            label: '${context.tr('schoolTypeLabel')} *',
             value: _schoolType,
             items: _types,
             icon: Icons.business_outlined,
@@ -131,7 +132,7 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
           ),
           const SizedBox(height: 14),
           _dropdown(
-            label: 'Board *',
+            label: '${context.tr('boardLabel')} *',
             value: _board,
             items: _boards,
             icon: Icons.menu_book_outlined,
@@ -143,16 +144,16 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
           const SizedBox(height: 14),
           _field(
             controller: _phoneCtrl,
-            label: 'School Phone *',
+            label: '${context.tr('schoolPhoneLabel')} *',
             icon: Icons.phone_outlined,
             keyboardType: TextInputType.phone,
             maxLength: 10,
             onChanged: (_) => _notify(),
             validator: (v) {
               final s = (v ?? '').trim();
-              if (s.isEmpty) return 'Required';
+              if (s.isEmpty) return context.tr('validationRequired');
               if (s.length != 10 || !RegExp(r'^\d{10}$').hasMatch(s)) {
-                return 'Enter a valid 10-digit number';
+                return context.tr('validPhone10');
               }
               return null;
             },
@@ -163,14 +164,14 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
             onChanged: (_) => _notify(),
             validator: (v) {
               final s = (v ?? '').trim();
-              if (s.isEmpty) return 'Required';
+              if (s.isEmpty) return context.tr('validationRequired');
               if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(s)) {
-                return 'Enter a valid email';
+                return context.tr('validEmailMsg');
               }
               return null;
             },
             decoration: InputDecoration(
-              labelText: 'School Email *',
+              labelText: '${context.tr('schoolEmailLabel')} *',
               prefixIcon: const Icon(Icons.email_outlined),
               counterText: '',
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -180,15 +181,15 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
           const SizedBox(height: 14),
           _field(
             controller: _principalCtrl,
-            label: 'Principal Name *',
+            label: '${context.tr('principalNameLabel')} *',
             icon: Icons.person_outline,
             onChanged: (_) => _notify(),
-            validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+            validator: (v) => (v ?? '').trim().isEmpty ? context.tr('validationRequired') : null,
           ),
           const SizedBox(height: 14),
           _field(
             controller: _yearCtrl,
-            label: 'Established Year (optional)',
+            label: context.tr('establishedYearLabel'),
             icon: Icons.calendar_today_outlined,
             keyboardType: TextInputType.number,
             maxLength: 4,
@@ -241,7 +242,7 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
         ),
         const SizedBox(height: 8),
         Text(
-          _logoUrl.isEmpty ? 'Tap to add school logo' : 'Tap to change logo',
+          _logoUrl.isEmpty ? context.tr('tapAddLogo') : context.tr('tapChangeLogo'),
           style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
         ),
       ]),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/school_onboarding.dart';
 import '../../theme.dart';
 
@@ -91,15 +92,15 @@ class Step3AcademicState extends State<Step3Academic> {
     return true;
   }
 
-  String? get _rangeError {
+  String? get _rangeErrorKey {
     if (!_validated) return null;
-    if (_toIdx < _fromIdx) return 'Class To must be ≥ Class From';
+    if (_toIdx < _fromIdx) return 'classToError';
     return null;
   }
 
-  String? get _sectionError {
+  String? get _sectionErrorKey {
     if (!_validated) return null;
-    if (_sections.isEmpty) return 'Select at least one section';
+    if (_sections.isEmpty) return 'selectOneSection';
     return null;
   }
 
@@ -113,32 +114,32 @@ class Step3AcademicState extends State<Step3Academic> {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        _label('Class Range *'),
+        _label('${context.tr('classRange')} *'),
         Row(children: [
-          Expanded(child: _classDropdown('From', _fromIdx, (v) {
+          Expanded(child: _classDropdown(context.tr('rangeFrom'), _fromIdx, (v) {
             setState(() => _fromIdx = v);
             if (_toIdx < v) setState(() => _toIdx = v);
             _notify();
           })),
           const SizedBox(width: 12),
-          Expanded(child: _classDropdown('To', _toIdx, (v) {
+          Expanded(child: _classDropdown(context.tr('rangeTo'), _toIdx, (v) {
             setState(() => _toIdx = v);
             _notify();
           })),
         ]),
-        if (_rangeError != null)
+        if (_rangeErrorKey != null)
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Text(_rangeError!, style: const TextStyle(color: AppTheme.danger, fontSize: 12)),
+            child: Text(context.tr(_rangeErrorKey!), style: const TextStyle(color: AppTheme.danger, fontSize: 12)),
           ),
         const SizedBox(height: 18),
-        _label('Sections per Class *'),
+        _label('${context.tr('sectionsPerClass')} *'),
         Wrap(
           spacing: 8,
           children: _sectionOptions.map((s) {
             final sel = _sections.contains(s);
             return FilterChip(
-              label: Text('Section $s'),
+              label: Text('${context.tr('sectionWord')} $s'),
               selected: sel,
               selectedColor: AppTheme.primaryLight,
               checkmarkColor: AppTheme.primary,
@@ -156,20 +157,20 @@ class Step3AcademicState extends State<Step3Academic> {
             );
           }).toList(),
         ),
-        if (_sectionError != null)
+        if (_sectionErrorKey != null)
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Text(_sectionError!, style: const TextStyle(color: AppTheme.danger, fontSize: 12)),
+            child: Text(context.tr(_sectionErrorKey!), style: const TextStyle(color: AppTheme.danger, fontSize: 12)),
           ),
         if (_sections.isNotEmpty && _toIdx >= _fromIdx) ...[
           const SizedBox(height: 8),
           Text(
-            'Classes: ${_generateClassList().join(", ")}',
+            '${context.tr('classesColon')}: ${_generateClassList().join(", ")}',
             style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
           ),
         ],
         const SizedBox(height: 18),
-        _label('Academic Year Starts *'),
+        _label('${context.tr('academicYearStarts')} *'),
         _segmented(
           options: const ['April', 'June'],
           selected: _yearStart,
@@ -179,7 +180,7 @@ class Step3AcademicState extends State<Step3Academic> {
           },
         ),
         const SizedBox(height: 18),
-        _label('Working Days *'),
+        _label('${context.tr('workingDaysLabel')} *'),
         _segmented(
           options: const ['Mon-Sat', 'Mon-Fri'],
           selected: _workingDays,
@@ -189,7 +190,7 @@ class Step3AcademicState extends State<Step3Academic> {
           },
         ),
         const SizedBox(height: 18),
-        _label('Periods Per Day *  ($_periods)'),
+        _label('${context.tr('periodsPerDay')} *  ($_periods)'),
         Row(children: [
           IconButton(
             icon: const Icon(Icons.remove_circle_outline),
@@ -216,7 +217,7 @@ class Step3AcademicState extends State<Step3Academic> {
         ]),
         const SizedBox(height: 18),
         _dropdownInt(
-          label: 'Period Duration *',
+          label: '${context.tr('periodDurationLabel')} *',
           value: _duration,
           items: _durations,
           suffix: ' min',
@@ -224,10 +225,10 @@ class Step3AcademicState extends State<Step3Academic> {
         ),
         const SizedBox(height: 14),
         _dropdownInt(
-          label: 'Lunch Break After Period *',
+          label: '${context.tr('lunchBreakAfterPeriod')} *',
           value: _lunch.clamp(1, maxLunch),
           items: List.generate(maxLunch, (i) => i + 1),
-          prefix: 'After period ',
+          prefix: '${context.tr('afterPeriodPrefix')} ',
           onChanged: (v) { setState(() => _lunch = v); _notify(); },
         ),
         const SizedBox(height: 20),

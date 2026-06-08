@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/school_onboarding.dart';
 
 class Step2Address extends StatefulWidget {
@@ -80,22 +81,22 @@ class Step2AddressState extends State<Step2Address> {
             controller: _addressCtrl,
             maxLines: 3,
             textCapitalization: TextCapitalization.sentences,
-            decoration: _deco('Full Address *', Icons.location_on_outlined),
+            decoration: _deco('${context.tr('fullAddressLabel')} *', Icons.location_on_outlined),
             onChanged: (_) => _notify(),
-            validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+            validator: (v) => (v ?? '').trim().isEmpty ? context.tr('validationRequired') : null,
           ),
           const SizedBox(height: 14),
           TextFormField(
             controller: _cityCtrl,
             textCapitalization: TextCapitalization.words,
-            decoration: _deco('City *', Icons.location_city_outlined),
+            decoration: _deco('${context.tr('cityLabel')} *', Icons.location_city_outlined),
             onChanged: (_) => _notify(),
-            validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
+            validator: (v) => (v ?? '').trim().isEmpty ? context.tr('validationRequired') : null,
           ),
           const SizedBox(height: 14),
           DropdownButtonFormField<String>(
             value: _state.isEmpty ? null : _state,
-            decoration: _deco('State *', Icons.map_outlined),
+            decoration: _deco('${context.tr('stateLabel')} *', Icons.map_outlined),
             isExpanded: true,
             items: _states
                 .map((s) => DropdownMenuItem(value: s, child: Text(s)))
@@ -104,20 +105,20 @@ class Step2AddressState extends State<Step2Address> {
               setState(() => _state = v ?? '');
               _notify();
             },
-            validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+            validator: (v) => (v == null || v.isEmpty) ? context.tr('validationRequired') : null,
           ),
           const SizedBox(height: 14),
           TextFormField(
             controller: _pinCtrl,
             keyboardType: TextInputType.number,
             maxLength: 6,
-            decoration: _deco('PIN Code *', Icons.pin_drop_outlined)
+            decoration: _deco('${context.tr('pinCodeLabel')} *', Icons.pin_drop_outlined)
                 .copyWith(counterText: ''),
             onChanged: (_) => _notify(),
             validator: (v) {
               final s = (v ?? '').trim();
-              if (s.isEmpty) return 'Required';
-              if (!RegExp(r'^\d{6}$').hasMatch(s)) return 'Enter a valid 6-digit PIN';
+              if (s.isEmpty) return context.tr('validationRequired');
+              if (!RegExp(r'^\d{6}$').hasMatch(s)) return context.tr('validPin6');
               return null;
             },
           ),
@@ -125,7 +126,7 @@ class Step2AddressState extends State<Step2Address> {
           TextFormField(
             controller: _websiteCtrl,
             keyboardType: TextInputType.url,
-            decoration: _deco('School Website (optional)', Icons.language_outlined),
+            decoration: _deco(context.tr('schoolWebsiteLabel'), Icons.language_outlined),
             onChanged: (_) => _notify(),
           ),
           const SizedBox(height: 20),

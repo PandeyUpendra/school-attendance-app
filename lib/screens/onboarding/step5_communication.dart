@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/school_onboarding.dart';
 import '../../theme.dart';
+
+/// Localised label for a preferred-language choice (stored value stays English).
+String _localizedLang(BuildContext c, String l) => switch (l) {
+      'Hindi' => c.tr('langHindi'),
+      'Both' => c.tr('langBoth'),
+      _ => c.tr('langEnglish'),
+    };
 
 class Step5Communication extends StatefulWidget {
   final SchoolOnboarding initial;
@@ -67,7 +75,7 @@ class Step5CommunicationState extends State<Step5Communication> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _toggleRow('WhatsApp Notifications', _whatsapp, (v) {
+          _toggleRow(context.tr('whatsappNotifications'), _whatsapp, (v) {
             setState(() => _whatsapp = v);
             _notify();
           }),
@@ -78,7 +86,7 @@ class Step5CommunicationState extends State<Step5Communication> {
               keyboardType: TextInputType.phone,
               maxLength: 10,
               decoration: InputDecoration(
-                labelText: 'School WhatsApp Number *',
+                labelText: '${context.tr('schoolWhatsappNumber')} *',
                 prefixText: '+91 ',
                 prefixIcon: const Icon(Icons.chat_outlined),
                 counterText: '',
@@ -89,21 +97,21 @@ class Step5CommunicationState extends State<Step5Communication> {
               validator: _whatsapp
                   ? (v) {
                       final s = (v ?? '').trim();
-                      if (s.isEmpty) return 'Required';
-                      if (!RegExp(r'^\d{10}$').hasMatch(s)) return 'Enter valid 10-digit number';
+                      if (s.isEmpty) return context.tr('validationRequired');
+                      if (!RegExp(r'^\d{10}$').hasMatch(s)) return context.tr('validPhone10');
                       return null;
                     }
                   : null,
             ),
           ],
           const SizedBox(height: 18),
-          _label('Preferred Language *'),
+          _label('${context.tr('preferredLanguageLabel')} *'),
           Wrap(
             spacing: 8,
             children: _langs.map((l) {
               final sel = l == _language;
               return ChoiceChip(
-                label: Text(l),
+                label: Text(_localizedLang(context, l)),
                 selected: sel,
                 selectedColor: AppTheme.primaryLight,
                 onSelected: (_) {
@@ -114,13 +122,13 @@ class Step5CommunicationState extends State<Step5Communication> {
             }).toList(),
           ),
           const SizedBox(height: 18),
-          _toggleRow('Bus Service Available', _bus, (v) {
+          _toggleRow(context.tr('busServiceAvailable'), _bus, (v) {
             setState(() => _bus = v);
             _notify();
           }),
           if (_bus) ...[
             const SizedBox(height: 12),
-            _label('Number of Routes  ($_routes)'),
+            _label('${context.tr('numberOfRoutes')}  ($_routes)'),
             Row(children: [
               IconButton(
                 icon: const Icon(Icons.remove_circle_outline),
@@ -149,7 +157,7 @@ class Step5CommunicationState extends State<Step5Communication> {
             textCapitalization: TextCapitalization.sentences,
             maxLength: 100,
             decoration: InputDecoration(
-              labelText: 'School Tagline (optional)',
+              labelText: context.tr('schoolTaglineLabel'),
               prefixIcon: const Icon(Icons.format_quote_outlined),
               counterText: '',
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),

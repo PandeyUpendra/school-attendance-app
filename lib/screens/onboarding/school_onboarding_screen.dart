@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/school_onboarding.dart';
 import '../../services/school_settings_service.dart';
 import '../../theme.dart';
@@ -35,13 +36,13 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
   final _step4Key = GlobalKey<Step4FeesState>();
   final _step5Key = GlobalKey<Step5CommunicationState>();
 
-  static const _stepTitles = [
-    'Basic Info',
-    'Address',
-    'Academic Setup',
-    'Fee Setup',
-    'Communication',
-    'Review & Submit',
+  static const _stepTitleKeys = [
+    'obStepBasicInfo',
+    'obStepAddress',
+    'obStepAcademic',
+    'obStepFeeSetup',
+    'obStepCommunication',
+    'obStepReview',
   ];
 
   @override
@@ -139,8 +140,8 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
       await _svc.completeOnboarding(_data.toJson());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('School setup complete!'),
+        SnackBar(
+          content: Text(context.tr('schoolSetupComplete')),
           backgroundColor: AppTheme.success,
         ),
       );
@@ -180,12 +181,12 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
                 child: Row(children: [
                   const Icon(Icons.restore, size: 16, color: AppTheme.warning),
                   const SizedBox(width: 8),
-                  const Text('Resuming your setup…',
-                      style: TextStyle(color: AppTheme.warning, fontWeight: FontWeight.w600, fontSize: 13)),
+                  Text(context.tr('resumingSetup'),
+                      style: const TextStyle(color: AppTheme.warning, fontWeight: FontWeight.w600, fontSize: 13)),
                   const Spacer(),
                   TextButton(
                     onPressed: () => setState(() => _resuming = false),
-                    child: const Text('Dismiss', style: TextStyle(fontSize: 12)),
+                    child: Text(context.tr('dismiss'), style: const TextStyle(fontSize: 12)),
                   ),
                 ]),
               ),
@@ -247,7 +248,7 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
               const Icon(Icons.school, color: Colors.white60, size: 16),
               const SizedBox(width: 8),
               Text(
-                'SCHOOL SETUP  ·  STEP ${_step + 1} OF 6',
+                '${context.tr('schoolSetupStep')} ${_step + 1} ${context.tr('ofCaps')} 6',
                 style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 11,
@@ -257,7 +258,7 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
             ]),
             const SizedBox(height: 6),
             Text(
-              _stepTitles[_step],
+              context.tr(_stepTitleKeys[_step]),
               style: const TextStyle(
                   color: Colors.white,
                   fontSize: 22,
@@ -294,7 +295,7 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
           Expanded(
             child: OutlinedButton.icon(
               icon: const Icon(Icons.arrow_back),
-              label: const Text('Back'),
+              label: Text(context.tr('back')),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.grey.shade700,
                 side: BorderSide(color: Colors.grey.shade400),
@@ -316,10 +317,10 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
                 : Icon(isLast ? Icons.check_circle_outline : Icons.arrow_forward),
             label: Text(
               _submitting
-                  ? 'Saving…'
+                  ? context.tr('savingEllipsis')
                   : isLast
-                      ? 'Complete Setup'
-                      : 'Next',
+                      ? context.tr('completeSetup')
+                      : context.tr('next'),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(

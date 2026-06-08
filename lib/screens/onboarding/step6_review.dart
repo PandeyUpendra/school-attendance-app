@@ -1,7 +1,23 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/school_onboarding.dart';
 import '../../theme.dart';
+
+/// Localised label for a fee frequency (stored value stays English).
+String _localizedFreq(BuildContext c, String f) => switch (f) {
+      'Quarterly' => c.tr('freqQuarterly'),
+      'Half-Yearly' => c.tr('freqHalfYearly'),
+      'Annually' => c.tr('freqAnnually'),
+      _ => c.tr('freqMonthly'),
+    };
+
+/// Localised label for a preferred-language choice (stored value stays English).
+String _localizedLang(BuildContext c, String l) => switch (l) {
+      'Hindi' => c.tr('langHindi'),
+      'Both' => c.tr('langBoth'),
+      _ => c.tr('langEnglish'),
+    };
 
 class Step6Review extends StatelessWidget {
   final SchoolOnboarding data;
@@ -19,7 +35,8 @@ class Step6Review extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         _card(
-          title: 'Basic Info',
+          context: context,
+          title: context.tr('obStepBasicInfo'),
           stepIndex: 0,
           onEdit: onEditStep,
           children: [
@@ -31,68 +48,72 @@ class Step6Review extends StatelessWidget {
                 ),
               ),
             if (data.logoUrl.isNotEmpty) const SizedBox(height: 10),
-            _row('School Name', data.schoolName),
-            _row('Type', data.schoolType),
-            _row('Board', data.board),
-            _row('Phone', data.phone),
-            _row('Email', data.email),
-            _row('Principal', data.principalName),
+            _row(context.tr('schoolNameLabel'), data.schoolName),
+            _row(context.tr('rvType'), data.schoolType),
+            _row(context.tr('boardLabel'), data.board),
+            _row(context.tr('phone'), data.phone),
+            _row(context.tr('email'), data.email),
+            _row(context.tr('rvPrincipal'), data.principalName),
             if (data.establishedYear.isNotEmpty)
-              _row('Est. Year', data.establishedYear),
+              _row(context.tr('rvEstYear'), data.establishedYear),
           ],
         ),
         _card(
-          title: 'Address',
+          context: context,
+          title: context.tr('obStepAddress'),
           stepIndex: 1,
           onEdit: onEditStep,
           children: [
-            _row('Address', data.address),
-            _row('City', data.city),
-            _row('State', data.state),
-            _row('PIN Code', data.pinCode),
-            if (data.website.isNotEmpty) _row('Website', data.website),
+            _row(context.tr('obStepAddress'), data.address),
+            _row(context.tr('cityLabel'), data.city),
+            _row(context.tr('stateLabel'), data.state),
+            _row(context.tr('pinCodeLabel'), data.pinCode),
+            if (data.website.isNotEmpty) _row(context.tr('rvWebsite'), data.website),
           ],
         ),
         _card(
-          title: 'Academic Setup',
+          context: context,
+          title: context.tr('obStepAcademic'),
           stepIndex: 2,
           onEdit: onEditStep,
           children: [
-            _row('Classes', 'Class ${data.classesFrom} to ${data.classesTo}'),
-            _row('Sections', data.sectionsPerClass.join(', ')),
-            _row('Total Classes', '${data.classList.length}'),
-            _row('Academic Year', 'Starts in ${data.academicYearStart}'),
-            _row('Working Days', data.workingDays),
-            _row('Periods/Day', '${data.periodsPerDay}'),
-            _row('Period Duration', '${data.periodDuration} min'),
-            _row('Lunch After', 'Period ${data.lunchAfterPeriod}'),
+            _row(context.tr('classesColon'), 'Class ${data.classesFrom} to ${data.classesTo}'),
+            _row(context.tr('sectionsPerClass'), data.sectionsPerClass.join(', ')),
+            _row(context.tr('rvTotalClasses'), '${data.classList.length}'),
+            _row(context.tr('rvAcademicYear'), '${context.tr('startsInPrefix')} ${data.academicYearStart}'),
+            _row(context.tr('workingDaysLabel'), data.workingDays),
+            _row(context.tr('rvPeriodsDay'), '${data.periodsPerDay}'),
+            _row(context.tr('periodDurationLabel'), '${data.periodDuration} min'),
+            _row(context.tr('rvLunchAfter'), '${context.tr('periodWord')} ${data.lunchAfterPeriod}'),
           ],
         ),
         _card(
-          title: 'Fee Settings',
+          context: context,
+          title: context.tr('feeSettings'),
           stepIndex: 3,
           onEdit: onEditStep,
           children: [
-            _row('Frequency', data.feeFrequency),
-            _row('Due Date', '${data.feeDueDate}${_ordinal(data.feeDueDate)} of month'),
-            _row('Late Fee', data.lateFeeEnabled ? '₹${data.lateFeePerDay}/day' : 'Not applicable'),
-            _row('Reminder', '${data.reminderDaysBefore} days before due'),
+            _row(context.tr('rvFrequency'), _localizedFreq(context, data.feeFrequency)),
+            _row(context.tr('rvDueDate'), '${data.feeDueDate}${_ordinal(data.feeDueDate)} ${context.tr('ofMonth')}'),
+            _row(context.tr('rvLateFee'), data.lateFeeEnabled ? '₹${data.lateFeePerDay}${context.tr('perDaySuffix')}' : context.tr('notApplicable')),
+            _row(context.tr('rvReminder'), '${data.reminderDaysBefore} ${context.tr('daysBeforeDue')}'),
           ],
         ),
         _card(
-          title: 'Communication',
+          context: context,
+          title: context.tr('obStepCommunication'),
           stepIndex: 4,
           onEdit: onEditStep,
           children: [
             _row('WhatsApp', data.whatsappEnabled
-                ? 'Enabled (+91 ${data.schoolWhatsapp})'
-                : 'Disabled'),
-            _row('Language', data.preferredLanguage),
-            _row('Bus Service', data.busServiceAvailable
-                ? 'Yes (${data.busRouteCount} routes)'
-                : 'No'),
+                ? '${context.tr('enabledWord')} (+91 ${data.schoolWhatsapp})'
+                : context.tr('disabledWord')),
+            _row(context.tr('language'), _localizedLang(context, data.preferredLanguage)),
+            _row(context.tr('rvBusService'), data.busServiceAvailable
+                ? '${context.tr('yesWord')} (${data.busRouteCount} ${context.tr('routesWord')})'
+                : context.tr('noWordCap')),
             if (data.schoolTagline.isNotEmpty)
-              _row('Tagline', '"${data.schoolTagline}"'),
+              _row(context.tr('rvTagline'), '"${data.schoolTagline}"'),
           ],
         ),
         const SizedBox(height: 8),
@@ -103,13 +124,13 @@ class Step6Review extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
           ),
-          child: const Row(children: [
-            Icon(Icons.check_circle_outline, color: AppTheme.success, size: 20),
-            SizedBox(width: 10),
+          child: Row(children: [
+            const Icon(Icons.check_circle_outline, color: AppTheme.success, size: 20),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Review everything above. Tap "Complete Setup" to save your school configuration.',
-                style: TextStyle(color: AppTheme.success, fontSize: 13),
+                context.tr('reviewFooter'),
+                style: const TextStyle(color: AppTheme.success, fontSize: 13),
               ),
             ),
           ]),
@@ -120,6 +141,7 @@ class Step6Review extends StatelessWidget {
   }
 
   Widget _card({
+    required BuildContext context,
     required String title,
     required int stepIndex,
     required void Function(int) onEdit,
@@ -149,7 +171,7 @@ class Step6Review extends StatelessWidget {
             TextButton.icon(
               onPressed: () => onEdit(stepIndex),
               icon: const Icon(Icons.edit_outlined, size: 14),
-              label: const Text('Edit', style: TextStyle(fontSize: 12)),
+              label: Text(context.tr('editBtn'), style: const TextStyle(fontSize: 12)),
               style: TextButton.styleFrom(
                   foregroundColor: AppTheme.primary,
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
