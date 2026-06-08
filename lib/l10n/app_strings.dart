@@ -1327,6 +1327,21 @@ class AppStrings {
     'adminPanel':              {'en': 'ADMIN PANEL',          'hi': 'एडमिन पैनल'},
     'manageAccess':            {'en': 'Manage Access',        'hi': 'एक्सेस प्रबंधन'},
     'manageAccessSubtitle':    {'en': 'Create and manage owner login accounts', 'hi': 'मालिक लॉगिन खाते बनाएँ और प्रबंधित करें'},
+
+    // ── Guardian leave application ───────────────────────────────────────
+    'leaveSubmittedToTeacher': {'en': 'Leave application submitted to class teacher ✓', 'hi': 'अवकाश आवेदन कक्षा शिक्षक को भेजा गया ✓'},
+    'failedToSubmit':          {'en': 'Failed to submit:',    'hi': 'जमा करने में विफल:'},
+    'leaveOverlapBody':        {'en': 'A pending or approved leave already exists for these dates.\n\nPlease choose different dates or check the history below.', 'hi': 'इन तारीखों के लिए लंबित या स्वीकृत अवकाश पहले से मौजूद है।\n\nकृपया अलग तारीखें चुनें या नीचे इतिहास देखें।'},
+    'applyForLeaveSubtitle':   {'en': 'Submit leave application for your child', 'hi': 'अपने बच्चे के लिए अवकाश आवेदन भेजें'},
+    'rollPrefix':              {'en': 'Roll',                 'hi': 'रोल'},
+    'leavePeriodPrefix':       {'en': 'Leave period:',        'hi': 'अवकाश अवधि:'},
+    'leaveOverlapWarning':     {'en': 'A leave application already exists for these dates. Check the history below.', 'hi': 'इन तारीखों के लिए अवकाश आवेदन पहले से मौजूद है। नीचे इतिहास देखें।'},
+    'submittingEllipsis':      {'en': 'Submitting…',          'hi': 'जमा हो रहा है…'},
+    'submitLeaveApplication':  {'en': 'Submit Leave Application', 'hi': 'अवकाश आवेदन जमा करें'},
+    'leaveHistoryCaps':        {'en': 'LEAVE HISTORY',        'hi': 'अवकाश इतिहास'},
+    'loadMorePrefix':          {'en': 'Load More',            'hi': 'और लोड करें'},
+    'remainingSuffix':         {'en': 'remaining',            'hi': 'शेष'},
+    'statusForwarded':         {'en': 'Forwarded',            'hi': 'अग्रेषित'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then

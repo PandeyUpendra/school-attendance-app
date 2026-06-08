@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../l10n/app_strings.dart';
 import '../theme.dart';
 import '../models/student.dart';
 import '../services/timetable_service.dart';
@@ -96,7 +97,7 @@ class _GuardianLeaveApplicationScreenState
       initialDate: _startDate,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      helpText: 'Select Leave Start Date',
+      helpText: context.tr('selectLeaveStartDate'),
     );
     if (picked != null) {
       setState(() => _startDate = picked);
@@ -112,12 +113,12 @@ class _GuardianLeaveApplicationScreenState
 
     if (finalReason.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please specify a reason')));
+          SnackBar(content: Text(context.tr('pleaseSpecifyReason'))));
       return;
     }
     if (_reason == 'Other' && finalReason.length < 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reason must be at least 10 characters')));
+          SnackBar(content: Text(context.tr('reasonMin10'))));
       return;
     }
 
@@ -131,19 +132,17 @@ class _GuardianLeaveApplicationScreenState
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
-            title: const Row(children: [
-              Icon(Icons.warning_amber_rounded, color: Color(0xFFF57F17)),
-              SizedBox(width: 8),
-              Text('Leave Already Applied'),
+            title: Row(children: [
+              const Icon(Icons.warning_amber_rounded, color: Color(0xFFF57F17)),
+              const SizedBox(width: 8),
+              Text(context.tr('leaveAlreadyApplied')),
             ]),
-            content: const Text(
-                'A pending or approved leave already exists for these dates.\n\n'
-                'Please choose different dates or check the history below.'),
+            content: Text(context.tr('leaveOverlapBody')),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK',
-                    style: TextStyle(color: AppTheme.primary)),
+                child: Text(context.tr('ok'),
+                    style: const TextStyle(color: AppTheme.primary)),
               ),
             ],
           ),
@@ -190,7 +189,7 @@ class _GuardianLeaveApplicationScreenState
       _customReasonCtrl.clear();
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Leave application submitted to class teacher ✓'),
+        content: Text(context.tr('leaveSubmittedToTeacher')),
         backgroundColor: Colors.green.shade700,
         duration: const Duration(seconds: 3),
       ));
@@ -198,7 +197,7 @@ class _GuardianLeaveApplicationScreenState
       if (!mounted) return;
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to submit: $e'),
+        content: Text('${context.tr('failedToSubmit')} $e'),
         backgroundColor: Colors.red,
         duration: const Duration(seconds: 5),
       ));
@@ -227,13 +226,13 @@ class _GuardianLeaveApplicationScreenState
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Apply for Leave',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('Submit leave application for your child',
-                style: TextStyle(fontSize: 11, color: Colors.white70)),
+            Text(context.tr('applyForLeave'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('applyForLeaveSubtitle'),
+                style: const TextStyle(fontSize: 11, color: Colors.white70)),
           ],
         ),
       ),
@@ -270,7 +269,7 @@ class _GuardianLeaveApplicationScreenState
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.bold)),
                   Text(
-                    '${widget.student.className}  •  Roll ${widget.student.roll}',
+                    '${widget.student.className}  •  ${context.tr('rollPrefix')} ${widget.student.roll}',
                     style: TextStyle(
                         fontSize: 13, color: Colors.grey.shade600)),
                 ],
@@ -283,12 +282,12 @@ class _GuardianLeaveApplicationScreenState
                   color: AppTheme.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.send_outlined,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.send_outlined,
                       size: 13, color: AppTheme.primary),
-                  SizedBox(width: 4),
-                  Text('Class Teacher',
-                      style: TextStyle(
+                  const SizedBox(width: 4),
+                  Text(context.tr('classTeacherLabel'),
+                      style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: AppTheme.primary)),
@@ -300,7 +299,7 @@ class _GuardianLeaveApplicationScreenState
 
           // ── Leave Duration ────────────────────────────────────────────
           _card(
-            label: 'Leave Duration',
+            label: context.tr('leaveDuration'),
             child: Column(children: [
               InkWell(
                 onTap: _pickDate,
@@ -319,8 +318,8 @@ class _GuardianLeaveApplicationScreenState
                     Expanded(child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Start Date',
-                            style: TextStyle(
+                        Text(context.tr('startDate'),
+                            style: const TextStyle(
                                 fontSize: 11, color: Colors.grey)),
                         Text(_dateLabel(),
                             style: const TextStyle(
@@ -335,8 +334,8 @@ class _GuardianLeaveApplicationScreenState
               ),
               const SizedBox(height: 10),
               Row(children: [
-                const Expanded(child: Text('Number of Days',
-                    style: TextStyle(
+                Expanded(child: Text(context.tr('numberOfDays'),
+                    style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.w500))),
                 _stepperBtn(
                   icon: Icons.remove,
@@ -367,7 +366,7 @@ class _GuardianLeaveApplicationScreenState
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'Leave period: ${_dateLabel()} – ${_endDateLabel()}',
+                    '${context.tr('leavePeriodPrefix')} ${_dateLabel()} – ${_endDateLabel()}',
                     style: TextStyle(
                         fontSize: 12, color: Colors.orange.shade700),
                   ),
@@ -378,7 +377,7 @@ class _GuardianLeaveApplicationScreenState
 
           // ── Reason ───────────────────────────────────────────────────
           _card(
-            label: 'Reason for Leave',
+            label: context.tr('reasonForLeave'),
             child: Column(children: [
               ManagedDropdown(
                 fieldKey: 'leave_reason',
@@ -398,7 +397,7 @@ class _GuardianLeaveApplicationScreenState
                   maxLength: 300,
                   maxLengthEnforcement: MaxLengthEnforcement.enforced,
                   decoration: InputDecoration(
-                    hintText: 'Describe the reason (min 10 characters)…',
+                    hintText: context.tr('describeReasonHint'),
                     prefixIcon: const Icon(Icons.edit_outlined, size: 20),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
@@ -421,14 +420,13 @@ class _GuardianLeaveApplicationScreenState
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: const Color(0xFFF57F17)),
               ),
-              child: const Row(children: [
-                Icon(Icons.info_outline, color: Color(0xFFF57F17)),
-                SizedBox(width: 8),
+              child: Row(children: [
+                const Icon(Icons.info_outline, color: Color(0xFFF57F17)),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'A leave application already exists for these dates. '
-                    'Check the history below.',
-                    style: TextStyle(
+                    context.tr('leaveOverlapWarning'),
+                    style: const TextStyle(
                         color: Color(0xFFE65100), fontSize: 13),
                   ),
                 ),
@@ -447,7 +445,7 @@ class _GuardianLeaveApplicationScreenState
                         strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.send_outlined),
             label: Text(
-                _submitting ? 'Submitting…' : 'Submit Leave Application'),
+                _submitting ? context.tr('submittingEllipsis') : context.tr('submitLeaveApplication')),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
@@ -464,7 +462,7 @@ class _GuardianLeaveApplicationScreenState
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
-              'LEAVE HISTORY',
+              context.tr('leaveHistoryCaps'),
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -507,7 +505,7 @@ class _GuardianLeaveApplicationScreenState
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Text('No leave applications yet.',
+                    child: Text(context.tr('noLeaveApplications'),
                         style: TextStyle(
                             color: Colors.grey.shade500, fontSize: 14)),
                   ),
@@ -525,7 +523,7 @@ class _GuardianLeaveApplicationScreenState
                       onPressed: () =>
                           setState(() => _historyLimit += 20),
                       child: Text(
-                        'Load More (${docs.length - _historyLimit} remaining)',
+                        '${context.tr('loadMorePrefix')} (${docs.length - _historyLimit} ${context.tr('remainingSuffix')})',
                         style: const TextStyle(color: AppTheme.primary),
                       ),
                     ),
@@ -598,27 +596,27 @@ class _GuardianLeaveApplicationScreenState
     switch (status) {
       case 'approved':
         statusColor = Colors.green.shade700;
-        statusLabel = 'Approved';
+        statusLabel = context.tr('statusApproved');
         statusIcon  = Icons.check_circle_outline;
         break;
       case 'rejected':
         statusColor = Colors.red.shade700;
-        statusLabel = 'Rejected';
+        statusLabel = context.tr('statusRejected');
         statusIcon  = Icons.cancel_outlined;
         break;
       case 'forwarded_to_coordinator':
         statusColor = Colors.blue.shade700;
-        statusLabel = 'Forwarded';
+        statusLabel = context.tr('statusForwarded');
         statusIcon  = Icons.forward_to_inbox_outlined;
         break;
       case 'forwarded_to_principal':
         statusColor = AppTheme.primaryDark;
-        statusLabel = 'Forwarded';
+        statusLabel = context.tr('statusForwarded');
         statusIcon  = Icons.forward_to_inbox_outlined;
         break;
       default:
         statusColor = Colors.amber.shade700;
-        statusLabel = 'Pending';
+        statusLabel = context.tr('statusPending');
         statusIcon  = Icons.pending_outlined;
     }
 
@@ -657,7 +655,7 @@ class _GuardianLeaveApplicationScreenState
             if (coordinatorNote != null && coordinatorNote.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
-                'Remarks: $coordinatorNote',
+                '${context.tr('remarksTitle')}: $coordinatorNote',
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -682,7 +680,7 @@ class _GuardianLeaveApplicationScreenState
                     color: statusColor)),
           ),
           const SizedBox(height: 4),
-          Text('$days day${days == 1 ? '' : 's'}',
+          Text('$days ${context.tr('daysLower')}',
               style: TextStyle(
                   fontSize: 11, color: Colors.grey.shade600)),
         ]),
