@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import '../models/staff_task.dart';
 import '../services/auth_service.dart';
 import '../services/staff_task_service.dart';
@@ -48,7 +49,7 @@ class _StaffTasksScreenState extends State<StaffTasksScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('My Tasks'),
+        title: Text(context.tr('myTasks')),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -106,10 +107,10 @@ class _StaffTasksScreenState extends State<StaffTasksScreen> {
           Icon(Icons.task_alt_outlined,
               size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 12),
-          Text('No tasks assigned',
+          Text(context.tr('noTasksAssigned'),
               style: TextStyle(fontSize: 16, color: Colors.grey.shade500)),
           const SizedBox(height: 6),
-          Text('You are all caught up!',
+          Text(context.tr('allCaughtUp'),
               style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
         ]),
       );
@@ -212,7 +213,7 @@ class _TaskCard extends StatelessWidget {
                   Icon(Icons.event_outlined,
                       size: 13, color: Colors.grey.shade300),
                   const SizedBox(width: 4),
-                  Text('No due date',
+                  Text(context.tr('noDueDate'),
                       style: TextStyle(
                           fontSize: 11, color: Colors.grey.shade400)),
                 ],
@@ -413,17 +414,17 @@ class _TaskDetailSheet extends StatelessWidget {
                     final ok = await showDialog<bool>(
                       context: context,
                       builder: (c) => AlertDialog(
-                        title: const Text('Delete Task'),
-                        content: const Text('Delete this task permanently?'),
+                        title: Text(context.tr('deleteTaskTitle')),
+                        content: Text(context.tr('deleteTaskPermanently')),
                         actions: [
                           TextButton(
                               onPressed: () => Navigator.pop(c, false),
-                              child: const Text('Cancel')),
+                              child: Text(context.tr('cancel'))),
                           TextButton(
                             onPressed: () => Navigator.pop(c, true),
                             style: TextButton.styleFrom(
                                 foregroundColor: AppTheme.danger),
-                            child: const Text('Delete'),
+                            child: Text(context.tr('delete')),
                           ),
                         ],
                       ),

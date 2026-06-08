@@ -353,6 +353,13 @@ class AppStrings {
     'noClassTeachersAssigned':{'en': 'No class teachers assigned', 'hi': 'कोई कक्षा शिक्षक नियुक्त नहीं'},
     'assignClassTeachersHint':{'en': 'Assign class teachers in Teacher Management', 'hi': 'शिक्षक प्रबंधन में कक्षा शिक्षक नियुक्त करें'},
 
+    // ── Staff tasks screen ───────────────────────────────────────────────
+    'deleteTaskTitle':       {'en': 'Delete Task',        'hi': 'कार्य हटाएँ'},
+    'deleteTaskPermanently': {'en': 'Delete this task permanently?', 'hi': 'इस कार्य को स्थायी रूप से हटाएँ?'},
+    'noDueDate':             {'en': 'No due date',        'hi': 'कोई नियत तिथि नहीं'},
+    'noTasksAssigned':       {'en': 'No tasks assigned',  'hi': 'कोई कार्य नहीं सौंपा गया'},
+    'allCaughtUp':           {'en': 'You are all caught up!', 'hi': 'आपका सब कुछ पूरा है!'},
+
     // ── Coordinator / Principal dashboards: tile subtitles ───────────────
     'subStaffTasksDesc':         {'en': 'Assign tasks to teachers and track progress', 'hi': 'शिक्षकों को कार्य सौंपें और प्रगति ट्रैक करें'},
     'subMeetingRecordsDesc':     {'en': 'Manage meetings, agenda points and teacher task assignments', 'hi': 'बैठकें, एजेंडा और शिक्षक कार्य प्रबंधित करें'},
