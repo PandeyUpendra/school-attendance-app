@@ -1356,6 +1356,10 @@ class AppStrings {
     'statusBelowThreshold':    {'en': 'BELOW THRESHOLD',      'hi': 'सीमा से नीचे'},
     'certificateIncludesStamp':{'en': 'Certificate includes school stamp area & signatures', 'hi': 'प्रमाणपत्र में स्कूल स्टैम्प क्षेत्र और हस्ताक्षर शामिल हैं'},
     'exportCertificatePdf':    {'en': 'Export Certificate as PDF', 'hi': 'प्रमाणपत्र को PDF के रूप में निर्यात करें'},
+
+    // ── Fee — reversed payments view ─────────────────────────────────────
+    'reversedBadge':           {'en': 'REVERSED',             'hi': 'रद्द'},
+    'reversedPaymentsLabel':   {'en': 'Reversed payments',    'hi': 'रद्द किए गए भुगतान'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then

@@ -69,17 +69,24 @@ class FeeService extends BaseFirestoreService {
   DocumentReference<Map<String, dynamic>> get _receiptCounter =>
       schoolCollection(_sid, 'fee_meta').doc('counters');
 
-  Future<List<Payment>> getPayments({String? schoolId, required String className, required int roll}) async {
+  Future<List<Payment>> getPayments({
+    String? schoolId,
+    required String className,
+    required int roll,
+    bool includeReversed = false,
+  }) async {
     final snap = await _paymentsCol(className, roll)
         .orderBy('paidOn', descending: true)
         .get();
-    return snap.docs
+    final all = snap.docs
         .map((d) =>
             Payment.fromDoc(d.id, Map<String, dynamic>.from(d.data() as Map)))
-        // Reversed payments are retained in Firestore (audit/recoverability)
-        // but excluded from listings and every total (#53).
-        .where((p) => !p.reversed)
         .toList();
+    // Reversed payments are retained in Firestore (audit/recoverability) and by
+    // default excluded from listings and every total (#53). Pass
+    // [includeReversed] for the reconciliation view (#26/#49) which shows voided
+    // receipts so the gapless receipt numbers are accounted for.
+    return includeReversed ? all : all.where((p) => !p.reversed).toList();
   }
 
   /// Records a payment and returns its allocated receipt number.

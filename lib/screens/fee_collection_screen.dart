@@ -494,6 +494,8 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
   final _feeService = FeeService();
   bool _loading = true;
   List<Payment>        _payments          = [];
+  List<Payment>        _reversedPayments  = []; // voided receipts (#26/#49)
+  bool                 _showReversed      = false;
   Map<String, double>  _installmentPaid   = {}; // installmentName → paid
   double _totalPaid = 0;
 
@@ -508,19 +510,25 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
     setState(() => _loading = true);
     final results = await Future.wait([
       _feeService.getPayments(
-          className: widget.student.className, roll: widget.student.roll),
+          className: widget.student.className, roll: widget.student.roll,
+          includeReversed: true),
       _feeService.getInstallmentPaidAmounts(
           className: widget.student.className, roll: widget.student.roll),
     ]);
     if (!mounted) return;
-    final payments = results[0] as List<Payment>;
+    final all      = results[0] as List<Payment>;
+    final active   = all.where((p) => !p.reversed).toList();
+    final reversed = all.where((p) => p.reversed).toList();
     final instPaid = results[1] as Map<String, double>;
-    final paid     = payments.fold(0.0, (s, p) => s + p.amount);
+    // Totals count only non-reversed payments — voided receipts never inflate
+    // the collected figure (#26).
+    final paid     = active.fold(0.0, (s, p) => s + p.amount);
     setState(() {
-      _payments        = payments;
-      _installmentPaid = instPaid;
-      _totalPaid       = paid;
-      _loading         = false;
+      _payments         = active;
+      _reversedPayments = reversed;
+      _installmentPaid  = instPaid;
+      _totalPaid        = paid;
+      _loading          = false;
     });
   }
 
@@ -1033,6 +1041,59 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                       ],
                     ),
                   ),
+
+                // ── Reversed (voided) payments (#26/#49) ──────────────
+                if (_reversedPayments.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () =>
+                        setState(() => _showReversed = !_showReversed),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(children: [
+                        Icon(Icons.history_toggle_off,
+                            size: 16, color: Colors.grey.shade600),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${context.tr('reversedPaymentsLabel')} (${_reversedPayments.length})',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          _showReversed
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
+                          size: 18,
+                          color: Colors.grey.shade500,
+                        ),
+                      ]),
+                    ),
+                  ),
+                  if (_showReversed)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          for (int i = 0; i < _reversedPayments.length; i++) ...[
+                            if (i > 0)
+                              const Divider(height: 1, indent: 16),
+                            _PaymentTile(
+                              payment: _reversedPayments[i],
+                              reversed: true,
+                              onPrint: () {},
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                ],
                 const SizedBox(height: 80),
               ],
             ),
@@ -1170,7 +1231,8 @@ class _HeroStat extends StatelessWidget {
 class _PaymentTile extends StatelessWidget {
   final Payment      payment;
   final VoidCallback onPrint;
-  const _PaymentTile({required this.payment, required this.onPrint});
+  final bool         reversed;
+  const _PaymentTile({required this.payment, required this.onPrint, this.reversed = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1180,17 +1242,22 @@ class _PaymentTile extends StatelessWidget {
       leading: Container(
         width: 42, height: 42,
         decoration: BoxDecoration(
-          color: AppTheme.primary.withAlpha(20),
+          color: reversed
+              ? Colors.grey.withAlpha(30)
+              : AppTheme.primary.withAlpha(20),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: const Icon(Icons.currency_rupee,
-            color: AppTheme.primary, size: 20),
+        child: Icon(reversed ? Icons.receipt_long_outlined : Icons.currency_rupee,
+            color: reversed ? Colors.grey.shade500 : AppTheme.primary, size: 20),
       ),
       title: Text(
         '₹${p.amount.toStringAsFixed(0)}  •  ${p.mode}'
         '${p.installmentName != null ? '  •  ${p.installmentName}' : ''}',
-        style:
-            const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: reversed ? Colors.grey.shade500 : null,
+            decoration: reversed ? TextDecoration.lineThrough : null),
       ),
       subtitle: Text(
         '$date  •  ${p.receiptNo}'
@@ -1198,12 +1265,25 @@ class _PaymentTile extends StatelessWidget {
         style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
       ),
       isThreeLine: p.note != null && p.note!.isNotEmpty,
-      trailing: IconButton(
-        icon: const Icon(Icons.print_outlined,
-            color: AppTheme.primary, size: 20),
-        tooltip: context.tr('printReceipt'),
-        onPressed: onPrint,
-      ),
+      trailing: reversed
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppTheme.danger.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(context.tr('reversedBadge'),
+                  style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.danger)),
+            )
+          : IconButton(
+              icon: const Icon(Icons.print_outlined,
+                  color: AppTheme.primary, size: 20),
+              tooltip: context.tr('printReceipt'),
+              onPressed: onPrint,
+            ),
     );
   }
 }
