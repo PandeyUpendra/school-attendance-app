@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/app_strings.dart';
 import '../models/homework.dart';
 import '../models/teacher.dart';
 import '../services/homework_service.dart';
@@ -66,7 +67,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
   Future<void> _showPostDialog() async {
     if (_classSubjectMap.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No classes found in timetable.')),
+        SnackBar(content: Text(context.tr('noClassesInTimetable'))),
       );
       return;
     }
@@ -93,16 +94,16 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Homework?'),
-        content: Text('Delete "${hw.title}"?'),
+        title: Text(context.tr('deleteHomeworkQ')),
+        content: Text('${context.tr('delete')} "${hw.title}"?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
               child:
-                  const Text('Delete', style: TextStyle(color: Colors.red))),
+                  Text(context.tr('delete'), style: const TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -119,13 +120,14 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Homework',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('Post & manage assignments',
-                style: TextStyle(fontSize: 12, color: Colors.white70)),
+            Text(context.tr('homework'),
+                style: const TextStyle(
+                    fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('postManageAssignments'),
+                style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
         actions: [
@@ -139,7 +141,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Post Homework'),
+        label: Text(context.tr('postHomework')),
         onPressed: _showPostDialog,
       ),
       body: Column(
@@ -158,7 +160,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ChoiceChip(
-                        label: const Text('All'),
+                        label: Text(context.tr('allCount')),
                         selected: _selectedClass == null,
                         selectedColor: Colors.red,
                         labelStyle: TextStyle(
@@ -208,7 +210,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
                                 size: 56, color: Colors.grey.shade300),
                             const SizedBox(height: 12),
                             Text(
-                              'No homework posted yet.\nTap + to post an assignment.',
+                              context.tr('noHomeworkPosted'),
                               textAlign: TextAlign.center,
                               style:
                                   TextStyle(color: Colors.grey.shade500),
@@ -259,13 +261,13 @@ class _HomeworkCard extends StatelessWidget {
     return Colors.orange;
   }
 
-  String get _statusLabel {
-    if (hw.isReviewed) return 'Reviewed';
-    if (hw.isOverdue)  return 'Overdue';
+  String _statusLabel(BuildContext context) {
+    if (hw.isReviewed) return context.tr('hwReviewed');
+    if (hw.isOverdue)  return context.tr('hwOverdue');
     final d = hw.daysUntilDue;
-    if (d == 0) return 'Due Today';
-    if (d == 1) return 'Due Tomorrow';
-    return 'Due in $d days';
+    if (d == 0) return context.tr('dueToday');
+    if (d == 1) return context.tr('dueTomorrow');
+    return '${context.tr('dueInPrefix')} $d ${context.tr('daysSuffix')}';
   }
 
   @override
@@ -299,7 +301,7 @@ class _HomeworkCard extends StatelessWidget {
                   color: _statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(_statusLabel,
+                child: Text(_statusLabel(context),
                     style: TextStyle(
                         fontSize: 11,
                         color: _statusColor,
@@ -327,11 +329,11 @@ class _HomeworkCard extends StatelessWidget {
               Icon(Icons.event_outlined,
                   size: 13, color: Colors.grey.shade500),
               const SizedBox(width: 4),
-              Text('Due: $due',
+              Text('${context.tr('dueColon')} $due',
                   style: TextStyle(
                       fontSize: 12, color: Colors.grey.shade500)),
               const Spacer(),
-              Text('Posted: $posted',
+              Text('${context.tr('postedColon')} $posted',
                   style: TextStyle(
                       fontSize: 11, color: Colors.grey.shade400)),
             ],
@@ -343,7 +345,7 @@ class _HomeworkCard extends StatelessWidget {
                 TextButton.icon(
                   icon: const Icon(Icons.check_circle_outline,
                       size: 16),
-                  label: const Text('Mark Reviewed'),
+                  label: Text(context.tr('markReviewed')),
                   style: TextButton.styleFrom(
                       foregroundColor: Colors.green,
                       padding: EdgeInsets.zero),
@@ -354,7 +356,7 @@ class _HomeworkCard extends StatelessWidget {
                 icon: const Icon(Icons.delete_outline,
                     color: Colors.red, size: 20),
                 onPressed: onDelete,
-                tooltip: 'Delete',
+                tooltip: context.tr('delete'),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -554,14 +556,14 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
                 ),
               ),
             ),
-            const Text('Post Homework',
-                style: TextStyle(
+            Text(context.tr('postHomework'),
+                style: const TextStyle(
                     fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
 
             // Class selector
-            const Text('Class',
-                style: TextStyle(
+            Text(context.tr('classLabel'),
+                style: const TextStyle(
                     fontSize: 13, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             SingleChildScrollView(
@@ -591,7 +593,7 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
               ),
             ),
             const SizedBox(height: 4),
-            Text('Subject: $_selectedSubject',
+            Text('${context.tr('subjectColon')} $_selectedSubject',
                 style: TextStyle(
                     fontSize: 12, color: Colors.grey.shade500)),
             const SizedBox(height: 16),
@@ -601,13 +603,13 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
               value: _selectedTitle,
               isExpanded: true,
               decoration: InputDecoration(
-                labelText: 'Homework Title',
+                labelText: context.tr('homeworkTitle'),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 14, vertical: 12),
               ),
-              hint: const Text('Select a homework title'),
+              hint: Text(context.tr('selectHomeworkTitle')),
               items: _kHomeworkTemplates.keys
                   .map((t) => DropdownMenuItem(
                         value: t,
@@ -616,7 +618,7 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
                   .toList(),
               onChanged: _onTitleSelected,
               validator: (v) =>
-                  v == null ? 'Please select a title' : null,
+                  v == null ? context.tr('pleaseSelectTitle') : null,
             ),
             // Custom title field shown only for "Other (custom)"
             if (_isOtherTitle) ...[
@@ -628,7 +630,7 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
                 maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 autofocus: true,
                 decoration: InputDecoration(
-                  labelText: 'Custom Title',
+                  labelText: context.tr('customTitle'),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10)),
                   contentPadding: const EdgeInsets.symmetric(
@@ -637,7 +639,7 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
                 ),
                 validator: (v) => _isOtherTitle &&
                         (v == null || v.trim().isEmpty)
-                    ? 'Title is required'
+                    ? context.tr('titleRequired')
                     : null,
               ),
             ],
@@ -651,8 +653,8 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
               maxLengthEnforcement: MaxLengthEnforcement.enforced,
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
-                labelText: 'Description / Message (editable)',
-                helperText: 'Pre-filled from the title — customise as needed',
+                labelText: context.tr('descriptionMessageEditable'),
+                helperText: context.tr('prefilledFromTitle'),
                 alignLabelWithHint: true,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10)),
@@ -660,8 +662,8 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
                     horizontal: 14, vertical: 12),
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Description is required';
-                if (v.trim().length < 10) return 'At least 10 characters';
+                if (v == null || v.trim().isEmpty) return context.tr('descriptionRequired');
+                if (v.trim().length < 10) return context.tr('atLeast10Chars');
                 return null;
               },
             ),
@@ -683,7 +685,7 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
                     const Icon(Icons.event_outlined,
                         color: Colors.red, size: 20),
                     const SizedBox(width: 10),
-                    Text('Due Date: $due',
+                    Text('${context.tr('dueDateColon')} $due',
                         style: const TextStyle(fontSize: 14)),
                     const Spacer(),
                     Icon(Icons.edit_outlined,
@@ -711,8 +713,8 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2,
                             color: Colors.white))
-                    : const Text('Post Homework',
-                        style: TextStyle(
+                    : Text(context.tr('postHomework'),
+                        style: const TextStyle(
                             fontSize: 15, fontWeight: FontWeight.bold)),
               ),
             ),
