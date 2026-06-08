@@ -1082,6 +1082,22 @@ class AppStrings {
     'moreSuffix':              {'en': 'more',                  'hi': 'और'},
     'viewDetails':             {'en': 'View Details',          'hi': 'विवरण देखें'},
     'tapPlusFirstMeeting':     {'en': 'Tap + to create the first meeting', 'hi': 'पहली मीटिंग बनाने के लिए + दबाएँ'},
+    'taskMarkedComplete':      {'en': 'Task marked complete',  'hi': 'कार्य पूरा किया गया'},
+    'pendingLower':            {'en': 'pending',               'hi': 'लंबित'},
+    'completedLower':          {'en': 'completed',             'hi': 'पूरे'},
+    'tasksCompletedLower':     {'en': 'tasks completed',       'hi': 'कार्य पूरे'},
+    'inProgress':              {'en': 'In Progress',           'hi': 'चालू है'},
+    'noPendingTasks':          {'en': 'No pending tasks',      'hi': 'कोई लंबित कार्य नहीं'},
+    'noMeetingTasksAssigned':  {'en': 'No meeting tasks assigned', 'hi': 'कोई मीटिंग कार्य नहीं सौंपा गया'},
+    'meetingTaskWillAppear':   {'en': 'When a coordinator assigns a meeting task to you, it will appear here.', 'hi': 'जब समन्वयक आपको कोई मीटिंग कार्य सौंपेगा, तो वह यहाँ दिखेगा।'},
+    'noMeetingsAvailable':     {'en': 'No meetings available at the moment.', 'hi': 'इस समय कोई मीटिंग उपलब्ध नहीं है।'},
+    'assignedByLabel':         {'en': 'Assigned by',           'hi': 'सौंपा गया'},
+    'markAsDone':              {'en': 'Mark as Done',          'hi': 'पूरा हुआ चिह्नित करें'},
+    'meetingContext':          {'en': 'Meeting context',       'hi': 'मीटिंग संदर्भ'},
+    'meetingNotFound':         {'en': 'Meeting not found',     'hi': 'मीटिंग नहीं मिली'},
+    'fromMeeting':             {'en': 'From Meeting',          'hi': 'मीटिंग से'},
+    'dateLabel':               {'en': 'Date',                  'hi': 'तारीख'},
+    'allAgendaPoints':         {'en': 'All agenda points:',    'hi': 'सभी एजेंडा बिंदु:'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then

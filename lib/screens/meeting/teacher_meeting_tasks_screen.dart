@@ -1,9 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/meeting.dart';
 import '../../services/meeting_service.dart';
 import '../../theme.dart';
 import '../../widgets/index_building_notice.dart';
+
+/// Localised label for a task filter (filter values stay English).
+String _localizedFilter(BuildContext c, String f) => switch (f) {
+      'Pending' => c.tr('statusPending'),
+      'Completed' => c.tr('completedLabel'),
+      _ => c.tr('filterAll'),
+    };
+
+/// Localised label for a stored MeetingTask status string.
+String _localizedTaskStatus(BuildContext c, String s) => switch (s) {
+      'Completed' => c.tr('completedLabel'),
+      'InProgress' => c.tr('inProgress'),
+      _ => c.tr('statusPending'),
+    };
 
 class TeacherMeetingTasksScreen extends StatefulWidget {
   final String teacherId;
@@ -47,7 +62,7 @@ class _TeacherMeetingTasksScreenState
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Task marked complete')));
+        SnackBar(content: Text(context.tr('taskMarkedComplete'))));
     }
   }
 
@@ -56,7 +71,7 @@ class _TeacherMeetingTasksScreenState
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Meeting Tasks'),
+        title: Text(context.tr('meetingTasks')),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -74,7 +89,7 @@ class _TeacherMeetingTasksScreenState
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: FilterChip(
-                    label: Text(f),
+                    label: Text(_localizedFilter(context, f)),
                     selected: active,
                     onSelected: (_) => setState(() => _filter = f),
                     selectedColor: AppTheme.primary,
@@ -145,8 +160,8 @@ class _TeacherMeetingTasksScreenState
                             const SizedBox(width: 8),
                             Text(
                               pending > 0
-                                  ? '$pending pending · ${total - pending} completed'
-                                  : 'All $total tasks completed',
+                                  ? '$pending ${context.tr('pendingLower')} · ${total - pending} ${context.tr('completedLower')}'
+                                  : '${context.tr('filterAll')} $total ${context.tr('tasksCompletedLower')}',
                               style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
@@ -204,7 +219,7 @@ class _TeacherMeetingTasksScreenState
                 size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 12),
             Text(
-              'No meetings available at the moment.',
+              context.tr('noMeetingsAvailable'),
               style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
               textAlign: TextAlign.center,
             ),
@@ -220,14 +235,16 @@ class _TeacherMeetingTasksScreenState
                 size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 12),
             Text(
-              _filter != 'All' && total > 0
-                  ? 'No ${_filter.toLowerCase()} tasks'
-                  : 'No meeting tasks assigned',
+              _filter == 'Pending' && total > 0
+                  ? context.tr('noPendingTasks')
+                  : _filter == 'Completed' && total > 0
+                      ? context.tr('noCompletedTasks')
+                      : context.tr('noMeetingTasksAssigned'),
               style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
             ),
             const SizedBox(height: 6),
             Text(
-              'When a coordinator assigns a meeting task to you, it will appear here.',
+              context.tr('meetingTaskWillAppear'),
               style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
               textAlign: TextAlign.center,
             ),
@@ -299,7 +316,7 @@ class _TaskCardState extends State<_TaskCard> {
               ),
             ]),
             const SizedBox(height: 4),
-            Text('Assigned by: ${t.assignedBy}',
+            Text('${context.tr('assignedByLabel')}: ${t.assignedBy}',
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
 
             const SizedBox(height: 10),
@@ -335,7 +352,7 @@ class _TaskCardState extends State<_TaskCard> {
                     color: t.isCompleted ? AppTheme.success : AppTheme.warning,
                   ),
                   const SizedBox(width: 4),
-                  Text(t.status,
+                  Text(_localizedTaskStatus(context, t.status),
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -362,8 +379,8 @@ class _TaskCardState extends State<_TaskCard> {
                           child: CircularProgressIndicator(
                               color: Colors.white, strokeWidth: 2))
                       : const Icon(Icons.check, size: 15),
-                  label: const Text('Mark as Done',
-                      style: TextStyle(fontSize: 12)),
+                  label: Text(context.tr('markAsDone'),
+                      style: const TextStyle(fontSize: 12)),
                   onPressed: _marking
                       ? null
                       : () async {
@@ -388,7 +405,7 @@ class _TaskCardState extends State<_TaskCard> {
                   Icon(Icons.info_outline,
                       size: 14, color: Colors.grey.shade400),
                   const SizedBox(width: 6),
-                  Text('Meeting context',
+                  Text(context.tr('meetingContext'),
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey.shade500)),
                   const Spacer(),
@@ -430,7 +447,7 @@ class _TaskCardState extends State<_TaskCard> {
               if (m == null) {
                 return Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Text('Meeting not found',
+                  child: Text(context.tr('meetingNotFound'),
                       style: TextStyle(color: Colors.grey.shade400)),
                 );
               }
@@ -442,14 +459,14 @@ class _TaskCardState extends State<_TaskCard> {
                   children: [
                     Divider(height: 1, color: Colors.grey.shade100),
                     const SizedBox(height: 10),
-                    Text('From Meeting: ${m.title}',
+                    Text('${context.tr('fromMeeting')}: ${m.title}',
                         style: const TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 13)),
-                    Text('Date: ${widget.fmtDate(m.date)}',
+                    Text('${context.tr('dateLabel')}: ${widget.fmtDate(m.date)}',
                         style: TextStyle(
                             fontSize: 12, color: Colors.grey.shade500)),
                     const SizedBox(height: 10),
-                    Text('All agenda points:',
+                    Text(context.tr('allAgendaPoints'),
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
