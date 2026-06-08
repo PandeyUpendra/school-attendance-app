@@ -1275,6 +1275,27 @@ class AppStrings {
     'clarificationRequestSent':{'en': 'Clarification request sent to school', 'hi': 'स्पष्टीकरण अनुरोध स्कूल को भेजा गया'},
     'detailsSubmittedForVerification':{'en': 'Details submitted to class teacher for verification', 'hi': 'विवरण सत्यापन के लिए कक्षा शिक्षक को भेजा गया'},
     'failedSubmitUpdates':     {'en': 'Failed to submit updates:', 'hi': 'अपडेट जमा करने में विफल:'},
+
+    // ── Coordinator management ───────────────────────────────────────────
+    'couldNotLoadCoordinators':{'en': 'Could not load coordinators:', 'hi': 'समन्वयक लोड नहीं हो सके:'},
+    'removeCoordinator':       {'en': 'Remove Coordinator',   'hi': 'समन्वयक हटाएँ'},
+    'revokeLoginSuffix':       {'en': 'and revoke their login access?', 'hi': 'और उनका लॉगिन एक्सेस रद्द करें?'},
+    'addCoordinator':          {'en': 'Add Coordinator',      'hi': 'समन्वयक जोड़ें'},
+    'noCoordinatorsYet':       {'en': 'No coordinators yet',  'hi': 'अभी कोई समन्वयक नहीं'},
+    'tapAddCoordinatorFirst':  {'en': 'Tap "Add Coordinator" to create the first one', 'hi': 'पहला बनाने के लिए "समन्वयक जोड़ें" दबाएँ'},
+    'assignedClassesTitle':    {'en': 'Assigned Classes',     'hi': 'दी गई कक्षाएँ'},
+    'noClassesAssignedYet':    {'en': 'No classes assigned yet', 'hi': 'अभी कोई कक्षा नहीं दी गई'},
+    'editCoordinator':         {'en': 'Edit Coordinator',     'hi': 'समन्वयक संपादित करें'},
+    'phoneNumberOptional':     {'en': 'Phone Number (optional)', 'hi': 'फ़ोन नंबर (वैकल्पिक)'},
+    'designationOptional':     {'en': 'Designation (optional)', 'hi': 'पदनाम (वैकल्पिक)'},
+    'designationHint':         {'en': 'e.g. Science Coordinator', 'hi': 'उदा. विज्ञान समन्वयक'},
+    'nameRequired':            {'en': 'Name is required',     'hi': 'नाम आवश्यक है'},
+    'selectClassesForCoordinator':{'en': 'Select the classes this coordinator will manage.', 'hi': 'यह समन्वयक जिन कक्षाओं को संभालेगा उन्हें चुनें।'},
+    'noClassesAddInSettings':  {'en': 'No classes found. Add classes in School Settings first.', 'hi': 'कोई कक्षा नहीं मिली। पहले स्कूल सेटिंग में कक्षाएँ जोड़ें।'},
+    'clearAction':             {'en': 'Clear',                'hi': 'साफ़ करें'},
+    'coordinatorInviteNote':   {'en': 'The coordinator will receive an email invite to set their own password — no password needed here.', 'hi': 'समन्वयक को अपना पासवर्ड सेट करने के लिए ईमेल आमंत्रण मिलेगा — यहाँ पासवर्ड की ज़रूरत नहीं।'},
+    'saveChanges':             {'en': 'Save Changes',         'hi': 'बदलाव सेव करें'},
+    'createCoordinatorAccount':{'en': 'Create Coordinator Account', 'hi': 'समन्वयक खाता बनाएँ'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then

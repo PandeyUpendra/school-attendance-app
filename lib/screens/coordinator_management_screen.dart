@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
@@ -54,7 +55,7 @@ class _CoordinatorManagementScreenState
       if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not load coordinators: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('${context.tr('couldNotLoadCoordinators')} $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -84,13 +85,13 @@ class _CoordinatorManagementScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Remove Coordinator'),
-        content: Text('Remove $name and revoke their login access?'),
+        title: Text(context.tr('removeCoordinator')),
+        content: Text('${context.tr('removeAction')} $name ${context.tr('revokeLoginSuffix')}'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('cancel'))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+            child: Text(context.tr('removeAction'), style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -101,7 +102,7 @@ class _CoordinatorManagementScreenState
       await _firestore.collection('allowed_users').doc(email.toLowerCase().trim()).delete();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$name removed'), backgroundColor: Colors.green),
+          SnackBar(content: Text('$name ${context.tr('removedSuffix')}'), backgroundColor: Colors.green),
         );
       }
       _load();
@@ -123,7 +124,7 @@ class _CoordinatorManagementScreenState
       appBar: AppBar(
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
-        title: const Text('Manage Coordinators', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(context.tr('manageCoordinators'), style: const TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
         actions: [
           IconButton(
@@ -136,7 +137,7 @@ class _CoordinatorManagementScreenState
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.person_add_alt_1_outlined),
-        label: const Text('Add Coordinator'),
+        label: Text(context.tr('addCoordinator')),
         onPressed: () => _openForm(),
       ),
       body: _loading
@@ -164,10 +165,10 @@ class _CoordinatorManagementScreenState
       children: [
         Icon(Icons.supervisor_account_outlined, size: 72, color: AppTheme.primary.withValues(alpha: 0.3)),
         const SizedBox(height: 16),
-        Text('No coordinators yet',
+        Text(context.tr('noCoordinatorsYet'),
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
         const SizedBox(height: 8),
-        Text('Tap "Add Coordinator" to create the first one',
+        Text(context.tr('tapAddCoordinatorFirst'),
             style: TextStyle(color: Colors.grey.shade500)),
       ],
     ),
@@ -236,12 +237,12 @@ class _CoordCard extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.edit_outlined, color: Colors.white),
                   onPressed: onEdit,
-                  tooltip: 'Edit',
+                  tooltip: context.tr('edit'),
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.white70),
                   onPressed: onDelete,
-                  tooltip: 'Remove',
+                  tooltip: context.tr('removeAction'),
                 ),
               ],
             ),
@@ -259,7 +260,7 @@ class _CoordCard extends StatelessWidget {
                 ],
                 if (classes.isNotEmpty) ...[
                   const SizedBox(height: 10),
-                  Text('Assigned Classes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
+                  Text(context.tr('assignedClassesTitle'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 6, runSpacing: 6,
@@ -278,7 +279,7 @@ class _CoordCard extends StatelessWidget {
                   Row(children: [
                     Icon(Icons.warning_amber_outlined, size: 14, color: Colors.orange.shade600),
                     const SizedBox(width: 4),
-                    Text('No classes assigned yet', style: TextStyle(fontSize: 12, color: Colors.orange.shade600)),
+                    Text(context.tr('noClassesAssignedYet'), style: TextStyle(fontSize: 12, color: Colors.orange.shade600)),
                   ]),
                 ],
               ],
@@ -452,7 +453,7 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
               const Icon(Icons.supervisor_account_outlined, color: AppTheme.primary),
               const SizedBox(width: 10),
               Text(
-                _isEdit ? 'Edit Coordinator' : 'Add Coordinator',
+                _isEdit ? context.tr('editCoordinator') : context.tr('addCoordinator'),
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ]),
@@ -467,14 +468,14 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _Field(controller: _nameCtrl, label: 'Full Name', icon: Icons.person_outline,
-                        validator: (v) => v!.trim().isEmpty ? 'Name is required' : null),
+                    _Field(controller: _nameCtrl, label: context.tr('fullName'), icon: Icons.person_outline,
+                        validator: (v) => v!.trim().isEmpty ? context.tr('nameRequired') : null),
                     const SizedBox(height: 14),
                     EmailTextFormField(
                         controller: _emailCtrl,
                         readOnly: _isEdit,
                         decoration: InputDecoration(
-                          labelText: 'Email Address',
+                          labelText: context.tr('emailAddress'),
                           prefixIcon: const Icon(Icons.email_outlined),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           filled: true,
@@ -482,22 +483,22 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                         ),
                         validator: Validators.email),
                     const SizedBox(height: 14),
-                    _Field(controller: _phoneCtrl, label: 'Phone Number (optional)', icon: Icons.phone_outlined,
+                    _Field(controller: _phoneCtrl, label: context.tr('phoneNumberOptional'), icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone),
                     const SizedBox(height: 14),
-                    _Field(controller: _desigCtrl, label: 'Designation (optional)', icon: Icons.badge_outlined,
-                        hint: 'e.g. Science Coordinator'),
+                    _Field(controller: _desigCtrl, label: context.tr('designationOptional'), icon: Icons.badge_outlined,
+                        hint: context.tr('designationHint')),
                     const SizedBox(height: 20),
 
                     // Class selection
-                    Text('Assigned Classes',
+                    Text(context.tr('assignedClassesTitle'),
                         style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
                     const SizedBox(height: 4),
-                    Text('Select the classes this coordinator will manage.',
+                    Text(context.tr('selectClassesForCoordinator'),
                         style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                     const SizedBox(height: 10),
                     if (_allClasses.isEmpty)
-                      Text('No classes found. Add classes in School Settings first.',
+                      Text(context.tr('noClassesAddInSettings'),
                           style: TextStyle(color: Colors.orange.shade600, fontSize: 13))
                     else
                       Wrap(
@@ -529,14 +530,14 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                       Row(children: [
                         TextButton.icon(
                           icon: const Icon(Icons.select_all, size: 16),
-                          label: const Text('Select All'),
+                          label: Text(context.tr('selectAll')),
                           onPressed: () => setState(() => _selectedClasses = Set.from(_allClasses)),
                           style: TextButton.styleFrom(foregroundColor: AppTheme.primary, padding: EdgeInsets.zero),
                         ),
                         const SizedBox(width: 12),
                         TextButton.icon(
                           icon: const Icon(Icons.deselect, size: 16),
-                          label: const Text('Clear'),
+                          label: Text(context.tr('clearAction')),
                           onPressed: () => setState(() => _selectedClasses = {}),
                           style: TextButton.styleFrom(foregroundColor: Colors.grey, padding: EdgeInsets.zero),
                         ),
@@ -558,7 +559,7 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'The coordinator will receive an email invite to set their own password — no password needed here.',
+                                context.tr('coordinatorInviteNote'),
                                 style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                               ),
                             ),
@@ -580,7 +581,7 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                         onPressed: _saving ? null : _save,
                         child: _saving
                             ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : Text(_isEdit ? 'Save Changes' : 'Create Coordinator Account',
+                            : Text(_isEdit ? context.tr('saveChanges') : context.tr('createCoordinatorAccount'),
                                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                       ),
                     ),
