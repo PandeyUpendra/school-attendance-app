@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import '../models/teacher.dart';
 import 'profile_screen.dart';
 import '../services/auth_service.dart';
@@ -378,11 +379,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           _buildSubDutyCard(),
 
-          const _SectionHeader('ACADEMICS'),
+          _SectionHeader(context.tr('secAcademics')),
           _FeatureTile(
             icon: Icons.fact_check_outlined,
             color: AppTheme.primary,
-            title: 'Take Attendance',
+            title: context.tr('takeAttendance'),
             subtitle: 'Mark attendance for ${teacher!.classTeacherOf}',
             onTap: () => Navigator.push(
               context,
@@ -399,8 +400,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _FeatureTile(
             icon: Icons.calendar_month_outlined,
             color: AppTheme.primary,
-            title: 'My Timetable',
-            subtitle: 'View your personal bell schedule',
+            title: context.tr('myTimetable'),
+            subtitle: context.tr('subTimetablePersonalDesc'),
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(
                     builder: (_) => MyTimetableScreen(teacher: teacher))),
@@ -409,8 +410,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _FeatureTile(
             icon: Icons.swap_horiz_outlined,
             color: AppTheme.primary,
-            title: 'My Substitution Duties',
-            subtitle: 'Classes I have covered as substitute',
+            title: context.tr('mySubstitutionDuties'),
+            subtitle: context.tr('subSubDutiesDesc'),
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -422,11 +423,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const _SectionHeader('STUDENTS'),
+          _SectionHeader(context.tr('secStudents')),
           _FeatureTile(
             icon: Icons.people_outline,
             color: AppTheme.primary,
-            title: 'Student List',
+            title: context.tr('studentList'),
             subtitle:
                 'View and manage students in ${teacher!.classTeacherOf}',
             onTap: () => Navigator.push(
@@ -445,7 +446,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _FeatureTile(
             icon: Icons.bar_chart_outlined,
             color: AppTheme.primary,
-            title: 'Attendance History',
+            title: context.tr('attendanceHistory'),
             subtitle:
                 'Monthly reports, % per student & low-attendance flags',
             onTap: () => Navigator.push(
@@ -462,7 +463,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _FeatureTile(
             icon: Icons.person_off_outlined,
             color: AppTheme.danger,
-            title: 'Deleted Students',
+            title: context.tr('deletedStudents'),
             subtitle: 'Read-only history of removed students in your class',
             onTap: () => Navigator.push(
               context,
@@ -478,8 +479,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _FeatureTile(
             icon: Icons.comment_outlined,
             color: AppTheme.primary,
-            title: 'Student Remarks',
-            subtitle: 'Record observations and feedback for your students',
+            title: context.tr('studentRemarks'),
+            subtitle: context.tr('subStudentRemarksDesc2'),
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -493,11 +494,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const _SectionHeader('CALLS'),
+          _SectionHeader(context.tr('secCalls')),
           _FeatureTile(
             icon: Icons.phone_callback_outlined,
             color: AppTheme.primary,
-            title: 'Daily Calls',
+            title: context.tr('dailyCalls'),
             subtitle: 'Track guardian calls for absent/leave students',
             onTap: () => Navigator.push(
               context,
@@ -506,11 +507,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const _SectionHeader('LEAVE'),
+          _SectionHeader(context.tr('secLeave')),
           _FeatureTile(
             icon: Icons.event_busy_outlined,
             color: AppTheme.warning,
-            title: 'Apply for Leave',
+            title: context.tr('applyForLeave'),
             subtitle:
                 'Submit a leave application to coordinator or principal',
             onTap: () => Navigator.push(
@@ -524,8 +525,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _FeatureTile(
             icon: Icons.assignment_return_outlined,
             color: Colors.teal,
-            title: 'Student Leave Requests',
-            subtitle: 'Review leave applications submitted by guardians',
+            title: context.tr('studentLeaveRequests'),
+            subtitle: context.tr('subStudentLeaveDesc'),
             badge: _pendingStudentLeaves > 0
                 ? '$_pendingStudentLeaves'
                 : null,
@@ -540,12 +541,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const _SectionHeader('COPY CHECKING'),
+          _SectionHeader(context.tr('secCopyChecking')),
           _FeatureTile(
             icon: Icons.menu_book_outlined,
             color: AppTheme.primary,
-            title: 'Copy Checking',
-            subtitle: 'Mark student copies for your classes',
+            title: context.tr('copyChecking'),
+            subtitle: context.tr('subCopyCheckDesc'),
             onTap: () {
               if (teacher != null) {
                 Navigator.push(
@@ -558,12 +559,12 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
 
-          const _SectionHeader('HOMEWORK'),
+          _SectionHeader(context.tr('secHomework')),
           _FeatureTile(
             icon: Icons.assignment_outlined,
             color: AppTheme.primary,
-            title: 'Homework',
-            subtitle: 'Post and manage assignments for your classes',
+            title: context.tr('homework'),
+            subtitle: context.tr('subHomeworkDesc'),
             onTap: () {
               if (teacher != null) {
                 Navigator.push(
@@ -575,12 +576,12 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
 
-          const _SectionHeader('EXAMS & MARKS'),
+          _SectionHeader(context.tr('secExamsMarks')),
           _FeatureTile(
             icon: Icons.quiz_outlined,
             color: AppTheme.primary,
-            title: 'Exams & Marks',
-            subtitle: 'Enter marks and view report cards',
+            title: context.tr('examsMarks'),
+            subtitle: context.tr('subExamsDesc'),
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -593,12 +594,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const _SectionHeader('REMARKS'),
+          _SectionHeader(context.tr('secRemarks')),
           _FeatureTile(
             icon: Icons.rate_review_outlined,
             color: AppTheme.primary,
-            title: 'My Remarks',
-            subtitle: 'Feedback from your coordinator and principal',
+            title: context.tr('myRemarks'),
+            subtitle: context.tr('subMyRemarksDesc'),
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -612,12 +613,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const _SectionHeader('MY TASKS'),
+          _SectionHeader(context.tr('secMyTasks')),
           _FeatureTile(
             icon: Icons.task_outlined,
             color: AppTheme.primary,
-            title: 'My Tasks',
-            subtitle: 'View tasks assigned to you',
+            title: context.tr('myTasks'),
+            subtitle: context.tr('subMyTasksDesc'),
             badge: _pendingTaskCount > 0 ? '$_pendingTaskCount' : null,
             onTap: () async {
               await Navigator.push(
@@ -633,8 +634,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _FeatureTile(
             icon: Icons.assignment_outlined,
             color: AppTheme.primary,
-            title: 'Meeting Tasks',
-            subtitle: 'Tasks assigned to you from staff meetings',
+            title: context.tr('meetingTasks'),
+            subtitle: context.tr('subMeetingTasksDesc'),
             badge: _pendingMeetingTasks > 0 ? '$_pendingMeetingTasks' : null,
             onTap: () => Navigator.push(
               context,
@@ -647,12 +648,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const _SectionHeader('ANNOUNCEMENTS'),
+          _SectionHeader(context.tr('secAnnouncements')),
           _FeatureTile(
             icon: Icons.campaign_outlined,
             color: AppTheme.primary,
-            title: 'Notice Board',
-            subtitle: 'Post and view school announcements',
+            title: context.tr('noticeBoard'),
+            subtitle: context.tr('subAnnouncementsDesc'),
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -667,7 +668,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const _SectionHeader('BIRTHDAYS'),
+          _SectionHeader(context.tr('secBirthdays')),
           BirthdayBanner(
             role: 'class_teacher',
             className: teacher?.classTeacherOf,
@@ -686,8 +687,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _FeatureTile(
             icon: Icons.cake_outlined,
             color: AppTheme.accent,
-            title: 'Birthdays',
-            subtitle: 'Staff and student birthday wishes',
+            title: context.tr('birthdays'),
+            subtitle: context.tr('subBirthdaysDesc'),
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -700,12 +701,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const _SectionHeader('MY TO-DO LIST'),
+          _SectionHeader(context.tr('secMyTodoList')),
           _FeatureTile(
             icon: Icons.checklist_outlined,
             color: AppTheme.primary,
             title: 'My To-Do List',
-            subtitle: 'Personal tasks with reminders and due dates',
+            subtitle: context.tr('subTodoDesc'),
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -745,12 +746,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         _buildSubDutyCard(),
 
-        const _SectionHeader('ACADEMICS'),
+        _SectionHeader(context.tr('secAcademics')),
         _FeatureTile(
           icon: Icons.calendar_month_outlined,
           color: AppTheme.primary,
-          title: 'My Timetable',
-          subtitle: 'View your bell schedule for all classes',
+          title: context.tr('myTimetable'),
+          subtitle: context.tr('subTimetableAllDesc'),
           onTap: () => Navigator.push(context,
               MaterialPageRoute(
                   builder: (_) => MyTimetableScreen(teacher: teacher))),
@@ -759,8 +760,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _FeatureTile(
           icon: Icons.swap_horiz_outlined,
           color: AppTheme.primary,
-          title: 'My Substitution Duties',
-          subtitle: 'Classes I have covered as substitute',
+          title: context.tr('mySubstitutionDuties'),
+          subtitle: context.tr('subSubDutiesDesc'),
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
@@ -772,12 +773,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        const _SectionHeader('STUDENTS'),
+        _SectionHeader(context.tr('secStudents')),
         _FeatureTile(
           icon: Icons.people_outline,
           color: AppTheme.primary,
-          title: 'Student List',
-          subtitle: 'View student records by class',
+          title: context.tr('studentList'),
+          subtitle: context.tr('subStudentListDesc'),
           onTap: () async {
             final pick = await Navigator.push<ClassSectionPick>(
               context,
@@ -803,8 +804,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _FeatureTile(
           icon: Icons.comment_outlined,
           color: AppTheme.primary,
-          title: 'Student Remarks',
-          subtitle: 'Record observations and feedback for students',
+          title: context.tr('studentRemarks'),
+          subtitle: context.tr('subStudentRemarksDesc'),
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
@@ -818,11 +819,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        const _SectionHeader('LEAVE'),
+        _SectionHeader(context.tr('secLeave')),
         _FeatureTile(
           icon: Icons.event_busy_outlined,
           color: AppTheme.warning,
-          title: 'Apply for Leave',
+          title: context.tr('applyForLeave'),
           subtitle:
               'Submit a leave application to coordinator or principal',
           onTap: () {
@@ -837,12 +838,12 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
 
-        const _SectionHeader('COPY CHECKING'),
+        _SectionHeader(context.tr('secCopyChecking')),
         _FeatureTile(
           icon: Icons.menu_book_outlined,
           color: AppTheme.primary,
-          title: 'Copy Checking',
-          subtitle: 'Mark student copies for your classes',
+          title: context.tr('copyChecking'),
+          subtitle: context.tr('subCopyCheckDesc'),
           onTap: () {
             if (teacher != null) {
               Navigator.push(
@@ -855,12 +856,12 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
 
-        const _SectionHeader('HOMEWORK'),
+        _SectionHeader(context.tr('secHomework')),
         _FeatureTile(
           icon: Icons.assignment_outlined,
           color: AppTheme.primary,
-          title: 'Homework',
-          subtitle: 'Post and manage assignments for your classes',
+          title: context.tr('homework'),
+          subtitle: context.tr('subHomeworkDesc'),
           onTap: () {
             if (teacher != null) {
               Navigator.push(
@@ -872,12 +873,12 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
 
-        const _SectionHeader('EXAMS & MARKS'),
+        _SectionHeader(context.tr('secExamsMarks')),
         _FeatureTile(
           icon: Icons.quiz_outlined,
           color: AppTheme.primary,
-          title: 'Exams & Marks',
-          subtitle: 'Enter marks and view report cards',
+          title: context.tr('examsMarks'),
+          subtitle: context.tr('subExamsDesc'),
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
@@ -888,12 +889,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        const _SectionHeader('REMARKS'),
+        _SectionHeader(context.tr('secRemarks')),
         _FeatureTile(
           icon: Icons.rate_review_outlined,
           color: AppTheme.primary,
-          title: 'My Remarks',
-          subtitle: 'Feedback from your coordinator and principal',
+          title: context.tr('myRemarks'),
+          subtitle: context.tr('subMyRemarksDesc'),
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
@@ -907,12 +908,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        const _SectionHeader('MY TASKS'),
+        _SectionHeader(context.tr('secMyTasks')),
         _FeatureTile(
           icon: Icons.task_outlined,
           color: AppTheme.primary,
-          title: 'My Tasks',
-          subtitle: 'View tasks assigned to you',
+          title: context.tr('myTasks'),
+          subtitle: context.tr('subMyTasksDesc'),
           badge: _pendingTaskCount > 0 ? '$_pendingTaskCount' : null,
           onTap: () async {
             await Navigator.push(
@@ -927,8 +928,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _FeatureTile(
           icon: Icons.assignment_outlined,
           color: AppTheme.primary,
-          title: 'Meeting Tasks',
-          subtitle: 'Tasks assigned to you from staff meetings',
+          title: context.tr('meetingTasks'),
+          subtitle: context.tr('subMeetingTasksDesc'),
           badge: _pendingMeetingTasks > 0 ? '$_pendingMeetingTasks' : null,
           onTap: () => Navigator.push(
             context,
@@ -941,12 +942,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        const _SectionHeader('ANNOUNCEMENTS'),
+        _SectionHeader(context.tr('secAnnouncements')),
         _FeatureTile(
           icon: Icons.campaign_outlined,
           color: AppTheme.primary,
-          title: 'Notice Board',
-          subtitle: 'Post and view school announcements',
+          title: context.tr('noticeBoard'),
+          subtitle: context.tr('subAnnouncementsDesc'),
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
@@ -961,7 +962,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        const _SectionHeader('BIRTHDAYS'),
+        _SectionHeader(context.tr('secBirthdays')),
         BirthdayBanner(
           role: 'subject_teacher',
           assignedClasses: teacher?.assignedClasses,
@@ -978,8 +979,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _FeatureTile(
           icon: Icons.cake_outlined,
           color: AppTheme.accent,
-          title: 'Birthdays',
-          subtitle: 'Staff and student birthday wishes',
+          title: context.tr('birthdays'),
+          subtitle: context.tr('subBirthdaysDesc'),
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
@@ -991,12 +992,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        const _SectionHeader('MY TO-DO LIST'),
+        _SectionHeader(context.tr('secMyTodoList')),
         _FeatureTile(
           icon: Icons.checklist_outlined,
           color: AppTheme.primary,
           title: 'My To-Do List',
-          subtitle: 'Personal tasks with reminders and due dates',
+          subtitle: context.tr('subTodoDesc'),
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
@@ -1059,7 +1060,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _SectionHeader('SUBSTITUTE DUTY TODAY'),
+            _SectionHeader(context.tr('secSubstituteDutyToday')),
             Container(
               margin: const EdgeInsets.fromLTRB(12, 0, 12, 0),
               padding: const EdgeInsets.all(14),
@@ -1072,12 +1073,12 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(children: [
-                    Icon(Icons.swap_horiz_outlined,
+                  Row(children: [
+                    const Icon(Icons.swap_horiz_outlined,
                         color: AppTheme.warning, size: 20),
-                    SizedBox(width: 8),
-                    Text('Substitute Duty Today',
-                        style: TextStyle(
+                    const SizedBox(width: 8),
+                    Text(context.tr('substituteDutyToday'),
+                        style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14)),
                   ]),
