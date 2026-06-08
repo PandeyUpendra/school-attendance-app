@@ -318,6 +318,28 @@ class AppStrings {
     'maxMarksPerSubject':    {'en': 'Max Marks per Subject', 'hi': 'प्रति विषय अधिकतम अंक'},
     'examDate':              {'en': 'Exam Date',          'hi': 'परीक्षा तिथि'},
 
+    // ── Attendance screen ────────────────────────────────────────────────
+    'attendanceSaved':       {'en': 'Attendance Saved',   'hi': 'उपस्थिति सहेजी गई'},
+    'notifyViaWhatsapp':     {'en': 'Notify via WhatsApp', 'hi': 'WhatsApp से सूचित करें'},
+    'done':                  {'en': 'Done',               'hi': 'हो गया'},
+    'savedOffline':          {'en': 'Saved Offline',      'hi': 'ऑफ़लाइन सहेजा गया'},
+    'savedLocally':          {'en': 'Saved Locally',      'hi': 'स्थानीय रूप से सहेजा गया'},
+    'searchByRoll':          {'en': 'Search by Roll No.', 'hi': 'रोल नंबर से खोजें'},
+    'goToRollNumber':        {'en': 'Go to Roll Number',  'hi': 'रोल नंबर पर जाएँ'},
+    'rollNotFound':          {'en': 'Roll number not found', 'hi': 'रोल नंबर नहीं मिला'},
+    'go':                    {'en': 'Go',                 'hi': 'जाएँ'},
+    'offlineAttendanceMsg':  {'en': 'Offline — attendance will be saved locally', 'hi': 'ऑफ़लाइन — उपस्थिति स्थानीय रूप से सहेजी जाएगी'},
+    'editAttendance':        {'en': 'Edit Attendance',    'hi': 'उपस्थिति संपादित करें'},
+    'notifyGuardiansWhatsapp':{'en': 'Notify Guardians via WhatsApp', 'hi': 'अभिभावकों को WhatsApp से सूचित करें'},
+    'noClassAssigned':       {'en': 'No class assigned to you yet', 'hi': 'आपको अभी कोई कक्षा नहीं सौंपी गई'},
+    'askCoordinatorAssign':  {'en': 'Ask the coordinator to assign your class and section', 'hi': 'समन्वयक से अपनी कक्षा और सेक्शन सौंपने को कहें'},
+    'addStudentsFirst':      {'en': 'Add students via Student List first', 'hi': 'पहले छात्र सूची से छात्र जोड़ें'},
+    'secRemarksComplaints':  {'en': 'REMARKS / COMPLAINTS', 'hi': 'टिप्पणियाँ / शिकायतें'},
+    'noActiveRemarks':       {'en': 'No active remarks.',  'hi': 'कोई सक्रिय टिप्पणी नहीं।'},
+    'attendanceDone':        {'en': 'ATTENDANCE DONE',    'hi': 'उपस्थिति पूर्ण'},
+    'saveAttendance':        {'en': 'SAVE ATTENDANCE',    'hi': 'उपस्थिति सहेजें'},
+    'whatsappAbsenceNotice': {'en': 'WHATSAPP ABSENCE NOTICE', 'hi': 'WhatsApp अनुपस्थिति सूचना'},
+
     // ── Coordinator / Principal dashboards: tile subtitles ───────────────
     'subStaffTasksDesc':         {'en': 'Assign tasks to teachers and track progress', 'hi': 'शिक्षकों को कार्य सौंपें और प्रगति ट्रैक करें'},
     'subMeetingRecordsDesc':     {'en': 'Manage meetings, agenda points and teacher task assignments', 'hi': 'बैठकें, एजेंडा और शिक्षक कार्य प्रबंधित करें'},

@@ -14,6 +14,7 @@ import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_queue_service.dart';
 import '../utils/phone_utils.dart';
+import '../l10n/app_strings.dart';
 import '../utils/consent_gate.dart';
 import '../utils/school_clock.dart';
 import '../utils/app_logger.dart';
@@ -515,10 +516,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          title: const Row(children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 24),
-            SizedBox(width: 10),
-            Text('Attendance Saved', style: TextStyle(fontSize: 16)),
+          title: Row(children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 24),
+            const SizedBox(width: 10),
+            Text(context.tr('attendanceSaved'), style: const TextStyle(fontSize: 16)),
           ]),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
             _SummaryRow('Total Students', '$_total', Colors.grey),
@@ -531,12 +532,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               TextButton.icon(
                 onPressed: () { Navigator.pop(ctx); _showWhatsAppSheet(); },
                 icon: const Icon(FontAwesomeIcons.whatsapp, size: 16, color: Colors.green),
-                label: const Text('Notify via WhatsApp', style: TextStyle(color: Colors.green)),
+                label: Text(context.tr('notifyViaWhatsapp'), style: const TextStyle(color: Colors.green)),
               ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-              child: const Text('Done'),
+              child: Text(context.tr('done')),
             ),
           ],
         ),
@@ -546,10 +547,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          title: const Row(children: [
-            Icon(Icons.cloud_off_outlined, color: Colors.orange, size: 24),
-            SizedBox(width: 10),
-            Text('Saved Offline', style: TextStyle(fontSize: 16)),
+          title: Row(children: [
+            const Icon(Icons.cloud_off_outlined, color: Colors.orange, size: 24),
+            const SizedBox(width: 10),
+            Text(context.tr('savedOffline'), style: const TextStyle(fontSize: 16)),
           ]),
           content: const Text(
             'No internet connection. Attendance has been saved locally and '
@@ -560,7 +561,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
-              child: const Text('OK'),
+              child: Text(context.tr('ok')),
             ),
           ],
         ),
@@ -570,10 +571,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          title: const Row(children: [
-            Icon(Icons.cloud_sync_outlined, color: Colors.orange, size: 24),
-            SizedBox(width: 10),
-            Expanded(child: Text('Saved Locally', style: TextStyle(fontSize: 16))),
+          title: Row(children: [
+            const Icon(Icons.cloud_sync_outlined, color: Colors.orange, size: 24),
+            const SizedBox(width: 10),
+            Expanded(child: Text(context.tr('savedLocally'), style: const TextStyle(fontSize: 16))),
           ]),
           content: Text(
             'Attendance is saved on this device and will sync when the server '
@@ -584,7 +585,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
-              child: const Text('OK'),
+              child: Text(context.tr('ok')),
             ),
           ],
         ),
@@ -660,7 +661,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           IconButton(
             icon: const Icon(Icons.search, color: Colors.white),
             onPressed: _showSearchRollDialog,
-            tooltip: 'Search by Roll No.',
+            tooltip: context.tr('searchByRoll'),
           ),
       ],
     );
@@ -671,7 +672,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Go to Roll Number'),
+        title: Text(context.tr('goToRollNumber')),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
@@ -679,7 +680,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           autofocus: true,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('cancel'))),
           ElevatedButton(
             onPressed: () {
               final roll = int.tryParse(controller.text);
@@ -694,12 +695,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Roll number not found')),
+                    SnackBar(content: Text(context.tr('rollNotFound'))),
                   );
                 }
               }
             },
-            child: const Text('Go'),
+            child: Text(context.tr('go')),
           ),
         ],
       ),
@@ -905,7 +906,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 Icon(Icons.cloud_off_outlined,
                     size: 14, color: Colors.orange.shade600),
                 const SizedBox(width: 6),
-                Text('Offline — attendance will be saved locally',
+                Text(context.tr('offlineAttendanceMsg'),
                     style: TextStyle(
                         fontSize: 12, color: Colors.orange.shade600)),
               ]),
@@ -1071,8 +1072,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             child: OutlinedButton.icon(
               onPressed: () => setState(() => _isMarking = true),
               icon: const Icon(Icons.edit_outlined, size: 20),
-              label: const Text('Edit Attendance',
-                  style: TextStyle(
+              label: Text(context.tr('editAttendance'),
+                  style: const TextStyle(
                       fontSize: 15, fontWeight: FontWeight.w600)),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppTheme.primary,
@@ -1092,8 +1093,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 onPressed: _showWhatsAppSheet,
                 icon: const Icon(FontAwesomeIcons.whatsapp,
                     size: 20, color: Color(0xFF25D366)),
-                label: const Text('Notify Guardians via WhatsApp',
-                    style: TextStyle(
+                label: Text(context.tr('notifyGuardiansWhatsapp'),
+                    style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF25D366))),
@@ -1128,11 +1129,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         child: Icon(Icons.class_outlined, size: 44, color: Colors.grey.shade400),
       ),
       const SizedBox(height: 20),
-      Text('No class assigned to you yet',
+      Text(context.tr('noClassAssigned'),
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600,
               color: Colors.grey.shade500)),
       const SizedBox(height: 6),
-      Text('Ask the coordinator to assign your class and section',
+      Text(context.tr('askCoordinatorAssign'),
           style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
     ]),
   );
@@ -1152,7 +1153,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600,
               color: Colors.grey.shade500)),
       const SizedBox(height: 6),
-      Text('Add students via Student List first',
+      Text(context.tr('addStudentsFirst'),
           style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
     ]),
   );
@@ -1435,14 +1436,14 @@ class _VerticalStudentCard extends StatelessWidget {
                   const SizedBox(height: 24),
                   
                   // Complaints / Remarks
-                  const Text('REMARKS / COMPLAINTS', 
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white70, letterSpacing: 1.5)),
+                  Text(context.tr('secRemarksComplaints'), 
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white70, letterSpacing: 1.5)),
                   const SizedBox(height: 10),
                   if (remarks.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text('No active remarks.', 
-                          style: TextStyle(color: Colors.white38, fontStyle: FontStyle.italic, fontSize: 13.5)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(context.tr('noActiveRemarks'), 
+                          style: const TextStyle(color: Colors.white38, fontStyle: FontStyle.italic, fontSize: 13.5)),
                     )
                   else
                     Expanded(
@@ -1530,8 +1531,8 @@ class _AttendanceSummaryCard extends StatelessWidget {
           children: [
             const Icon(Icons.check_circle_outline, size: 80, color: Colors.white),
             const SizedBox(height: 24),
-            const Text('ATTENDANCE DONE', 
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.0)),
+            Text(context.tr('attendanceDone'), 
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.0)),
             const SizedBox(height: 40),
             _SummaryItem('Total Students', '$total'),
             const Divider(color: Colors.white24, height: 24),
@@ -1556,15 +1557,15 @@ class _AttendanceSummaryCard extends StatelessWidget {
                   ? const SizedBox(
                       width: 22, height: 22,
                       child: CircularProgressIndicator(strokeWidth: 2.5, color: AppTheme.primary))
-                  : const Text('SAVE ATTENDANCE',
-                      style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                  : Text(context.tr('saveAttendance'),
+                      style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
             ),
             if (absent > 0 || leave > 0) ...[
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: onNotify,
                 icon: const Icon(FontAwesomeIcons.whatsapp, size: 18),
-                label: const Text('WHATSAPP ABSENCE NOTICE'),
+                label: Text(context.tr('whatsappAbsenceNotice')),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white,
                   side: const BorderSide(color: Colors.white, width: 2),
@@ -1773,8 +1774,8 @@ class _WhatsAppNotifySheet extends StatelessWidget {
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Notify Guardians via WhatsApp',
-                    style: TextStyle(
+                Text(context.tr('notifyGuardiansWhatsapp'),
+                    style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.bold)),
                 Text(
                   '$withPhone with phone  ·  $withoutPhone without phone',
@@ -1826,8 +1827,8 @@ class _WhatsAppNotifySheet extends StatelessWidget {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Done',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            child: Text(context.tr('done'),
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
           ),
         ),
       ]),
