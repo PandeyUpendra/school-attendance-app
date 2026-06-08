@@ -340,6 +340,14 @@ class AppStrings {
     'saveAttendance':        {'en': 'SAVE ATTENDANCE',    'hi': 'उपस्थिति सहेजें'},
     'whatsappAbsenceNotice': {'en': 'WHATSAPP ABSENCE NOTICE', 'hi': 'WhatsApp अनुपस्थिति सूचना'},
 
+    // ── Daily calls screen ───────────────────────────────────────────────
+    'dailyCallsSub':         {'en': 'Guardian follow-up & history', 'hi': 'अभिभावक फ़ॉलो-अप और इतिहास'},
+    'reasonForAbsence':      {'en': 'Reason for absence:', 'hi': 'अनुपस्थिति का कारण:'},
+    'exportPdf':             {'en': 'Export PDF',         'hi': 'PDF निर्यात करें'},
+    'calledLabel':           {'en': 'Called',             'hi': 'कॉल किया'},
+    'noHistoryFound':        {'en': 'No history found',   'hi': 'कोई इतिहास नहीं मिला'},
+    'pastCallRecords':       {'en': 'Past call records will appear here', 'hi': 'पिछले कॉल रिकॉर्ड यहाँ दिखेंगे'},
+
     // ── Coordinator / Principal dashboards: tile subtitles ───────────────
     'subStaffTasksDesc':         {'en': 'Assign tasks to teachers and track progress', 'hi': 'शिक्षकों को कार्य सौंपें और प्रगति ट्रैक करें'},
     'subMeetingRecordsDesc':     {'en': 'Manage meetings, agenda points and teacher task assignments', 'hi': 'बैठकें, एजेंडा और शिक्षक कार्य प्रबंधित करें'},

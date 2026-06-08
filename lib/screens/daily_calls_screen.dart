@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -51,13 +52,13 @@ class _DailyCallsScreenState extends State<DailyCallsScreen>
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Daily Calls',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('Guardian follow-up & history',
-                style: TextStyle(fontSize: 11, color: Colors.white70)),
+            Text(context.tr('dailyCalls'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('dailyCallsSub'),
+                style: const TextStyle(fontSize: 11, color: Colors.white70)),
           ],
         ),
         bottom: TabBar(
@@ -213,7 +214,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Reason for absence:',
+              Text(context.tr('reasonForAbsence'),
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
               const SizedBox(height: 8),
               Wrap(
@@ -259,7 +260,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, null),
-              child: const Text('Cancel'),
+              child: Text(context.tr('cancel')),
             ),
             ElevatedButton(
               onPressed: () {
@@ -271,7 +272,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white),
-              child: const Text('Save'),
+              child: Text(context.tr('save')),
             ),
           ],
         ),
@@ -446,7 +447,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
                     TextButton.icon(
                       onPressed: _exportPdf,
                       icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
-                      label: const Text('Export PDF'),
+                      label: Text(context.tr('exportPdf')),
                       style: TextButton.styleFrom(
                           foregroundColor: Colors.red.shade700),
                     ),
@@ -631,7 +632,7 @@ class _CallCard extends StatelessWidget {
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.check_circle, color: Colors.green.shade700, size: 13),
                   const SizedBox(width: 4),
-                  Text('Called',
+                  Text(context.tr('calledLabel'),
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -818,10 +819,10 @@ class _HistoryTabState extends State<_HistoryTab> {
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.history_outlined, size: 56, color: Colors.grey.shade300),
           const SizedBox(height: 12),
-          Text('No history found',
+          Text(context.tr('noHistoryFound'),
               style: TextStyle(fontSize: 15, color: Colors.grey.shade500)),
           const SizedBox(height: 4),
-          Text('Past call records will appear here',
+          Text(context.tr('pastCallRecords'),
               style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
         ]),
       );
@@ -989,7 +990,7 @@ class _DayCardState extends State<_DayCard> {
                               Icon(Icons.check_circle,
                                   size: 12, color: Colors.green.shade600),
                               const SizedBox(width: 3),
-                              Text('Called',
+                              Text(context.tr('calledLabel'),
                                   style: TextStyle(
                                       fontSize: 10,
                                       color: Colors.green.shade600)),
