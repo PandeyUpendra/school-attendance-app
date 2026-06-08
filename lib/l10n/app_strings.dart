@@ -227,6 +227,16 @@ class AppStrings {
     'subViewSchoolContact':  {'en': 'View school contact and details', 'hi': 'स्कूल संपर्क और विवरण देखें'},
     'subManagePermissions':  {'en': 'Manage permissions and privacy settings', 'hi': 'अनुमतियाँ और गोपनीयता सेटिंग्स प्रबंधित करें'},
 
+    // ── My Timetable screen ──────────────────────────────────────────────
+    'sharePdf':               {'en': 'Share PDF',         'hi': 'PDF साझा करें'},
+    'downloadSharePdf':       {'en': 'Download / Share PDF', 'hi': 'PDF डाउनलोड / साझा करें'},
+    'timetableNotSetUp':      {'en': 'Timetable not set up yet', 'hi': 'समय-सारिणी अभी सेट नहीं है'},
+    'askCoordinatorConfigure':{'en': 'Ask the coordinator to configure it', 'hi': 'इसे सेट करने के लिए समन्वयक से कहें'},
+    'classesLabel':           {'en': 'Classes',           'hi': 'कक्षाएँ'},
+    'bellsPerDay':            {'en': 'Bells/Day',          'hi': 'घंटियाँ/दिन'},
+    'classLabel':             {'en': 'Class',             'hi': 'कक्षा'},
+    'lunch':                  {'en': 'Lunch',             'hi': 'लंच'},
+
     // ── Coordinator / Principal dashboards: tile subtitles ───────────────
     'subStaffTasksDesc':         {'en': 'Assign tasks to teachers and track progress', 'hi': 'शिक्षकों को कार्य सौंपें और प्रगति ट्रैक करें'},
     'subMeetingRecordsDesc':     {'en': 'Manage meetings, agenda points and teacher task assignments', 'hi': 'बैठकें, एजेंडा और शिक्षक कार्य प्रबंधित करें'},

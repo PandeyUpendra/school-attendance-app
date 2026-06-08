@@ -7,6 +7,7 @@ import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 
 class MyTimetableScreen extends StatefulWidget {
   /// When provided → shows this teacher's personal schedule.
@@ -236,12 +237,12 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Text(_isPersonal ? 'My Timetable' : 'School Timetable'),
+        title: Text(_isPersonal ? context.tr('myTimetable') : context.tr('schoolTimetable')),
         actions: [
           if (!_isPersonal && !_loading && _classes.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.picture_as_pdf_outlined),
-              tooltip: 'Share PDF',
+              tooltip: context.tr('sharePdf'),
               onPressed: () => _showPdfOptions(context),
             ),
         ],
@@ -249,22 +250,22 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _classes.isEmpty
-              ? _emptyState()
+              ? _emptyState(context)
               : _isPersonal
                   ? _buildPersonalView()
-                  : _buildFullGrid(),
+                  : _buildFullGrid(context),
     );
   }
 
-  Widget _emptyState() => Center(
+  Widget _emptyState(BuildContext context) => Center(
     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       Icon(Icons.calendar_today_outlined,
           size: 64, color: Colors.grey.shade300),
       const SizedBox(height: 16),
-      Text('Timetable not set up yet',
+      Text(context.tr('timetableNotSetUp'),
           style: TextStyle(fontSize: 16, color: Colors.grey.shade400)),
       const SizedBox(height: 6),
-      Text('Ask the coordinator to configure it',
+      Text(context.tr('askCoordinatorConfigure'),
           style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
     ]),
   );
@@ -305,7 +306,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
 
   // ── Full school grid (coordinator) ───────────────────────────────────────────
 
-  Widget _buildFullGrid() {
+  Widget _buildFullGrid(BuildContext context) {
     final regularBells =
         _bells.where((b) => !(b['isLunch'] as bool? ?? false)).length;
     return Column(children: [
@@ -314,9 +315,9 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
         color: AppTheme.primary,
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         child: Row(children: [
-          _Badge(label: 'Classes',   value: '${_classes.length}'),
+          _Badge(label: context.tr('classesLabel'),   value: '${_classes.length}'),
           const SizedBox(width: 8),
-          _Badge(label: 'Bells/Day', value: '$regularBells'),
+          _Badge(label: context.tr('bellsPerDay'), value: '$regularBells'),
         ]),
       ),
       _daySelector(),
@@ -329,7 +330,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  const _HeaderCell('Class', width: 90, isCorner: true),
+                  _HeaderCell(context.tr('classLabel'), width: 90, isCorner: true),
                   for (int b = 1; b <= _bellCount; b++)
                     _isLunchBell(b - 1)
                         ? const _LunchHeaderCell(width: 110)
@@ -461,7 +462,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
                 _sharePdf(cls);
               },
               icon: const Icon(Icons.share_outlined),
-              label: const Text('Download / Share PDF'),
+              label: Text(context.tr('downloadSharePdf')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
@@ -634,7 +635,7 @@ class _LunchCell extends StatelessWidget {
       ),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Icon(Icons.restaurant, color: Colors.orange.shade300, size: 18),
-        Text('Lunch',
+        Text(context.tr('lunch'),
             style:
                 TextStyle(fontSize: 9, color: Colors.orange.shade400)),
       ]),
