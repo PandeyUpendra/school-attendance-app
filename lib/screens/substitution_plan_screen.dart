@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../models/substitution_record.dart';
 import '../services/notification_service.dart';
 import '../services/substitution_history_service.dart';
@@ -113,8 +114,7 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
     setState(() => _saving = false);
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Assigned $saved substitution${saved == 1 ? '' : 's'}'
-          ' and notified teachers.'),
+      content: Text('$saved ${context.tr('substitutionsAssignedNotified')}'),
       backgroundColor: Colors.green.shade700,
       duration: const Duration(seconds: 3),
     ));
@@ -130,8 +130,8 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Substitution Plan',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('substitutionPlan'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
             Text(widget.teacherName,
                 style: const TextStyle(fontSize: 11, color: Colors.white70)),
           ],
@@ -139,7 +139,7 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Recompute suggestions',
+            tooltip: context.tr('recomputeSuggestions'),
             onPressed: _loading || _saving ? null : _load,
           ),
         ],
@@ -165,21 +165,20 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
                 Icon(Icons.event_available_outlined,
                     size: 64, color: Colors.grey.shade300),
                 const SizedBox(height: 16),
-                const Text('No bells need covering',
-                    style: TextStyle(
+                Text(context.tr('noBellsNeedCovering'),
+                    style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 Text(
-                  'Either the timetable has no entries for ${widget.teacherName} '
-                  'during the leave window, or all affected bells already have a '
-                  'substitute assigned.',
+                  '${context.tr('noBellsExplainPrefix')} ${widget.teacherName} '
+                  '${context.tr('noBellsExplainSuffix')}',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                 ),
                 const SizedBox(height: 16),
                 OutlinedButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Done'),
+                  child: Text(context.tr('done')),
                 ),
               ]),
         ),
@@ -198,28 +197,28 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
         border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Row(children: [
-          Icon(Icons.auto_awesome, color: AppTheme.primary, size: 18),
-          SizedBox(width: 8),
+        Row(children: [
+          const Icon(Icons.auto_awesome, color: AppTheme.primary, size: 18),
+          const SizedBox(width: 8),
           Expanded(
-            child: Text('Smart Substitution Plan',
-                style:
-                    TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            child: Text(context.tr('smartSubstitutionPlan'),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 14)),
           ),
         ]),
         const SizedBox(height: 6),
         Text(
-          '$total bell${total == 1 ? '' : 's'} need${total == 1 ? 's' : ''} cover • '
-          '$picked ready to assign'
-          '${noCandidate > 0 ? ' • $noCandidate without free teachers' : ''}',
+          '$total ${context.tr('bellsToCover')} • '
+          '$picked ${context.tr('readyToAssign')}'
+          '${noCandidate > 0 ? ' • $noCandidate ${context.tr('withoutFreeTeachers')}' : ''}',
           style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
         ),
         const SizedBox(height: 8),
         Wrap(spacing: 6, runSpacing: 4, children: [
-          _legendChip('Free that bell', Colors.green),
-          _legendChip('Same subject', AppTheme.primary),
-          _legendChip('Low sub-load', Colors.blue),
-          _legendChip('Not on duty', Colors.teal),
+          _legendChip(context.tr('legendFreeThatBell'), Colors.green),
+          _legendChip(context.tr('legendSameSubject'), AppTheme.primary),
+          _legendChip(context.tr('legendLowSubLoad'), Colors.blue),
+          _legendChip(context.tr('legendNotOnDuty'), Colors.teal),
         ]),
       ]),
     );
@@ -326,8 +325,8 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                     height: 1.0)),
-            const Text('bell',
-                style: TextStyle(
+            Text(context.tr('bellSmall'),
+                style: const TextStyle(
                     color: Colors.white70, fontSize: 8, height: 1.0)),
           ]),
         ),
@@ -353,7 +352,7 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
                     Icon(Icons.error_outline,
                         color: Colors.orange.shade700, size: 14),
                     const SizedBox(width: 4),
-                    Text('No free teachers for this bell',
+                    Text(context.tr('noFreeTeachersForBell'),
                         style: TextStyle(
                             fontSize: 11,
                             color: Colors.orange.shade800,
@@ -364,7 +363,7 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
                     value: validSelId,
                     isExpanded: true,
                     decoration: InputDecoration(
-                      labelText: 'Select Substitute Teacher',
+                      labelText: context.tr('selectSubstituteTeacher'),
                       labelStyle: const TextStyle(
                           fontSize: 11, color: AppTheme.primary),
                       border: OutlineInputBorder(
@@ -383,13 +382,13 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
                           horizontal: 10, vertical: 8),
                       isDense: true,
                     ),
-                    hint: const Text('Select Substitute Teacher',
-                        style: TextStyle(fontSize: 11)),
+                    hint: Text(context.tr('selectSubstituteTeacher'),
+                        style: const TextStyle(fontSize: 11)),
                     items: [
-                      const DropdownMenuItem<String>(
+                      DropdownMenuItem<String>(
                         value: '',
-                        child: Text('— Skip this bell —',
-                            style: TextStyle(
+                        child: Text(context.tr('skipThisBell'),
+                            style: const TextStyle(
                                 fontSize: 11, color: Colors.grey)),
                       ),
                       ...slot.candidates.asMap().entries.map((e) {
@@ -429,7 +428,7 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
           Expanded(
             child: OutlinedButton(
               onPressed: _saving ? null : () => Navigator.pop(context),
-              child: const Text('Later'),
+              child: Text(context.tr('later')),
             ),
           ),
           const SizedBox(width: 10),
@@ -444,8 +443,8 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.check, size: 16),
               label: Text(_saving
-                  ? 'Assigning…'
-                  : 'Assign All ($_assignableCount)'),
+                  ? context.tr('assigningEllipsis')
+                  : '${context.tr('assignAll')} ($_assignableCount)'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,

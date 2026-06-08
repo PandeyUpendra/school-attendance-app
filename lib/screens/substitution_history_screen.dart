@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../models/substitution_record.dart';
 import '../models/teacher.dart';
 import '../services/substitution_history_service.dart';
@@ -83,11 +84,11 @@ class _SubstitutionHistoryScreenState
   @override
   Widget build(BuildContext context) {
     final title = _isTeacherMode
-        ? 'My Substitution Duties'
-        : 'Substitution History';
+        ? context.tr('mySubstitutionDuties')
+        : context.tr('substitutionHistory');
     final subtitle = _isTeacherMode
-        ? 'All classes I have covered'
-        : 'All substitution records';
+        ? context.tr('allClassesCovered')
+        : context.tr('allSubstitutionRecords');
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -110,9 +111,9 @@ class _SubstitutionHistoryScreenState
                 indicatorColor: Colors.white,
                 labelColor: Colors.white,
                 unselectedLabelColor: Colors.white70,
-                tabs: const [
-                  Tab(text: 'History'),
-                  Tab(text: 'Leaderboard'),
+                tabs: [
+                  Tab(text: context.tr('historyTab')),
+                  Tab(text: context.tr('leaderboardTab')),
                 ],
               ),
       ),
@@ -123,7 +124,7 @@ class _SubstitutionHistoryScreenState
                   records:      _history,
                   showTeacher:  false,
                   onDelete:     null,
-                  emptyMessage: 'No duty assigned',
+                  emptyMessage: context.tr('noDutyAssigned'),
                 )
               : TabBarView(
                   controller: _tab,
@@ -135,7 +136,7 @@ class _SubstitutionHistoryScreenState
                         await _histService.deleteRecord(id);
                         _load();
                       },
-                      emptyMessage: 'No substitution records yet.',
+                      emptyMessage: context.tr('noSubstitutionRecords'),
                     ),
                     _LeaderboardTab(
                       teachers: _teachers,
@@ -214,20 +215,20 @@ class _HistoryList extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '$date  •  ${r.className}  •  Bell ${r.bell}',
+                      '$date  •  ${r.className}  •  ${context.tr('bellPrefix')} ${r.bell}',
                       style: const TextStyle(
                           fontSize: 13, fontWeight: FontWeight.bold),
                     ),
                     if (showTeacher)
-                      Text('Sub: ${r.substituteTeacherName}',
+                      Text('${context.tr('subColon')} ${r.substituteTeacherName}',
                           style: const TextStyle(
                               fontSize: 12, color: AppTheme.primaryDark)),
                     if (r.originalTeacherName.isNotEmpty)
-                      Text('For: ${r.originalTeacherName}',
+                      Text('${context.tr('forColon')} ${r.originalTeacherName}',
                           style: TextStyle(
                               fontSize: 11, color: Colors.grey.shade500)),
                     if (r.subject.isNotEmpty)
-                      Text('Subject: ${r.subject}',
+                      Text('${context.tr('subjectColon')} ${r.subject}',
                           style: TextStyle(
                               fontSize: 11, color: Colors.grey.shade500)),
                   ],
@@ -241,19 +242,19 @@ class _HistoryList extends StatelessWidget {
                     final ok = await showDialog<bool>(
                       context: context,
                       builder: (_) => AlertDialog(
-                        title: const Text('Delete Record?'),
-                        content: const Text(
-                            'Remove this substitution history entry?'),
+                        title: Text(context.tr('deleteRecordQ')),
+                        content: Text(
+                            context.tr('removeSubstitutionEntry')),
                         actions: [
                           TextButton(
                               onPressed: () =>
                                   Navigator.pop(context, false),
-                              child: const Text('Cancel')),
+                              child: Text(context.tr('cancel'))),
                           TextButton(
                               onPressed: () =>
                                   Navigator.pop(context, true),
-                              child: const Text('Delete',
-                                  style: TextStyle(color: Colors.red))),
+                              child: Text(context.tr('delete'),
+                                  style: const TextStyle(color: Colors.red))),
                         ],
                       ),
                     );
@@ -294,7 +295,7 @@ class _LeaderboardTab extends StatelessWidget {
 
     if (sorted.isEmpty) {
       return Center(
-        child: Text('No teachers found.',
+        child: Text(context.tr('noTeachersFound'),
             style: TextStyle(color: Colors.grey.shade500)),
       );
     }
@@ -304,7 +305,7 @@ class _LeaderboardTab extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: Text('Most substitutions (all time)',
+          child: Text(context.tr('mostSubstitutionsAllTime'),
               style: TextStyle(
                   fontSize: 12, color: Colors.grey.shade500)),
         ),
@@ -382,7 +383,7 @@ class _LeaderboardTab extends StatelessWidget {
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
                           color: AppTheme.primary)),
-                  Text('times',
+                  Text(context.tr('timesWord'),
                       style: TextStyle(
                           fontSize: 10, color: Colors.grey.shade500)),
                 ],
