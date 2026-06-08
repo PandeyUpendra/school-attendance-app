@@ -8,6 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../l10n/app_strings.dart';
 import '../models/guardian_student_details.dart';
 import '../models/guardian_provided_details.dart';
 import '../models/student.dart';
@@ -38,6 +39,34 @@ const _kDeletionReasons = [
   'Financial reasons',
   'Other (specify below)',
 ];
+
+/// Localised display label for a deletion reason. Stored values stay English
+/// (they're sent to the principal), so only the display is translated.
+String _localizedReason(BuildContext context, String reason) {
+  const keys = {
+    'Transferred to another school':   'reasonTransferred',
+    'Left school / Dropped out':       'reasonLeftSchool',
+    'Relocated to another city':       'reasonRelocated',
+    'Family reasons':                  'reasonFamily',
+    'Admission cancelled':             'reasonAdmissionCancelled',
+    'Completed studies / Passed out':  'reasonCompleted',
+    'Medical reasons':                 'reasonMedical',
+    'Financial reasons':               'reasonFinancial',
+    'Other (specify below)':           'reasonOtherSpecify',
+  };
+  final key = keys[reason];
+  return key == null ? reason : context.tr(key);
+}
+
+/// Localised display label for a stored fee-status value (kept English on disk).
+String _localizedFeeStatus(BuildContext context, String status) {
+  switch (status) {
+    case 'Paid':    return context.tr('paidLabel');
+    case 'Partial': return context.tr('partialLabel');
+    case 'Pending': return context.tr('statusPending');
+    default:        return status;
+  }
+}
 
 class StudentListScreen extends StatefulWidget {
   final String className;
@@ -97,7 +126,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
   String get _effectiveTitle {
     if (widget.section.trim().isEmpty) return widget.className;
-    return '${widget.className} — Section ${widget.section}';
+    return '${widget.className} — ${context.tr('sectionWord')} ${widget.section}';
   }
 
   @override
@@ -183,10 +212,10 @@ class _StudentListScreenState extends State<StudentListScreen> {
       builder: (_) => StatefulBuilder(
         builder: (_, setLocal) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(children: [
-            Icon(Icons.pending_actions_outlined, color: AppTheme.warning),
-            SizedBox(width: 8),
-            Text('Request Deletion', style: TextStyle(fontSize: 17)),
+          title: Row(children: [
+            const Icon(Icons.pending_actions_outlined, color: AppTheme.warning),
+            const SizedBox(width: 8),
+            Text(context.tr('requestDeletion'), style: const TextStyle(fontSize: 17)),
           ]),
           content: SizedBox(
             width: double.maxFinite,
@@ -195,9 +224,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'You are requesting to delete $count '
-                  'student${count == 1 ? '' : 's'}. The principal must '
-                  'approve before records are permanently removed.',
+                  '${context.tr('requestingToDelete')} $count '
+                  '${context.tr('studentsWord')}. ${context.tr('principalMustApprove')}',
                   style: const TextStyle(fontSize: 13),
                 ),
                 const SizedBox(height: 10),
@@ -241,17 +269,17 @@ class _StudentListScreenState extends State<StudentListScreen> {
                   value: dropReason,
                   isExpanded: true,
                   decoration: InputDecoration(
-                    labelText: 'Reason (optional)',
+                    labelText: context.tr('reasonOptional'),
                     prefixIcon: const Icon(Icons.info_outline, size: 18),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 10),
                   ),
-                  hint: const Text('Select a reason',
-                      style: TextStyle(fontSize: 13)),
+                  hint: Text(context.tr('selectReason'),
+                      style: const TextStyle(fontSize: 13)),
                   items: _kDeletionReasons
-                      .map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 13))))
+                      .map((r) => DropdownMenuItem(value: r, child: Text(_localizedReason(context, r), style: const TextStyle(fontSize: 13))))
                       .toList(),
                   onChanged: (v) => setLocal(() {
                     dropReason = v;
@@ -266,7 +294,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                     maxLines: 2,
                     autofocus: true,
                     decoration: InputDecoration(
-                      labelText: 'Specify reason',
+                      labelText: context.tr('specifyReason'),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),
                       contentPadding: const EdgeInsets.all(10),
@@ -279,11 +307,11 @@ class _StudentListScreenState extends State<StudentListScreen> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(_, false),
-                child: const Text('Cancel')),
+                child: Text(context.tr('cancel'))),
             ElevatedButton.icon(
               icon: const Icon(Icons.send_outlined, size: 16, color: Colors.white),
-              label: const Text('Send Request',
-                  style: TextStyle(color: Colors.white)),
+              label: Text(context.tr('sendRequest'),
+                  style: const TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   shape: RoundedRectangleBorder(
@@ -333,8 +361,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-            'Deletion request sent for ${_namesLabel(toDelete)}. '
-            'Awaiting principal approval.'),
+            '${context.tr('deletionRequestSentFor')} ${_namesLabel(toDelete)}. '
+            '${context.tr('awaitingPrincipalApproval')}'),
         backgroundColor: AppTheme.primary,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 4),
@@ -347,7 +375,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
   String _namesLabel(List<Student> list) {
     final names = list.map((s) => s.name).toList();
     if (names.length <= 3) return names.join(', ');
-    return '${names.take(3).join(', ')} +${names.length - 3} more';
+    return '${names.take(3).join(', ')} +${names.length - 3} ${context.tr('moreWord')}';
   }
 
 
@@ -393,7 +421,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e')));
+          SnackBar(content: Text('${context.tr('exportFailed')} $e')));
     }
   }
 
@@ -470,7 +498,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
     if (students.isEmpty || !mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No valid students found in CSV')));
+          SnackBar(content: Text(context.tr('noValidStudentsCsv'))));
       return;
     }
 
@@ -478,7 +506,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Import ${students.length} Students'),
+        title: Text('${context.tr('importStudentsTitlePrefix')} ${students.length} ${context.tr('studentsWord')}'),
         content: SizedBox(
           width: double.maxFinite,
           height: 300,
@@ -498,7 +526,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                 title: Text(s.name,
                     style: const TextStyle(fontSize: 13)),
                 subtitle: s.fatherName.isNotEmpty
-                    ? Text('Father: ${s.fatherName}',
+                    ? Text('${context.tr('fatherColon')} ${s.fatherName}',
                         style: const TextStyle(fontSize: 11))
                     : null,
               );
@@ -508,13 +536,13 @@ class _StudentListScreenState extends State<StudentListScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(_, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           ElevatedButton(
             onPressed: () => Navigator.pop(_, true),
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white),
-            child: const Text('Import'),
+            child: Text(context.tr('importLabel')),
           ),
         ],
       ),
@@ -533,7 +561,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
     if (!mounted) return;
     // Stream auto-refreshes after the import.
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Imported $added students${skipped > 0 ? ', $skipped skipped (duplicate roll)' : ''}'),
+      content: Text('${context.tr('importedWord')} $added ${context.tr('studentsWord')}${skipped > 0 ? ', $skipped ${context.tr('skippedDuplicateRoll')}' : ''}'),
       backgroundColor: Colors.green,
     ));
   }
@@ -566,12 +594,12 @@ class _StudentListScreenState extends State<StudentListScreen> {
               )
             : null,
         title: _selectMode
-            ? Text('${_selectedRolls.length} selected')
+            ? Text('${_selectedRolls.length} ${context.tr('selectedLower')}')
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Student List',
-                      style: TextStyle(
+                  Text(context.tr('studentList'),
+                      style: const TextStyle(
                           fontSize: 17, fontWeight: FontWeight.bold)),
                   Text(_effectiveTitle,
                       style: const TextStyle(
@@ -583,14 +611,14 @@ class _StudentListScreenState extends State<StudentListScreen> {
                 TextButton(
                   onPressed: _students.isNotEmpty ? _toggleSelectAll : null,
                   child: Text(
-                    _allSelected ? 'None' : 'All',
+                    _allSelected ? context.tr('noneLabel') : context.tr('allCount'),
                     style: const TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
-                  tooltip: 'Delete selected',
+                  tooltip: context.tr('deleteSelected'),
                   onPressed:
                       _selectedRolls.isNotEmpty ? _deleteSelected : null,
                 ),
@@ -599,13 +627,13 @@ class _StudentListScreenState extends State<StudentListScreen> {
                 if (_students.isNotEmpty)
                   IconButton(
                     icon: const Icon(Icons.download_outlined),
-                    tooltip: 'Export to CSV',
+                    tooltip: context.tr('exportToCsv'),
                     onPressed: _exportCSV,
                   ),
                 if (widget.isClassTeacher)
                   IconButton(
                     icon: const Icon(Icons.upload_file_outlined),
-                    tooltip: 'Import from CSV',
+                    tooltip: context.tr('importFromCsv'),
                     onPressed: _importCSV,
                   ),
               ],
@@ -615,8 +643,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
               onPressed: _openAdd,
               backgroundColor: AppTheme.primary,
               icon: const Icon(Icons.person_add, color: Colors.white),
-              label: const Text('Add Student',
-                  style: TextStyle(color: Colors.white)),
+              label: Text(context.tr('addStudent'),
+                  style: const TextStyle(color: Colors.white)),
             )
           : null,
       body: _loading
@@ -629,13 +657,13 @@ class _StudentListScreenState extends State<StudentListScreen> {
                       Icon(Icons.group_add,
                           size: 72, color: Colors.grey.shade300),
                       const SizedBox(height: 16),
-                      Text('No students in $_effectiveTitle',
+                      Text('${context.tr('noStudentsIn')} $_effectiveTitle',
                           style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.bold,
                               color: Colors.grey.shade400)),
                       const SizedBox(height: 6),
-                      Text('Tap + Add Student to get started',
+                      Text(context.tr('tapAddStudentStart'),
                           style: TextStyle(
                               color: Colors.grey.shade400)),
                     ],
@@ -806,7 +834,7 @@ class _StudentCard extends StatelessWidget {
                               color: AppTheme.primary.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Text('ROLL ${student.roll}',
+                            child: Text('${context.tr('roll').toUpperCase()} ${student.roll}',
                                 style: const TextStyle(fontSize: 10, color: AppTheme.primaryDark, fontWeight: FontWeight.w800)),
                           ),
                           const SizedBox(width: 8),
@@ -815,8 +843,8 @@ class _StudentCard extends StatelessWidget {
                       ),
                       if (pendingDeletion) ...[
                         const SizedBox(height: 4),
-                        const Text('Deletion requested — awaiting approval',
-                            style: TextStyle(
+                        Text(context.tr('deletionRequestedAwaiting'),
+                            style: const TextStyle(
                                 fontSize: 11,
                                 fontStyle: FontStyle.italic,
                                 color: AppTheme.warning)),
@@ -831,11 +859,11 @@ class _StudentCard extends StatelessWidget {
                       color: AppTheme.warning.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.hourglass_top, size: 11, color: AppTheme.warning),
-                      SizedBox(width: 3),
-                      Text('Deactivated',
-                          style: TextStyle(fontSize: 10, color: AppTheme.warning, fontWeight: FontWeight.bold)),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.hourglass_top, size: 11, color: AppTheme.warning),
+                      const SizedBox(width: 3),
+                      Text(context.tr('deactivated'),
+                          style: const TextStyle(fontSize: 10, color: AppTheme.warning, fontWeight: FontWeight.bold)),
                     ]),
                   )
                 else
@@ -845,7 +873,7 @@ class _StudentCard extends StatelessWidget {
                       color: _feeColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(student.feeStatus,
+                    child: Text(_localizedFeeStatus(context, student.feeStatus),
                         style: TextStyle(fontSize: 10, color: _feeColor, fontWeight: FontWeight.bold)),
                   ),
                 const SizedBox(width: 8),
@@ -915,18 +943,18 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(children: [
-          Icon(Icons.pending_actions_outlined, color: AppTheme.warning),
-          SizedBox(width: 8),
-          Text('Request Deletion', style: TextStyle(fontSize: 17)),
+        title: Row(children: [
+          const Icon(Icons.pending_actions_outlined, color: AppTheme.warning),
+          const SizedBox(width: 8),
+          Text(context.tr('requestDeletion'), style: const TextStyle(fontSize: 17)),
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Removing ${_student.name} requires principal approval. '
-              'A request will be sent and the record deleted once approved.',
+              '${context.tr('removingRequiresApprovalPrefix')} ${_student.name} '
+              '${context.tr('removingRequiresApprovalSuffix')}',
               style: const TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 12),
@@ -934,17 +962,17 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
               value: dropReason,
               isExpanded: true,
               decoration: InputDecoration(
-                labelText: 'Reason (optional)',
+                labelText: context.tr('reasonOptional'),
                 prefixIcon: const Icon(Icons.info_outline, size: 18),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12, vertical: 10),
               ),
-              hint: const Text('Select a reason',
-                  style: TextStyle(fontSize: 13)),
+              hint: Text(context.tr('selectReason'),
+                  style: const TextStyle(fontSize: 13)),
               items: _kDeletionReasons
-                  .map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 13))))
+                  .map((r) => DropdownMenuItem(value: r, child: Text(_localizedReason(context, r), style: const TextStyle(fontSize: 13))))
                   .toList(),
               onChanged: (v) => setLocal(() {
                 dropReason = v;
@@ -959,7 +987,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 maxLines: 2,
                 autofocus: true,
                 decoration: InputDecoration(
-                  labelText: 'Specify reason',
+                  labelText: context.tr('specifyReason'),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10)),
                   contentPadding: const EdgeInsets.all(10),
@@ -971,12 +999,12 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           ElevatedButton.icon(
             icon: const Icon(Icons.send_outlined, size: 16,
                 color: Colors.white),
-            label: const Text('Send Request',
-                style: TextStyle(color: Colors.white)),
+            label: Text(context.tr('sendRequest'),
+                style: const TextStyle(color: Colors.white)),
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 shape: RoundedRectangleBorder(
@@ -1020,8 +1048,8 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(
-          'Deletion request sent for ${_student.name}. '
-          'Awaiting principal approval.'),
+          '${context.tr('deletionRequestSentFor')} ${_student.name}. '
+          '${context.tr('awaitingPrincipalApproval')}'),
       backgroundColor: AppTheme.primary,
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 4),
@@ -1070,20 +1098,20 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
       builder: (dCtx) => StatefulBuilder(
         builder: (dCtx, setS) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Guardian Email'),
+          title: Text(context.tr('guardianEmailTitle')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Enter the guardian\'s email. A login password will be auto-generated.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+              Text(
+                context.tr('guardianEmailIntro'),
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 12),
               EmailTextFormField(
                 controller: ctrl,
                 decoration: InputDecoration(
-                  labelText: 'Guardian email address',
+                  labelText: context.tr('guardianEmailAddress'),
                   errorText: emailErr,
                   prefixIcon: const Icon(Icons.email_outlined),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -1095,7 +1123,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dCtx),
-              child: const Text('Cancel'),
+              child: Text(context.tr('cancel')),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -1103,7 +1131,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
               onPressed: () async {
                 final email = ctrl.text.trim().toLowerCase();
                 if (!Validators.isValidEmail(email)) {
-                  setS(() => emailErr = 'Enter a valid email address');
+                  setS(() => emailErr = context.tr('enterValidEmail'));
                   return;
                 }
                 setS(() => emailErr = null);
@@ -1125,7 +1153,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 }
                 if (dCtx.mounted) Navigator.pop(dCtx);
               },
-              child: const Text('Save'),
+              child: Text(context.tr('save')),
             ),
           ],
         ),
@@ -1140,7 +1168,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
       });
       if (inviteSent) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Invite email sent to $savedEmail'),
+          content: Text('${context.tr('inviteEmailSentTo')} $savedEmail'),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 4),
@@ -1148,8 +1176,8 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-              'Guardian saved, but the invite email to $savedEmail could not '
-              'be sent. Use "Resend Invite" to try again.'),
+              '${context.tr('guardianSavedInviteFailedPrefix')} $savedEmail '
+              '${context.tr('guardianSavedInviteFailedSuffix')}'),
           backgroundColor: AppTheme.warning,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 8),
@@ -1168,14 +1196,14 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
       await TimetableService().resendInvitationEmail(email);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Invite email resent to $email'),
+        content: Text('${context.tr('inviteEmailResentTo')} $email'),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
       ));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Failed to resend invite. Check internet connection.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.tr('failedResendInvite')),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
       ));
@@ -1184,10 +1212,10 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
 
   void _copyToClipboard(String text) {
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Copied to clipboard'),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(context.tr('copiedToClipboard')),
       behavior: SnackBarBehavior.floating,
-      duration: Duration(seconds: 2),
+      duration: const Duration(seconds: 2),
     ));
   }
 
@@ -1280,12 +1308,12 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Guardian updates accepted and applied')),
+        SnackBar(content: Text(context.tr('guardianUpdatesAccepted'))),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to accept updates: $e')),
+        SnackBar(content: Text('${context.tr('failedAcceptUpdates')} $e')),
       );
     }
   }
@@ -1295,23 +1323,23 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Request Clarification'),
+        title: Text(context.tr('requestClarification')),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Enter why clarification is needed...',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: context.tr('enterClarificationHint'),
+            border: const OutlineInputBorder(),
           ),
           maxLines: 3,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(context.tr('cancel')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Submit'),
+            child: Text(context.tr('submitAction')),
           ),
         ],
       ),
@@ -1327,12 +1355,12 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
         );
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Clarification request sent to guardian')),
+          SnackBar(content: Text(context.tr('clarificationSent'))),
         );
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to request clarification: $e')),
+          SnackBar(content: Text('${context.tr('failedRequestClarification')} $e')),
         );
       }
     }
@@ -1350,20 +1378,20 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     final s = _student;
     final d = s.guardianDetails;
 
-    compare('Full Name', s.name, details.name);
-    compare('Date of Birth', d?.dob ?? '', details.dob);
-    compare('Gender', d?.gender ?? '', details.gender);
-    compare("Father's Name", s.fatherName, details.fatherName);
-    compare("Mother's Name", s.motherName ?? '', details.motherName);
-    compare('Primary Phone', s.phone, details.phone);
-    compare('Secondary Phone', s.parentPhone ?? '', details.parentPhone);
-    compare('Address', d?.address ?? '', details.address);
-    compare('Previous School', d?.previousSchool ?? '', details.previousSchool);
-    compare('Blood Group', d?.bloodGroup ?? '', details.bloodGroup);
-    compare('Emergency Contact Name', d?.emergencyContactName ?? '', details.emergencyContactName);
-    compare('Emergency Contact Phone', d?.emergencyContactPhone ?? '', details.emergencyContactPhone);
-    compare('Allergies', d?.allergies ?? '', details.allergies);
-    compare('Transport Mode', d?.transportMode ?? '', details.transportMode);
+    compare(context.tr('fullName'), s.name, details.name);
+    compare(context.tr('dateOfBirthLabel'), d?.dob ?? '', details.dob);
+    compare(context.tr('genderLabel'), d?.gender ?? '', details.gender);
+    compare(context.tr('fathersName'), s.fatherName, details.fatherName);
+    compare(context.tr('mothersNameLabel'), s.motherName ?? '', details.motherName);
+    compare(context.tr('primaryPhone'), s.phone, details.phone);
+    compare(context.tr('secondaryPhone'), s.parentPhone ?? '', details.parentPhone);
+    compare(context.tr('addressLabel'), d?.address ?? '', details.address);
+    compare(context.tr('previousSchoolLabel'), d?.previousSchool ?? '', details.previousSchool);
+    compare(context.tr('bloodGroupLabel'), d?.bloodGroup ?? '', details.bloodGroup);
+    compare(context.tr('emergencyContactName'), d?.emergencyContactName ?? '', details.emergencyContactName);
+    compare(context.tr('emergencyContactPhone'), d?.emergencyContactPhone ?? '', details.emergencyContactPhone);
+    compare(context.tr('allergiesConditionsLabel'), d?.allergies ?? '', details.allergies);
+    compare(context.tr('transportModeLabel'), d?.transportMode ?? '', details.transportMode);
 
     if (diffs.isEmpty) return const SizedBox.shrink();
 
@@ -1382,7 +1410,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 Icon(Icons.info_outline, color: Colors.blue.shade800),
                 const SizedBox(width: 8),
                 Text(
-                  'Details provided by guardian',
+                  context.tr('detailsProvidedByGuardian'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -1404,7 +1432,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       TextSpan(
-                        text: entry.value[0].isEmpty ? '[Empty]' : entry.value[0],
+                        text: entry.value[0].isEmpty ? context.tr('emptyBracket') : entry.value[0],
                         style: const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.red),
                       ),
                       const TextSpan(text: '  ➔  '),
@@ -1416,11 +1444,11 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                   ),
                 ),
               );
-            }).toList(),
+            }),
             if (details.remarks.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                'Remarks: ${details.remarks}',
+                '${context.tr('remarksColon')} ${details.remarks}',
                 style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.black54),
               ),
             ],
@@ -1431,7 +1459,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 TextButton(
                   onPressed: () => _requestGuardianClarification(details),
                   child: Text(
-                    'Request Clarification',
+                    context.tr('requestClarification'),
                     style: TextStyle(color: Colors.blue.shade900),
                   ),
                 ),
@@ -1442,7 +1470,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                     backgroundColor: Colors.blue.shade800,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Accept Changes'),
+                  child: Text(context.tr('acceptChanges')),
                 ),
               ],
             ),
@@ -1459,17 +1487,17 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Student Profile'),
+        title: Text(context.tr('studentProfile')),
         actions: [
           if (widget.canEdit) ...[
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Edit',
+              tooltip: context.tr('edit'),
               onPressed: _edit,
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
-              tooltip: 'Remove',
+              tooltip: context.tr('removeAction'),
               onPressed: _delete,
             ),
           ],
@@ -1527,12 +1555,12 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 ),
                 const SizedBox(height: 6),
                 Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  _Chip('Roll ${_student.roll}'),
+                  _Chip('${context.tr('roll')} ${_student.roll}'),
                   const SizedBox(width: 8),
                   _Chip(_student.className),
                   if (_student.section.isNotEmpty) ...[
                     const SizedBox(width: 8),
-                    _Chip('Sec ${_student.section}'),
+                    _Chip('${context.tr('secPrefix')} ${_student.section}'),
                   ],
                 ]),
               ]),
@@ -1544,30 +1572,30 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
               _buildGuardianDetailsSection(pendingGuardianDetails),
 
             // ── Basic Info ───────────────────────────────────────────────────
-            const _SectionHeader('BASIC INFO'),
-            _InfoRow(Icons.person_outline, 'Name', _student.name),
-            _InfoRow(Icons.cake_outlined, 'Date of Birth',
+            _SectionHeader(context.tr('secBasicInfo')),
+            _InfoRow(Icons.person_outline, context.tr('nameLabel'), _student.name),
+            _InfoRow(Icons.cake_outlined, context.tr('dateOfBirthLabel'),
                 _student.dateOfBirth != null
                     ? _fmtDob(_student.dateOfBirth!.toDate())
                     : '—'),
-            _InfoRow(Icons.wc_outlined, 'Gender',
+            _InfoRow(Icons.wc_outlined, context.tr('genderLabel'),
                 _student.gender?.isNotEmpty == true ? _student.gender! : '—'),
-            _InfoRow(Icons.school_outlined, 'Class / Section',
+            _InfoRow(Icons.school_outlined, context.tr('classSection'),
                 '${_student.className} ${_student.section}'.trim()),
-            _InfoRow(Icons.tag, 'Roll Number', '${_student.roll}'),
+            _InfoRow(Icons.tag, context.tr('rollNumber'), '${_student.roll}'),
             const Divider(height: 1),
 
             // ── Family ──────────────────────────────────────────────────────
-            const _SectionHeader('FAMILY'),
-            _InfoRow(Icons.man_outlined, "Father's Name",
+            _SectionHeader(context.tr('secFamily')),
+            _InfoRow(Icons.man_outlined, context.tr('fathersName'),
                 _student.fatherName.isNotEmpty ? _student.fatherName : '—'),
-            _InfoRow(Icons.woman_outlined, "Mother's Name",
+            _InfoRow(Icons.woman_outlined, context.tr('mothersNameLabel'),
                 _student.motherName?.isNotEmpty == true ? _student.motherName! : '—'),
             const Divider(height: 1),
 
             // ── Contact ─────────────────────────────────────────────────────
-            const _SectionHeader('CONTACT'),
-            _InfoRow(Icons.phone_outlined, 'Primary Contact',
+            _SectionHeader(context.tr('secContact')),
+            _InfoRow(Icons.phone_outlined, context.tr('primaryContact'),
                 _student.phone.isEmpty ? '—' : _student.phone),
             if (_student.phone.isNotEmpty)
               Padding(
@@ -1576,7 +1604,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                   Expanded(
                     child: _ActionBtn(
                       icon: Icons.call,
-                      label: 'Call',
+                      label: context.tr('callAction'),
                       color: Colors.green,
                       onTap: _call,
                     ),
@@ -1596,31 +1624,31 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                   ),
                 ]),
               ),
-            _InfoRow(Icons.phone_android_outlined, 'Secondary Contact',
+            _InfoRow(Icons.phone_android_outlined, context.tr('secondaryContact'),
                 _student.parentPhone?.isNotEmpty == true ? _student.parentPhone! : '—'),
-            _InfoRow(Icons.home_outlined, 'Address',
+            _InfoRow(Icons.home_outlined, context.tr('addressLabel'),
                 _student.address?.isNotEmpty == true ? _student.address! : '—'),
-            _InfoRow(Icons.contact_emergency_outlined, 'Emergency Contact',
+            _InfoRow(Icons.contact_emergency_outlined, context.tr('emergencyContactLabel'),
                 _student.emergencyContact?.isNotEmpty == true
                     ? _student.emergencyContact!
                     : '—'),
             const Divider(height: 1),
 
             // ── Academic & Medical ───────────────────────────────────────────
-            const _SectionHeader('ACADEMIC & MEDICAL'),
-            _InfoRow(Icons.account_balance_outlined, 'Previous School',
+            _SectionHeader(context.tr('secAcademicMedical')),
+            _InfoRow(Icons.account_balance_outlined, context.tr('previousSchoolLabel'),
                 _student.previousSchool?.isNotEmpty == true ? _student.previousSchool! : '—'),
-            _InfoRow(Icons.bloodtype_outlined, 'Blood Group',
+            _InfoRow(Icons.bloodtype_outlined, context.tr('bloodGroupLabel'),
                 _student.bloodGroup?.isNotEmpty == true ? _student.bloodGroup! : '—'),
-            _InfoRow(Icons.medical_information_outlined, 'Allergies / Conditions',
+            _InfoRow(Icons.medical_information_outlined, context.tr('allergiesConditionsLabel'),
                 _student.allergies?.isNotEmpty == true ? _student.allergies! : '—'),
-            _InfoRow(Icons.directions_bus_outlined, 'Transport Mode',
+            _InfoRow(Icons.directions_bus_outlined, context.tr('transportModeLabel'),
                 _student.transportMode?.isNotEmpty == true ? _student.transportMode! : '—'),
-            _InfoRow(Icons.photo_outlined, 'Photo Status',
+            _InfoRow(Icons.photo_outlined, context.tr('photoStatus'),
                 (_student.photoPath != null && _student.photoPath!.isNotEmpty) ||
                     (_student.photoUrl != null && _student.photoUrl!.isNotEmpty)
-                    ? 'Uploaded'
-                    : 'Not Uploaded'),
+                    ? context.tr('uploaded')
+                    : context.tr('notUploaded')),
             const Divider(height: 1),
 
             // ── Fee Status ────────────────────────────────────────────────────
@@ -1636,7 +1664,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(_feeIcon, color: _feeColor, size: 18),
                   const SizedBox(width: 6),
-                  Text(_student.feeStatus,
+                  Text(_localizedFeeStatus(context, _student.feeStatus),
                       style: TextStyle(
                           fontWeight: FontWeight.w600,
                           color: _feeColor,
@@ -1647,14 +1675,14 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             const Divider(height: 1),
 
             // ── Documents ────────────────────────────────────────────────────
-            const _SectionHeader('DOCUMENTS'),
+            _SectionHeader(context.tr('secDocuments')),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.workspace_premium_outlined),
-                  label: const Text('Generate Attendance Certificate'),
+                  label: Text(context.tr('generateAttendanceCertificate')),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.primary,
                     side: const BorderSide(color: AppTheme.primary),
@@ -1673,7 +1701,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             ),
 
             // ── Guardian Portal Access ─────────────────────────────────────
-            const _SectionHeader('GUARDIAN PORTAL ACCESS'),
+            _SectionHeader(context.tr('secGuardianPortal')),
             if (_student.guardianEmail == null || _student.guardianEmail!.isEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
@@ -1681,7 +1709,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.people_outlined),
-                    label: const Text('Set Guardian Email'),
+                    label: Text(context.tr('setGuardianEmail')),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.primary,
                       side: const BorderSide(color: AppTheme.primary),
@@ -1732,7 +1760,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                       ]),
                       const SizedBox(height: 6),
                       Text(
-                        'Guardian can sign in with this email. They set their own password via the invite email.',
+                        context.tr('guardianCanSignIn'),
                         style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                       ),
                       const SizedBox(height: 10),
@@ -1741,7 +1769,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                         Expanded(
                           child: OutlinedButton.icon(
                             icon: const Icon(Icons.send_outlined, size: 15),
-                            label: const Text('Resend Invite', style: TextStyle(fontSize: 13)),
+                            label: Text(context.tr('resendInvite'), style: const TextStyle(fontSize: 13)),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppTheme.primary,
                               side: const BorderSide(color: AppTheme.primary),
@@ -1834,10 +1862,10 @@ class _InfoRow extends StatelessWidget {
     return InkWell(
       onLongPress: value != '—' ? () {
         Clipboard.setData(ClipboardData(text: value));
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Copied to clipboard'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.tr('copiedToClipboard')),
           behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ));
       } : null,
       child: Padding(
@@ -1913,26 +1941,26 @@ class _GuardianDetailsSection extends StatelessWidget {
     // Build list of non-empty rows
     final rows = <_GRow>[
       if (d.dob.isNotEmpty)
-        _GRow(Icons.cake_outlined, 'Date of Birth', d.dob),
+        _GRow(Icons.cake_outlined, context.tr('dateOfBirthLabel'), d.dob),
       if (d.gender.isNotEmpty)
-        _GRow(Icons.wc_outlined, 'Gender', d.gender),
+        _GRow(Icons.wc_outlined, context.tr('genderLabel'), d.gender),
       if (d.address.isNotEmpty)
-        _GRow(Icons.home_outlined, 'Address', d.address),
+        _GRow(Icons.home_outlined, context.tr('addressLabel'), d.address),
       if (d.bloodGroup.isNotEmpty)
-        _GRow(Icons.bloodtype_outlined, 'Blood Group', d.bloodGroup),
+        _GRow(Icons.bloodtype_outlined, context.tr('bloodGroupLabel'), d.bloodGroup),
       if (d.emergencyContactName.isNotEmpty)
-        _GRow(Icons.contact_phone_outlined, 'Emergency Contact',
+        _GRow(Icons.contact_phone_outlined, context.tr('emergencyContactLabel'),
             d.emergencyContactPhone.isNotEmpty
                 ? '${d.emergencyContactName}  ·  ${d.emergencyContactPhone}'
                 : d.emergencyContactName),
       if (d.allergies.isNotEmpty)
-        _GRow(Icons.medical_services_outlined, 'Allergies / Conditions',
+        _GRow(Icons.medical_services_outlined, context.tr('allergiesConditionsLabel'),
             d.allergies),
       if (d.transportMode.isNotEmpty)
-        _GRow(Icons.directions_bus_outlined, 'Transport Mode',
+        _GRow(Icons.directions_bus_outlined, context.tr('transportModeLabel'),
             d.transportMode),
       if (d.previousSchool.isNotEmpty)
-        _GRow(Icons.school_outlined, 'Previous School', d.previousSchool),
+        _GRow(Icons.school_outlined, context.tr('previousSchoolLabel'), d.previousSchool),
     ];
 
     if (rows.isEmpty) return const SizedBox.shrink();
@@ -1946,7 +1974,7 @@ class _GuardianDetailsSection extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
           child: Row(children: [
             Text(
-              'DETAILS PROVIDED BY GUARDIAN',
+              context.tr('secDetailsByGuardian'),
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -1960,8 +1988,8 @@ class _GuardianDetailsSection extends StatelessWidget {
                 color: AppTheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text('Guardian supplied',
-                  style: TextStyle(
+              child: Text(context.tr('guardianSupplied'),
+                  style: const TextStyle(
                       fontSize: 9,
                       color: AppTheme.primary,
                       fontWeight: FontWeight.bold)),
@@ -1973,7 +2001,7 @@ class _GuardianDetailsSection extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
             child: Text(
-              'Last updated by guardian: ${d.lastUpdated!.split('T')[0]}',
+              '${context.tr('lastUpdatedByGuardian')} ${d.lastUpdated!.split('T')[0]}',
               style: TextStyle(
                   fontSize: 11,
                   color: Colors.grey.shade400,
