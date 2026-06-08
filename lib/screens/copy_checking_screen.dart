@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../l10n/app_strings.dart';
 import '../models/copy_check.dart';
 import '../models/student.dart';
 import '../models/teacher.dart';
@@ -53,7 +54,7 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
   Future<void> _createSession() async {
     if (_assignments.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No classes assigned to you in the timetable.')),
+        SnackBar(content: Text(context.tr('noClassesAssignedTimetable'))),
       );
       return;
     }
@@ -94,21 +95,21 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14)),
-        title: const Text('Delete Session?'),
+        title: Text(context.tr('deleteSessionQ')),
         content: Text(
-          'Delete checking session for ${check.className} '
-          'on ${check.checkDate.day}/${check.checkDate.month}/'
+          '${context.tr('deleteSessionForPrefix')} ${check.className} — '
+          '${check.checkDate.day}/${check.checkDate.month}/'
           '${check.checkDate.year}?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(context.tr('delete')),
           ),
         ],
       ),
@@ -123,14 +124,14 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Copy Checking',
-                style:
-                    TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('Mark student copies per session',
-                style: TextStyle(fontSize: 12, color: Colors.white70)),
+            Text(context.tr('copyChecking'),
+                style: const TextStyle(
+                    fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('markStudentCopiesPerSession'),
+                style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
       ),
@@ -140,7 +141,7 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
               backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),
-              label: const Text('New Session'),
+              label: Text(context.tr('newSession')),
             )
           : null,
       body: _loading
@@ -159,7 +160,7 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
                                       color: Colors.grey.shade300),
                                   const SizedBox(height: 12),
                                   Text(
-                                    'No sessions yet.\nTap + to create one.',
+                                    context.tr('noSessionsYet'),
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                         color: Colors.grey.shade500),
@@ -281,13 +282,13 @@ class _CascadingSessionDialogState extends State<_CascadingSessionDialog> {
           : _selectedSubject != null);
 
   void _showValidationError() {
-    String message = 'Please fill out all details.';
+    String message = context.tr('pleaseFillAllDetails');
     if (_selectedClass == null) {
-      message = 'Please select a class.';
+      message = context.tr('pleaseSelectClass');
     } else if (_isCustomSubject && _customSubjectCtrl.text.trim().isEmpty) {
-      message = 'Please enter a custom subject name.';
+      message = context.tr('pleaseEnterCustomSubject');
     } else if (_selectedSubject == null && !_isCustomSubject) {
-      message = 'Please select a subject.';
+      message = context.tr('pleaseSelectSubject');
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -302,11 +303,11 @@ class _CascadingSessionDialogState extends State<_CascadingSessionDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Row(
+      title: Row(
         children: [
-          Icon(Icons.menu_book_outlined, color: AppTheme.primary),
-          SizedBox(width: 10),
-          Text('New Session', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Icon(Icons.menu_book_outlined, color: AppTheme.primary),
+          const SizedBox(width: 10),
+          Text(context.tr('newSession'), style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
       content: SingleChildScrollView(
@@ -341,7 +342,7 @@ class _CascadingSessionDialogState extends State<_CascadingSessionDialog> {
                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                     ),
                     const Spacer(),
-                    const Text('Change', style: TextStyle(color: AppTheme.primary, fontSize: 12)),
+                    Text(context.tr('changeWord'), style: const TextStyle(color: AppTheme.primary, fontSize: 12)),
                   ],
                 ),
               ),
@@ -349,7 +350,7 @@ class _CascadingSessionDialogState extends State<_CascadingSessionDialog> {
             const SizedBox(height: 20),
 
             // Class Dropdown
-            _label('Select Class'),
+            _label(context.tr('selectClass')),
             DropdownButtonFormField<String>(
               value: _selectedClass,
               isExpanded: true,
@@ -375,14 +376,14 @@ class _CascadingSessionDialogState extends State<_CascadingSessionDialog> {
             const SizedBox(height: 16),
 
             // Subject Dropdown
-            _label('Select Subject'),
+            _label(context.tr('selectSubject')),
             DropdownButtonFormField<String>(
               value: _isCustomSubject ? 'OTHER' : _selectedSubject,
               isExpanded: true,
               decoration: _inputDeco(enabled: _selectedClass != null),
               items: [
                 ..._subjects.map((s) => DropdownMenuItem(value: s, child: Text(s))),
-                const DropdownMenuItem(value: 'OTHER', child: Text('Type custom subject...')),
+                DropdownMenuItem(value: 'OTHER', child: Text(context.tr('typeCustomSubject'))),
               ],
               onChanged: _selectedClass == null ? null : (val) {
                 setState(() {
@@ -398,11 +399,11 @@ class _CascadingSessionDialogState extends State<_CascadingSessionDialog> {
 
             if (_isCustomSubject) ...[
               const SizedBox(height: 16),
-              _label('Custom Subject'),
+              _label(context.tr('customSubject')),
               TextField(
                 controller: _customSubjectCtrl,
                 autofocus: true,
-                decoration: _inputDeco().copyWith(hintText: 'Enter subject name'),
+                decoration: _inputDeco().copyWith(hintText: context.tr('enterSubjectName')),
               ),
             ],
           ],
@@ -411,7 +412,7 @@ class _CascadingSessionDialogState extends State<_CascadingSessionDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: Text('CANCEL', style: TextStyle(color: Colors.grey.shade600)),
+          child: Text(context.tr('cancel').toUpperCase(), style: TextStyle(color: Colors.grey.shade600)),
         ),
         ElevatedButton(
           onPressed: _saving
@@ -451,7 +452,7 @@ class _CascadingSessionDialogState extends State<_CascadingSessionDialog> {
                   height: 20,
                   child: CircularProgressIndicator(
                       strokeWidth: 2, color: Colors.white))
-              : const Text('PROCEED'),
+              : Text(context.tr('proceed').toUpperCase()),
         ),
       ],
     );
@@ -618,8 +619,8 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
     if (!mounted) return;
     setState(() => _saving = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Saved ✓'),
+      SnackBar(
+        content: Text(context.tr('savedCheck')),
         backgroundColor: Colors.green,
       ),
     );
@@ -699,8 +700,8 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
           else
             TextButton(
               onPressed: _saveAll,
-              child: const Text('Save',
-                  style: TextStyle(color: Colors.white)),
+              child: Text(context.tr('save'),
+                  style: const TextStyle(color: Colors.white)),
             ),
         ],
         bottom: TabBar(
@@ -709,8 +710,8 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           tabs: [
-            const Tab(text: 'All Students'),
-            Tab(text: 'Pending (${_loading ? "…" : "${_pending.length}"})'),
+            Tab(text: context.tr('allStudents')),
+            Tab(text: '${context.tr('statusPending')} (${_loading ? "…" : "${_pending.length}"})'),
           ],
         ),
       ),
@@ -769,7 +770,7 @@ class _AllStudentsTab extends StatelessWidget {
             children: [
               _SumChip(
                 count: statuses.where((s) => s.status == 'not_done').length,
-                label: 'Not Done',
+                label: context.tr('copyNotDone'),
                 color: Colors.red,
               ),
               const SizedBox(width: 8),
@@ -777,13 +778,13 @@ class _AllStudentsTab extends StatelessWidget {
                 count: statuses
                     .where((s) => s.status == 'incomplete')
                     .length,
-                label: 'Incomplete',
+                label: context.tr('copyIncomplete'),
                 color: Colors.orange,
               ),
               const SizedBox(width: 8),
               _SumChip(
                 count: statuses.where((s) => s.status == 'checked').length,
-                label: 'Checked',
+                label: context.tr('copyChecked'),
                 color: Colors.green,
               ),
               const Spacer(),
@@ -791,8 +792,8 @@ class _AllStudentsTab extends StatelessWidget {
                 onPressed: onCheckAll,
                 icon: const Icon(Icons.check_circle_outline,
                     size: 16, color: Colors.green),
-                label: const Text('All Check',
-                    style: TextStyle(
+                label: Text(context.tr('allCheck'),
+                    style: const TextStyle(
                         color: Colors.green,
                         fontSize: 13,
                         fontWeight: FontWeight.w600)),
@@ -831,7 +832,7 @@ class _AllStudentsTab extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: saving ? null : onSave,
                 icon: const Icon(Icons.save_outlined),
-                label: const Text('Save All'),
+                label: Text(context.tr('saveAll')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
@@ -918,7 +919,7 @@ class _StudentStatusTile extends StatelessWidget {
                         color: AppTheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text('ROLL ${status.roll}',
+                      child: Text('${context.tr('roll').toUpperCase()} ${status.roll}',
                           style: const TextStyle(
                               fontSize: 10, color: AppTheme.primaryDark, fontWeight: FontWeight.w800)),
                     ),
@@ -935,21 +936,21 @@ class _StudentStatusTile extends StatelessWidget {
                   color: Colors.red,
                   active: status.status == 'not_done',
                   onTap: () => onStatus('not_done'),
-                  tooltip: 'Not Done',
+                  tooltip: context.tr('copyNotDone'),
                 ),
                 _StatusBtn(
                   icon: Icons.warning_amber_rounded,
                   color: Colors.orange,
                   active: status.status == 'incomplete',
                   onTap: () => onStatus('incomplete'),
-                  tooltip: 'Incomplete',
+                  tooltip: context.tr('copyIncomplete'),
                 ),
                 _StatusBtn(
                   icon: Icons.check_circle_outline,
                   color: Colors.green,
                   active: status.status == 'checked',
                   onTap: () => onStatus('checked'),
-                  tooltip: 'Checked',
+                  tooltip: context.tr('copyChecked'),
                 ),
               ]),
             ),
@@ -1026,7 +1027,7 @@ class _PendingTab extends StatelessWidget {
             Icon(Icons.check_circle_outline,
                 size: 56, color: Colors.green.shade300),
             const SizedBox(height: 12),
-            Text('All copies checked!',
+            Text(context.tr('allCopiesChecked'),
                 style: TextStyle(color: Colors.grey.shade500)),
           ],
         ),
@@ -1041,7 +1042,7 @@ class _PendingTab extends StatelessWidget {
         final s = pending[i];
         final isNotDone = s.status == 'not_done';
         final color = isNotDone ? Colors.red : Colors.orange;
-        final label = isNotDone ? 'Not Done' : 'Incomplete';
+        final label = isNotDone ? context.tr('copyNotDone') : context.tr('copyIncomplete');
 
         return Container(
           padding: const EdgeInsets.all(14),
@@ -1073,7 +1074,7 @@ class _PendingTab extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 14, fontWeight: FontWeight.bold)),
                   Text(
-                    'Roll ${s.roll}  •  $label',
+                    '${context.tr('roll')} ${s.roll}  •  $label',
                     style: TextStyle(
                         fontSize: 12, color: color),
                   ),
@@ -1086,7 +1087,7 @@ class _PendingTab extends StatelessWidget {
                 icon: const Icon(Icons.call_outlined,
                     color: Colors.green, size: 22),
                 onPressed: () => onCall(s.guardianPhone),
-                tooltip: 'Call Guardian',
+                tooltip: context.tr('callGuardian'),
                 padding: EdgeInsets.zero,
                 constraints:
                     const BoxConstraints(minWidth: 36, minHeight: 36),
