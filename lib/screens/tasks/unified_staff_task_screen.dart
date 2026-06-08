@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../l10n/app_strings.dart';
 import '../../theme.dart';
 import '../../models/staff_task.dart';
 import '../../models/teacher.dart';
@@ -13,6 +14,27 @@ import 'create_staff_task_screen.dart';
 
 const String _kAllTeachers = 'ALL_TEACHERS';
 const String _kCoordPrefix = 'coord:';
+
+/// Localised label for a task status (display only; stored enum unaffected).
+String _uStatusLabel(BuildContext context, TaskStatus s) => switch (s) {
+      TaskStatus.pending => context.tr('statusPending'),
+      TaskStatus.inProgress => context.tr('inProgressLabel'),
+      TaskStatus.completed => context.tr('completedLabel'),
+      TaskStatus.overdue => context.tr('hwOverdue'),
+    };
+
+/// Localised role title with a capitalised fallback for unmapped roles.
+String _uRoleTitle(BuildContext context, String role) {
+  switch (role) {
+    case 'principal':   return context.trRole('principal');
+    case 'coordinator': return context.trRole('coordinator');
+    case 'owner':       return context.trRole('owner');
+    case 'teacher':     return context.trRole('teacher');
+    default:            return role.isNotEmpty
+        ? role[0].toUpperCase() + role.substring(1)
+        : context.tr('role_admin');
+  }
+}
 
 const Map<String, String> _kTemplates = {
   'PTM Preparation':
@@ -84,18 +106,18 @@ class UnifiedStaffTaskScreen extends StatelessWidget {
         child: Scaffold(
           backgroundColor: AppTheme.background,
           appBar: AppBar(
-            title: const Text('Staff Tasks'),
+            title: Text(context.tr('staffTasks')),
             backgroundColor: AppTheme.primaryDark,
             foregroundColor: Colors.white,
             elevation: 0,
-            bottom: const TabBar(
+            bottom: TabBar(
               indicatorColor: Colors.white,
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white60,
               tabs: [
-                Tab(icon: Icon(Icons.add_task_outlined),    text: 'Assign Task'),
-                Tab(icon: Icon(Icons.list_alt_outlined),    text: 'All Tasks'),
-                Tab(icon: Icon(Icons.bar_chart_outlined),   text: 'Analytics'),
+                Tab(icon: const Icon(Icons.add_task_outlined),    text: context.tr('assignTask')),
+                Tab(icon: const Icon(Icons.list_alt_outlined),    text: context.tr('allTasksTab')),
+                Tab(icon: const Icon(Icons.bar_chart_outlined),   text: context.tr('analyticsTab')),
               ],
             ),
           ),
@@ -119,17 +141,17 @@ class UnifiedStaffTaskScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: AppTheme.background,
         appBar: AppBar(
-          title: const Text('My Tasks'),
+          title: Text(context.tr('myTasks')),
           backgroundColor: AppTheme.primaryDark,
           foregroundColor: Colors.white,
           elevation: 0,
-          bottom: const TabBar(
+          bottom: TabBar(
             indicatorColor: Colors.white,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white60,
             tabs: [
-              Tab(icon: Icon(Icons.pending_actions_outlined), text: 'Active'),
-              Tab(icon: Icon(Icons.done_all_outlined),        text: 'Done & Overdue'),
+              Tab(icon: const Icon(Icons.pending_actions_outlined), text: context.tr('activeTab')),
+              Tab(icon: const Icon(Icons.done_all_outlined),        text: context.tr('doneOverdueTab')),
             ],
           ),
         ),
@@ -254,16 +276,16 @@ class _AssignTabState extends State<_AssignTab> {
 
   Future<void> _submit() async {
     if (_selectedTaskTitle == null) {
-      _snack('Please select a task title');
+      _snack(context.tr('pleaseSelectTitle'));
       return;
     }
     if (_selectedTaskTitle == 'Custom Task' &&
         _customTitleCtrl.text.trim().isEmpty) {
-      _snack('Please enter a custom task title');
+      _snack(context.tr('pleaseEnterCustomTaskTitle'));
       return;
     }
     if (_selectedTeacherId == null) {
-      _snack('Please select an assignee');
+      _snack(context.tr('pleaseSelectAssignee'));
       return;
     }
     if (_selectedTeacherId == _kAllTeachers) {
@@ -311,7 +333,7 @@ class _AssignTabState extends State<_AssignTab> {
     if (!mounted) return;
     setState(() => _saving = false);
     _resetForm();
-    _snack('Task assigned successfully');
+    _snack(context.tr('taskAssignedSuccess'));
   }
 
   Future<void> _submitToAllTeachers() async {
@@ -319,19 +341,19 @@ class _AssignTabState extends State<_AssignTab> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Assign to All Teachers?'),
-        content: Text('This will create $count individual tasks, '
-            'one for each teacher.'),
+        title: Text(context.tr('assignToAllTeachersQ')),
+        content: Text('${context.tr('thisWillCreatePrefix')} $count '
+            '${context.tr('individualTasksSuffix')}'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirm'),
+            child: Text(context.tr('confirmAction')),
           ),
         ],
       ),
@@ -379,7 +401,7 @@ class _AssignTabState extends State<_AssignTab> {
     if (!mounted) return;
     setState(() => _saving = false);
     _resetForm();
-    _snack('Task assigned to all $count teachers');
+    _snack('${context.tr('taskAssignedToAll')} $count ${context.tr('teachersLower')}');
   }
 
   void _resetForm() {
@@ -409,7 +431,7 @@ class _AssignTabState extends State<_AssignTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Task Title Dropdown ──────────────────────────────────────────
-          const _Label('Task Title'),
+          _Label(context.tr('taskTitleLabel')),
           DropdownButtonFormField<String>(
             decoration: InputDecoration(
               contentPadding:
@@ -425,7 +447,7 @@ class _AssignTabState extends State<_AssignTab> {
             ),
             isExpanded: true,
             value: _selectedTaskTitle,
-            hint: const Text('Select or choose custom'),
+            hint: Text(context.tr('selectOrChooseCustom')),
             items: _kTemplates.keys
                 .map((t) => DropdownMenuItem<String>(
                       value: t,
@@ -447,8 +469,8 @@ class _AssignTabState extends State<_AssignTab> {
             const SizedBox(height: 10),
             TextField(
               controller: _customTitleCtrl,
-              decoration: _inputDec(hint: 'e.g. Prepare Annual Report').copyWith(
-                labelText: 'Enter Custom Task Title',
+              decoration: _inputDec(hint: context.tr('prepareAnnualReportHint')).copyWith(
+                labelText: context.tr('enterCustomTaskTitle'),
                 floatingLabelBehavior: FloatingLabelBehavior.always,
               ),
               textCapitalization: TextCapitalization.sentences,
@@ -458,22 +480,22 @@ class _AssignTabState extends State<_AssignTab> {
           const SizedBox(height: 14),
 
           // ── Description ───────────────────────────────────────────────────
-          const _Label('Description (auto-filled, editable)'),
+          _Label(context.tr('descriptionAutoFilled')),
           TextField(
             controller: _descCtrl,
             maxLines: 4,
             decoration:
-                _inputDec(hint: 'Describe what needs to be done'),
+                _inputDec(hint: context.tr('describeWhatNeedsDone')),
             textCapitalization: TextCapitalization.sentences,
           ),
           const SizedBox(height: 4),
-          Text('You can edit this message',
+          Text(context.tr('youCanEditMessage'),
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
 
           const SizedBox(height: 14),
 
           // ── Assign To ─────────────────────────────────────────────────────
-          const _Label('Assign To'),
+          _Label(context.tr('assignToLabel')),
           _loadingPeople
               ? const Center(
                   child: CircularProgressIndicator(
@@ -482,18 +504,18 @@ class _AssignTabState extends State<_AssignTab> {
               ? _buildLoadError()
               : DropdownButtonFormField<String>(
                   value: _selectedTeacherId,
-                  hint: const Text('Select a teacher or coordinator'),
+                  hint: Text(context.tr('selectTeacherOrCoord')),
                   isExpanded: true,
                   decoration: _inputDec(),
                   items: [
-                    const DropdownMenuItem<String>(
+                    DropdownMenuItem<String>(
                       value: _kAllTeachers,
                       child: Row(children: [
-                        Icon(Icons.groups,
+                        const Icon(Icons.groups,
                             color: AppTheme.primary, size: 18),
-                        SizedBox(width: 8),
-                        Text('All Teachers',
-                            style: TextStyle(
+                        const SizedBox(width: 8),
+                        Text(context.tr('allTeachers'),
+                            style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.primary)),
                       ]),
@@ -507,7 +529,7 @@ class _AssignTabState extends State<_AssignTab> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                '${(c['name'] as String?)?.isNotEmpty == true ? c['name'] : c['email']} (Coordinator)',
+                                '${(c['name'] as String?)?.isNotEmpty == true ? c['name'] : c['email']} ${context.tr('coordinatorSuffix')}',
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -518,7 +540,7 @@ class _AssignTabState extends State<_AssignTab> {
                           child: Text(
                               t.isClassTeacher &&
                                       (t.classTeacherOf?.isNotEmpty ?? false)
-                                  ? '${t.name} (Class Teacher · ${t.classTeacherOf})'
+                                  ? '${t.name} (${context.tr('classTeacherLabel')} · ${t.classTeacherOf})'
                                   : t.name,
                               overflow: TextOverflow.ellipsis),
                         )),
@@ -567,8 +589,8 @@ class _AssignTabState extends State<_AssignTab> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Task will be assigned to all ${_teachers.length} '
-                    'teachers in the school',
+                    '${context.tr('taskWillAssignPrefix')} ${_teachers.length} '
+                    '${context.tr('teachersInSchool')}',
                     style: const TextStyle(
                         fontSize: 12,
                         color: AppTheme.primary,
@@ -582,13 +604,13 @@ class _AssignTabState extends State<_AssignTab> {
           const SizedBox(height: 14),
 
           // ── Priority ──────────────────────────────────────────────────────
-          const _Label('Priority'),
+          _Label(context.tr('priorityLabel')),
           Row(children: [
             for (final p in TaskPriority.values)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
-                  label: Text(p.label),
+                  label: Text(taskPriorityLabel(context, p)),
                   selected: _priority == p,
                   selectedColor: _priorityColor(p).withValues(alpha: 0.15),
                   labelStyle: TextStyle(
@@ -612,7 +634,7 @@ class _AssignTabState extends State<_AssignTab> {
           const SizedBox(height: 14),
 
           // ── Due Date ──────────────────────────────────────────────────────
-          const _Label('Due Date'),
+          _Label(context.tr('dueDateLabel')),
           GestureDetector(
             onTap: _pickDueDate,
             child: Container(
@@ -629,7 +651,7 @@ class _AssignTabState extends State<_AssignTab> {
                 Text(
                   _dueDate != null
                       ? _fmtDate(_dueDate!)
-                      : 'Select due date (optional)',
+                      : context.tr('selectDueDateOptional'),
                   style: TextStyle(
                       fontSize: 13,
                       color: _dueDate != null
@@ -667,8 +689,8 @@ class _AssignTabState extends State<_AssignTab> {
                       width: 18,
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2))
-                  : const Text('Assign Task',
-                      style: TextStyle(
+                  : Text(context.tr('assignTask'),
+                      style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w600)),
             ),
           ),
@@ -691,7 +713,7 @@ class _AssignTabState extends State<_AssignTab> {
               color: AppTheme.danger.withValues(alpha: 0.7), size: 28),
           const SizedBox(height: 8),
           Text(
-            'Couldn\'t load the staff list.',
+            context.tr('couldntLoadStaffList'),
             style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -699,7 +721,7 @@ class _AssignTabState extends State<_AssignTab> {
           ),
           const SizedBox(height: 2),
           Text(
-            'Check your connection and try again.',
+            context.tr('checkConnectionRetry'),
             style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             textAlign: TextAlign.center,
           ),
@@ -707,7 +729,7 @@ class _AssignTabState extends State<_AssignTab> {
           TextButton.icon(
             onPressed: _loadPeople,
             icon: const Icon(Icons.refresh, size: 16),
-            label: const Text('Retry'),
+            label: Text(context.tr('retry')),
             style: TextButton.styleFrom(foregroundColor: AppTheme.primary),
           ),
         ]),
@@ -772,7 +794,7 @@ class _AllTasksTabState extends State<_AllTasksTab> {
             scrollDirection: Axis.horizontal,
             child: Row(children: [
               _FilterChip(
-                  label: 'All',
+                  label: context.tr('allCount'),
                   selected: _filterStatus == null,
                   onTap: () => setState(() => _filterStatus = null)),
               const SizedBox(width: 6),
@@ -780,7 +802,7 @@ class _AllTasksTabState extends State<_AllTasksTab> {
                 Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: _FilterChip(
-                      label: s.label,
+                      label: _uStatusLabel(context, s),
                       selected: _filterStatus == s,
                       onTap: () => setState(() => _filterStatus = s)),
                 ),
@@ -823,11 +845,11 @@ class _AllTasksTabState extends State<_AllTasksTab> {
                     Icon(Icons.task_outlined,
                         size: 56, color: Colors.grey.shade300),
                     const SizedBox(height: 10),
-                    Text('No tasks yet',
+                    Text(context.tr('noTasksYet'),
                         style: TextStyle(
                             fontSize: 15, color: Colors.grey.shade500)),
                     const SizedBox(height: 6),
-                    Text('Tap "Assign Task" to create one',
+                    Text(context.tr('tapAssignTaskCreate'),
                         style: TextStyle(
                             fontSize: 12, color: Colors.grey.shade400)),
                   ]),
@@ -880,16 +902,16 @@ class _AllTasksTabState extends State<_AllTasksTab> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Task'),
-        content: Text('Delete "${task.title}"?'),
+        title: Text(context.tr('deleteTaskTitle')),
+        content: Text('${context.tr('delete')} "${task.title}"?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
               child:
-                  const Text('Delete', style: TextStyle(color: AppTheme.danger))),
+                  Text(context.tr('delete'), style: const TextStyle(color: AppTheme.danger))),
         ],
       ),
     );
@@ -926,7 +948,7 @@ class _AnalyticsTab extends StatelessWidget {
               Icon(Icons.bar_chart_outlined,
                   size: 56, color: Colors.grey.shade300),
               const SizedBox(height: 10),
-              Text('No task data yet',
+              Text(context.tr('noTaskDataYet'),
                   style: TextStyle(
                       fontSize: 15, color: Colors.grey.shade500)),
             ]),
@@ -953,17 +975,17 @@ class _AnalyticsTab extends StatelessWidget {
                 mainAxisSpacing: 10,
                 childAspectRatio: 2.2,
                 children: [
-                  _StatCard('Total',       '$total',      Colors.indigo),
-                  _StatCard('Completed',   '$completed',  AppTheme.success),
-                  _StatCard('In Progress', '$inProgress', AppTheme.warning),
-                  _StatCard('Overdue',     '$overdue',    AppTheme.danger),
+                  _StatCard(context.tr('totalLabel'),       '$total',      Colors.indigo),
+                  _StatCard(context.tr('completedLabel'),   '$completed',  AppTheme.success),
+                  _StatCard(context.tr('inProgressLabel'), '$inProgress', AppTheme.warning),
+                  _StatCard(context.tr('hwOverdue'),     '$overdue',    AppTheme.danger),
                 ],
               ),
               const SizedBox(height: 20),
 
               // Pie chart
-              const Text('Completion Breakdown',
-                  style: TextStyle(
+              Text(context.tr('completionBreakdown'),
+                  style: const TextStyle(
                       fontSize: 14, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
               Container(
@@ -973,7 +995,7 @@ class _AnalyticsTab extends StatelessWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14)),
                 child: total == 0
-                    ? const Center(child: Text('No data'))
+                    ? Center(child: Text(context.tr('noData')))
                     : Row(children: [
                         Expanded(
                           child: PieChart(PieChartData(
@@ -1011,10 +1033,10 @@ class _AnalyticsTab extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _LegendRow('Completed',   AppTheme.success, completed),
-                            _LegendRow('In Progress', AppTheme.warning, inProgress),
-                            _LegendRow('Pending',     Colors.blue,     pending),
-                            _LegendRow('Overdue',     AppTheme.danger, overdue),
+                            _LegendRow(context.tr('completedLabel'),   AppTheme.success, completed),
+                            _LegendRow(context.tr('inProgressLabel'), AppTheme.warning, inProgress),
+                            _LegendRow(context.tr('pendingLabel'),     Colors.blue,     pending),
+                            _LegendRow(context.tr('hwOverdue'),     AppTheme.danger, overdue),
                           ],
                         ),
                       ]),
@@ -1022,8 +1044,8 @@ class _AnalyticsTab extends StatelessWidget {
               const SizedBox(height: 20),
 
               // Teacher-wise breakdown
-              const Text('By Teacher',
-                  style: TextStyle(
+              Text(context.tr('byTeacher'),
+                  style: const TextStyle(
                       fontSize: 14, fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
               ..._teacherStats(tasks).map((entry) {
@@ -1046,7 +1068,7 @@ class _AnalyticsTab extends StatelessWidget {
                               style: const TextStyle(
                                   fontSize: 13, fontWeight: FontWeight.w600)),
                         ),
-                        Text('$tDone / $tTotal done',
+                        Text('$tDone / $tTotal ${context.tr('doneLower')}',
                             style: TextStyle(
                                 fontSize: 11, color: Colors.grey.shade500)),
                       ]),
@@ -1155,7 +1177,7 @@ class _TeacherTaskTabState extends State<_TeacherTaskTab> {
   Widget build(BuildContext context) {
     if (widget.teacherId.isEmpty) {
       return Center(
-        child: Text('Teacher ID not found',
+        child: Text(context.tr('teacherIdNotFound'),
             style: TextStyle(color: Colors.grey.shade500)),
       );
     }
@@ -1207,14 +1229,14 @@ class _TeacherTaskTabState extends State<_TeacherTaskTab> {
                           const SizedBox(height: 10),
                           Text(
                               widget.showCompleted
-                                  ? 'No completed tasks yet'
-                                  : 'No active tasks',
+                                  ? context.tr('noCompletedTasks')
+                                  : context.tr('noActiveTasks'),
                               style: TextStyle(
                                   fontSize: 15,
                                   color: Colors.grey.shade500)),
                           if (!widget.showCompleted) ...[
                             const SizedBox(height: 6),
-                            Text('You\'re all caught up!',
+                            Text(context.tr('allCaughtUp'),
                                 style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey.shade400)),
@@ -1328,11 +1350,11 @@ class _AdminTaskCard extends StatelessWidget {
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey.shade600),
                       children: [
-                        TextSpan(text: _assignerLabel(task)),
+                        TextSpan(text: _assignerLabel(context, task)),
                         const TextSpan(text: '  →  '),
                         TextSpan(
                           text: '${task.assignedToName}'
-                              '${_assigneeRoleSuffix(task)}',
+                              '${_assigneeRoleSuffix(context, task)}',
                           style: const TextStyle(
                               fontWeight: FontWeight.w600),
                         ),
@@ -1361,8 +1383,8 @@ class _AdminTaskCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   overdue
-                      ? 'OVERDUE by ${task.overdueDays}d'
-                      : 'Due ${_fmtDate(task.dueDate!)}',
+                      ? '${context.tr('overdueByPrefix')} ${task.overdueDays}d'
+                      : '${context.tr('dueWordPrefix')} ${_fmtDate(task.dueDate!)}',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight:
@@ -1385,12 +1407,12 @@ class _AdminTaskCard extends StatelessWidget {
                   border: Border.all(
                       color: AppTheme.primary.withValues(alpha: 0.3)),
                 ),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.groups,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.groups,
                       size: 12, color: AppTheme.primary),
-                  SizedBox(width: 4),
-                  Text('Group Task',
-                      style: TextStyle(
+                  const SizedBox(width: 4),
+                  Text(context.tr('groupTask'),
+                      style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: AppTheme.primary)),
@@ -1411,30 +1433,20 @@ class _AdminTaskCard extends StatelessWidget {
     return '${dt.day} ${mo[dt.month - 1]} ${dt.year}';
   }
 
-  static String _roleTitle(String role) {
-    switch (role) {
-      case 'principal':   return 'Principal';
-      case 'coordinator': return 'Coordinator';
-      case 'owner':       return 'Owner';
-      case 'teacher':     return 'Teacher';
-      default:            return role.isNotEmpty ? role : 'Admin';
-    }
-  }
-
-  /// "Assigned by X" — prefers the creator's name, falls back to the role.
-  String _assignerLabel(StaffTask task) {
+  /// "By X" — prefers the creator's name, falls back to the localised role.
+  String _assignerLabel(BuildContext context, StaffTask task) {
     final who = task.creatorName.isNotEmpty
         ? task.creatorName
-        : _roleTitle(task.assignedByRole);
-    return 'By $who';
+        : _uRoleTitle(context, task.assignedByRole);
+    return '${context.tr('by')} $who';
   }
 
   /// "(Coordinator)" suffix when the assignee is not a plain teacher.
-  String _assigneeRoleSuffix(StaffTask task) {
+  String _assigneeRoleSuffix(BuildContext context, StaffTask task) {
     final role = task.assignedToRoles.isNotEmpty
         ? task.assignedToRoles.first
         : 'teacher';
-    return role == 'teacher' ? '' : ' (${_roleTitle(role)})';
+    return role == 'teacher' ? '' : ' (${_uRoleTitle(context, role)})';
   }
 }
 
@@ -1497,8 +1509,8 @@ class _TeacherTaskCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   overdue
-                      ? 'OVERDUE by ${task.overdueDays}d'
-                      : 'Due ${_fmtDate(task.dueDate!)}',
+                      ? '${context.tr('overdueByPrefix')} ${task.overdueDays}d'
+                      : '${context.tr('dueWordPrefix')} ${_fmtDate(task.dueDate!)}',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight:
@@ -1516,19 +1528,19 @@ class _TeacherTaskCard extends StatelessWidget {
               Row(children: [
                 if (task.status == TaskStatus.pending)
                   _StatusBtn(
-                      label: 'Mark In Progress',
+                      label: context.tr('markInProgress'),
                       color: AppTheme.warning,
                       onTap: () =>
                           onStatusChange(TaskStatus.inProgress)),
                 if (task.status == TaskStatus.inProgress) ...[
                   _StatusBtn(
-                      label: 'Mark Done',
+                      label: context.tr('markDone'),
                       color: AppTheme.success,
                       onTap: () =>
                           onStatusChange(TaskStatus.completed)),
                   const SizedBox(width: 8),
                   _StatusBtn(
-                      label: 'Back to Pending',
+                      label: context.tr('backToPending'),
                       color: Colors.grey,
                       onTap: () =>
                           onStatusChange(TaskStatus.pending)),
@@ -1633,10 +1645,10 @@ class _TaskLoadError extends StatelessWidget {
             Icon(Icons.cloud_off_outlined,
                 size: 48, color: Colors.grey.shade300),
             const SizedBox(height: 12),
-            Text("Couldn't load tasks",
+            Text(context.tr('couldntLoadTasks'),
                 style: TextStyle(fontSize: 15, color: Colors.grey.shade600)),
             const SizedBox(height: 6),
-            Text('Check your connection and try again.',
+            Text(context.tr('checkConnectionRetry'),
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
                 textAlign: TextAlign.center),
             if (onRetry != null) ...[
@@ -1644,7 +1656,7 @@ class _TaskLoadError extends StatelessWidget {
               TextButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Retry'),
+                label: Text(context.tr('retry')),
                 style:
                     TextButton.styleFrom(foregroundColor: AppTheme.primary),
               ),
