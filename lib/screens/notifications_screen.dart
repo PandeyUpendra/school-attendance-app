@@ -570,6 +570,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           return Dismissible(
             key: ValueKey(n['id'] ?? i),
             direction: DismissDirection.endToStart,
+            // Notification docs are shared across an audience, so a swipe deletes
+            // it for everyone — confirm before dismissing (#69).
+            confirmDismiss: (_) async {
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: Text(context.tr('deleteNotificationQ')),
+                  content: Text(context.tr('deleteNotificationBody')),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: Text(context.tr('cancel'))),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      child: Text(context.tr('delete')),
+                    ),
+                  ],
+                ),
+              );
+              return ok == true;
+            },
             onDismissed: (_) => _deleteOne(n),
             background: Container(
               margin: const EdgeInsets.only(left: 40),

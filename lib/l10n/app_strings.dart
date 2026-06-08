@@ -1360,6 +1360,10 @@ class AppStrings {
     // ── Fee — reversed payments view ─────────────────────────────────────
     'reversedBadge':           {'en': 'REVERSED',             'hi': 'रद्द'},
     'reversedPaymentsLabel':   {'en': 'Reversed payments',    'hi': 'रद्द किए गए भुगतान'},
+
+    // ── Notification delete confirm (#69) ────────────────────────────────
+    'deleteNotificationQ':     {'en': 'Delete notification?', 'hi': 'सूचना हटाएँ?'},
+    'deleteNotificationBody':  {'en': 'This removes it for everyone in this audience.', 'hi': 'इससे यह इस दर्शक-समूह के सभी लोगों के लिए हट जाएगी।'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then
