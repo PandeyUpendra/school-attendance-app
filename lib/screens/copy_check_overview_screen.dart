@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../models/copy_check.dart';
 import '../models/student.dart';
 import '../services/copy_check_service.dart';
@@ -64,14 +65,14 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Copy Checking Overview',
-                style:
-                    TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('All sessions across classes',
-                style: TextStyle(fontSize: 12, color: Colors.white70)),
+            Text(context.tr('copyCheckingOverview'),
+                style: const TextStyle(
+                    fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('allSessionsAcrossClasses'),
+                style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
       ),
@@ -79,7 +80,7 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
           ? const LoadingState()
           : _classes.isEmpty
               ? Center(
-                  child: Text('No classes configured.',
+                  child: Text(context.tr('noClassesConfiguredShort'),
                       style: TextStyle(color: Colors.grey.shade500)))
               : Column(
                   children: [
@@ -124,7 +125,7 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
                                       color: Colors.grey.shade300),
                                   const SizedBox(height: 12),
                                   Text(
-                                    'No copy-checking sessions\nfor this class yet.',
+                                    context.tr('noCopyCheckSessions'),
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                         color: Colors.grey.shade500),
@@ -186,7 +187,7 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
                                                         FontWeight.bold),
                                               ),
                                               Text(
-                                                'By ${c.teacherName}  •  ${c.className} ${c.section}',
+                                                '${context.tr('by')} ${c.teacherName}  •  ${c.className} ${c.section}',
                                                 style: TextStyle(
                                                     fontSize: 12,
                                                     color: Colors
@@ -295,7 +296,7 @@ class _CoordCheckDetailScreenState extends State<_CoordCheckDetailScreen>
             Text('${c.subject} — $date',
                 style: const TextStyle(
                     fontSize: 15, fontWeight: FontWeight.bold)),
-            Text('By ${c.teacherName}  •  ${c.className} ${c.section}',
+            Text('${context.tr('by')} ${c.teacherName}  •  ${c.className} ${c.section}',
                 style:
                     const TextStyle(fontSize: 11, color: Colors.white70)),
           ],
@@ -306,8 +307,8 @@ class _CoordCheckDetailScreenState extends State<_CoordCheckDetailScreen>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           tabs: [
-            Tab(text: 'All (${_all.length})'),
-            Tab(text: 'Pending (${_pending.length})'),
+            Tab(text: '${context.tr('allCount')} (${_all.length})'),
+            Tab(text: '${context.tr('statusPending')} (${_pending.length})'),
           ],
         ),
       ),
@@ -338,11 +339,11 @@ class _StatusList extends StatelessWidget {
     }
   }
 
-  String _labelFor(String status) {
+  String _labelFor(BuildContext context, String status) {
     switch (status) {
-      case 'checked':    return 'Checked';
-      case 'incomplete': return 'Incomplete';
-      default:           return 'Not Done';
+      case 'checked':    return context.tr('copyChecked');
+      case 'incomplete': return context.tr('copyIncomplete');
+      default:           return context.tr('copyNotDone');
     }
   }
 
@@ -363,8 +364,8 @@ class _StatusList extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               showAll
-                  ? 'No statuses recorded yet.'
-                  : 'All copies checked!',
+                  ? context.tr('noStatusesRecorded')
+                  : context.tr('allCopiesChecked'),
               style: TextStyle(color: Colors.grey.shade500),
             ),
           ],
@@ -406,7 +407,7 @@ class _StatusList extends StatelessWidget {
                   Text(s.studentName,
                       style: const TextStyle(
                           fontSize: 13, fontWeight: FontWeight.w600)),
-                  Text('Roll ${s.roll}',
+                  Text('${context.tr('roll')} ${s.roll}',
                       style: TextStyle(
                           fontSize: 11, color: Colors.grey.shade500)),
                 ],
@@ -420,7 +421,7 @@ class _StatusList extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                _labelFor(s.status),
+                _labelFor(context, s.status),
                 style: TextStyle(
                     fontSize: 11,
                     color: color,

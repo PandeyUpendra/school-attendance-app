@@ -369,6 +369,18 @@ class AppStrings {
     'selectTask':            {'en': 'Select task',        'hi': 'कार्य चुनें'},
     'customTaskTitle':       {'en': 'Custom task title',  'hi': 'कस्टम कार्य शीर्षक'},
 
+    // ── Copy checking overview screen ────────────────────────────────────
+    'allSessionsAcrossClasses':{'en': 'All sessions across classes', 'hi': 'सभी कक्षाओं के सभी सत्र'},
+    'noCopyCheckSessions':   {'en': 'No copy-checking sessions\nfor this class yet.', 'hi': 'इस कक्षा के लिए अभी तक कोई\nकॉपी जाँच सत्र नहीं है।'},
+    'by':                    {'en': 'By',                 'hi': 'द्वारा'},
+    'allCount':              {'en': 'All',                'hi': 'सभी'},
+    'noStatusesRecorded':    {'en': 'No statuses recorded yet.', 'hi': 'अभी तक कोई स्थिति दर्ज नहीं है।'},
+    'allCopiesChecked':      {'en': 'All copies checked!', 'hi': 'सभी कॉपियाँ जाँच ली गईं!'},
+    'roll':                  {'en': 'Roll',               'hi': 'रोल'},
+    'copyChecked':           {'en': 'Checked',            'hi': 'जाँच ली गई'},
+    'copyIncomplete':        {'en': 'Incomplete',         'hi': 'अधूरी'},
+    'copyNotDone':           {'en': 'Not Done',           'hi': 'नहीं की गई'},
+
     // ── Coordinator / Principal dashboards: tile subtitles ───────────────
     'subStaffTasksDesc':         {'en': 'Assign tasks to teachers and track progress', 'hi': 'शिक्षकों को कार्य सौंपें और प्रगति ट्रैक करें'},
     'subMeetingRecordsDesc':     {'en': 'Manage meetings, agenda points and teacher task assignments', 'hi': 'बैठकें, एजेंडा और शिक्षक कार्य प्रबंधित करें'},
