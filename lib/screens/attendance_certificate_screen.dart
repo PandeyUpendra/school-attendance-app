@@ -3,6 +3,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../l10n/app_strings.dart';
+import '../utils/consent_gate.dart';
 import '../utils/pdf_theme.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
@@ -139,6 +140,9 @@ class _AttendanceCertificateScreenState
   }
 
   Future<void> _exportPdf() async {
+    // Exporting/sharing the certificate is third-party egress of a minor's
+    // data — gate on parental consent (#17).
+    if (!await ConsentGate.allowsForStudent(context, widget.student)) return;
     final pdf = _buildPdf();
     await Printing.layoutPdf(
       onLayout: (_) async => pdf.save(),

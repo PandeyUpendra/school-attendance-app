@@ -5,6 +5,7 @@ import '../l10n/app_strings.dart';
 import '../models/exam.dart';
 import '../models/report_card_template.dart';
 import '../models/student.dart';
+import '../utils/consent_gate.dart';
 import '../services/auth_service.dart';
 import '../services/exam_service.dart';
 import '../services/report_card_template_service.dart';
@@ -137,6 +138,10 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
   // ── Individual PDF ─────────────────────────────────────────────────────────
 
   Future<void> _shareStudentReport(Student s, ExamResult r) async {
+    // Sharing a report card off-device is third-party egress of a minor's data
+    // — gate it on parental consent (#17).
+    if (!await ConsentGate.allowsForStudent(context, s)) return;
+    if (!mounted) return;
     final pdfErr = context.tr('pdfError');
     await _pickTemplateAndRun((template) async {
       try {

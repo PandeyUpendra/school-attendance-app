@@ -1364,6 +1364,9 @@ class AppStrings {
     // ── Notification delete confirm (#69) ────────────────────────────────
     'deleteNotificationQ':     {'en': 'Delete notification?', 'hi': 'सूचना हटाएँ?'},
     'deleteNotificationBody':  {'en': 'This removes it for everyone in this audience.', 'hi': 'इससे यह इस दर्शक-समूह के सभी लोगों के लिए हट जाएगी।'},
+
+    // ── Consent gate (#17) ───────────────────────────────────────────────
+    'consentNotOnRecord':      {'en': "Not shared — parental consent to share this child's data is not on record.", 'hi': 'साझा नहीं किया — इस बच्चे का डेटा साझा करने की अभिभावक सहमति रिकॉर्ड में नहीं है।'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then
