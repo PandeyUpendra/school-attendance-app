@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../models/teacher.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
@@ -92,22 +93,22 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
       // approved card also carries an "Assign Substitution" button), but only
       // to the coordinator — the principal does not assign substitutions.
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Leave approved ✓'),
+        content: Text(context.tr('leaveApprovedCheck')),
         backgroundColor: Colors.green.shade700,
         duration: const Duration(seconds: 5),
         action: _canAssignSubstitution
             ? SnackBarAction(
-                label: 'Assign Substitution',
+                label: context.tr('assignSubstitution'),
                 textColor: Colors.white,
                 onPressed: () => _openSubstitution(app),
               )
             : null,
       ));
     } else if (status == 'forwarded_to_principal') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Leave request forwarded to Principal.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.tr('leaveForwardedToPrincipal')),
         backgroundColor: AppTheme.primary,
-        duration: Duration(seconds: 3),
+        duration: const Duration(seconds: 3),
       ));
     }
   }
@@ -168,13 +169,13 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Leave Requests',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('Teacher leave applications',
-                style: TextStyle(fontSize: 11, color: Colors.white70)),
+            Text(context.tr('leaveRequests'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('teacherLeaveApplications'),
+                style: const TextStyle(fontSize: 11, color: Colors.white70)),
           ],
         ),
         bottom: TabBar(
@@ -185,7 +186,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
           tabs: [
             Tab(
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Text('Pending'),
+                Text(context.tr('statusPending')),
                 if (_pending.isNotEmpty) ...[
                   const SizedBox(width: 6),
                   Container(
@@ -202,7 +203,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
                 ],
               ]),
             ),
-            const Tab(text: 'Resolved'),
+            Tab(text: context.tr('resolvedTab')),
           ],
         ),
         actions: [
@@ -231,7 +232,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
           Icon(Icons.event_available_outlined,
               size: 56, color: Colors.grey.shade300),
           const SizedBox(height: 12),
-          Text(showActions ? 'No pending requests' : 'No resolved requests',
+          Text(showActions ? context.tr('noPendingRequests') : context.tr('noResolvedRequests'),
               style: TextStyle(
                   fontSize: 15, color: Colors.grey.shade400)),
         ]),
@@ -246,7 +247,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
         itemCount: apps.length,
         itemBuilder: (_, i) => _LeaveCard(
           app: apps[i],
-          statusLabel: _fmtStatus(apps[i]['status'] as String? ?? 'pending', widget.viewerRole),
+          statusLabel: _fmtStatus(context, apps[i]['status'] as String? ?? 'pending', widget.viewerRole),
           onTap: () => _showDetail(apps[i]),
           onAccept: showActions ? () => _act(apps[i], 'approved')  : null,
           onReject: showActions ? () => _act(apps[i], 'rejected')  : null,
@@ -355,15 +356,15 @@ class _LeaveCard extends StatelessWidget {
                 AppTheme.primary),
             const SizedBox(width: 8),
             _chip(Icons.access_time_outlined,
-                '${app['numberOfDays']} day${(app['numberOfDays'] as int? ?? 1) > 1 ? 's' : ''}',
+                '${app['numberOfDays']} ${(app['numberOfDays'] as int? ?? 1) > 1 ? context.tr('daysShort') : context.tr('dayShort')}',
                 AppTheme.primaryMid),
             const SizedBox(width: 8),
             _chip(Icons.send_outlined,
-                'To: ${(app['toRole'] as String? ?? '').capitalize()}',
+                '${context.tr('toColon')} ${_roleLabel(context, app['toRole'] as String? ?? '')}',
                 AppTheme.primaryMid),
           ]),
           const SizedBox(height: 8),
-          Text('Reason: ${app['reason'] ?? '—'}',
+          Text('${context.tr('reasonColon')} ${app['reason'] ?? '—'}',
               style: TextStyle(
                   fontSize: 12, color: Colors.grey.shade600)),
           if (onAccept != null || onReject != null || onForward != null) ...[
@@ -373,7 +374,7 @@ class _LeaveCard extends StatelessWidget {
             Row(children: [
               Expanded(
                 child: _ActionButton(
-                  label: 'Accept',
+                  label: context.tr('acceptAction'),
                   icon: Icons.check,
                   color: Colors.green,
                   onPressed: onAccept,
@@ -382,7 +383,7 @@ class _LeaveCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _ActionButton(
-                  label: 'Reject',
+                  label: context.tr('rejectAction'),
                   icon: Icons.close,
                   color: Colors.red,
                   onPressed: onReject,
@@ -393,7 +394,7 @@ class _LeaveCard extends StatelessWidget {
                 Expanded(
                   flex: 2,
                   child: _ActionButton(
-                    label: 'Forward to Principal',
+                    label: context.tr('forwardToPrincipal'),
                     icon: Icons.forward_to_inbox_outlined,
                     color: AppTheme.primaryDark,
                     onPressed: onForward,
@@ -410,7 +411,7 @@ class _LeaveCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: _ActionButton(
-                label: 'Assign Substitution',
+                label: context.tr('assignSubstitution'),
                 icon: Icons.swap_horiz_outlined,
                 color: AppTheme.primary,
                 onPressed: onAssignSubstitution,
@@ -553,25 +554,25 @@ class _LeaveDetailSheetState extends State<_LeaveDetailSheet> {
             controller: sc,
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             children: [
-              const Text('Leave Application',
-                  style: TextStyle(
+              Text(context.tr('leaveApplication'),
+                  style: const TextStyle(
                       fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
 
-              _detailRow(Icons.person_outline, 'Teacher',
+              _detailRow(Icons.person_outline, context.tr('teacherLabel'),
                   app['teacherName'] as String? ?? '—'),
-              _detailRow(Icons.email_outlined, 'Email',
+              _detailRow(Icons.email_outlined, context.tr('email'),
                   app['teacherEmail'] as String? ?? '—'),
-              _detailRow(Icons.calendar_today_outlined, 'Start Date',
+              _detailRow(Icons.calendar_today_outlined, context.tr('startDate'),
                   formatDate(app['startDate'] as String? ?? '')),
-              _detailRow(Icons.access_time_outlined, 'Duration',
-                  '${app['numberOfDays']} day(s)'),
-              _detailRow(Icons.send_outlined, 'Addressed To',
-                  (app['toRole'] as String? ?? '').capitalize()),
-              _detailRow(Icons.notes_outlined, 'Reason',
+              _detailRow(Icons.access_time_outlined, context.tr('durationLabel'),
+                  '${app['numberOfDays']} ${(app['numberOfDays'] as int? ?? 1) > 1 ? context.tr('daysShort') : context.tr('dayShort')}'),
+              _detailRow(Icons.send_outlined, context.tr('addressedTo'),
+                  _roleLabel(context, app['toRole'] as String? ?? '')),
+              _detailRow(Icons.notes_outlined, context.tr('reasonLabel'),
                   app['reason'] as String? ?? '—'),
               if (app['coordinatorNote'] != null)
-                _detailRow(Icons.comment_outlined, 'Note',
+                _detailRow(Icons.comment_outlined, context.tr('noteLabel'),
                     app['coordinatorNote'] as String),
               const SizedBox(height: 8),
 
@@ -609,7 +610,7 @@ class _LeaveDetailSheetState extends State<_LeaveDetailSheet> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Status: ${_fmtStatus(status, widget.viewerRole)}',
+                    '${context.tr('statusColonPrefix')} ${_fmtStatus(context, status, widget.viewerRole)}',
                     style: TextStyle(
                         fontWeight: FontWeight.w600,
                         color: status == 'approved'
@@ -629,7 +630,7 @@ class _LeaveDetailSheetState extends State<_LeaveDetailSheet> {
                   child: ElevatedButton.icon(
                     onPressed: widget.onAssignSubstitution,
                     icon: const Icon(Icons.swap_horiz_outlined, size: 18),
-                    label: const Text('Assign Substitution'),
+                    label: Text(context.tr('assignSubstitution')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primary,
                       foregroundColor: Colors.white,
@@ -648,7 +649,7 @@ class _LeaveDetailSheetState extends State<_LeaveDetailSheet> {
                     child: OutlinedButton.icon(
                       onPressed: _acting ? null : () => _act('rejected'),
                       icon: const Icon(Icons.close, size: 16),
-                      label: const Text('Reject'),
+                      label: Text(context.tr('rejectAction')),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                         side: const BorderSide(color: Colors.red),
@@ -669,7 +670,7 @@ class _LeaveDetailSheetState extends State<_LeaveDetailSheet> {
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: Colors.white))
                           : const Icon(Icons.check, size: 16),
-                      label: Text(_acting ? 'Processing…' : 'Approve'),
+                      label: Text(_acting ? context.tr('processingEllipsis') : context.tr('approveAction')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
@@ -709,20 +710,25 @@ class _LeaveDetailSheetState extends State<_LeaveDetailSheet> {
   }
 }
 
-String _fmtStatus(String status, String viewerRole) {
+/// Localised role name for an addressed-to role (e.g. 'principal'), falling
+/// back to a capitalised form for any unmapped value.
+String _roleLabel(BuildContext context, String role) {
+  if (role.isEmpty) return '';
+  final localized = context.trRole(role);
+  return localized == 'role_$role'
+      ? role[0].toUpperCase() + role.substring(1)
+      : localized;
+}
+
+String _fmtStatus(BuildContext context, String status, String viewerRole) {
   switch (status) {
-    case 'approved': return 'Approved';
-    case 'rejected': return 'Rejected';
-    case 'pending':  return 'Pending';
+    case 'approved': return context.tr('statusApproved');
+    case 'rejected': return context.tr('statusRejected');
+    case 'pending':  return context.tr('statusPending');
     case 'forwarded_to_principal':
       return (viewerRole == 'principal' || viewerRole == 'owner')
-          ? 'Forwarded to You' : 'Forwarded to Principal';
+          ? context.tr('forwardedToYou') : context.tr('forwardedToPrincipalStatus');
     default:
       return status[0].toUpperCase() + status.substring(1);
   }
-}
-
-extension _StringCapExtension on String {
-  String capitalize() =>
-      isEmpty ? this : this[0].toUpperCase() + substring(1);
 }
