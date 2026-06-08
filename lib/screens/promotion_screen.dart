@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../theme.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
@@ -86,24 +87,23 @@ class _PromotionScreenState extends State<PromotionScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Confirm promotion'),
+        title: Text(context.tr('confirmPromotion')),
         content: Text(
-          'Promote ${_loaded.length} student(s) from '
+          '${context.tr('promoteWord')} ${_loaded.length} ${context.tr('studentsFromLabel')} '
           '$_fromClass${_fromSection.text.trim().isEmpty ? '' : ' ${_fromSection.text.trim()}'} '
-          'to $to${_toSection.text.trim().isEmpty ? '' : ' ${_toSection.text.trim()}'}?\n\n'
-          'Their current records are archived (history is kept) and new records '
-          'are created in the target class with fees reset to Pending.',
+          '${context.tr('toLowerWord')} $to${_toSection.text.trim().isEmpty ? '' : ' ${_toSection.text.trim()}'}?\n\n'
+          '${context.tr('promoteArchiveNote')}',
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(_, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           ElevatedButton(
             onPressed: () => Navigator.pop(_, true),
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white),
-            child: const Text('Promote'),
+            child: Text(context.tr('promoteWord')),
           ),
         ],
       ),
@@ -122,7 +122,7 @@ class _PromotionScreenState extends State<PromotionScreen> {
       if (!mounted) return;
       setState(() => _promoting = false);
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Promotion failed: $e')));
+          .showSnackBar(SnackBar(content: Text('${context.tr('promotionFailed')} $e')));
       return;
     }
     if (!mounted) return;
@@ -133,17 +133,17 @@ class _PromotionScreenState extends State<PromotionScreen> {
     await showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Promotion complete'),
+        title: Text(context.tr('promotionComplete')),
         content: SingleChildScrollView(
           child: Text(
-            'Promoted: ${result.promoted}\n'
-            'Skipped: ${result.skipped.length}'
+            '${context.tr('promotedLabel')}: ${result.promoted}\n'
+            '${context.tr('skippedLabel')}: ${result.skipped.length}'
             '${result.skipped.isEmpty ? '' : '\n\n${result.skipped.join('\n')}'}',
           ),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(_), child: const Text('OK')),
+              onPressed: () => Navigator.pop(_), child: Text(context.tr('ok'))),
         ],
       ),
     );
@@ -156,7 +156,7 @@ class _PromotionScreenState extends State<PromotionScreen> {
       appBar: AppBar(
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
-        title: const Text('Promote Class'),
+        title: Text(context.tr('promoteClass')),
       ),
       body: _loadingClasses
           ? const Center(child: CircularProgressIndicator())
@@ -164,7 +164,7 @@ class _PromotionScreenState extends State<PromotionScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 _card(
-                  'From (current class)',
+                  context.tr('fromCurrentClass'),
                   _fromClass,
                   (v) => setState(() {
                     _fromClass = v;
@@ -180,18 +180,18 @@ class _PromotionScreenState extends State<PromotionScreen> {
                         : _loadStudents,
                     icon: const Icon(Icons.search),
                     label: Text(_loadingStudents
-                        ? 'Loading…'
-                        : 'Load students'),
+                        ? context.tr('loadingEllipsis')
+                        : context.tr('loadStudents')),
                   ),
                 ),
                 if (_loaded.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Text('${_loaded.length} student(s) found',
+                  Text('${_loaded.length} ${context.tr('studentsFoundSuffix')}',
                       style: const TextStyle(fontWeight: FontWeight.bold)),
                 ],
                 const SizedBox(height: 16),
                 _card(
-                  'To (next class)',
+                  context.tr('toNextClass'),
                   _toClass,
                   (v) => setState(() => _toClass = v),
                   _toSection,
@@ -218,13 +218,11 @@ class _PromotionScreenState extends State<PromotionScreen> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.upgrade),
-                  label: Text(_promoting ? 'Promoting…' : 'Promote students'),
+                  label: Text(_promoting ? context.tr('promotingEllipsis') : context.tr('promoteStudents')),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Old records are archived (attendance & fee history kept). '
-                  'New records start with fees Pending. Rolls are carried over; '
-                  'a roll already taken in the target class is skipped.',
+                  context.tr('promotionFooterNote'),
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
@@ -247,9 +245,9 @@ class _PromotionScreenState extends State<PromotionScreen> {
             DropdownButtonFormField<String>(
               value: value,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Class',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: context.tr('classLabel'),
+                border: const OutlineInputBorder(),
                 isDense: true,
               ),
               items: _classes
@@ -260,9 +258,9 @@ class _PromotionScreenState extends State<PromotionScreen> {
             const SizedBox(height: 8),
             TextField(
               controller: sectionCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Section (optional)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: context.tr('sectionOptional'),
+                border: const OutlineInputBorder(),
                 isDense: true,
               ),
             ),

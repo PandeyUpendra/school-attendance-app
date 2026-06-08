@@ -1231,6 +1231,26 @@ class AppStrings {
     'routesWord':              {'en': 'routes',               'hi': 'रूट'},
     'editBtn':                 {'en': 'Edit',                 'hi': 'बदलें'},
     'reviewFooter':            {'en': 'Review everything above. Tap "Complete Setup" to save your school configuration.', 'hi': 'ऊपर सब कुछ जाँचें। अपना स्कूल कॉन्फ़िगरेशन सेव करने के लिए "सेटअप पूरा करें" दबाएँ।'},
+
+    // ── Promotion (class rollover) ───────────────────────────────────────
+    'confirmPromotion':        {'en': 'Confirm promotion',    'hi': 'प्रोन्नति की पुष्टि करें'},
+    'promoteWord':             {'en': 'Promote',              'hi': 'प्रोन्नत करें'},
+    'studentsFromLabel':       {'en': 'student(s) from',      'hi': 'छात्र इससे'},
+    'toLowerWord':             {'en': 'to',                   'hi': 'में'},
+    'promoteArchiveNote':      {'en': 'Their current records are archived (history is kept) and new records are created in the target class with fees reset to Pending.', 'hi': 'उनके मौजूदा रिकॉर्ड संग्रहित किए जाते हैं (इतिहास रखा जाता है) और लक्षित कक्षा में फ़ीस लंबित के साथ नए रिकॉर्ड बनाए जाते हैं।'},
+    'promotionFailed':         {'en': 'Promotion failed:',    'hi': 'प्रोन्नति विफल:'},
+    'promotionComplete':       {'en': 'Promotion complete',   'hi': 'प्रोन्नति पूरी हुई'},
+    'promotedLabel':           {'en': 'Promoted',             'hi': 'प्रोन्नत'},
+    'skippedLabel':            {'en': 'Skipped',              'hi': 'छोड़े गए'},
+    'fromCurrentClass':        {'en': 'From (current class)', 'hi': 'से (वर्तमान कक्षा)'},
+    'toNextClass':             {'en': 'To (next class)',      'hi': 'तक (अगली कक्षा)'},
+    'loadingEllipsis':         {'en': 'Loading…',             'hi': 'लोड हो रहा है…'},
+    'loadStudents':            {'en': 'Load students',        'hi': 'छात्र लोड करें'},
+    'studentsFoundSuffix':     {'en': 'student(s) found',     'hi': 'छात्र मिले'},
+    'promotingEllipsis':       {'en': 'Promoting…',           'hi': 'प्रोन्नत हो रहा है…'},
+    'promoteStudents':         {'en': 'Promote students',     'hi': 'छात्रों को प्रोन्नत करें'},
+    'promotionFooterNote':     {'en': 'Old records are archived (attendance & fee history kept). New records start with fees Pending. Rolls are carried over; a roll already taken in the target class is skipped.', 'hi': 'पुराने रिकॉर्ड संग्रहित किए जाते हैं (उपस्थिति और फ़ीस इतिहास रखा जाता है)। नए रिकॉर्ड फ़ीस लंबित के साथ शुरू होते हैं। रोल नंबर साथ ले जाए जाते हैं; लक्षित कक्षा में पहले से लिया गया रोल छोड़ दिया जाता है।'},
+    'sectionOptional':         {'en': 'Section (optional)',   'hi': 'सेक्शन (वैकल्पिक)'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then
