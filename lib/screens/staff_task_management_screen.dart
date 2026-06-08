@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../theme.dart';
 import '../models/staff_task.dart';
 import '../models/teacher.dart';
@@ -8,6 +9,21 @@ import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/index_building_notice.dart';
 import 'task_badge_widgets.dart';
+
+/// Localised label for a task status / priority (display only; stored enum
+/// values are unaffected).
+String _staffStatusLabel(BuildContext context, TaskStatus s) => switch (s) {
+      TaskStatus.pending => context.tr('statusPending'),
+      TaskStatus.inProgress => context.tr('inProgressLabel'),
+      TaskStatus.completed => context.tr('completedLabel'),
+      TaskStatus.overdue => context.tr('hwOverdue'),
+    };
+
+String _staffPriorityLabel(BuildContext context, TaskPriority p) => switch (p) {
+      TaskPriority.high => context.tr('priorityHigh'),
+      TaskPriority.medium => context.tr('priorityMedium'),
+      TaskPriority.low => context.tr('priorityLow'),
+    };
 
 /// Principal's school-wide task overview.
 /// Shows stats, all tasks with filters, and a FAB to create new tasks.
@@ -45,7 +61,7 @@ class _StaffTaskManagementScreenState
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('All Staff Tasks'),
+        title: Text(context.tr('allStaffTasks')),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -55,7 +71,7 @@ class _StaffTaskManagementScreenState
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Assign Task'),
+        label: Text(context.tr('assignTask')),
       ),
       body: StreamBuilder<List<StaffTask>>(
         key: ValueKey(_refreshTick),
@@ -159,7 +175,7 @@ class _StaffTaskManagementScreenState
             scrollDirection: Axis.horizontal,
             child: Row(children: [
               _FChip(
-                  label: 'All',
+                  label: context.tr('allCount'),
                   selected: _filterStatus == null,
                   onTap: () =>
                       setState(() => _filterStatus = null)),
@@ -168,7 +184,7 @@ class _StaffTaskManagementScreenState
                 Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: _FChip(
-                      label: s.label,
+                      label: _staffStatusLabel(context, s),
                       selected: _filterStatus == s,
                       onTap: () =>
                           setState(() => _filterStatus = s)),
@@ -184,7 +200,7 @@ class _StaffTaskManagementScreenState
               value: _filterAssignedTo,
               isExpanded: true,
               decoration: InputDecoration(
-                hintText: 'Filter by teacher',
+                hintText: context.tr('filterByTeacher'),
                 hintStyle: TextStyle(
                     fontSize: 12, color: Colors.grey.shade400),
                 contentPadding: const EdgeInsets.symmetric(
@@ -198,8 +214,8 @@ class _StaffTaskManagementScreenState
                 isDense: true,
               ),
               items: [
-                const DropdownMenuItem<String?>(
-                    value: null, child: Text('All Teachers')),
+                DropdownMenuItem<String?>(
+                    value: null, child: Text(context.tr('allTeachers'))),
                 ...teachers.entries.map((e) => DropdownMenuItem<String?>(
                     value: e.key,
                     child: Text(e.value.isNotEmpty ? e.value : e.key,
@@ -215,7 +231,7 @@ class _StaffTaskManagementScreenState
               value: _filterAssignedBy,
               isExpanded: true,
               decoration: InputDecoration(
-                hintText: 'Filter by assigned by',
+                hintText: context.tr('filterByAssignedBy'),
                 hintStyle: TextStyle(
                     fontSize: 12, color: Colors.grey.shade400),
                 contentPadding: const EdgeInsets.symmetric(
@@ -229,8 +245,8 @@ class _StaffTaskManagementScreenState
                 isDense: true,
               ),
               items: [
-                const DropdownMenuItem<String?>(
-                    value: null, child: Text('All Assigners')),
+                DropdownMenuItem<String?>(
+                    value: null, child: Text(context.tr('allAssigners'))),
                 ...assigners.map((e) => DropdownMenuItem<String?>(
                     value: e,
                     child: Text(e,
@@ -261,16 +277,16 @@ class _StaffTaskManagementScreenState
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Task'),
-        content: Text('Delete "${task.title}"?'),
+        title: Text(context.tr('deleteTaskTitle')),
+        content: Text('${context.tr('delete')} "${task.title}"?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete',
-                  style: TextStyle(color: AppTheme.danger))),
+              child: Text(context.tr('delete'),
+                  style: const TextStyle(color: AppTheme.danger))),
         ],
       ),
     );
@@ -282,14 +298,14 @@ class _StaffTaskManagementScreenState
           Icon(Icons.task_outlined,
               size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 12),
-          Text(noTasksAtAll ? 'No tasks yet' : 'No matching tasks',
+          Text(noTasksAtAll ? context.tr('noTasksYet') : context.tr('noMatchingTasks'),
               style:
                   TextStyle(fontSize: 16, color: Colors.grey.shade500)),
           const SizedBox(height: 6),
           Text(
             noTasksAtAll
-                ? 'Tap + Assign Task to get started'
-                : 'Try changing the filters',
+                ? context.tr('tapAssignTaskStart')
+                : context.tr('tryChangingFilters'),
             style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
           ),
         ]),
@@ -431,7 +447,7 @@ class _PrincipalTaskCard extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 12, color: Colors.grey.shade500)),
                 const Spacer(),
-                Text('by ${task.assignedBy}',
+                Text('${context.tr('by')} ${task.assignedBy}',
                     style: TextStyle(
                         fontSize: 11,
                         color: Colors.grey.shade400,
@@ -453,8 +469,8 @@ class _PrincipalTaskCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   overdue
-                      ? 'OVERDUE by ${task.overdueDays}d'
-                      : 'Due ${_fmtDate(task.dueDate!)}',
+                      ? '${context.tr('overdueByPrefix')} ${task.overdueDays}d'
+                      : '${context.tr('dueWordPrefix')} ${_fmtDate(task.dueDate!)}',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: overdue
@@ -551,11 +567,11 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
   Future<void> _submit() async {
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
-      _snack('Please enter a task title');
+      _snack(context.tr('pleaseEnterTaskTitle'));
       return;
     }
     if (_selectedTeacherId == null) {
-      _snack('Please select a teacher');
+      _snack(context.tr('pleaseSelectTeacher'));
       return;
     }
     setState(() => _saving = true);
@@ -586,7 +602,7 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
 
     if (!mounted) return;
     Navigator.pop(context);
-    _snack('Task assigned to $_selectedTeacherName');
+    _snack('${context.tr('taskAssignedTo')} $_selectedTeacherName');
   }
 
   void _snack(String msg) {
@@ -624,33 +640,33 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Assign Task',
-                      style: TextStyle(
+                  Text(context.tr('assignTask'),
+                      style: const TextStyle(
                           fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
 
                   // Title
-                  const _SheetLabel('Task Title'),
+                  _SheetLabel(context.tr('taskTitleLabel')),
                   TextField(
                     controller: _titleCtrl,
-                    decoration: _dec(hint: 'e.g. PTM Preparation'),
+                    decoration: _dec(hint: context.tr('ptmPrepHint')),
                     textCapitalization: TextCapitalization.sentences,
                   ),
                   const SizedBox(height: 12),
 
                   // Description
-                  const _SheetLabel('Description'),
+                  _SheetLabel(context.tr('descriptionLabel')),
                   TextField(
                     controller: _descCtrl,
                     maxLines: 3,
                     decoration:
-                        _dec(hint: 'Describe what needs to be done'),
+                        _dec(hint: context.tr('describeWhatNeedsDone')),
                     textCapitalization: TextCapitalization.sentences,
                   ),
                   const SizedBox(height: 12),
 
                   // Assign to teacher
-                  const _SheetLabel('Assign To'),
+                  _SheetLabel(context.tr('assignToLabel')),
                   _loadingPeople
                       ? const Center(
                           child: CircularProgressIndicator(
@@ -658,7 +674,7 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
                               strokeWidth: 2))
                       : DropdownButtonFormField<String>(
                           value: _selectedTeacherId,
-                          hint: const Text('Select a teacher'),
+                          hint: Text(context.tr('selectATeacher')),
                           isExpanded: true,
                           decoration: _dec(),
                           items: _teachers.map((t) {
@@ -681,13 +697,13 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
                   const SizedBox(height: 12),
 
                   // Priority
-                  const _SheetLabel('Priority'),
+                  _SheetLabel(context.tr('priorityLabel')),
                   Row(children: [
                     for (final p in TaskPriority.values)
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
-                          label: Text(p.label),
+                          label: Text(_staffPriorityLabel(context, p)),
                           selected: _priority == p,
                           selectedColor:
                               _pColor(p).withValues(alpha: 0.15),
@@ -712,7 +728,7 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
                   const SizedBox(height: 12),
 
                   // Due date
-                  const _SheetLabel('Due Date (optional)'),
+                  _SheetLabel(context.tr('dueDateOptional')),
                   GestureDetector(
                     onTap: _pickDueDate,
                     child: Container(
@@ -730,7 +746,7 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
                         Text(
                           _dueDate != null
                               ? _fmtDate(_dueDate!)
-                              : 'Tap to select',
+                              : context.tr('tapToSelect'),
                           style: TextStyle(
                               fontSize: 13,
                               color: _dueDate != null
@@ -772,8 +788,8 @@ class _CreateTaskSheetState extends State<_CreateTaskSheet> {
                               child: CircularProgressIndicator(
                                   color: Colors.white,
                                   strokeWidth: 2))
-                          : const Text('Assign Task',
-                              style: TextStyle(
+                          : Text(context.tr('assignTask'),
+                              style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600)),
                     ),
