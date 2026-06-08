@@ -1251,6 +1251,30 @@ class AppStrings {
     'promoteStudents':         {'en': 'Promote students',     'hi': 'छात्रों को प्रोन्नत करें'},
     'promotionFooterNote':     {'en': 'Old records are archived (attendance & fee history kept). New records start with fees Pending. Rolls are carried over; a roll already taken in the target class is skipped.', 'hi': 'पुराने रिकॉर्ड संग्रहित किए जाते हैं (उपस्थिति और फ़ीस इतिहास रखा जाता है)। नए रिकॉर्ड फ़ीस लंबित के साथ शुरू होते हैं। रोल नंबर साथ ले जाए जाते हैं; लक्षित कक्षा में पहले से लिया गया रोल छोड़ दिया जाता है।'},
     'sectionOptional':         {'en': 'Section (optional)',   'hi': 'सेक्शन (वैकल्पिक)'},
+
+    // ── Guardian student details ─────────────────────────────────────────
+    'fatherNameLabel':         {'en': "Father's Name",        'hi': 'पिता का नाम'},
+    'motherNameLabel':         {'en': "Mother's Name",        'hi': 'माता का नाम'},
+    'documentsPhoto':          {'en': 'Documents & Photo',    'hi': 'दस्तावेज़ और फ़ोटो'},
+    'parentDetailsSection':    {'en': 'Parent Details',       'hi': 'अभिभावक विवरण'},
+    'academicInfoSection':     {'en': 'Academic Info',        'hi': 'शैक्षणिक जानकारी'},
+    'medicalInfoSection':      {'en': 'Medical Info',         'hi': 'चिकित्सा जानकारी'},
+    'othersSection':           {'en': 'Others',               'hi': 'अन्य'},
+    'saveAllDetails':          {'en': 'Save All Details',     'hi': 'सभी विवरण सेव करें'},
+    'dobWithFormat':           {'en': 'Date of Birth (DD/MM/YYYY)', 'hi': 'जन्म तिथि (दिन/माह/वर्ष)'},
+    'primaryContactNumber':    {'en': 'Primary Contact Number', 'hi': 'मुख्य संपर्क नंबर'},
+    'secondaryContactNumber':  {'en': 'Secondary Contact Number', 'hi': 'द्वितीयक संपर्क नंबर'},
+    'homeAddress':             {'en': 'Home Address',         'hi': 'घर का पता'},
+    'previousSchoolIfAny':     {'en': 'Previous School (if any)', 'hi': 'पिछला स्कूल (यदि कोई हो)'},
+    'allergiesLabel':          {'en': 'Allergies',            'hi': 'एलर्जी'},
+    'allergiesMedical':        {'en': 'Allergies / Medical Conditions', 'hi': 'एलर्जी / चिकित्सा स्थितियाँ'},
+    'modeOfTransport':         {'en': 'Mode of Transport',    'hi': 'परिवहन का साधन'},
+    'enterClarificationReason':{'en': 'Enter why you are requesting clarification...', 'hi': 'आप स्पष्टीकरण क्यों मांग रहे हैं, लिखें...'},
+    'detailsUpdatedBySchool':  {'en': 'Details updated by school', 'hi': 'स्कूल द्वारा अपडेट किया गया विवरण'},
+    'schoolUpdatesAccepted':   {'en': 'School updates accepted and applied', 'hi': 'स्कूल के अपडेट स्वीकार और लागू किए गए'},
+    'clarificationRequestSent':{'en': 'Clarification request sent to school', 'hi': 'स्पष्टीकरण अनुरोध स्कूल को भेजा गया'},
+    'detailsSubmittedForVerification':{'en': 'Details submitted to class teacher for verification', 'hi': 'विवरण सत्यापन के लिए कक्षा शिक्षक को भेजा गया'},
+    'failedSubmitUpdates':     {'en': 'Failed to submit updates:', 'hi': 'अपडेट जमा करने में विफल:'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then

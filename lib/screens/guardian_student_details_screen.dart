@@ -4,12 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../l10n/app_strings.dart';
 import '../models/student.dart';
 import '../models/guardian_student_details.dart';
 import '../models/guardian_provided_details.dart';
 import '../models/school_provided_details.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
+
+/// Localised label for a gender value (stored value stays English).
+String _localizedGender(BuildContext c, String g) => switch (g) {
+      'Male' => c.tr('genderMale'),
+      'Female' => c.tr('genderFemale'),
+      'Other' => c.tr('genderOther'),
+      _ => g,
+    };
 
 class GuardianStudentDetailsScreen extends StatefulWidget {
   final Student student;
@@ -156,12 +165,12 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('School updates accepted and applied')),
+        SnackBar(content: Text(context.tr('schoolUpdatesAccepted'))),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to accept updates: $e')),
+        SnackBar(content: Text('${context.tr('failedAcceptUpdates')} $e')),
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -173,23 +182,23 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Request Clarification'),
+        title: Text(context.tr('requestClarification')),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Enter why you are requesting clarification...',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: context.tr('enterClarificationReason'),
+            border: const OutlineInputBorder(),
           ),
           maxLines: 3,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(context.tr('cancel')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Submit'),
+            child: Text(context.tr('submitAction')),
           ),
         ],
       ),
@@ -206,12 +215,12 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
         );
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Clarification request sent to school')),
+          SnackBar(content: Text(context.tr('clarificationRequestSent'))),
         );
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to request clarification: $e')),
+          SnackBar(content: Text('${context.tr('failedRequestClarification')} $e')),
         );
       } finally {
         if (mounted) setState(() => _isSaving = false);
@@ -231,20 +240,20 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
     final s = widget.student;
     final d = s.guardianDetails;
 
-    compare('Full Name', s.name, details.name);
-    compare('Date of Birth', d?.dob ?? '', details.dob);
-    compare('Gender', d?.gender ?? '', details.gender);
-    compare("Father's Name", s.fatherName, details.fatherName);
-    compare("Mother's Name", s.motherName ?? '', details.motherName);
-    compare('Primary Phone', s.phone, details.phone);
-    compare('Secondary Phone', s.parentPhone ?? '', details.parentPhone);
-    compare('Address', d?.address ?? '', details.address);
-    compare('Previous School', d?.previousSchool ?? '', details.previousSchool);
-    compare('Blood Group', d?.bloodGroup ?? '', details.bloodGroup);
-    compare('Emergency Contact Name', d?.emergencyContactName ?? '', details.emergencyContactName);
-    compare('Emergency Contact Phone', d?.emergencyContactPhone ?? '', details.emergencyContactPhone);
-    compare('Allergies', d?.allergies ?? '', details.allergies);
-    compare('Transport Mode', d?.transportMode ?? '', details.transportMode);
+    compare(context.tr('fullName'), s.name, details.name);
+    compare(context.tr('dateOfBirthLabel'), d?.dob ?? '', details.dob);
+    compare(context.tr('genderLabel'), d?.gender ?? '', details.gender);
+    compare(context.tr('fatherNameLabel'), s.fatherName, details.fatherName);
+    compare(context.tr('motherNameLabel'), s.motherName ?? '', details.motherName);
+    compare(context.tr('primaryPhone'), s.phone, details.phone);
+    compare(context.tr('secondaryPhone'), s.parentPhone ?? '', details.parentPhone);
+    compare(context.tr('addressLabel'), d?.address ?? '', details.address);
+    compare(context.tr('previousSchoolLabel'), d?.previousSchool ?? '', details.previousSchool);
+    compare(context.tr('bloodGroupLabel'), d?.bloodGroup ?? '', details.bloodGroup);
+    compare(context.tr('emergencyContactName'), d?.emergencyContactName ?? '', details.emergencyContactName);
+    compare(context.tr('emergencyContactPhone'), d?.emergencyContactPhone ?? '', details.emergencyContactPhone);
+    compare(context.tr('allergiesLabel'), d?.allergies ?? '', details.allergies);
+    compare(context.tr('transportModeLabel'), d?.transportMode ?? '', details.transportMode);
 
     if (diffs.isEmpty) return const SizedBox.shrink();
 
@@ -263,7 +272,7 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
                 Icon(Icons.info_outline, color: Colors.amber.shade800),
                 const SizedBox(width: 8),
                 Text(
-                  'Details updated by school',
+                  context.tr('detailsUpdatedBySchool'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -285,7 +294,7 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       TextSpan(
-                        text: entry.value[0].isEmpty ? '[Empty]' : entry.value[0],
+                        text: entry.value[0].isEmpty ? context.tr('emptyBracket') : entry.value[0],
                         style: const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.red),
                       ),
                       const TextSpan(text: '  ➔  '),
@@ -297,11 +306,11 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
                   ),
                 ),
               );
-            }).toList(),
+            }),
             if (details.remarks.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                'Remarks: ${details.remarks}',
+                '${context.tr('remarksTitle')}: ${details.remarks}',
                 style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.black54),
               ),
             ],
@@ -312,7 +321,7 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
                 TextButton(
                   onPressed: () => _requestSchoolClarification(details),
                   child: Text(
-                    'Request Clarification',
+                    context.tr('requestClarification'),
                     style: TextStyle(color: Colors.amber.shade900),
                   ),
                 ),
@@ -323,7 +332,7 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
                     backgroundColor: Colors.amber.shade800,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Accept Changes'),
+                  child: Text(context.tr('acceptChanges')),
                 ),
               ],
             ),
@@ -363,13 +372,13 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Details submitted to class teacher for verification')),
+        SnackBar(content: Text(context.tr('detailsSubmittedForVerification'))),
       );
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit updates: $e')),
+        SnackBar(content: Text('${context.tr('failedSubmitUpdates')} $e')),
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -380,7 +389,7 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Student Details'),
+        title: Text(context.tr('studentDetails')),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
       ),
@@ -404,7 +413,7 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
                     _buildSchoolDetailsSection(pendingSchoolDetails),
 
                   // ── DOCUMENTS / PHOTO ──
-              _buildSectionTitle('Documents & Photo'),
+              _buildSectionTitle(context.tr('documentsPhoto')),
               Center(
                 child: Stack(
                   children: [
@@ -440,43 +449,43 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
               const SizedBox(height: 24),
 
               // ── STUDENT PROFILE ──
-              _buildSectionTitle('Student Profile'),
-              _buildTextField(_nameController, 'Full Name', Icons.person),
-              _buildTextField(_dobController, 'Date of Birth (DD/MM/YYYY)', Icons.cake),
+              _buildSectionTitle(context.tr('studentProfile')),
+              _buildTextField(_nameController, context.tr('fullName'), Icons.person),
+              _buildTextField(_dobController, context.tr('dobWithFormat'), Icons.cake),
               _buildGenderDropdown(),
-              _buildReadOnlyField('Class / Section', '${widget.student.className} ${widget.student.section}'),
-              _buildReadOnlyField('Roll Number', widget.student.roll.toString()),
+              _buildReadOnlyField(context.tr('classSection'), '${widget.student.className} ${widget.student.section}'),
+              _buildReadOnlyField(context.tr('rollNumber'), widget.student.roll.toString()),
 
               const SizedBox(height: 24),
 
               // ── PARENT DETAILS ──
-              _buildSectionTitle('Parent Details'),
-              _buildTextField(_fatherNameController, "Father's Name", Icons.man),
-              _buildTextField(_motherNameController, "Mother's Name", Icons.woman),
-              _buildTextField(_phoneController, 'Primary Contact Number', Icons.phone, keyboardType: TextInputType.phone),
-              _buildTextField(_parentPhoneController, 'Secondary Contact Number', Icons.phone_android, keyboardType: TextInputType.phone),
-              _buildTextField(_addressController, 'Home Address', Icons.home, maxLines: 2),
+              _buildSectionTitle(context.tr('parentDetailsSection')),
+              _buildTextField(_fatherNameController, context.tr('fatherNameLabel'), Icons.man),
+              _buildTextField(_motherNameController, context.tr('motherNameLabel'), Icons.woman),
+              _buildTextField(_phoneController, context.tr('primaryContactNumber'), Icons.phone, keyboardType: TextInputType.phone),
+              _buildTextField(_parentPhoneController, context.tr('secondaryContactNumber'), Icons.phone_android, keyboardType: TextInputType.phone),
+              _buildTextField(_addressController, context.tr('homeAddress'), Icons.home, maxLines: 2),
 
               const SizedBox(height: 24),
 
               // ── ACADEMIC INFO ──
-              _buildSectionTitle('Academic Info'),
-              _buildTextField(_previousSchoolController, 'Previous School (if any)', Icons.school),
+              _buildSectionTitle(context.tr('academicInfoSection')),
+              _buildTextField(_previousSchoolController, context.tr('previousSchoolIfAny'), Icons.school),
 
               const SizedBox(height: 24),
 
               // ── MEDICAL INFO ──
-              _buildSectionTitle('Medical Info'),
-              _buildTextField(_bloodGroupController, 'Blood Group', Icons.bloodtype),
-              _buildTextField(_emergencyNameController, 'Emergency Contact Name', Icons.contact_phone),
-              _buildTextField(_emergencyPhoneController, 'Emergency Contact Phone', Icons.phone_callback, keyboardType: TextInputType.phone),
-              _buildTextField(_allergiesController, 'Allergies / Medical Conditions', Icons.medical_services, maxLines: 2),
+              _buildSectionTitle(context.tr('medicalInfoSection')),
+              _buildTextField(_bloodGroupController, context.tr('bloodGroupLabel'), Icons.bloodtype),
+              _buildTextField(_emergencyNameController, context.tr('emergencyContactName'), Icons.contact_phone),
+              _buildTextField(_emergencyPhoneController, context.tr('emergencyContactPhone'), Icons.phone_callback, keyboardType: TextInputType.phone),
+              _buildTextField(_allergiesController, context.tr('allergiesMedical'), Icons.medical_services, maxLines: 2),
 
               const SizedBox(height: 24),
 
               // ── TRANSPORT ──
-              _buildSectionTitle('Others'),
-              _buildTextField(_transportController, 'Mode of Transport', Icons.directions_bus),
+              _buildSectionTitle(context.tr('othersSection')),
+              _buildTextField(_transportController, context.tr('modeOfTransport'), Icons.directions_bus),
 
               const SizedBox(height: 32),
               ElevatedButton(
@@ -489,7 +498,7 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
                 ),
                 child: _isSaving
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Save All Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    : Text(context.tr('saveAllDetails'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 40),
             ],
@@ -564,13 +573,13 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
       child: DropdownButtonFormField<String>(
         value: _gender.isEmpty ? null : _gender,
         decoration: InputDecoration(
-          labelText: 'Gender',
+          labelText: context.tr('genderLabel'),
           prefixIcon: const Icon(Icons.people_outline, color: AppTheme.primary, size: 20),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
         items: ['Male', 'Female', 'Other']
-            .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+            .map((g) => DropdownMenuItem(value: g, child: Text(_localizedGender(context, g))))
             .toList(),
         onChanged: (val) => setState(() => _gender = val ?? ''),
       ),
