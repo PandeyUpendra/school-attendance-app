@@ -221,6 +221,55 @@ class FeeService extends BaseFirestoreService {
 
   // ── Class-wide fee overview ────────────────────────────────────────────────
 
+  /// One-shot school-wide aggregation of non-reversed paid amounts via a SINGLE
+  /// `collectionGroup('payments')` query (#25/#72), replacing the per-student
+  /// read fan-out on the coordinator/principal fee dashboards. Returns
+  /// className → roll → paidPaise, or NULL if the query fails (e.g. the
+  /// collection-group index isn't built yet) so callers fall back to the
+  /// accurate per-roll path. The className is recovered from each payment's doc
+  /// path (…/fee_payments/{classKey}/students/{roll}/payments/{id}).
+  Future<Map<String, Map<int, int>>?> _aggregatePaidPaise(
+      List<String> classes) async {
+    try {
+      final keyToClass = {for (final c in classes) c.replaceAll(' ', '_'): c};
+      final snap = await db
+          .collectionGroup('payments')
+          .where('schoolId', isEqualTo: _sid)
+          .get();
+      final out = <String, Map<int, int>>{};
+      for (final doc in snap.docs) {
+        final data = Map<String, dynamic>.from(doc.data() as Map);
+        if (data['reversed'] == true) continue;
+        final segs = doc.reference.path.split('/');
+        final i = segs.indexOf('fee_payments');
+        if (i < 0 || i + 3 >= segs.length) continue;
+        final className = keyToClass[segs[i + 1]];
+        final roll = int.tryParse(segs[i + 3]);
+        if (className == null || roll == null) continue;
+        final paise = (data['amountPaise'] as num?)?.toInt() ??
+            rupeesToPaise((data['amount'] as num?)?.toDouble() ?? 0);
+        (out[className] ??= {})[roll] = ((out[className]![roll]) ?? 0) + paise;
+      }
+      return out;
+    } catch (_) {
+      return null; // index missing / query failed → per-roll fallback
+    }
+  }
+
+  /// roll → totalPaid (rupees) for [rolls] in [className], sourced from a
+  /// pre-fetched aggregation when available, else the per-roll query path.
+  Future<Map<int, double>> _classPaid(
+    String className,
+    List<int> rolls,
+    Map<String, Map<int, int>>? agg,
+  ) async {
+    if (agg != null) {
+      final m = agg[className] ?? const {};
+      return {for (final r in rolls) r: paiseToRupees(m[r] ?? 0)};
+    }
+    return getClassFeeOverview(className: className, rolls: rolls);
+  }
+
   /// Returns { roll → totalPaid } for every student in a class.
   Future<Map<int, double>> getClassFeeOverview({String? schoolId, required String className, required List<int> rolls}) async {
     if (rolls.isEmpty) return {};
@@ -251,6 +300,10 @@ class FeeService extends BaseFirestoreService {
       byClass.putIfAbsent(cls, () => []).add(data);
     }
 
+    // One collection-group query for ALL paid amounts (#25/#72) instead of a
+    // per-student fan-out; null → per-roll fallback inside _classPaid.
+    final agg = await _aggregatePaidPaise(classes);
+
     // Load structure + paid overview per class in parallel
     final futures = classes.map((cls) async {
       final studs = byClass[cls] ?? [];
@@ -261,7 +314,7 @@ class FeeService extends BaseFirestoreService {
 
       final results = await Future.wait([
         getFeeStructure(className: cls),
-        getClassFeeOverview(className: cls, rolls: rolls),
+        _classPaid(cls, rolls, agg),
       ]);
       final structure = results[0] as FeeStructure;
       final paidMap   = results[1] as Map<int, double>;
@@ -305,6 +358,9 @@ class FeeService extends BaseFirestoreService {
       byClass.putIfAbsent(cls, () => []).add(data);
     }
 
+    // One collection-group query for ALL paid amounts (#25/#72); null → fallback.
+    final agg = await _aggregatePaidPaise(byClass.keys.toList());
+
     // Accumulate in integer paise (no float drift, #31) and convert once.
     //   collected = actual cash received, capped per student at the amount due
     //   pending   = total outstanding (due − paid) across all students
@@ -326,7 +382,7 @@ class FeeService extends BaseFirestoreService {
 
       final results = await Future.wait([
         getFeeStructure(className: cls),
-        getClassFeeOverview(className: cls, rolls: rolls),
+        _classPaid(cls, rolls, agg),
       ]);
 
       final structure = results[0] as FeeStructure;
