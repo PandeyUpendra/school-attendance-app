@@ -6,6 +6,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../../utils/pdf_theme.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/meeting.dart';
 import '../../models/teacher.dart';
 import '../../services/meeting_service.dart';
@@ -13,6 +14,13 @@ import '../../services/notification_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
 import '../../widgets/index_building_notice.dart';
+
+/// Localised label for a meeting status (stored status stays English).
+String _localizedStatus(BuildContext c, MeetingStatus s) => switch (s) {
+      MeetingStatus.draft => c.tr('draft'),
+      MeetingStatus.active => c.tr('statusActive'),
+      MeetingStatus.completed => c.tr('completedLabel'),
+    };
 
 class MeetingDetailScreen extends StatefulWidget {
   /// Pass null to create a new meeting.
@@ -123,7 +131,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         _meetingId = id;
         _isNew     = false;
       });
-      _snack('Meeting created');
+      _snack(context.tr('meetingCreated'));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -181,7 +189,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 
   Future<void> _convertToTask(Meeting m, MeetingPoint p) async {
     if (_teachers.isEmpty) {
-      _snack('No teachers found');
+      _snack(context.tr('noTeachersFound'));
       return;
     }
     final result = await showDialog<Teacher>(
@@ -204,7 +212,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         meetingTitle: m.title,
         pointText:    p.text,
       );
-      if (mounted) _snack('Task assigned to ${result.name}');
+      if (mounted) _snack('${context.tr('taskAssignedTo')} ${result.name}');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -216,23 +224,22 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Complete Meeting?'),
-        content: const Text(
-            'This will permanently lock the meeting record. Points and tasks will be read-only.'),
+        title: Text(context.tr('completeMeetingQ')),
+        content: Text(context.tr('completeMeetingBody')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Complete')),
+              child: Text(context.tr('complete'))),
         ],
       ),
     );
     if (ok != true || !mounted) return;
     await _svc.markCompleted(m.id);
-    if (mounted) _snack('Meeting marked as completed');
+    if (mounted) _snack(context.tr('meetingMarkedCompleted'));
   }
 
   // ── Delete meeting ────────────────────────────────────────────────────────
@@ -241,17 +248,16 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Meeting?'),
-        content: const Text(
-            'This permanently removes the meeting record. This cannot be undone.'),
+        title: Text(context.tr('deleteMeetingQ')),
+        content: Text(context.tr('deleteMeetingBody')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete')),
+              child: Text(context.tr('delete'))),
         ],
       ),
     );
@@ -267,7 +273,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     try {
       await shareMeetingPdf(m);
     } catch (e) {
-      if (mounted) _snack('PDF error: $e');
+      if (mounted) _snack('${context.tr('pdfError')} $e');
     } finally {
       if (mounted) setState(() => _generatingPdf = false);
     }
@@ -455,7 +461,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('New Meeting'),
+        title: Text(context.tr('newMeeting')),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
       ),
@@ -468,11 +474,11 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
             DropdownButtonFormField<String>(
               value: _selectedTitle,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Meeting Title',
-                prefixIcon: Icon(Icons.title),
+              decoration: InputDecoration(
+                labelText: context.tr('meetingTitle'),
+                prefixIcon: const Icon(Icons.title),
               ),
-              hint: const Text('Select meeting type'),
+              hint: Text(context.tr('selectMeetingType')),
               items: _meetingTitleOptions.map((t) {
                 final isCustom = t == 'Custom...';
                 return DropdownMenuItem<String>(
@@ -493,7 +499,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                 if (val != 'Custom...') _titleCtrl.clear();
               }),
               validator: (_) =>
-                  _selectedTitle == null ? 'Please select a meeting type' : null,
+                  _selectedTitle == null ? context.tr('selectMeetingTypeError') : null,
             ),
 
             // ── Custom title field ────────────────────────────────────────
@@ -502,13 +508,13 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
               TextFormField(
                 controller: _titleCtrl,
                 maxLength: 80,
-                decoration: const InputDecoration(
-                  labelText: 'Custom Title',
-                  prefixIcon: Icon(Icons.edit_outlined),
+                decoration: InputDecoration(
+                  labelText: context.tr('customTitle'),
+                  prefixIcon: const Icon(Icons.edit_outlined),
                   counterText: '',
                 ),
                 validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Enter a title' : null,
+                    (v == null || v.trim().isEmpty) ? context.tr('enterTitle') : null,
               ),
             ],
             const SizedBox(height: 16),
@@ -518,9 +524,9 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
               onTap: _pickDate,
               borderRadius: BorderRadius.circular(10),
               child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Meeting Date',
-                  prefixIcon: Icon(Icons.calendar_today_outlined),
+                decoration: InputDecoration(
+                  labelText: context.tr('meetingDate'),
+                  prefixIcon: const Icon(Icons.calendar_today_outlined),
                 ),
                 child: Text(_fmtDate(_meetingDate),
                     style: const TextStyle(fontSize: 15)),
@@ -529,7 +535,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
             const SizedBox(height: 24),
 
             // Agenda points
-            Text('Agenda Points',
+            Text(context.tr('agendaPoints'),
                 style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
@@ -554,7 +560,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2))
                     : const Icon(Icons.save_outlined),
-                label: const Text('Create Meeting'),
+                label: Text(context.tr('createMeeting')),
                 onPressed: _saving ? null : _createMeeting,
               ),
             ),
@@ -581,7 +587,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         }
         final m = snap.data;
         if (m == null) {
-          return const Scaffold(body: Center(child: Text('Meeting not found')));
+          return Scaffold(body: Center(child: Text(context.tr('meetingNotFound'))));
         }
         _meeting = m;
 
@@ -599,7 +605,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
               if (!readOnly && m.status != MeetingStatus.completed)
                 IconButton(
                   icon: const Icon(Icons.check_circle_outline),
-                  tooltip: 'Mark Completed',
+                  tooltip: context.tr('markCompletedTooltip'),
                   onPressed: () => _markCompleted(m),
                 ),
               if (isMine)
@@ -610,7 +616,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                           child: CircularProgressIndicator(
                               color: Colors.white, strokeWidth: 2))
                       : const Icon(Icons.picture_as_pdf_outlined),
-                  tooltip: 'Generate PDF',
+                  tooltip: context.tr('generatePdfTooltip'),
                   onPressed: _generatingPdf ? null : () => _generatePdf(m),
                 ),
               if (isMine && !m.isCompleted)
@@ -619,11 +625,11 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                     if (v == 'delete') _deleteMeeting(m);
                   },
                   itemBuilder: (_) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'delete',
                       child: ListTile(
-                        leading: Icon(Icons.delete_outline, color: Colors.red),
-                        title: Text('Delete Meeting', style: TextStyle(color: Colors.red)),
+                        leading: const Icon(Icons.delete_outline, color: Colors.red),
+                        title: Text(context.tr('deleteMeeting'), style: const TextStyle(color: Colors.red)),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -640,7 +646,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 
               // ── Add point row (if editable) ────────────────────────────
               if (!readOnly) ...[
-                Text('Discussion Points',
+                Text(context.tr('discussionPoints'),
                     style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
@@ -652,7 +658,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 
               // ── Points list ────────────────────────────────────────────
               if (m.points.isEmpty)
-                _emptyHint('No agenda points yet')
+                _emptyHint(context.tr('noAgendaPointsYet'))
               else
                 ...m.points.map((p) => _LivePointCard(
                       point:    p,
@@ -677,7 +683,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                     style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.success),
                     icon: const Icon(Icons.check_circle_outline),
-                    label: const Text('Mark as Completed'),
+                    label: Text(context.tr('markAsCompleted')),
                     onPressed: _saving ? null : () => _markCompleted(m),
                   ),
                 ),
@@ -840,7 +846,7 @@ class _AssignTeacherDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Assign Task To'),
+        title: Text(context.tr('assignTaskTo')),
         contentPadding: const EdgeInsets.symmetric(vertical: 8),
         content: SizedBox(
           width: double.maxFinite,
@@ -865,7 +871,7 @@ class _AssignTeacherDialog extends StatelessWidget {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
         ],
       );
 }
@@ -927,12 +933,12 @@ class _AgendaPickerState extends State<_AgendaPicker> {
         DropdownButtonFormField<String>(
           value: _selected,
           isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Add Agenda',
-            prefixIcon: Icon(Icons.list_alt_outlined),
+          decoration: InputDecoration(
+            labelText: context.tr('addAgenda'),
+            prefixIcon: const Icon(Icons.list_alt_outlined),
             isDense: true,
           ),
-          hint: const Text('Pick a common agenda'),
+          hint: Text(context.tr('pickCommonAgenda')),
           items: _commonAgendas.map((a) {
             final isCustom = a == _customLabel;
             return DropdownMenuItem<String>(
@@ -967,9 +973,9 @@ class _AgendaPickerState extends State<_AgendaPicker> {
               child: TextField(
                 controller: _customCtrl,
                 autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: 'Type a custom agenda...',
-                  prefixIcon: Icon(Icons.edit_outlined),
+                decoration: InputDecoration(
+                  hintText: context.tr('typeCustomAgenda'),
+                  prefixIcon: const Icon(Icons.edit_outlined),
                   isDense: true,
                 ),
                 textCapitalization: TextCapitalization.sentences,
@@ -979,7 +985,7 @@ class _AgendaPickerState extends State<_AgendaPicker> {
             const SizedBox(width: 8),
             ElevatedButton(
               onPressed: _addCustom,
-              child: const Text('Add'),
+              child: Text(context.tr('addBtn')),
             ),
           ]),
         ],
@@ -1020,7 +1026,7 @@ class _MetaCard extends StatelessWidget {
               color: statusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(meeting.status.label,
+            child: Text(_localizedStatus(context, meeting.status),
                 style: TextStyle(
                     color: statusColor,
                     fontSize: 11,
@@ -1037,23 +1043,23 @@ class _MetaCard extends StatelessWidget {
           const SizedBox(width: 12),
           Icon(Icons.person_outline, size: 14, color: Colors.grey.shade500),
           const SizedBox(width: 4),
-          Text('${meeting.createdByName} · ${meeting.createdByRole}',
+          Text('${meeting.createdByName} · ${context.trRole(meeting.createdByRole)}',
               style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
         ]),
         const SizedBox(height: 12),
         Divider(height: 1, color: Colors.grey.shade100),
         const SizedBox(height: 10),
         Row(children: [
-          _StatChip(label: '${meeting.points.length}', sub: 'Points'),
+          _StatChip(label: '${meeting.points.length}', sub: context.tr('pointsStat')),
           const SizedBox(width: 12),
           _StatChip(
               label: '${meeting.discussedCount}',
-              sub: 'Discussed',
+              sub: context.tr('discussedStat'),
               color: AppTheme.success),
           const SizedBox(width: 12),
           _StatChip(
               label: '${meeting.tasksCreated}',
-              sub: 'Tasks',
+              sub: context.tr('tasksStat'),
               color: AppTheme.warning),
         ]),
       ]),
@@ -1194,12 +1200,12 @@ class _LivePointCard extends StatelessWidget {
                             : Colors.black87)),
                 if (point.convertedToTask) ...[
                   const SizedBox(height: 4),
-                  const Row(children: [
-                    Icon(Icons.task_alt,
+                  Row(children: [
+                    const Icon(Icons.task_alt,
                         size: 12, color: AppTheme.success),
-                    SizedBox(width: 4),
-                    Text('Task assigned',
-                        style: TextStyle(
+                    const SizedBox(width: 4),
+                    Text(context.tr('taskAssigned'),
+                        style: const TextStyle(
                             fontSize: 11, color: AppTheme.success,
                             fontWeight: FontWeight.w500)),
                   ]),
@@ -1213,7 +1219,7 @@ class _LivePointCard extends StatelessWidget {
                   foregroundColor: AppTheme.warning,
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
               icon: const Icon(Icons.assignment_ind_outlined, size: 15),
-              label: const Text('Assign', style: TextStyle(fontSize: 12)),
+              label: Text(context.tr('assign'), style: const TextStyle(fontSize: 12)),
               onPressed: saving ? null : onConvert,
             ),
         ]),
@@ -1238,7 +1244,7 @@ class _AssignedTeachersCard extends StatelessWidget {
           Row(children: [
             const Icon(Icons.people_outline, size: 16, color: AppTheme.success),
             const SizedBox(width: 6),
-            Text('Teachers Assigned (${names.length})',
+            Text('${context.tr('teachersAssigned')} (${names.length})',
                 style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
