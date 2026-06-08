@@ -4,6 +4,7 @@ import '../models/exam.dart';
 import '../services/exam_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import 'marks_entry_screen.dart';
 import 'report_card_screen.dart';
 import '../widgets/refreshable_data.dart';
@@ -129,7 +130,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                   maxLength: 60,
                   maxLengthEnforcement: MaxLengthEnforcement.enforced,
                   decoration: InputDecoration(
-                    labelText: 'Exam Name (e.g. Unit Test 1)',
+                    labelText: context.tr('examName'),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
                     counterText: '',
@@ -145,7 +146,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: InputDecoration(
-                        labelText: 'Max Marks per Subject',
+                        labelText: context.tr('maxMarksPerSubject'),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10)),
                       ),
@@ -163,7 +164,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                       onTap: () => pickDate(setS),
                       child: InputDecorator(
                         decoration: InputDecoration(
-                          labelText: 'Exam Date',
+                          labelText: context.tr('examDate'),
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10)),
                         ),
@@ -216,14 +217,14 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Subjects',
-                        style: TextStyle(
+                    Text(context.tr('subjectsLabel'),
+                        style: const TextStyle(
                             fontSize: 13, fontWeight: FontWeight.w600)),
                     TextButton.icon(
                       onPressed: () =>
                           setS(() => subjectCtrls.add(TextEditingController())),
                       icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Add'),
+                      label: Text(context.tr('addLabel')),
                       style: TextButton.styleFrom(
                           foregroundColor: AppTheme.primary),
                     ),
@@ -268,7 +269,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
                 Row(children: [
                   TextButton(
                     onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('Cancel'),
+                    child: Text(context.tr('cancel')),
                   ),
                   const Spacer(),
                   ElevatedButton.icon(
@@ -339,16 +340,16 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14)),
-        title: const Text('Delete Exam?'),
+        title: Text(context.tr('deleteExamQ')),
         content: Text('Delete "${exam.name}"? All marks will be lost.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(context.tr('delete')),
           ),
         ],
       ),
@@ -363,14 +364,14 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Exams & Marks',
-                style:
+            Text(context.tr('examsMarks'),
+                style: const
                     TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('Manage exams and results',
-                style: TextStyle(fontSize: 12, color: Colors.white70)),
+            Text(context.tr('manageExamsResults'),
+                style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
       ),
@@ -380,14 +381,14 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
               backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),
-              label: const Text('New Exam'),
+              label: Text(context.tr('newExam')),
             )
           : null,
       body: _loading
           ? const LoadingState()
           : _classes.isEmpty
               ? Center(
-                  child: Text('No classes configured.',
+                  child: Text(context.tr('noClassesConfiguredShort'),
                       style: TextStyle(color: Colors.grey.shade500)))
               : Column(
                   children: [
@@ -593,7 +594,7 @@ class _ExamCard extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: onMarks,
                 icon: const Icon(Icons.edit_note_outlined, size: 16),
-                label: const Text('Enter Marks'),
+                label: Text(context.tr('enterMarks')),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppTheme.primary,
                   side:
@@ -608,7 +609,7 @@ class _ExamCard extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: onReport,
                 icon: const Icon(Icons.assessment_outlined, size: 16),
-                label: const Text('Report Card'),
+                label: Text(context.tr('reportCard')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,

@@ -306,6 +306,18 @@ class AppStrings {
     'subHomeworkOverviewAll':{'en': 'All assignments across classes', 'hi': 'सभी कक्षाओं के असाइनमेंट'},
     'deleteHomeworkQ':       {'en': 'Delete Homework?',   'hi': 'गृहकार्य हटाएँ?'},
 
+    // ── Exam management screen ───────────────────────────────────────────
+    'manageExamsResults':    {'en': 'Manage exams and results', 'hi': 'परीक्षाएँ और परिणाम प्रबंधित करें'},
+    'newExam':               {'en': 'New Exam',           'hi': 'नई परीक्षा'},
+    'deleteExamQ':           {'en': 'Delete Exam?',       'hi': 'परीक्षा हटाएँ?'},
+    'enterMarks':            {'en': 'Enter Marks',        'hi': 'अंक दर्ज करें'},
+    'reportCard':            {'en': 'Report Card',        'hi': 'रिपोर्ट कार्ड'},
+    'subjectsLabel':         {'en': 'Subjects',           'hi': 'विषय'},
+    'addLabel':              {'en': 'Add',                'hi': 'जोड़ें'},
+    'examName':              {'en': 'Exam Name (e.g. Unit Test 1)', 'hi': 'परीक्षा का नाम (जैसे यूनिट टेस्ट 1)'},
+    'maxMarksPerSubject':    {'en': 'Max Marks per Subject', 'hi': 'प्रति विषय अधिकतम अंक'},
+    'examDate':              {'en': 'Exam Date',          'hi': 'परीक्षा तिथि'},
+
     // ── Coordinator / Principal dashboards: tile subtitles ───────────────
     'subStaffTasksDesc':         {'en': 'Assign tasks to teachers and track progress', 'hi': 'शिक्षकों को कार्य सौंपें और प्रगति ट्रैक करें'},
     'subMeetingRecordsDesc':     {'en': 'Manage meetings, agenda points and teacher task assignments', 'hi': 'बैठकें, एजेंडा और शिक्षक कार्य प्रबंधित करें'},
