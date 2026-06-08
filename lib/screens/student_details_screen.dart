@@ -3,6 +3,7 @@ import '../models/teacher.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import 'student_list_screen.dart';
 import '../widgets/refreshable_data.dart';
 
@@ -81,7 +82,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(title: const Text('Student Details')),
+      appBar: AppBar(title: Text(context.tr('studentDetails'))),
       body: _loading
           ? const LoadingState()
           : _classes.isEmpty
@@ -92,11 +93,11 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                       Icon(Icons.class_outlined,
                           size: 64, color: Colors.grey.shade300),
                       const SizedBox(height: 16),
-                      Text('No class teachers assigned',
+                      Text(context.tr('noClassTeachersAssigned'),
                           style: TextStyle(
                               fontSize: 16, color: Colors.grey.shade400)),
                       const SizedBox(height: 6),
-                      Text('Assign class teachers in Teacher Management',
+                      Text(context.tr('assignClassTeachersHint'),
                           style: TextStyle(
                               fontSize: 13, color: Colors.grey.shade400)),
                     ],
@@ -211,8 +212,8 @@ class _SectionPickerScreen extends StatelessWidget {
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Select Section',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          Text(context.tr('selectSection'),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
           Text(className,
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),

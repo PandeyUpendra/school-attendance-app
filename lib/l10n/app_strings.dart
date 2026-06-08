@@ -348,6 +348,11 @@ class AppStrings {
     'noHistoryFound':        {'en': 'No history found',   'hi': 'कोई इतिहास नहीं मिला'},
     'pastCallRecords':       {'en': 'Past call records will appear here', 'hi': 'पिछले कॉल रिकॉर्ड यहाँ दिखेंगे'},
 
+    // ── Student details / shared ─────────────────────────────────────────
+    'selectSection':         {'en': 'Select Section',     'hi': 'सेक्शन चुनें'},
+    'noClassTeachersAssigned':{'en': 'No class teachers assigned', 'hi': 'कोई कक्षा शिक्षक नियुक्त नहीं'},
+    'assignClassTeachersHint':{'en': 'Assign class teachers in Teacher Management', 'hi': 'शिक्षक प्रबंधन में कक्षा शिक्षक नियुक्त करें'},
+
     // ── Coordinator / Principal dashboards: tile subtitles ───────────────
     'subStaffTasksDesc':         {'en': 'Assign tasks to teachers and track progress', 'hi': 'शिक्षकों को कार्य सौंपें और प्रगति ट्रैक करें'},
     'subMeetingRecordsDesc':     {'en': 'Manage meetings, agenda points and teacher task assignments', 'hi': 'बैठकें, एजेंडा और शिक्षक कार्य प्रबंधित करें'},
