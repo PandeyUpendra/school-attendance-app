@@ -1342,6 +1342,20 @@ class AppStrings {
     'loadMorePrefix':          {'en': 'Load More',            'hi': 'और लोड करें'},
     'remainingSuffix':         {'en': 'remaining',            'hi': 'शेष'},
     'statusForwarded':         {'en': 'Forwarded',            'hi': 'अग्रेषित'},
+
+    // ── Attendance certificate ───────────────────────────────────────────
+    'officialAttendanceRecord':{'en': 'Official attendance record', 'hi': 'आधिकारिक उपस्थिति रिकॉर्ड'},
+    'fatherPrefix':            {'en': 'Father',               'hi': 'पिता'},
+    'dateRange':               {'en': 'Date Range',           'hi': 'तारीख सीमा'},
+    'computingAttendance':     {'en': 'Computing attendance…', 'hi': 'उपस्थिति की गणना हो रही है…'},
+    'attendanceSummary':       {'en': 'Attendance Summary',   'hi': 'उपस्थिति सारांश'},
+    'attendanceSatisfactoryMsg':{'en': 'Attendance is SATISFACTORY — eligible for certificate issuance.', 'hi': 'उपस्थिति संतोषजनक है — प्रमाणपत्र जारी करने के योग्य।'},
+    'attendanceBelowMsg':      {'en': 'Attendance is BELOW the 75% requirement.', 'hi': 'उपस्थिति 75% की आवश्यकता से कम है।'},
+    'certificatePreview':      {'en': 'Certificate Preview',  'hi': 'प्रमाणपत्र पूर्वावलोकन'},
+    'statusSatisfactory':      {'en': 'SATISFACTORY',         'hi': 'संतोषजनक'},
+    'statusBelowThreshold':    {'en': 'BELOW THRESHOLD',      'hi': 'सीमा से नीचे'},
+    'certificateIncludesStamp':{'en': 'Certificate includes school stamp area & signatures', 'hi': 'प्रमाणपत्र में स्कूल स्टैम्प क्षेत्र और हस्ताक्षर शामिल हैं'},
+    'exportCertificatePdf':    {'en': 'Export Certificate as PDF', 'hi': 'प्रमाणपत्र को PDF के रूप में निर्यात करें'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then

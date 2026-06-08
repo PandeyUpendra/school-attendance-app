@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../l10n/app_strings.dart';
 import '../utils/pdf_theme.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
@@ -378,20 +379,20 @@ class _AttendanceCertificateScreenState
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Attendance Certificate',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('Official attendance record',
-                style: TextStyle(fontSize: 12, color: Colors.white70)),
+            Text(context.tr('attendanceCertificate'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('officialAttendanceRecord'),
+                style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
         actions: [
           if (_computed)
             IconButton(
               icon: const Icon(Icons.picture_as_pdf_outlined),
-              tooltip: 'Export PDF',
+              tooltip: context.tr('exportPdf'),
               onPressed: _exportPdf,
             ),
         ],
@@ -427,11 +428,11 @@ class _AttendanceCertificateScreenState
                     Text(s.name,
                         style: const TextStyle(
                             fontSize: 17, fontWeight: FontWeight.bold)),
-                    Text('Roll ${s.roll}  •  ${s.className}',
+                    Text('${context.tr('rollPrefix')} ${s.roll}  •  ${s.className}',
                         style: TextStyle(
                             fontSize: 13, color: Colors.grey.shade600)),
                     if (s.fatherName.isNotEmpty)
-                      Text('Father: ${s.fatherName}',
+                      Text('${context.tr('fatherPrefix')}: ${s.fatherName}',
                           style: TextStyle(
                               fontSize: 12, color: Colors.grey.shade500)),
                   ],
@@ -452,14 +453,14 @@ class _AttendanceCertificateScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Date Range',
-                    style: TextStyle(
+                Text(context.tr('dateRange'),
+                    style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 Row(children: [
                   Expanded(
                     child: _DateButton(
-                      label: 'From',
+                      label: context.tr('rangeFrom'),
                       date: fromStr,
                       onTap: _pickFrom,
                     ),
@@ -467,7 +468,7 @@ class _AttendanceCertificateScreenState
                   const SizedBox(width: 12),
                   Expanded(
                     child: _DateButton(
-                      label: 'To',
+                      label: context.tr('rangeTo'),
                       date: toStr,
                       onTap: _pickTo,
                     ),
@@ -487,17 +488,17 @@ class _AttendanceCertificateScreenState
               border: Border.all(color: Colors.grey.shade200),
             ),
             child: _loading
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: LoadingState(message: 'Computing attendance…'),
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: LoadingState(message: context.tr('computingAttendance')),
                   )
                 : _computed
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(children: [
-                            const Text('Attendance Summary',
-                                style: TextStyle(
+                            Text(context.tr('attendanceSummary'),
+                                style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold)),
                             const Spacer(),
@@ -533,13 +534,13 @@ class _AttendanceCertificateScreenState
                             mainAxisAlignment:
                                 MainAxisAlignment.spaceBetween,
                             children: [
-                              _StatCell('Working\nDays', '$_workingDays',
+                              _StatCell(context.tr('workingDaysLabel'), '$_workingDays',
                                   AppTheme.primary),
-                              _StatCell('Present', '$_presentDays',
+                              _StatCell(context.tr('presentLabel'), '$_presentDays',
                                   Colors.green),
-                              _StatCell('Absent', '$_absentDays',
+                              _StatCell(context.tr('absentLabel'), '$_absentDays',
                                   Colors.red),
-                              _StatCell('Leave', '$_leaveDays',
+                              _StatCell(context.tr('leaveLabel'), '$_leaveDays',
                                   Colors.orange),
                             ],
                           ),
@@ -564,8 +565,8 @@ class _AttendanceCertificateScreenState
                               Expanded(
                                 child: Text(
                                   _percentage >= 75
-                                      ? 'Attendance is SATISFACTORY — eligible for certificate issuance.'
-                                      : 'Attendance is BELOW the 75% requirement.',
+                                      ? context.tr('attendanceSatisfactoryMsg')
+                                      : context.tr('attendanceBelowMsg'),
                                   style: TextStyle(
                                       fontSize: 12, color: pctColor),
                                 ),
@@ -589,30 +590,30 @@ class _AttendanceCertificateScreenState
               ),
               child: Column(
                 children: [
-                  const Row(children: [
-                    Icon(Icons.workspace_premium_outlined,
+                  Row(children: [
+                    const Icon(Icons.workspace_premium_outlined,
                         color: AppTheme.primary),
-                    SizedBox(width: 8),
-                    Text('Certificate Preview',
-                        style: TextStyle(
+                    const SizedBox(width: 8),
+                    Text(context.tr('certificatePreview'),
+                        style: const TextStyle(
                             fontSize: 14, fontWeight: FontWeight.bold)),
                   ]),
                   const SizedBox(height: 12),
-                  _previewRow('Student', s.name),
-                  _previewRow('Roll', '${s.roll}'),
-                  _previewRow('Class', s.className),
-                  _previewRow('Period', '$fromStr to $toStr'),
-                  _previewRow('Attendance',
-                      '$_presentDays / $_workingDays days (${_percentage.toStringAsFixed(2)}%)'),
+                  _previewRow(context.tr('studentLabelField'), s.name),
+                  _previewRow(context.tr('rollPrefix'), '${s.roll}'),
+                  _previewRow(context.tr('classLabel'), s.className),
+                  _previewRow(context.tr('periodWord'), '$fromStr to $toStr'),
+                  _previewRow(context.tr('attendanceLabel'),
+                      '$_presentDays / $_workingDays ${context.tr('daysLower')} (${_percentage.toStringAsFixed(2)}%)'),
                   _previewRow(
-                      'Status',
+                      context.tr('status'),
                       _percentage >= 75
-                          ? 'SATISFACTORY'
-                          : 'BELOW THRESHOLD'),
+                          ? context.tr('statusSatisfactory')
+                          : context.tr('statusBelowThreshold')),
                   const SizedBox(height: 8),
                   const Divider(),
                   const SizedBox(height: 4),
-                  Text('Certificate includes school stamp area & signatures',
+                  Text(context.tr('certificateIncludesStamp'),
                       style: TextStyle(
                           fontSize: 11, color: Colors.grey.shade500)),
                 ],
@@ -625,8 +626,8 @@ class _AttendanceCertificateScreenState
               width: double.infinity,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.picture_as_pdf_outlined),
-                label: const Text('Export Certificate as PDF',
-                    style: TextStyle(
+                label: Text(context.tr('exportCertificatePdf'),
+                    style: const TextStyle(
                         fontSize: 15, fontWeight: FontWeight.bold)),
                 onPressed: _exportPdf,
                 style: ElevatedButton.styleFrom(
