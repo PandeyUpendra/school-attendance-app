@@ -16,6 +16,8 @@ import '../services/timetable_service.dart';
 import '../utils/phone_utils.dart';
 import '../utils/csv_export.dart';
 import '../utils/consent_gate.dart';
+import '../services/consent_service.dart';
+import '../widgets/consent_pending_banner.dart';
 import '../theme.dart';
 import '../utils/app_logger.dart';
 import '../utils/validators.dart';
@@ -68,6 +70,28 @@ class _StudentListScreenState extends State<StudentListScreen> {
   List<Student> _students = [];
   bool _loading = true;
 
+  // Consent visibility (#17): which students have active parental consent, so
+  // staff can see at a glance who is missing it. Loaded once per roster refresh
+  // via the batch API; until loaded, no badge is shown (avoids a flash).
+  Set<String> _consentedIds = {};
+  bool _consentLoaded = false;
+
+  Future<void> _loadConsent(List<Student> students) async {
+    if (students.isEmpty) {
+      if (mounted) setState(() { _consentedIds = {}; _consentLoaded = true; });
+      return;
+    }
+    final ids = students
+        .map((s) => Student.buildDocId(s.roll, s.className, s.section))
+        .toList();
+    try {
+      final consented = await ConsentService().filterHasActiveConsent(ids);
+      if (mounted) {
+        setState(() { _consentedIds = consented; _consentLoaded = true; });
+      }
+    } catch (_) {/* visibility only — never block the roster */}
+  }
+
   Set<int> _selectedRolls = {};
   bool     _selectMode    = false;
 
@@ -88,6 +112,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
         _students = list;
         _loading  = false;
       });
+      _loadConsent(list); // consent visibility (#17)
     });
   }
 
@@ -632,6 +657,10 @@ class _StudentListScreenState extends State<StudentListScreen> {
                         selected: _selectedRolls.contains(s.roll),
                         selectMode: _selectMode,
                         pendingDeletion: s.deletionPending,
+                        // No badge until consent has loaded (avoids a flash).
+                        hasConsent: !_consentLoaded ||
+                            _consentedIds.contains(Student.buildDocId(
+                                s.roll, s.className, s.section)),
                         // In select mode a pending student can still be tapped
                         // to view detail (but not toggled); otherwise normal tap
                         // opens detail.
@@ -662,6 +691,7 @@ class _StudentCard extends StatelessWidget {
   final bool          selected;
   final bool          selectMode;
   final bool          pendingDeletion;
+  final bool          hasConsent;
   const _StudentCard({
     required this.student,
     this.onTap,
@@ -669,6 +699,7 @@ class _StudentCard extends StatelessWidget {
     this.selected        = false,
     this.selectMode      = false,
     this.pendingDeletion = false,
+    this.hasConsent      = true,
   });
 
   Color get _feeColor {
@@ -749,13 +780,23 @@ class _StudentCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(student.name,
-                          style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: pendingDeletion
-                                  ? Colors.grey.shade500
-                                  : null)),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(student.name,
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: pendingDeletion
+                                        ? Colors.grey.shade500
+                                        : null)),
+                          ),
+                          // Consent-missing badge (#17) — self-hides when consent
+                          // is present.
+                          const SizedBox(width: 6),
+                          ConsentMissingBadge(hasConsent: hasConsent),
+                        ],
+                      ),
                       const SizedBox(height: 4),
                       Row(
                         children: [
