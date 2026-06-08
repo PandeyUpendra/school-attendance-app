@@ -4,6 +4,7 @@ import '../models/announcement.dart';
 import '../services/announcement_service.dart';
 import '../services/notification_service.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 
 /// Announcements / Notice Board.
 /// - Everyone except guardians can post.
@@ -256,13 +257,13 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                     value: selectedTitle,
                     isExpanded: true,
                     decoration: InputDecoration(
-                      labelText: 'Select Title',
+                      labelText: context.tr('selectTitle'),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 14),
                     ),
-                    hint: const Text('Choose an announcement type'),
+                    hint: Text(context.tr('chooseAnnouncementType')),
                     items: allOptions.map((t) {
                       final isCustom = t == customKey;
                       return DropdownMenuItem<String>(
@@ -309,7 +310,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                       maxLength: 80,
                       maxLengthEnforcement: MaxLengthEnforcement.enforced,
                       decoration: InputDecoration(
-                        labelText: 'Custom Title',
+                        labelText: context.tr('customTitle'),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10)),
                         counterText: '',
@@ -330,7 +331,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                     maxLength: 1000,
                     maxLengthEnforcement: MaxLengthEnforcement.enforced,
                     decoration: InputDecoration(
-                      labelText: 'Body',
+                      labelText: context.tr('bodyLabel'),
                       alignLabelWithHint: true,
                       helperText: selectedTitle != null && selectedTitle != customKey
                           ? 'Template pre-filled — edit as needed'
@@ -348,8 +349,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                   ),
 
                   const SizedBox(height: 14),
-                  const Text('Audience',
-                      style: TextStyle(
+                  Text(context.tr('audience'),
+                      style: const TextStyle(
                           fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
                   Wrap(
@@ -386,8 +387,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                       widget.viewerRole == 'coordinator')
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Pin this announcement',
-                          style: TextStyle(fontSize: 13)),
+                      title: Text(context.tr('pinAnnouncement'),
+                          style: const TextStyle(fontSize: 13)),
                       value: pinned,
                       onChanged: (v) => setS(() => pinned = v),
                     ),
@@ -395,7 +396,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                   Row(children: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel'),
+                      child: Text(context.tr('cancel')),
                     ),
                     const Spacer(),
                     ElevatedButton.icon(
@@ -468,16 +469,16 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14)),
-        title: const Text('Delete Announcement?'),
+        title: Text(context.tr('deleteAnnouncementQ')),
         content: Text('Permanently delete "${a.title}"?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(context.tr('delete')),
           ),
         ],
       ),
@@ -495,17 +496,17 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14)),
-        title: const Text('Delete Selected?'),
+        title: Text(context.tr('deleteSelectedQ')),
         content: Text(
             'Permanently delete $count announcement${count > 1 ? 's' : ''}?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete All'),
+            child: Text(context.tr('deleteAll')),
           ),
         ],
       ),
@@ -558,7 +559,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                     child: OutlinedButton.icon(
                       onPressed: _load,
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
+                      label: Text(context.tr('retry')),
                     ),
                   ),
                 ])
@@ -622,7 +623,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
               const Spacer(),
               TextButton.icon(
                 icon: const Icon(Icons.delete_outline, size: 18),
-                label: const Text('Delete'),
+                label: Text(context.tr('delete')),
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
                 onPressed: _selectedLogIds.isEmpty ? null : _deleteSelected,
               ),
@@ -631,7 +632,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                   _logSelectMode = false;
                   _selectedLogIds.clear();
                 }),
-                child: const Text('Cancel'),
+                child: Text(context.tr('cancel')),
               ),
             ]),
           ),
@@ -704,14 +705,14 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
   @override
   Widget build(BuildContext context) {
     final appBar = AppBar(
-      title: const Column(
+      title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Announcements',
-              style:
+          Text(context.tr('announcements'),
+              style: const
                   TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-          Text('School notice board',
-              style: TextStyle(fontSize: 12, color: Colors.white70)),
+          Text(context.tr('schoolNoticeBoard'),
+              style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ],
       ),
       bottom: _canPost
@@ -734,7 +735,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
             backgroundColor: AppTheme.primary,
             foregroundColor: Colors.white,
             icon: const Icon(Icons.add),
-            label: const Text('New'),
+            label: Text(context.tr('newLabel')),
           )
         : null;
 
@@ -928,7 +929,7 @@ class _Card extends StatelessWidget {
                 icon: const Icon(Icons.edit_outlined,
                     size: 18, color: Colors.grey),
                 onPressed: onEdit,
-                tooltip: 'Edit',
+                tooltip: context.tr('edit'),
                 padding: EdgeInsets.zero,
                 constraints:
                     const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -937,7 +938,7 @@ class _Card extends StatelessWidget {
                 icon: const Icon(Icons.delete_outline,
                     size: 18, color: Colors.redAccent),
                 onPressed: onDelete,
-                tooltip: 'Delete',
+                tooltip: context.tr('delete'),
                 padding: EdgeInsets.zero,
                 constraints:
                     const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -1098,7 +1099,7 @@ class _LogCard extends StatelessWidget {
                   icon: const Icon(Icons.edit_outlined,
                       size: 17, color: Colors.grey),
                   onPressed: onEdit,
-                  tooltip: 'Edit',
+                  tooltip: context.tr('edit'),
                   padding: EdgeInsets.zero,
                   constraints:
                       const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -1107,7 +1108,7 @@ class _LogCard extends StatelessWidget {
                   icon: const Icon(Icons.delete_outline,
                       size: 17, color: Colors.redAccent),
                   onPressed: onDelete,
-                  tooltip: 'Delete',
+                  tooltip: context.tr('delete'),
                   padding: EdgeInsets.zero,
                   constraints:
                       const BoxConstraints(minWidth: 32, minHeight: 32),

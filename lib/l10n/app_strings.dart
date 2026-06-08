@@ -258,6 +258,21 @@ class AppStrings {
     'statusApproved':      {'en': 'Approved',             'hi': 'स्वीकृत'},
     'statusRejected':      {'en': 'Rejected',             'hi': 'अस्वीकृत'},
 
+    // ── Announcements screen ─────────────────────────────────────────────
+    'selectTitle':           {'en': 'Select Title',              'hi': 'शीर्षक चुनें'},
+    'chooseAnnouncementType':{'en': 'Choose an announcement type','hi': 'घोषणा का प्रकार चुनें'},
+    'customTitle':           {'en': 'Custom Title',              'hi': 'कस्टम शीर्षक'},
+    'bodyLabel':             {'en': 'Body',                      'hi': 'विवरण'},
+    'audience':              {'en': 'Audience',                  'hi': 'किसके लिए'},
+    'pinAnnouncement':       {'en': 'Pin this announcement',     'hi': 'इस घोषणा को पिन करें'},
+    'deleteAnnouncementQ':   {'en': 'Delete Announcement?',      'hi': 'घोषणा हटाएँ?'},
+    'deleteSelectedQ':       {'en': 'Delete Selected?',          'hi': 'चयनित हटाएँ?'},
+    'deleteAll':             {'en': 'Delete All',                'hi': 'सभी हटाएँ'},
+    'retry':                 {'en': 'Retry',                     'hi': 'पुनः प्रयास'},
+    'schoolNoticeBoard':     {'en': 'School notice board',       'hi': 'स्कूल सूचना पट्ट'},
+    'newLabel':              {'en': 'New',                       'hi': 'नया'},
+    'edit':                  {'en': 'Edit',                      'hi': 'संपादित करें'},
+
     // ── Coordinator / Principal dashboards: tile subtitles ───────────────
     'subStaffTasksDesc':         {'en': 'Assign tasks to teachers and track progress', 'hi': 'शिक्षकों को कार्य सौंपें और प्रगति ट्रैक करें'},
     'subMeetingRecordsDesc':     {'en': 'Manage meetings, agenda points and teacher task assignments', 'hi': 'बैठकें, एजेंडा और शिक्षक कार्य प्रबंधित करें'},
