@@ -237,6 +237,27 @@ class AppStrings {
     'classLabel':             {'en': 'Class',             'hi': 'कक्षा'},
     'lunch':                  {'en': 'Lunch',             'hi': 'लंच'},
 
+    // ── Leave application screen ──────────────────────────────────────────
+    'ok':                  {'en': 'OK',                  'hi': 'ठीक है'},
+    'selectLeaveStartDate':{'en': 'Select Leave Start Date', 'hi': 'अवकाश आरंभ तिथि चुनें'},
+    'pleaseSpecifyReason': {'en': 'Please specify a reason', 'hi': 'कृपया कारण बताएँ'},
+    'reasonMin10':         {'en': 'Reason must be at least 10 characters', 'hi': 'कारण कम से कम 10 अक्षरों का होना चाहिए'},
+    'leaveAlreadyApplied': {'en': 'Leave Already Applied', 'hi': 'अवकाश पहले से लागू'},
+    'leaveOverlapFull':    {'en': 'You already have a Pending or Approved leave on these dates.\n\nPlease check your leave history or choose different dates.', 'hi': 'इन तिथियों पर आपका पहले से लंबित या स्वीकृत अवकाश है।\n\nकृपया अपना अवकाश इतिहास जाँचें या अलग तिथियाँ चुनें।'},
+    'leaveSubmitted':      {'en': 'Leave application submitted successfully ✓', 'hi': 'अवकाश आवेदन सफलतापूर्वक भेजा गया ✓'},
+    'sendApplicationTo':   {'en': 'Send Application To',  'hi': 'आवेदन यहाँ भेजें'},
+    'leaveDuration':       {'en': 'Leave Duration',       'hi': 'अवकाश अवधि'},
+    'startDate':           {'en': 'Start Date',           'hi': 'आरंभ तिथि'},
+    'numberOfDays':        {'en': 'Number of Days',       'hi': 'दिनों की संख्या'},
+    'reasonForLeave':      {'en': 'Reason for Leave',     'hi': 'अवकाश का कारण'},
+    'describeReasonHint':  {'en': 'Describe your reason (min 10 characters)…', 'hi': 'अपना कारण लिखें (कम से कम 10 अक्षर)…'},
+    'submitting':          {'en': 'Submitting…',          'hi': 'भेजा जा रहा है…'},
+    'submitApplication':   {'en': 'Submit Application',   'hi': 'आवेदन भेजें'},
+    'myLeaveHistory':      {'en': 'MY LEAVE HISTORY',     'hi': 'मेरा अवकाश इतिहास'},
+    'noLeaveApplications': {'en': 'No leave applications yet.', 'hi': 'अभी कोई अवकाश आवेदन नहीं।'},
+    'statusApproved':      {'en': 'Approved',             'hi': 'स्वीकृत'},
+    'statusRejected':      {'en': 'Rejected',             'hi': 'अस्वीकृत'},
+
     // ── Coordinator / Principal dashboards: tile subtitles ───────────────
     'subStaffTasksDesc':         {'en': 'Assign tasks to teachers and track progress', 'hi': 'शिक्षकों को कार्य सौंपें और प्रगति ट्रैक करें'},
     'subMeetingRecordsDesc':     {'en': 'Manage meetings, agenda points and teacher task assignments', 'hi': 'बैठकें, एजेंडा और शिक्षक कार्य प्रबंधित करें'},

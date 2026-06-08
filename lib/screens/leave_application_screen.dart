@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import '../models/teacher.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
@@ -85,7 +86,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
       initialDate: _startDate,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      helpText: 'Select Leave Start Date',
+      helpText: context.tr('selectLeaveStartDate'),
     );
     if (picked != null) {
       setState(() => _startDate = picked);
@@ -100,12 +101,12 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
 
     if (finalReason.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please specify a reason')));
+          SnackBar(content: Text(context.tr('pleaseSpecifyReason'))));
       return;
     }
     if (_reason == 'Other' && finalReason.length < 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reason must be at least 10 characters')));
+          SnackBar(content: Text(context.tr('reasonMin10'))));
       return;
     }
 
@@ -119,19 +120,17 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
-            title: const Row(children: [
-              Icon(Icons.warning_amber_rounded, color: Color(0xFFF57F17)),
-              SizedBox(width: 8),
-              Text('Leave Already Applied'),
+            title: Row(children: [
+              const Icon(Icons.warning_amber_rounded, color: Color(0xFFF57F17)),
+              const SizedBox(width: 8),
+              Text(context.tr('leaveAlreadyApplied')),
             ]),
-            content: const Text(
-              'You already have a Pending or Approved leave on these dates.\n\n'
-              'Please check your leave history or choose different dates.'),
+            content: Text(context.tr('leaveOverlapFull')),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK',
-                    style: TextStyle(color: AppTheme.primary)),
+                child: Text(context.tr('ok'),
+                    style: const TextStyle(color: AppTheme.primary)),
               ),
             ],
           ),
@@ -175,7 +174,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
       _customReasonCtrl.clear();
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Leave application submitted successfully ✓'),
+        content: Text(context.tr('leaveSubmitted')),
         backgroundColor: Colors.green.shade700,
         duration: const Duration(seconds: 3),
       ));
@@ -212,13 +211,13 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Apply for Leave',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('Submit leave application',
-                style: TextStyle(fontSize: 11, color: Colors.white70)),
+            Text(context.tr('applyForLeave'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('subSubmitLeave'),
+                style: const TextStyle(fontSize: 11, color: Colors.white70)),
           ],
         ),
       ),
@@ -265,11 +264,11 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
 
           // ── Send to ───────────────────────────────────────────────────
           _card(
-            label: 'Send Application To',
+            label: context.tr('sendApplicationTo'),
             child: Column(children: [
-              _toOption('coordinator', 'Coordinator',
+              _toOption('coordinator', context.tr('role_coordinator'),
                   Icons.admin_panel_settings_outlined, AppTheme.primary),
-              _toOption('principal', 'Principal',
+              _toOption('principal', context.tr('role_principal'),
                   Icons.business_outlined, AppTheme.primaryMid),
             ]),
           ),
@@ -277,7 +276,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
 
           // ── Date & Days ───────────────────────────────────────────────
           _card(
-            label: 'Leave Duration',
+            label: context.tr('leaveDuration'),
             child: Column(children: [
               // Start date
               InkWell(
@@ -298,8 +297,8 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Start Date',
-                                style: TextStyle(
+                            Text(context.tr('startDate'),
+                                style: const TextStyle(
                                     fontSize: 11, color: Colors.grey)),
                             Text(_dateLabel(),
                                 style: const TextStyle(
@@ -316,9 +315,9 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
 
               // Number of days stepper
               Row(children: [
-                const Expanded(
-                  child: Text('Number of Days',
-                      style: TextStyle(
+                Expanded(
+                  child: Text(context.tr('numberOfDays'),
+                      style: const TextStyle(
                           fontSize: 14, fontWeight: FontWeight.w500)),
                 ),
                 _stepperBtn(
@@ -362,7 +361,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
 
           // ── Reason ────────────────────────────────────────────────────
           _card(
-            label: 'Reason for Leave',
+            label: context.tr('reasonForLeave'),
             child: Column(children: [
               ManagedDropdown(
                 fieldKey: 'leave_reason',
@@ -382,7 +381,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
                   maxLength: 300,
                   maxLengthEnforcement: MaxLengthEnforcement.enforced,
                   decoration: InputDecoration(
-                    hintText: 'Describe your reason (min 10 characters)…',
+                    hintText: context.tr('describeReasonHint'),
                     prefixIcon: const Icon(Icons.edit_outlined, size: 20),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
@@ -429,7 +428,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.send_outlined),
-            label: Text(_submitting ? 'Submitting…' : 'Submit Application'),
+            label: Text(_submitting ? context.tr('submitting') : context.tr('submitApplication')),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
@@ -446,7 +445,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
-              'MY LEAVE HISTORY',
+              context.tr('myLeaveHistory'),
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
@@ -490,7 +489,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
                     child: Text(
-                      'No leave applications yet.',
+                      context.tr('noLeaveApplications'),
                       style: TextStyle(
                           color: Colors.grey.shade500, fontSize: 14),
                     ),
@@ -502,7 +501,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
               return Column(
                 children: [
                   ...display.map((doc) =>
-                      _leaveHistoryCard(doc.data() as Map<String, dynamic>)),
+                      _leaveHistoryCard(context, doc.data() as Map<String, dynamic>)),
                   if (hasMore)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -578,7 +577,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
     );
   }
 
-  Widget _leaveHistoryCard(Map<String, dynamic> data) {
+  Widget _leaveHistoryCard(BuildContext context, Map<String, dynamic> data) {
     final status = (data['status'] as String?) ?? 'pending';
     final startDate = (data['startDate'] as String?) ?? '';
     final days = (data['numberOfDays'] as int?) ?? 1;
@@ -589,15 +588,15 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
     switch (status) {
       case 'approved':
         statusColor = Colors.green.shade700;
-        statusLabel = 'Approved';
+        statusLabel = context.tr('statusApproved');
         break;
       case 'rejected':
         statusColor = Colors.red.shade700;
-        statusLabel = 'Rejected';
+        statusLabel = context.tr('statusRejected');
         break;
       default:
         statusColor = Colors.amber.shade700;
-        statusLabel = 'Pending';
+        statusLabel = context.tr('statusPending');
     }
 
     return Container(
