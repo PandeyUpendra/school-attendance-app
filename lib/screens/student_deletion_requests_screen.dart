@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../l10n/app_strings.dart';
 import '../services/auth_service.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
@@ -55,33 +56,32 @@ class _StudentDeletionRequestsScreenState
   Future<void> _approve(Map<String, dynamic> req) async {
     final students = (req['students'] as List?) ?? [];
     final count    = students.length;
-    final teacher  = req['teacherName'] ?? req['teacherEmail'] ?? 'Teacher';
+    final teacher  = req['teacherName'] ?? req['teacherEmail'] ?? context.tr('teacherLabel');
 
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(children: [
-          Icon(Icons.check_circle_outline, color: Colors.green),
-          SizedBox(width: 8),
-          Text('Approve Deletion', style: TextStyle(fontSize: 17)),
+        title: Row(children: [
+          const Icon(Icons.check_circle_outline, color: Colors.green),
+          const SizedBox(width: 8),
+          Text(context.tr('approveDeletion'), style: const TextStyle(fontSize: 17)),
         ]),
         content: Text(
-          'Allow $teacher to delete $count '
-          'student${count == 1 ? '' : 's'}?\n\n'
-          'This will permanently remove their records and revoke '
-          'any guardian login access.',
+          '${context.tr('allowWord')} $teacher ${context.tr('toDeleteWord')} $count '
+          '${count == 1 ? context.tr('studentWord') : context.tr('studentsWord')}?\n\n'
+          '${context.tr('studentDeletionWarning')}',
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Approve & Delete'),
+            child: Text(context.tr('approveAndDelete')),
           ),
         ],
       ),
@@ -93,14 +93,14 @@ class _StudentDeletionRequestsScreenState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-            '$count student${count == 1 ? '' : 's'} deleted successfully.'),
+            '$count ${count == 1 ? context.tr('studentWord') : context.tr('studentsWord')} ${context.tr('deletedSuccessfully')}'),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
       ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error: $e'),
+        content: Text('${context.tr('errorPrefix')} $e'),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
       ));
@@ -113,22 +113,22 @@ class _StudentDeletionRequestsScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(children: [
-          Icon(Icons.cancel_outlined, color: Colors.red),
-          SizedBox(width: 8),
-          Text('Reject Request', style: TextStyle(fontSize: 17)),
+        title: Row(children: [
+          const Icon(Icons.cancel_outlined, color: Colors.red),
+          const SizedBox(width: 8),
+          Text(context.tr('rejectRequest'), style: const TextStyle(fontSize: 17)),
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Optionally provide a reason for rejection:',
-                style: TextStyle(fontSize: 13, color: Colors.grey)),
+            Text(context.tr('optionalRejectionReason'),
+                style: const TextStyle(fontSize: 13, color: Colors.grey)),
             const SizedBox(height: 10),
             TextField(
               controller: noteCtrl,
               maxLines: 2,
               decoration: InputDecoration(
-                hintText: 'e.g. Provide transfer certificate first',
+                hintText: context.tr('transferCertHint'),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.all(10),
@@ -139,13 +139,13 @@ class _StudentDeletionRequestsScreenState
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reject'),
+            child: Text(context.tr('rejectAction')),
           ),
         ],
       ),
@@ -157,8 +157,8 @@ class _StudentDeletionRequestsScreenState
     await _svc.rejectDeletionRequest(req['id'] as String,
         rejectionNote: note);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Request rejected.'),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(context.tr('requestRejected')),
       behavior: SnackBarBehavior.floating,
     ));
   }
@@ -170,15 +170,15 @@ class _StudentDeletionRequestsScreenState
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Student Deletion Requests'),
+        title: Text(context.tr('studentDeletionRequests')),
         bottom: TabBar(
           controller: _tabs,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
           indicatorColor: Colors.white,
-          tabs: const [
-            Tab(text: 'Pending'),
-            Tab(text: 'Resolved'),
+          tabs: [
+            Tab(text: context.tr('statusPending')),
+            Tab(text: context.tr('resolvedTab')),
           ],
         ),
       ),
@@ -246,12 +246,12 @@ class _RequestList extends StatelessWidget {
           // Stream is live; pull just gives tactile feedback.
           onRefresh: () async =>
               Future<void>.delayed(const Duration(milliseconds: 400)),
-          loadingMessage: 'Loading deletion requests…',
+          loadingMessage: context.tr('loadingDeletionRequests'),
           emptyMessage: isPending
-              ? 'No pending deletion requests'
-              : 'No resolved requests',
-          errorMessage: 'Could not load deletion requests',
-          builder: (context) => _buildGroupedByClass(items),
+              ? context.tr('noPendingDeletionRequests')
+              : context.tr('noResolvedRequests'),
+          errorMessage: context.tr('couldNotLoadDeletionRequests'),
+          builder: (context) => _buildGroupedByClass(context, items),
         );
       },
     );
@@ -260,10 +260,10 @@ class _RequestList extends StatelessWidget {
   /// Groups the requests under per-class section headers so the principal can
   /// review them class-by-class. Each request's class is derived from the
   /// students it targets.
-  Widget _buildGroupedByClass(List<Map<String, dynamic>> items) {
+  Widget _buildGroupedByClass(BuildContext context, List<Map<String, dynamic>> items) {
     final groups = <String, List<Map<String, dynamic>>>{};
     for (final req in items) {
-      groups.putIfAbsent(_classLabel(req), () => []).add(req);
+      groups.putIfAbsent(_classLabel(context, req), () => []).add(req);
     }
     final classKeys = groups.keys.toList()..sort(_compareClasses);
 
@@ -290,16 +290,16 @@ class _RequestList extends StatelessWidget {
   }
 
   /// The class a request belongs to, taken from its target students.
-  static String _classLabel(Map<String, dynamic> req) {
+  static String _classLabel(BuildContext context, Map<String, dynamic> req) {
     final students =
         (req['students'] as List?)?.whereType<Map<String, dynamic>>() ?? [];
     final classes = students
         .map((s) => (s['className'] as String?)?.trim() ?? '')
         .where((c) => c.isNotEmpty)
         .toSet();
-    if (classes.isEmpty) return 'Unknown class';
+    if (classes.isEmpty) return context.tr('unknownClass');
     if (classes.length == 1) return classes.first;
-    return 'Multiple classes';
+    return context.tr('multipleClasses');
   }
 
   /// Natural compare so "Class 2" sorts before "Class 10".
@@ -346,7 +346,7 @@ class _ClassHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              '$studentCount student${studentCount == 1 ? '' : 's'}',
+              '$studentCount ${studentCount == 1 ? context.tr('studentWord') : context.tr('studentsWord')}',
               style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -397,7 +397,7 @@ class _MergedList extends StatelessWidget {
                     Icon(Icons.history_outlined,
                         size: 64, color: Colors.grey.shade300),
                     const SizedBox(height: 12),
-                    Text('No resolved requests yet',
+                    Text(context.tr('noResolvedRequestsYet'),
                         style: TextStyle(
                             fontSize: 16, color: Colors.grey.shade400)),
                   ],
@@ -476,9 +476,14 @@ class _RequestCardState extends State<_RequestCard> {
             ?.whereType<Map<String, dynamic>>()
             .toList() ??
         [];
-    final teacher  = req['teacherName'] ?? req['teacherEmail'] ?? 'Unknown';
+    final teacher  = req['teacherName'] ?? req['teacherEmail'] ?? context.tr('unknownLabel');
     final reason   = (req['reason'] as String?) ?? '';
     final note     = (req['rejectionNote'] as String?) ?? '';
+    final statusText = switch (req['status'] as String? ?? 'pending') {
+      'approved' => context.tr('statusApproved'),
+      'rejected' => context.tr('statusRejected'),
+      _          => context.tr('statusPending'),
+    };
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -504,8 +509,8 @@ class _RequestCardState extends State<_RequestCard> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${students.length} student${students.length == 1 ? '' : 's'} '
-                    '· requested by $teacher',
+                    '${students.length} ${students.length == 1 ? context.tr('studentWord') : context.tr('studentsWord')} '
+                    '· ${context.tr('requestedByPrefix')} $teacher',
                     style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.w600),
                   ),
@@ -520,7 +525,7 @@ class _RequestCardState extends State<_RequestCard> {
                         color: _statusColor.withValues(alpha: 0.4)),
                   ),
                   child: Text(
-                    (req['status'] as String).toUpperCase(),
+                    statusText.toUpperCase(),
                     style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -559,7 +564,7 @@ class _RequestCardState extends State<_RequestCard> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '${s['name'] ?? 'Unknown'} · ${s['className'] ?? ''}',
+                        '${s['name'] ?? context.tr('unknownLabel')} · ${s['className'] ?? ''}',
                         style: const TextStyle(fontSize: 13),
                       ),
                     ),
@@ -612,7 +617,7 @@ class _RequestCardState extends State<_RequestCard> {
                         size: 14, color: Colors.red),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Text('Rejection note: $note',
+                      child: Text('${context.tr('rejectionNotePrefix')} $note',
                           style: const TextStyle(
                               fontSize: 12, color: Colors.red)),
                     ),
@@ -635,8 +640,8 @@ class _RequestCardState extends State<_RequestCard> {
                             if (mounted) setState(() => _busy = false);
                           },
                     icon: const Icon(Icons.close, size: 16, color: Colors.red),
-                    label: const Text('Reject',
-                        style: TextStyle(color: Colors.red)),
+                    label: Text(context.tr('rejectAction'),
+                        style: const TextStyle(color: Colors.red)),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Colors.red),
                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -666,7 +671,7 @@ class _RequestCardState extends State<_RequestCard> {
                           )
                         : const Icon(Icons.check, size: 16,
                             color: Colors.white),
-                    label: Text(_busy ? 'Processing…' : 'Approve & Delete',
+                    label: Text(_busy ? context.tr('processingEllipsis') : context.tr('approveAndDelete'),
                         style: const TextStyle(color: Colors.white)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,

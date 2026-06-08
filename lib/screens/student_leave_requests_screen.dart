@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../l10n/app_strings.dart';
 import '../theme.dart';
 import '../services/timetable_service.dart';
 import '../services/student_service.dart';
@@ -69,23 +70,23 @@ class _StudentLeaveRequestsScreenState
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Remarks for ${action == 'approved' ? 'Approval' : 'Rejection'}'),
+        title: Text(action == 'approved' ? context.tr('remarksForApproval') : context.tr('remarksForRejection')),
         content: TextField(
           controller: ctrl,
-          decoration: const InputDecoration(
-            hintText: 'Enter remarks (optional)...',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: context.tr('enterRemarksOptional'),
+            border: const OutlineInputBorder(),
           ),
           maxLines: 3,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, null),
-            child: const Text('Cancel'),
+            child: Text(context.tr('cancel')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            child: const Text('Confirm'),
+            child: Text(context.tr('confirmAction')),
           ),
         ],
       ),
@@ -135,7 +136,7 @@ class _StudentLeaveRequestsScreenState
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Leave approved — attendance updated for $name'),
+          content: Text('${context.tr('leaveApprovedAttendanceUpdated')} $name'),
           backgroundColor: Colors.green.shade700,
           duration: const Duration(seconds: 3),
         ));
@@ -149,25 +150,25 @@ class _StudentLeaveRequestsScreenState
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Leave rejected for $name'),
+          content: Text('${context.tr('leaveRejectedFor')} $name'),
           backgroundColor: Colors.red.shade700,
           duration: const Duration(seconds: 2),
         ));
       }
     } else if (status == 'forwarded_to_coordinator') {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Leave request forwarded to Coordinator.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.tr('leaveForwardedToCoordinator')),
           backgroundColor: AppTheme.primary,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ));
       }
     } else if (status == 'forwarded_to_principal') {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Leave request forwarded to Principal.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.tr('leaveForwardedToPrincipal')),
           backgroundColor: AppTheme.primaryDark,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ));
       }
     }
@@ -185,10 +186,10 @@ class _StudentLeaveRequestsScreenState
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Student Leave Requests',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('studentLeaveRequests'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
             Text(
-              'Class ${widget.studentClass}${widget.studentSection.isNotEmpty ? ' — Section ${widget.studentSection}' : ''}',
+              '${context.tr('classLabel')} ${widget.studentClass}${widget.studentSection.isNotEmpty ? ' — ${context.tr('sectionWord')} ${widget.studentSection}' : ''}',
               style: const TextStyle(
                   fontSize: 11, color: Colors.white70)),
           ],
@@ -202,7 +203,7 @@ class _StudentLeaveRequestsScreenState
             Tab(child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text('Pending'),
+                Text(context.tr('statusPending')),
                 if (_pending.isNotEmpty) ...[
                   const SizedBox(width: 6),
                   Container(
@@ -220,7 +221,7 @@ class _StudentLeaveRequestsScreenState
                 ],
               ],
             )),
-            const Tab(text: 'Resolved'),
+            Tab(text: context.tr('resolvedTab')),
           ],
         ),
         actions: [
@@ -251,8 +252,8 @@ class _StudentLeaveRequestsScreenState
               size: 56, color: Colors.grey.shade300),
           const SizedBox(height: 12),
           Text(showActions
-                  ? 'No pending requests'
-                  : 'No resolved requests',
+                  ? context.tr('noPendingRequests')
+                  : context.tr('noResolvedRequests'),
               style: TextStyle(
                   fontSize: 15, color: Colors.grey.shade400)),
         ]),
@@ -379,14 +380,14 @@ class _StudentLeaveCard extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.bold)),
                 Text(
-                  'Roll $roll  •  $cls${app['studentSection'] != null && app['studentSection'].toString().isNotEmpty ? ' — Sec ${app['studentSection']}' : ''}'
+                  '${context.tr('roll')} $roll  •  $cls${app['studentSection'] != null && app['studentSection'].toString().isNotEmpty ? ' — ${context.tr('secPrefix')} ${app['studentSection']}' : ''}'
                   '${guardian.isNotEmpty ? '  •  $guardian' : ''}\n'
-                  'Submitted: ${_fmtSubmissionTime(app['createdAt'])}',
+                  '${context.tr('submittedPrefix')} ${_fmtSubmissionTime(app['createdAt'])}',
                   style: TextStyle(
                       fontSize: 11, color: Colors.grey.shade500)),
               ],
             )),
-            _statusBadge(status, statusColor),
+            _statusBadge(context, status, statusColor),
           ]),
           const SizedBox(height: 10),
           const Divider(height: 1),
@@ -394,14 +395,14 @@ class _StudentLeaveCard extends StatelessWidget {
           Wrap(spacing: 8, runSpacing: 6, children: [
             _chip(Icons.calendar_today_outlined, _fmtDate(start), AppTheme.primary),
             _chip(Icons.access_time_outlined,
-                '$days day${days > 1 ? 's' : ''}', AppTheme.primaryMid),
+                '$days ${days > 1 ? context.tr('daysShort') : context.tr('dayShort')}', AppTheme.primaryMid),
           ]),
-          Text('Reason: $reason',
+          Text('${context.tr('reasonColon')} $reason',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
           if (app['coordinatorNote'] != null && app['coordinatorNote'].toString().isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
-              'Remarks: ${app['coordinatorNote']}',
+              '${context.tr('remarksColon')} ${app['coordinatorNote']}',
               style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -414,14 +415,14 @@ class _StudentLeaveCard extends StatelessWidget {
             const SizedBox(height: 10),
             Row(children: [
               Expanded(child: _ActionBtn(
-                label: 'Approve',
+                label: context.tr('approveAction'),
                 icon: Icons.check,
                 color: Colors.green,
                 onPressed: onAccept,
               )),
               const SizedBox(width: 6),
               Expanded(child: _ActionBtn(
-                label: 'Reject',
+                label: context.tr('rejectAction'),
                 icon: Icons.close,
                 color: Colors.red,
                 onPressed: onReject,
@@ -430,14 +431,14 @@ class _StudentLeaveCard extends StatelessWidget {
             const SizedBox(height: 6),
             Row(children: [
               Expanded(child: _ActionBtn(
-                label: 'Fwd Coordinator',
+                label: context.tr('fwdCoordinator'),
                 icon: Icons.forward_to_inbox_outlined,
                 color: AppTheme.primaryMid,
                 onPressed: onFwdCoord,
               )),
               const SizedBox(width: 6),
               Expanded(child: _ActionBtn(
-                label: 'Fwd Principal',
+                label: context.tr('fwdPrincipal'),
                 icon: Icons.forward_to_inbox_outlined,
                 color: AppTheme.primaryDark,
                 onPressed: onFwdPrinc,
@@ -449,13 +450,13 @@ class _StudentLeaveCard extends StatelessWidget {
     );
   }
 
-  Widget _statusBadge(String status, Color color) {
+  Widget _statusBadge(BuildContext context, String status, Color color) {
     final label = switch (status) {
-      'approved'               => 'Approved',
-      'rejected'               => 'Rejected',
-      'forwarded_to_coordinator' => 'Fwd Coord',
-      'forwarded_to_principal' => 'Fwd Principal',
-      _                        => 'Pending',
+      'approved'               => context.tr('statusApproved'),
+      'rejected'               => context.tr('statusRejected'),
+      'forwarded_to_coordinator' => context.tr('fwdCoordShort'),
+      'forwarded_to_principal' => context.tr('fwdPrincipal'),
+      _                        => context.tr('statusPending'),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -615,28 +616,28 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
           controller: sc,
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
           children: [
-            const Text('Student Leave Application',
-                style: TextStyle(
+            Text(context.tr('studentLeaveApplication'),
+                style: const TextStyle(
                     fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
 
-            _row(Icons.person_outline, 'Student',
-                '${app['studentName'] ?? '—'}  •  Roll ${app['studentRoll'] ?? ''}'),
-            _row(Icons.school_outlined, 'Class',
-                '${app['studentClass'] ?? '—'}${app['studentSection'] != null && app['studentSection'].toString().isNotEmpty ? ' — Section ${app['studentSection']}' : ''}'),
+            _row(Icons.person_outline, context.tr('studentLabelField'),
+                '${app['studentName'] ?? '—'}  •  ${context.tr('roll')} ${app['studentRoll'] ?? ''}'),
+            _row(Icons.school_outlined, context.tr('classLabel'),
+                '${app['studentClass'] ?? '—'}${app['studentSection'] != null && app['studentSection'].toString().isNotEmpty ? ' — ${context.tr('sectionWord')} ${app['studentSection']}' : ''}'),
             if ((app['guardianName'] as String? ?? '').isNotEmpty)
-              _row(Icons.family_restroom_outlined, 'Guardian',
+              _row(Icons.family_restroom_outlined, context.tr('guardianLabel'),
                   app['guardianName'] as String),
-            _row(Icons.calendar_today_outlined, 'Start Date',
+            _row(Icons.calendar_today_outlined, context.tr('startDate'),
                 fmtDate(app['startDate'] as String? ?? '')),
-            _row(Icons.access_time_outlined, 'Duration',
-                '${app['numberOfDays']} day(s)'),
-            _row(Icons.notes_outlined, 'Reason',
+            _row(Icons.access_time_outlined, context.tr('durationLabel'),
+                '${app['numberOfDays']} ${(app['numberOfDays'] as int? ?? 1) > 1 ? context.tr('daysShort') : context.tr('dayShort')}'),
+            _row(Icons.notes_outlined, context.tr('reasonLabel'),
                 app['reason'] as String? ?? '—'),
-            _row(Icons.watch_later_outlined, 'Submitted At',
+            _row(Icons.watch_later_outlined, context.tr('submittedAt'),
                 fmtSubmissionTime(app['createdAt'])),
             if (app['coordinatorNote'] != null && app['coordinatorNote'].toString().isNotEmpty)
-              _row(Icons.comment_outlined, 'Remarks',
+              _row(Icons.comment_outlined, context.tr('noteLabel'),
                   app['coordinatorNote'] as String),
             const SizedBox(height: 8),
 
@@ -660,7 +661,7 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Status: ${_fmtStatus(status)}',
+                  '${context.tr('statusColonPrefix')} ${_fmtStatus(context, status)}',
                   style: TextStyle(
                       fontWeight: FontWeight.w600,
                       color: statusColor.shade800),
@@ -675,7 +676,7 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
                 Expanded(child: OutlinedButton.icon(
                   onPressed: _acting ? null : () => _act('rejected'),
                   icon: const Icon(Icons.close, size: 16),
-                  label: const Text('Reject'),
+                  label: Text(context.tr('rejectAction')),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red,
                     side: const BorderSide(color: Colors.red),
@@ -694,7 +695,7 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
                               strokeWidth: 2,
                               color: Colors.white))
                       : const Icon(Icons.check, size: 16),
-                  label: Text(_acting ? 'Processing…' : 'Approve & Mark Leave'),
+                  label: Text(_acting ? context.tr('processingEllipsis') : context.tr('approveAndMarkLeave')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
@@ -712,8 +713,8 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
                       ? null
                       : () => _act('forwarded_to_coordinator'),
                   icon: const Icon(Icons.forward_to_inbox_outlined, size: 15),
-                  label: const Text('Fwd Coordinator',
-                      style: TextStyle(fontSize: 12)),
+                  label: Text(context.tr('fwdCoordinator'),
+                      style: const TextStyle(fontSize: 12)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.primaryMid,
                     side: BorderSide(
@@ -729,8 +730,8 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
                       ? null
                       : () => _act('forwarded_to_principal'),
                   icon: const Icon(Icons.forward_to_inbox_outlined, size: 15),
-                  label: const Text('Fwd Principal',
-                      style: TextStyle(fontSize: 12)),
+                  label: Text(context.tr('fwdPrincipal'),
+                      style: const TextStyle(fontSize: 12)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.primaryDark,
                     side: BorderSide(
@@ -769,12 +770,12 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
     );
   }
 
-  String _fmtStatus(String s) => switch (s) {
-    'approved'               => 'Approved',
-    'rejected'               => 'Rejected',
-    'forwarded_to_coordinator' => 'Forwarded to Coordinator',
-    'forwarded_to_principal' => 'Forwarded to Principal',
-    _                        => 'Pending',
+  String _fmtStatus(BuildContext context, String s) => switch (s) {
+    'approved'               => context.tr('statusApproved'),
+    'rejected'               => context.tr('statusRejected'),
+    'forwarded_to_coordinator' => context.tr('forwardedToCoordinatorStatus'),
+    'forwarded_to_principal' => context.tr('forwardedToPrincipalStatus'),
+    _                        => context.tr('statusPending'),
   };
 }
 
