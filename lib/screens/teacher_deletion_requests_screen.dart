@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../services/base_firestore_service.dart';
 import '../services/teacher_deletion_service.dart';
 import '../theme.dart';
@@ -59,26 +60,25 @@ class _TeacherDeletionRequestsScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(children: [
-          Icon(Icons.check_circle_outline, color: Colors.green),
-          SizedBox(width: 8),
-          Text('Approve Deletion', style: TextStyle(fontSize: 17)),
+        title: Row(children: [
+          const Icon(Icons.check_circle_outline, color: Colors.green),
+          const SizedBox(width: 8),
+          Text(context.tr('approveDeletion'), style: const TextStyle(fontSize: 17)),
         ]),
         content: Text(
-          'Permanently remove $teacher?\n\n'
-          'This deletes their teacher record, scrubs them from every '
-          'timetable slot, and revokes their login. This cannot be undone.',
+          '${context.tr('permanentlyRemovePrefix')} $teacher?\n\n'
+          '${context.tr('teacherDeletionWarning')}',
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Approve & Delete'),
+            child: Text(context.tr('approveAndDelete')),
           ),
         ],
       ),
@@ -95,14 +95,14 @@ class _TeacherDeletionRequestsScreenState
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('$teacher removed.'),
+        content: Text('$teacher ${context.tr('removedSuffix')}'),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
       ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error: $e'),
+        content: Text('${context.tr('errorPrefix')} $e'),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
       ));
@@ -115,22 +115,22 @@ class _TeacherDeletionRequestsScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(children: [
-          Icon(Icons.cancel_outlined, color: Colors.red),
-          SizedBox(width: 8),
-          Text('Reject Request', style: TextStyle(fontSize: 17)),
+        title: Row(children: [
+          const Icon(Icons.cancel_outlined, color: Colors.red),
+          const SizedBox(width: 8),
+          Text(context.tr('rejectRequest'), style: const TextStyle(fontSize: 17)),
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Optionally provide a reason for rejection:',
-                style: TextStyle(fontSize: 13, color: Colors.grey)),
+            Text(context.tr('optionalRejectionReason'),
+                style: const TextStyle(fontSize: 13, color: Colors.grey)),
             const SizedBox(height: 10),
             TextField(
               controller: noteCtrl,
               maxLines: 2,
               decoration: InputDecoration(
-                hintText: 'e.g. teacher is still active this term',
+                hintText: context.tr('teacherStillActiveHint'),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.all(10),
@@ -141,13 +141,13 @@ class _TeacherDeletionRequestsScreenState
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reject'),
+            child: Text(context.tr('rejectAction')),
           ),
         ],
       ),
@@ -166,14 +166,14 @@ class _TeacherDeletionRequestsScreenState
         note:          note,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Request rejected.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.tr('requestRejected')),
         behavior: SnackBarBehavior.floating,
       ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error: $e'),
+        content: Text('${context.tr('errorPrefix')} $e'),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
       ));
@@ -189,15 +189,15 @@ class _TeacherDeletionRequestsScreenState
       appBar: AppBar(
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
-        title: const Text('Teacher Deletion Requests'),
+        title: Text(context.tr('teacherDeletionRequests')),
         bottom: TabBar(
           controller: _tabs,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
           indicatorColor: Colors.white,
-          tabs: const [
-            Tab(text: 'Pending'),
-            Tab(text: 'Resolved'),
+          tabs: [
+            Tab(text: context.tr('statusPending')),
+            Tab(text: context.tr('resolvedTab')),
           ],
         ),
       ),
@@ -256,8 +256,8 @@ class _RequestList extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   isPending
-                      ? 'No pending deletion requests'
-                      : 'No resolved requests yet',
+                      ? context.tr('noPendingDeletionRequests')
+                      : context.tr('noResolvedRequestsYet'),
                   style:
                       TextStyle(fontSize: 16, color: Colors.grey.shade400),
                 ),
@@ -340,7 +340,7 @@ class _RequestCardState extends State<_RequestCard> {
     final req      = widget.request;
     final teacher  = (req['teacherName'] as String?)?.trim().isNotEmpty == true
         ? req['teacherName'] as String
-        : (req['teacherEmail'] as String? ?? 'Unknown');
+        : (req['teacherEmail'] as String? ?? context.tr('unknownLabel'));
     final tEmail   = (req['teacherEmail'] as String?) ?? '';
     final reqBy    = (req['requestedByName'] as String?)?.trim().isNotEmpty == true
         ? req['requestedByName'] as String
@@ -351,6 +351,11 @@ class _RequestCardState extends State<_RequestCard> {
     final revBy    = (req['reviewedByName'] as String?)?.trim().isNotEmpty == true
         ? req['reviewedByName'] as String
         : (req['reviewedBy'] as String? ?? '');
+    final statusText = switch (status) {
+      'approved' => context.tr('statusApproved'),
+      'rejected' => context.tr('statusRejected'),
+      _          => context.tr('statusPending'),
+    };
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -389,7 +394,7 @@ class _RequestCardState extends State<_RequestCard> {
                         color: _statusColor.withValues(alpha: 0.4)),
                   ),
                   child: Text(
-                    status.toUpperCase(),
+                    statusText.toUpperCase(),
                     style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
@@ -416,7 +421,7 @@ class _RequestCardState extends State<_RequestCard> {
                   size: 14, color: Colors.grey.shade500),
               const SizedBox(width: 4),
               Expanded(
-                child: Text('Requested by $reqBy',
+                child: Text('${context.tr('requestedByPrefix')} $reqBy',
                     style: TextStyle(
                         fontSize: 12, color: Colors.grey.shade700)),
               ),
@@ -474,7 +479,7 @@ class _RequestCardState extends State<_RequestCard> {
                         size: 14, color: Colors.red),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Text('Rejection note: $note',
+                      child: Text('${context.tr('rejectionNotePrefix')} $note',
                           style: const TextStyle(
                               fontSize: 12, color: Colors.red)),
                     ),
@@ -487,7 +492,7 @@ class _RequestCardState extends State<_RequestCard> {
             if (!widget.isPending && revBy.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                '${status == 'approved' ? 'Approved' : 'Rejected'} by '
+                '$statusText ${context.tr('by')} '
                 '$revBy · ${_fmtDate(req['reviewedAt'])}',
                 style: TextStyle(
                     fontSize: 11, color: Colors.grey.shade500),
@@ -508,8 +513,8 @@ class _RequestCardState extends State<_RequestCard> {
                             if (mounted) setState(() => _busy = false);
                           },
                     icon: const Icon(Icons.close, size: 16, color: Colors.red),
-                    label: const Text('Reject',
-                        style: TextStyle(color: Colors.red)),
+                    label: Text(context.tr('rejectAction'),
+                        style: const TextStyle(color: Colors.red)),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Colors.red),
                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -539,7 +544,7 @@ class _RequestCardState extends State<_RequestCard> {
                           )
                         : const Icon(Icons.check, size: 16,
                             color: Colors.white),
-                    label: Text(_busy ? 'Processing…' : 'Approve & Delete',
+                    label: Text(_busy ? context.tr('processingEllipsis') : context.tr('approveAndDelete'),
                         style: const TextStyle(color: Colors.white)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,

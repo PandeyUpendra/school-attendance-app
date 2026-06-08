@@ -457,6 +457,23 @@ class AppStrings {
     'dutyExam':              {'en': 'Exam Duty',          'hi': 'परीक्षा ड्यूटी'},
     'dutyLibrary':           {'en': 'Library Duty',       'hi': 'पुस्तकालय ड्यूटी'},
 
+    // ── Deletion / leave request review screens ──────────────────────────
+    'approveDeletion':       {'en': 'Approve Deletion',    'hi': 'हटाना स्वीकृत करें'},
+    'permanentlyRemovePrefix':{'en': 'Permanently remove', 'hi': 'स्थायी रूप से हटाएँ:'},
+    'teacherDeletionWarning':{'en': 'This deletes their teacher record, scrubs them from every timetable slot, and revokes their login. This cannot be undone.', 'hi': 'इससे उनका शिक्षक रिकॉर्ड हट जाएगा, हर समय-सारिणी स्लॉट से हट जाएँगे, और लॉगिन रद्द हो जाएगा। इसे पूर्ववत नहीं किया जा सकता।'},
+    'approveAndDelete':      {'en': 'Approve & Delete',    'hi': 'स्वीकृत करें और हटाएँ'},
+    'removedSuffix':         {'en': 'removed.',            'hi': 'हटा दिया गया।'},
+    'errorPrefix':           {'en': 'Error:',             'hi': 'त्रुटि:'},
+    'rejectRequest':         {'en': 'Reject Request',      'hi': 'अनुरोध अस्वीकारें'},
+    'optionalRejectionReason':{'en': 'Optionally provide a reason for rejection:', 'hi': 'वैकल्पिक रूप से अस्वीकृति का कारण दें:'},
+    'teacherStillActiveHint':{'en': 'e.g. teacher is still active this term', 'hi': 'जैसे शिक्षक इस सत्र में अभी सक्रिय हैं'},
+    'requestRejected':       {'en': 'Request rejected.',   'hi': 'अनुरोध अस्वीकृत।'},
+    'noPendingDeletionRequests':{'en': 'No pending deletion requests', 'hi': 'कोई लंबित हटाने का अनुरोध नहीं'},
+    'noResolvedRequestsYet': {'en': 'No resolved requests yet', 'hi': 'अभी तक कोई निपटाया अनुरोध नहीं'},
+    'requestedByPrefix':     {'en': 'Requested by',       'hi': 'अनुरोधकर्ता:'},
+    'rejectionNotePrefix':   {'en': 'Rejection note:',    'hi': 'अस्वीकृति टिप्पणी:'},
+    'unknownLabel':          {'en': 'Unknown',            'hi': 'अज्ञात'},
+
     // ── Exam group: marks entry / test marking / report card ─────────────
     'maxLabel':              {'en': 'Max',                'hi': 'अधिकतम'},
     'perSubjectSuffix':      {'en': '/subject',           'hi': '/विषय'},
