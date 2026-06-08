@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
+import '../l10n/app_strings.dart';
 import '../models/exam.dart';
 import '../models/report_card_template.dart';
 import '../models/student.dart';
@@ -112,7 +113,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
 
     if (templates.isEmpty) {
       _showSnack(
-        'No templates found. Create one via Manage Templates.',
+        context.tr('noTemplatesFound'),
         color: Colors.orange,
       );
       return;
@@ -136,6 +137,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
   // ── Individual PDF ─────────────────────────────────────────────────────────
 
   Future<void> _shareStudentReport(Student s, ExamResult r) async {
+    final pdfErr = context.tr('pdfError');
     await _pickTemplateAndRun((template) async {
       try {
         final bytes = await buildReportCardPdf(
@@ -152,7 +154,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
               '_${widget.exam.name.replaceAll(' ', '_')}.pdf',
         );
       } catch (e) {
-        _showSnack('PDF error: $e', color: Colors.red);
+        _showSnack('$pdfErr $e', color: Colors.red);
       }
     });
   }
@@ -160,6 +162,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
   // ── Class-wide PDF ─────────────────────────────────────────────────────────
 
   Future<void> _shareClassReport() async {
+    final pdfErr = context.tr('pdfError');
     await _pickTemplateAndRun((template) async {
       try {
         final bytes = await buildClassReportCardPdf(
@@ -176,7 +179,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
               '_${widget.className}.pdf',
         );
       } catch (e) {
-        _showSnack('PDF error: $e', color: Colors.red);
+        _showSnack('$pdfErr $e', color: Colors.red);
       }
     });
   }
@@ -223,12 +226,12 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.description_outlined),
-            tooltip: 'Manage Templates',
+            tooltip: context.tr('manageTemplates'),
             onPressed: _openTemplates,
           ),
           IconButton(
             icon: const Icon(Icons.share_outlined),
-            tooltip: 'Share Class PDF',
+            tooltip: context.tr('shareClassPdf'),
             onPressed: _loading ? null : _shareClassReport,
           ),
         ],
@@ -237,7 +240,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _students.isEmpty
               ? Center(
-                  child: Text('No students in ${widget.className}.',
+                  child: Text('${context.tr('noStudentsIn')} ${widget.className}.',
                       style: TextStyle(color: Colors.grey.shade500)))
               : RefreshIndicator(
                   onRefresh: _load,
@@ -314,10 +317,10 @@ class _TemplatePicker extends StatelessWidget {
               ),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
-            child: Text('Choose Report Card Template',
-                style: TextStyle(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: Text(context.tr('chooseReportCardTemplate'),
+                style: const TextStyle(
                     fontSize: 16, fontWeight: FontWeight.bold)),
           ),
           Expanded(
@@ -366,8 +369,8 @@ class _TemplatePicker extends StatelessWidget {
                               [
                                 t.pageSize,
                                 t.orientation,
-                                if (t.showRank) 'Rank',
-                                if (t.showAttendance) 'Attendance',
+                                if (t.showRank) context.tr('rankLabel'),
+                                if (t.showAttendance) context.tr('attendanceLabel'),
                               ].join(' · '),
                               style: TextStyle(
                                   fontSize: 11,
@@ -386,7 +389,7 @@ class _TemplatePicker extends StatelessWidget {
                             border:
                                 Border.all(color: Colors.amber.shade200),
                           ),
-                          child: Text('System',
+                          child: Text(context.tr('systemLabel'),
                               style: TextStyle(
                                   fontSize: 9,
                                   color: Colors.amber.shade800)),
@@ -440,16 +443,16 @@ class _TopperBanner extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Class Topper',
-                  style: TextStyle(color: Colors.white70, fontSize: 11)),
+              Text(context.tr('classTopper'),
+                  style: const TextStyle(color: Colors.white70, fontSize: 11)),
               Text(name,
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.bold)),
               Text(
-                '${top.total.toStringAsFixed(0)} marks  •  '
-                '${top.percentage.toStringAsFixed(1)}%  •  Grade ${top.grade}',
+                '${top.total.toStringAsFixed(0)} ${context.tr('marksWord')}  •  '
+                '${top.percentage.toStringAsFixed(1)}%  •  ${context.tr('gradePrefix')} ${top.grade}',
                 style: const TextStyle(
                     color: Colors.white70, fontSize: 12),
               ),
@@ -492,11 +495,11 @@ class _StatsSummary extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _Cell('${students.length}', 'Students',  AppTheme.primary),
-          _Cell('${results.length}',  'Results',   AppTheme.primaryMid),
-          _Cell('$passCount',         'Passed',    Colors.green),
-          _Cell('${results.length - passCount}', 'Failed', Colors.red),
-          _Cell('${avgPct.toStringAsFixed(1)}%', 'Avg %',
+          _Cell('${students.length}', context.tr('studentsLabel'),  AppTheme.primary),
+          _Cell('${results.length}',  context.tr('resultsLabel'),   AppTheme.primaryMid),
+          _Cell('$passCount',         context.tr('passedLabel'),    Colors.green),
+          _Cell('${results.length - passCount}', context.tr('failedLabel'), Colors.red),
+          _Cell('${avgPct.toStringAsFixed(1)}%', context.tr('avgPctLabel'),
               const Color(0xFFF57F17)),
         ],
       ),
@@ -587,7 +590,7 @@ class _StudentResultCard extends StatelessWidget {
                   Text(s.name,
                       style: const TextStyle(
                           fontSize: 14, fontWeight: FontWeight.bold)),
-                  Text('Roll ${s.roll}',
+                  Text('${context.tr('roll')} ${s.roll}',
                       style: TextStyle(
                           fontSize: 11, color: Colors.grey.shade500)),
                 ],
@@ -620,7 +623,7 @@ class _StudentResultCard extends StatelessWidget {
               const SizedBox(width: 4),
               IconButton(
                 icon: const Icon(Icons.share_outlined, size: 18),
-                tooltip: 'Share PDF',
+                tooltip: context.tr('sharePdf'),
                 color: AppTheme.primary,
                 padding: EdgeInsets.zero,
                 constraints:
@@ -678,7 +681,7 @@ class _StudentResultCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'Grade ${r.grade}',
+                  '${context.tr('gradePrefix')} ${r.grade}',
                   style: TextStyle(
                       color: color,
                       fontSize: 12,
@@ -704,7 +707,7 @@ class _StudentResultCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  r.isPassed ? 'PASS' : 'FAIL',
+                  r.isPassed ? context.tr('passLabel') : context.tr('failLabel'),
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -717,7 +720,7 @@ class _StudentResultCard extends StatelessWidget {
             ]),
           ] else ...[
             const SizedBox(height: 8),
-            Text('Marks not entered yet',
+            Text(context.tr('marksNotEnteredYet'),
                 style: TextStyle(
                     fontSize: 12, color: Colors.grey.shade400)),
           ],

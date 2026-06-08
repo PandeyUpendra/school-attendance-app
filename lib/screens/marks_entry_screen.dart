@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/app_strings.dart';
 import '../models/exam.dart';
 import '../models/student.dart';
 import '../services/auth_service.dart';
@@ -95,7 +96,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
           if (v == null || v < 0 || v > exam.maxMarks) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(
-                  '${s.name}: marks for "$sub" must be 0–${exam.maxMarks}'),
+                  '${s.name} ("$sub"): ${context.tr('marksMustBe')} 0–${exam.maxMarks}'),
               backgroundColor: Colors.red.shade700,
             ));
             return;
@@ -129,8 +130,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     if (!mounted) return;
     setState(() => _saving = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Marks saved successfully ✓'),
+      SnackBar(
+        content: Text(context.tr('marksSavedSuccess')),
         backgroundColor: Colors.green,
       ),
     );
@@ -158,7 +159,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
             Text(exam.name,
                 style: const TextStyle(
                     fontSize: 16, fontWeight: FontWeight.bold)),
-            Text('${exam.className}  •  Max ${exam.maxMarks}/subject',
+            Text('${exam.className}  •  ${context.tr('maxLabel')} ${exam.maxMarks}${context.tr('perSubjectSuffix')}',
                 style:
                     const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
@@ -179,8 +180,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
               onPressed: _saveAll,
               icon: const Icon(Icons.save_outlined,
                   color: Colors.white, size: 18),
-              label: const Text('Save All',
-                  style: TextStyle(color: Colors.white)),
+              label: Text(context.tr('saveAll'),
+                  style: const TextStyle(color: Colors.white)),
             ),
         ],
       ),
@@ -188,7 +189,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _students.isEmpty
               ? Center(
-                  child: Text('No students in ${exam.className}.',
+                  child: Text('${context.tr('noStudentsIn')} ${exam.className}.',
                       style: TextStyle(color: Colors.grey.shade500)),
                 )
               : Column(
@@ -240,7 +241,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                           child: ElevatedButton.icon(
                             onPressed: _saving ? null : _saveAll,
                             icon: const Icon(Icons.save_outlined),
-                            label: const Text('Save All Marks'),
+                            label: Text(context.tr('saveAllMarks')),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primary,
                               foregroundColor: Colors.white,
@@ -335,7 +336,7 @@ class _StudentMarksRowState extends State<_StudentMarksRow> {
                   style: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w600),
                 ),
-                Text('Roll ${s.roll}',
+                Text('${context.tr('roll')} ${s.roll}',
                     style: TextStyle(
                         fontSize: 10, color: Colors.grey.shade500)),
               ],

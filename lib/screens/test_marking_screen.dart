@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/app_strings.dart';
 import '../theme.dart';
 import '../models/student.dart';
 import '../models/student_profile_data.dart';
@@ -68,7 +69,7 @@ class _TestMarkingScreenState extends State<TestMarkingScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                '${widget.students[i].name}: marks must be 0–${widget.totalMarks}'),
+                '${widget.students[i].name}: ${context.tr('marksMustBe')} 0–${widget.totalMarks}'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -126,23 +127,23 @@ class _TestMarkingScreenState extends State<TestMarkingScreen> {
         builder: (_) => AlertDialog(
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16)),
-          title: const Row(children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Marks Saved!'),
+          title: Row(children: [
+            const Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 8),
+            Text(context.tr('marksSavedTitle')),
           ]),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _ResultRow('Test', widget.testName),
-              _ResultRow('Subject', widget.subject),
-              _ResultRow('Total Marks', '${widget.totalMarks}'),
-              _ResultRow('Marked', '${marks.length}/${widget.students.length} students'),
+              _ResultRow(context.tr('testLabel'), widget.testName),
+              _ResultRow(context.tr('subjectLabel'), widget.subject),
+              _ResultRow(context.tr('totalMarksLabel'), '${widget.totalMarks}'),
+              _ResultRow(context.tr('markedLabel'), '${marks.length}/${widget.students.length} ${context.tr('studentsWord')}'),
               const Divider(),
-              _ResultRow('Class Average',
+              _ResultRow(context.tr('classAverage'),
                   '${avg.toStringAsFixed(1)} / ${widget.totalMarks}',
                   highlight: true),
-              _ResultRow('Average %',
+              _ResultRow(context.tr('averagePct'),
                   '${(avg / widget.totalMarks * 100).toStringAsFixed(1)}%',
                   highlight: true),
             ],
@@ -153,7 +154,7 @@ class _TestMarkingScreenState extends State<TestMarkingScreen> {
                 Navigator.pop(context); // close dialog
                 Navigator.pop(context); // go back to class management
               },
-              child: const Text('Done'),
+              child: Text(context.tr('done')),
             ),
           ],
         ),
@@ -163,7 +164,7 @@ class _TestMarkingScreenState extends State<TestMarkingScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error saving marks: $e'),
+          content: Text('${context.tr('errorSavingMarks')} $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -183,10 +184,10 @@ class _TestMarkingScreenState extends State<TestMarkingScreen> {
             child: Row(children: [
               _Chip(widget.subject, Icons.menu_book_outlined),
               const SizedBox(width: 10),
-              _Chip('Max: ${widget.totalMarks}', Icons.numbers_rounded),
+              _Chip('${context.tr('maxColon')} ${widget.totalMarks}', Icons.numbers_rounded),
               const Spacer(),
               _Chip(
-                  '${widget.students.length} students', Icons.people_outline),
+                  '${widget.students.length} ${context.tr('studentsWord')}', Icons.people_outline),
             ]),
           ),
         ),
@@ -228,7 +229,7 @@ class _TestMarkingScreenState extends State<TestMarkingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Class Avg: ${_classAverage.toStringAsFixed(1)}',
+                      '${context.tr('classAvgPrefix')} ${_classAverage.toStringAsFixed(1)}',
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 14),
                     ),
@@ -248,7 +249,7 @@ class _TestMarkingScreenState extends State<TestMarkingScreen> {
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2))
                     : const Icon(Icons.save_rounded),
-                label: Text(_saving ? 'Saving…' : 'Save Marks'),
+                label: Text(_saving ? context.tr('savingEllipsis') : context.tr('saveMarks')),
               ),
             ]),
           ),
