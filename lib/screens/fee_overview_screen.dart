@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import '../models/fee.dart';
 import '../services/fee_service.dart';
 import '../services/timetable_service.dart';
@@ -72,27 +73,27 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Fee Collection',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('Class-wise collection overview',
-                style: TextStyle(fontSize: 12, color: Colors.white70)),
+            Text(context.tr('feeCollection'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('feeCollectionOverviewSub'),
+                style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
         actions: [
           if (_summaries.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.download_outlined),
-              tooltip: 'Export to CSV',
+              tooltip: context.tr('exportToCsv'),
               onPressed: _exportCSV,
             ),
           // Coordinator can jump straight to fee structure config
           if (widget.role == 'coordinator')
             IconButton(
               icon: const Icon(Icons.settings_outlined),
-              tooltip: 'Fee Structure',
+              tooltip: context.tr('feeStructure'),
               onPressed: () async {
                 await Navigator.push(
                   context,
@@ -103,7 +104,7 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
             ),
           IconButton(
             icon: const Icon(Icons.refresh_outlined),
-            tooltip: 'Refresh',
+            tooltip: context.tr('refresh'),
             onPressed: _load,
           ),
         ],
@@ -203,13 +204,13 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
             Icon(Icons.school_outlined, size: 56, color: Colors.grey.shade300),
             const SizedBox(height: 14),
             Text(
-              'No classes configured yet.',
+              context.tr('noClassesConfigured'),
               style: TextStyle(color: Colors.grey.shade500, fontSize: 15),
             ),
             const SizedBox(height: 8),
             TextButton(
               onPressed: _load,
-              child: const Text('Refresh'),
+              child: Text(context.tr('refresh')),
             ),
           ],
         ),
@@ -246,8 +247,8 @@ class _SchoolSummaryBanner extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('SCHOOL-WIDE COLLECTION',
-              style: TextStyle(
+          Text(context.tr('secSchoolWideCollection'),
+              style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -257,11 +258,11 @@ class _SchoolSummaryBanner extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _BannerStat(
-                  '₹${_fmtK(totalCollected)}', 'Collected', Colors.white),
+                  '₹${_fmtK(totalCollected)}', context.tr('collected'), Colors.white),
               _BannerStat('₹${_fmtK((totalDue - totalCollected).clamp(0, double.infinity))}',
-                  'Pending', Colors.yellow.shade200),
+                  context.tr('pendingLabel'), Colors.yellow.shade200),
               _BannerStat(
-                  '$fullyPaid / $studentCount', 'Fully Paid', Colors.white),
+                  '$fullyPaid / $studentCount', context.tr('fullyPaidLabel'), Colors.white),
             ],
           ),
           const SizedBox(height: 14),
@@ -281,7 +282,7 @@ class _SchoolSummaryBanner extends StatelessWidget {
           Text(
             totalDue > 0
                 ? '${pct.toStringAsFixed(1)}% of total fee collected'
-                : 'No fee structures configured',
+                : context.tr('noFeeStructures'),
             style:
                 const TextStyle(color: Colors.white70, fontSize: 12),
           ),

@@ -273,6 +273,17 @@ class AppStrings {
     'newLabel':              {'en': 'New',                       'hi': 'नया'},
     'edit':                  {'en': 'Edit',                      'hi': 'संपादित करें'},
 
+    // ── Fee overview screen ──────────────────────────────────────────────
+    'feeCollectionOverviewSub': {'en': 'Class-wise collection overview', 'hi': 'कक्षावार संग्रह अवलोकन'},
+    'exportToCsv':           {'en': 'Export to CSV',     'hi': 'CSV में निर्यात करें'},
+    'refresh':               {'en': 'Refresh',           'hi': 'रिफ़्रेश'},
+    'noClassesConfigured':   {'en': 'No classes configured yet.', 'hi': 'अभी कोई कक्षा सेट नहीं है।'},
+    'secSchoolWideCollection':{'en': 'SCHOOL-WIDE COLLECTION', 'hi': 'विद्यालय-व्यापी संग्रह'},
+    'collected':             {'en': 'Collected',         'hi': 'एकत्रित'},
+    'pendingLabel':          {'en': 'Pending',           'hi': 'बकाया'},
+    'fullyPaidLabel':        {'en': 'Fully Paid',        'hi': 'पूर्ण भुगतान'},
+    'noFeeStructures':       {'en': 'No fee structures configured', 'hi': 'कोई शुल्क संरचना सेट नहीं'},
+
     // ── Coordinator / Principal dashboards: tile subtitles ───────────────
     'subStaffTasksDesc':         {'en': 'Assign tasks to teachers and track progress', 'hi': 'शिक्षकों को कार्य सौंपें और प्रगति ट्रैक करें'},
     'subMeetingRecordsDesc':     {'en': 'Manage meetings, agenda points and teacher task assignments', 'hi': 'बैठकें, एजेंडा और शिक्षक कार्य प्रबंधित करें'},
