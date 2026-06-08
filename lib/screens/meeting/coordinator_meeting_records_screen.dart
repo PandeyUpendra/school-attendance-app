@@ -1,11 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/meeting.dart';
 import '../../services/meeting_service.dart';
 import '../../theme.dart';
 import '../../widgets/index_building_notice.dart';
 import 'meeting_detail_screen.dart';
+
+/// Localised label for a meeting filter (filter values stay English).
+String _localizedFilter(BuildContext c, String f) => switch (f) {
+      'This Month' => c.tr('filterThisMonth'),
+      'Completed' => c.tr('completedLabel'),
+      'Draft' => c.tr('draft'),
+      _ => c.tr('filterAll'),
+    };
+
+/// Localised label for a meeting status (stored status stays English).
+String _localizedStatus(BuildContext c, MeetingStatus s) => switch (s) {
+      MeetingStatus.draft => c.tr('draft'),
+      MeetingStatus.active => c.tr('statusActive'),
+      MeetingStatus.completed => c.tr('completedLabel'),
+    };
 
 class CoordinatorMeetingRecordsScreen extends StatefulWidget {
   final String coordinatorEmail;
@@ -73,7 +89,7 @@ class _CoordinatorMeetingRecordsScreenState
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('WhatsApp not available')));
+          SnackBar(content: Text(context.tr('whatsappNotAvailable'))));
       }
     }
   }
@@ -83,7 +99,7 @@ class _CoordinatorMeetingRecordsScreenState
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('My Meeting Records'),
+        title: Text(context.tr('myMeetingRecords')),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -99,7 +115,7 @@ class _CoordinatorMeetingRecordsScreenState
               onChanged: (v) => setState(() => _search = v),
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: 'Search meetings...',
+                hintText: context.tr('searchMeetings'),
                 hintStyle: const TextStyle(color: Colors.white60),
                 prefixIcon: const Icon(Icons.search, color: Colors.white60),
                 suffixIcon: _search.isNotEmpty
@@ -133,7 +149,7 @@ class _CoordinatorMeetingRecordsScreenState
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: FilterChip(
-                    label: Text(f),
+                    label: Text(_localizedFilter(context, f)),
                     selected: active,
                     onSelected: (_) => setState(() => _filter = f),
                     selectedColor: AppTheme.primary,
@@ -220,7 +236,7 @@ class _CoordinatorMeetingRecordsScreenState
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppTheme.primary,
         icon: const Icon(Icons.add),
-        label: const Text('New Meeting'),
+        label: Text(context.tr('newMeeting')),
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(
@@ -241,7 +257,7 @@ class _CoordinatorMeetingRecordsScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF error: $e')),
+          SnackBar(content: Text('${context.tr('pdfError')} $e')),
         );
       }
     }
@@ -271,12 +287,12 @@ class _CoordinatorMeetingRecordsScreenState
             const SizedBox(height: 12),
             Text(
               _search.isNotEmpty
-                  ? 'No meetings match "$_search"'
-                  : 'No meetings yet',
+                  ? '${context.tr('noMeetingsMatch')} "$_search"'
+                  : context.tr('noMeetingsYet'),
               style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
             ),
             const SizedBox(height: 6),
-            Text('Tap + to create a new meeting',
+            Text(context.tr('tapPlusNewMeeting'),
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
           ]),
         ),
@@ -301,11 +317,11 @@ class _SummaryCard extends StatelessWidget {
           const Icon(Icons.history_edu, color: Colors.white70, size: 28),
           const SizedBox(width: 14),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('My Meetings: $thisMonth this month',
+            Text('${context.tr('myMeetings')}: $thisMonth ${context.tr('thisMonthLower')}',
                 style: const TextStyle(color: Colors.white,
                     fontSize: 14, fontWeight: FontWeight.w600)),
             const SizedBox(height: 2),
-            Text('Pending tasks from meetings: $pendingTasks',
+            Text('${context.tr('pendingTasksFromMeetings')}: $pendingTasks',
                 style: const TextStyle(color: Colors.white70, fontSize: 12)),
           ]),
         ]),
@@ -374,7 +390,7 @@ class _CoordMeetingCardState extends State<_CoordMeetingCard> {
                 color: _statusColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Text(m.status.label,
+              child: Text(_localizedStatus(context, m.status),
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -390,12 +406,12 @@ class _CoordMeetingCardState extends State<_CoordMeetingCard> {
           // Task counts
           Row(children: [
             _CountBadge(
-                label: 'Tasks created',
+                label: context.tr('tasksCreated'),
                 value: totalTasks,
                 color: AppTheme.warning),
             const SizedBox(width: 10),
             _CountBadge(
-                label: 'Tasks completed',
+                label: context.tr('tasksCompleted'),
                 value: completedTasks,
                 color: AppTheme.success),
           ]),
@@ -411,7 +427,7 @@ class _CoordMeetingCardState extends State<_CoordMeetingCard> {
             ),
           ),
           const SizedBox(height: 2),
-          Text('${m.points.length} points · ${m.discussedCount} discussed',
+          Text('${m.points.length} ${context.tr('pointsLower')} · ${m.discussedCount} ${context.tr('discussedLower')}',
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
 
           const SizedBox(height: 12),
@@ -421,7 +437,7 @@ class _CoordMeetingCardState extends State<_CoordMeetingCard> {
             Expanded(
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.visibility_outlined, size: 15),
-                label: const Text('Details', style: TextStyle(fontSize: 12)),
+                label: Text(context.tr('details'), style: const TextStyle(fontSize: 12)),
                 style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.primary,
                     side: const BorderSide(color: AppTheme.primary),
@@ -433,7 +449,7 @@ class _CoordMeetingCardState extends State<_CoordMeetingCard> {
             Expanded(
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.share_outlined, size: 15),
-                label: const Text('Share PDF', style: TextStyle(fontSize: 12)),
+                label: Text(context.tr('sharePdf'), style: const TextStyle(fontSize: 12)),
                 style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.danger,
                     side: const BorderSide(color: AppTheme.danger),
@@ -446,7 +462,7 @@ class _CoordMeetingCardState extends State<_CoordMeetingCard> {
               Expanded(
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.send_outlined, size: 15),
-                  label: const Text('Remind', style: TextStyle(fontSize: 12)),
+                  label: Text(context.tr('remind'), style: const TextStyle(fontSize: 12)),
                   style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF25D366),
                       side: const BorderSide(color: Color(0xFF25D366)),

@@ -1056,6 +1056,24 @@ class AppStrings {
     'role_teacher':     {'en': 'Teacher',     'hi': 'शिक्षक'},
     'role_guardian':    {'en': 'Guardian',    'hi': 'अभिभावक'},
     'role_admin':       {'en': 'Admin',       'hi': 'एडमिन'},
+
+    // ── Meetings ─────────────────────────────────────────────────────────
+    'myMeetingRecords':        {'en': 'My Meeting Records',   'hi': 'मेरी मीटिंग रिकॉर्ड'},
+    'searchMeetings':          {'en': 'Search meetings...',   'hi': 'मीटिंग खोजें...'},
+    'draft':                   {'en': 'Draft',                'hi': 'ड्राफ़्ट'},
+    'newMeeting':              {'en': 'New Meeting',          'hi': 'नई मीटिंग'},
+    'tasksCreated':            {'en': 'Tasks created',        'hi': 'बनाए गए कार्य'},
+    'tasksCompleted':          {'en': 'Tasks completed',      'hi': 'पूरे हुए कार्य'},
+    'details':                 {'en': 'Details',              'hi': 'विवरण'},
+    'remind':                  {'en': 'Remind',               'hi': 'याद दिलाएँ'},
+    'myMeetings':              {'en': 'My Meetings',          'hi': 'मेरी मीटिंग'},
+    'thisMonthLower':          {'en': 'this month',           'hi': 'इस महीने'},
+    'pendingTasksFromMeetings':{'en': 'Pending tasks from meetings', 'hi': 'मीटिंग के लंबित कार्य'},
+    'pointsLower':             {'en': 'points',               'hi': 'बिंदु'},
+    'discussedLower':          {'en': 'discussed',            'hi': 'चर्चित'},
+    'noMeetingsMatch':         {'en': 'No meetings match',    'hi': 'इससे मेल खाती कोई मीटिंग नहीं'},
+    'noMeetingsYet':           {'en': 'No meetings yet',      'hi': 'अभी कोई मीटिंग नहीं'},
+    'tapPlusNewMeeting':       {'en': 'Tap + to create a new meeting', 'hi': 'नई मीटिंग बनाने के लिए + दबाएँ'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then
