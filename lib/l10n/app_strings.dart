@@ -195,6 +195,38 @@ class AppStrings {
     'subAuditLogDesc':               {'en': 'View all create/update/delete actions with before/after diff', 'hi': 'सभी क्रियाओं को पहले/बाद के अंतर के साथ देखें'},
     'subCoordinatorToolsDesc':       {'en': 'Access timetable, substitutions, leave management & more', 'hi': 'समय-सारिणी, स्थानापन्न, अवकाश प्रबंधन और अधिक'},
 
+    // ── Guardian dashboard: section headers ──────────────────────────────
+    'secAttendance':     {'en': 'ATTENDANCE',           'hi': 'उपस्थिति'},
+    'secFees':           {'en': 'FEES',                 'hi': 'शुल्क'},
+    'secLeaveRemarks':   {'en': 'LEAVE & REMARKS',      'hi': 'अवकाश और टिप्पणियाँ'},
+    'secSchoolProfile':  {'en': 'SCHOOL & PROFILE',     'hi': 'स्कूल और प्रोफ़ाइल'},
+    'secFeeBreakdown':   {'en': 'FEE BREAKDOWN',        'hi': 'शुल्क विवरण'},
+    'secInstallments':   {'en': 'INSTALLMENTS SCHEDULE','hi': 'किस्त अनुसूची'},
+
+    // ── Guardian dashboard: tile titles ──────────────────────────────────
+    'subjectTeachers':       {'en': 'Subject Teachers',       'hi': 'विषय शिक्षक'},
+    'examResults':           {'en': 'Exam Results',           'hi': 'परीक्षा परिणाम'},
+    'attendanceCertificate': {'en': 'Attendance Certificate', 'hi': 'उपस्थिति प्रमाणपत्र'},
+    'feeStatus':             {'en': 'Fee Status',             'hi': 'शुल्क स्थिति'},
+    'feeDetails':            {'en': 'Fee Details',            'hi': 'शुल्क विवरण'},
+    'schoolInfo':            {'en': 'School Info',            'hi': 'स्कूल जानकारी'},
+    'mySchool':              {'en': 'My School',              'hi': 'मेरा स्कूल'},
+    'parentalConsent':       {'en': 'Parental Consent',       'hi': 'अभिभावक सहमति'},
+
+    // ── Guardian dashboard: tile subtitles ───────────────────────────────
+    'subViewBellSchedule':   {'en': 'View class bell schedule',        'hi': 'कक्षा की घंटी समय-सारिणी देखें'},
+    'subTeachersThisClass':  {'en': 'Teachers teaching this class',    'hi': 'इस कक्षा को पढ़ाने वाले शिक्षक'},
+    'subViewHomework':       {'en': 'View homework assignments',       'hi': 'गृहकार्य असाइनमेंट देखें'},
+    'subViewReportCards':    {'en': 'View report cards and marks',     'hi': 'रिपोर्ट कार्ड और अंक देखें'},
+    'subMonthlyReports':     {'en': 'Monthly reports and calendar',    'hi': 'मासिक रिपोर्ट और कैलेंडर'},
+    'subDownloadCertificate':{'en': 'Download certificate',            'hi': 'प्रमाणपत्र डाउनलोड करें'},
+    'subSubmitLeave':        {'en': 'Submit leave application',        'hi': 'अवकाश आवेदन भेजें'},
+    'subViewObservations':   {'en': 'View class teacher observations', 'hi': 'कक्षा शिक्षक की टिप्पणियाँ देखें'},
+    'subViewProfile':        {'en': 'View student profile details',    'hi': 'छात्र प्रोफ़ाइल विवरण देखें'},
+    'subViewAnnouncements':  {'en': 'View school announcements',       'hi': 'स्कूल घोषणाएँ देखें'},
+    'subViewSchoolContact':  {'en': 'View school contact and details', 'hi': 'स्कूल संपर्क और विवरण देखें'},
+    'subManagePermissions':  {'en': 'Manage permissions and privacy settings', 'hi': 'अनुमतियाँ और गोपनीयता सेटिंग्स प्रबंधित करें'},
+
     // ── Coordinator / Principal dashboards: tile subtitles ───────────────
     'subStaffTasksDesc':         {'en': 'Assign tasks to teachers and track progress', 'hi': 'शिक्षकों को कार्य सौंपें और प्रगति ट्रैक करें'},
     'subMeetingRecordsDesc':     {'en': 'Manage meetings, agenda points and teacher task assignments', 'hi': 'बैठकें, एजेंडा और शिक्षक कार्य प्रबंधित करें'},

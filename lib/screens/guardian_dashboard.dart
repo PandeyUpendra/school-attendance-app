@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/school_settings_provider.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import 'profile_screen.dart';
 import '../models/exam.dart';
 import '../models/student.dart';
@@ -350,12 +351,12 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       child: _TodayBanner(status: _todayStatus),
     ),
 
-    const _SectionHeader('ACADEMICS'),
+    _SectionHeader(context.tr('secAcademics')),
     _FeatureTile(
       icon: Icons.calendar_month_outlined,
       color: AppTheme.primary,
-      title: 'My Timetable',
-      subtitle: 'View class bell schedule',
+      title: context.tr('myTimetable'),
+      subtitle: context.tr('subViewBellSchedule'),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
@@ -373,8 +374,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.people_outline,
       color: AppTheme.primary,
-      title: 'Subject Teachers',
-      subtitle: 'Teachers teaching this class',
+      title: context.tr('subjectTeachers'),
+      subtitle: context.tr('subTeachersThisClass'),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
@@ -390,8 +391,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.assignment_outlined,
       color: AppTheme.primary,
-      title: 'Homework',
-      subtitle: 'View homework assignments',
+      title: context.tr('homework'),
+      subtitle: context.tr('subViewHomework'),
       badge: _homeworkList.isNotEmpty ? '${_homeworkList.length}' : null,
       onTap: () => Navigator.push(
         context,
@@ -407,8 +408,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.quiz_outlined,
       color: AppTheme.primary,
-      title: 'Exam Results',
-      subtitle: 'View report cards and marks',
+      title: context.tr('examResults'),
+      subtitle: context.tr('subViewReportCards'),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
@@ -419,12 +420,12 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       ),
     ),
 
-    const _SectionHeader('ATTENDANCE'),
+    _SectionHeader(context.tr('secAttendance')),
     _FeatureTile(
       icon: Icons.bar_chart_outlined,
       color: AppTheme.primary,
-      title: 'Attendance History',
-      subtitle: 'Monthly reports and calendar',
+      title: context.tr('attendanceHistory'),
+      subtitle: context.tr('subMonthlyReports'),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
@@ -440,8 +441,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.workspace_premium_outlined,
       color: AppTheme.primary,
-      title: 'Attendance Certificate',
-      subtitle: 'Download certificate',
+      title: context.tr('attendanceCertificate'),
+      subtitle: context.tr('subDownloadCertificate'),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
@@ -453,8 +454,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.event_busy_outlined,
       color: AppTheme.warning,
-      title: 'Apply for Leave',
-      subtitle: 'Submit leave application',
+      title: context.tr('applyForLeave'),
+      subtitle: context.tr('subSubmitLeave'),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
@@ -463,11 +464,11 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       ).then((_) => _loadAll()),
     ),
 
-    const _SectionHeader('FEES'),
+    _SectionHeader(context.tr('secFees')),
     _FeatureTile(
       icon: Icons.account_balance_wallet_outlined,
       color: Colors.green,
-      title: 'Fee Status',
+      title: context.tr('feeStatus'),
       subtitle: _feeStructure != null && _feeStructure!.totalAnnualFee > 0
           ? ((_feeStructure!.totalAnnualFee - _totalPaid) < 1 ? 'Fully Paid' : 'Pending: ₹${(_feeStructure!.totalAnnualFee - _totalPaid).toStringAsFixed(0)}')
           : 'No fee info',
@@ -482,12 +483,12 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       ),
     ),
 
-    const _SectionHeader('LEAVE & REMARKS'),
+    _SectionHeader(context.tr('secLeaveRemarks')),
     _FeatureTile(
       icon: Icons.comment_outlined,
       color: AppTheme.primary,
-      title: 'Student Remarks',
-      subtitle: 'View class teacher observations',
+      title: context.tr('studentRemarks'),
+      subtitle: context.tr('subViewObservations'),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
@@ -499,20 +500,20 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       ),
     ),
 
-    const _SectionHeader('SCHOOL & PROFILE'),
+    _SectionHeader(context.tr('secSchoolProfile')),
     _FeatureTile(
       icon: Icons.badge_outlined,
       color: AppTheme.primary,
-      title: 'Student Details',
-      subtitle: 'View student profile details',
+      title: context.tr('studentDetails'),
+      subtitle: context.tr('subViewProfile'),
       onTap: _openChildDetails,
     ),
     const _Divider(),
     _FeatureTile(
       icon: Icons.gavel_outlined,
       color: AppTheme.primary,
-      title: 'Parental Consent',
-      subtitle: 'Manage permissions and privacy settings',
+      title: context.tr('parentalConsent'),
+      subtitle: context.tr('subManagePermissions'),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
@@ -530,8 +531,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.school_outlined,
       color: AppTheme.primary,
-      title: 'School Info',
-      subtitle: 'View school contact and details',
+      title: context.tr('schoolInfo'),
+      subtitle: context.tr('subViewSchoolContact'),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
@@ -543,8 +544,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.campaign_outlined,
       color: AppTheme.primary,
-      title: 'Notice Board',
-      subtitle: 'View school announcements',
+      title: context.tr('noticeBoard'),
+      subtitle: context.tr('subViewAnnouncements'),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
