@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/app_strings.dart';
 import '../theme.dart';
 import '../services/auth_service.dart';
 import '../services/base_firestore_service.dart';
@@ -172,7 +173,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                     child: IconButton(
                       onPressed: _loading ? null : () => Navigator.pop(context),
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      tooltip: 'Back',
+                      tooltip: context.tr('backLabel'),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -223,7 +224,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                           maxLength: 100,
                           textInputAction: TextInputAction.next,
                           decoration: InputDecoration(
-                            labelText: 'Email Address',
+                            labelText: context.tr('emailAddress'),
                             prefixIcon: const Icon(Icons.email_outlined),
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12)),
@@ -242,7 +243,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                           textInputAction: TextInputAction.done,
                           onSubmitted: (_) => _loading ? null : _signIn(),
                           decoration: InputDecoration(
-                            labelText: 'Password',
+                            labelText: context.tr('password'),
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(

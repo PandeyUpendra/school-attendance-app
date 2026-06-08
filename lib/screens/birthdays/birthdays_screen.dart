@@ -1,8 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../l10n/app_strings.dart';
 import '../../services/birthday_service.dart';
 import '../../theme.dart';
+
+/// Localised label for a birthday filter index (display only; logic uses the
+/// integer index, so stored/compared values are unaffected).
+String _bdayFilterLabel(BuildContext context, int i) => switch (i) {
+      0 => context.tr('filterToday'),
+      1 => context.tr('filterThisWeek'),
+      2 => context.tr('filterThisMonth'),
+      _ => context.tr('filterAll'),
+    };
 
 class BirthdaysScreen extends StatefulWidget {
   final String role;
@@ -247,7 +257,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
                     borderRadius: BorderRadius.circular(22),
                   ),
                   child: Text(
-                    _filters[i],
+                    _bdayFilterLabel(context, i),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 13,
@@ -283,7 +293,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
         ),
         const SizedBox(height: 10),
         if (_staffList.isEmpty)
-          _EmptyBlock(filter: _filters[_filter], type: 'staff')
+          _EmptyBlock(filterLabel: _bdayFilterLabel(context, _filter), isToday: _filter == 0, type: 'staff')
         else
           ..._staffList.map((e) => _BirthdayCard(
                 entry: e,
@@ -307,7 +317,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
           ),
           const SizedBox(height: 10),
           if (_studentList.isEmpty)
-            _EmptyBlock(filter: _filters[_filter], type: 'student')
+            _EmptyBlock(filterLabel: _bdayFilterLabel(context, _filter), isToday: _filter == 0, type: 'student')
           else
             ..._studentList.map((e) => _BirthdayCard(
                   entry: e,
@@ -359,8 +369,8 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
               children: [
                 Text(
                   isToday && todayCount > 0
-                      ? '🎉 $_totalCount Birthday${_totalCount > 1 ? 's' : ''} Today!'
-                      : '🎂 $_totalCount Birthday${_totalCount > 1 ? 's' : ''} — ${_filters[_filter]}',
+                      ? '🎉 $_totalCount ${_totalCount > 1 ? context.tr('birthdaysWord') : context.tr('birthdayWord')} ${context.tr('birthdaysTodayExcl')}'
+                      : '🎂 $_totalCount ${_totalCount > 1 ? context.tr('birthdaysWord') : context.tr('birthdayWord')} — ${_bdayFilterLabel(context, _filter)}',
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
@@ -468,9 +478,10 @@ class _SectionHeader extends StatelessWidget {
 // ── Empty block ───────────────────────────────────────────────────────────────
 
 class _EmptyBlock extends StatelessWidget {
-  final String filter;
+  final String filterLabel;
+  final bool isToday;
   final String type;
-  const _EmptyBlock({required this.filter, required this.type});
+  const _EmptyBlock({required this.filterLabel, required this.isToday, required this.type});
 
   @override
   Widget build(BuildContext context) {
@@ -495,7 +506,7 @@ class _EmptyBlock extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'No $type birthdays',
+            type == 'staff' ? context.tr('noStaffBirthdays') : context.tr('noStudentBirthdays'),
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -504,9 +515,9 @@ class _EmptyBlock extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            filter == 'Today'
-                ? 'No ${type == 'staff' ? 'staff' : 'student'} birthdays today'
-                : 'None found for "$filter"',
+            isToday
+                ? (type == 'staff' ? context.tr('noStaffBirthdaysToday') : context.tr('noStudentBirthdaysToday'))
+                : '${context.tr('noneFoundFor')} "$filterLabel"',
             style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
           ),
         ],
@@ -703,7 +714,7 @@ class _BirthdayCard extends StatelessWidget {
                           Icon(Icons.phone_disabled_outlined,
                               size: 13, color: Colors.grey.shade400),
                           const SizedBox(width: 4),
-                          Text('No phone',
+                          Text(context.tr('noPhone'),
                               style: TextStyle(
                                   fontSize: 12, color: Colors.grey.shade400)),
                         ],
@@ -911,10 +922,10 @@ class _CustomMessageSheetState extends State<_CustomMessageSheet> {
             ),
             const SizedBox(width: 10),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Send Birthday Wish',
-                  style: TextStyle(
+              Text(context.tr('sendBirthdayWish'),
+                  style: const TextStyle(
                       fontSize: 17, fontWeight: FontWeight.bold)),
-              Text('To: ${widget.name}',
+              Text('${context.tr('toColon')} ${widget.name}',
                   style: TextStyle(
                       fontSize: 13, color: Colors.grey.shade600)),
             ]),
@@ -986,7 +997,7 @@ class _CustomMessageSheetState extends State<_CustomMessageSheet> {
             child: ValueListenableBuilder<TextEditingValue>(
               valueListenable: _ctrl,
               builder: (_, v, __) => Text(
-                '${v.text.length} chars',
+                '${v.text.length} ${context.tr('charsWord')}',
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
               ),
             ),
@@ -1001,7 +1012,7 @@ class _CustomMessageSheetState extends State<_CustomMessageSheet> {
                 widget.onSend(_ctrl.text);
               },
               icon: const Icon(Icons.send_rounded),
-              label: const Text('Send via WhatsApp'),
+              label: Text(context.tr('sendViaWhatsapp')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF25D366),
                 foregroundColor: Colors.white,

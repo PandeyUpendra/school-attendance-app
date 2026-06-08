@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../l10n/app_strings.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
@@ -45,13 +46,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Analytics Dashboard',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('School performance at a glance',
-                style: TextStyle(fontSize: 12, color: Colors.white70)),
+            Text(context.tr('analyticsDashboard'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('schoolPerformanceGlance'),
+                style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
         bottom: TabBar(
@@ -60,19 +61,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           isScrollable: true,
-          tabs: const [
-            Tab(text: 'Overview'),
-            Tab(text: 'Attendance'),
-            Tab(text: 'Absences'),
-            Tab(text: 'Fees'),
+          tabs: [
+            Tab(text: context.tr('overviewTab')),
+            Tab(text: context.tr('attendanceLabel')),
+            Tab(text: context.tr('absencesTab')),
+            Tab(text: context.tr('feesTab')),
           ],
         ),
       ),
       body: _classesLoading
-          ? const LoadingState(message: 'Loading analytics…')
+          ? LoadingState(message: context.tr('loadingAnalytics'))
           : _classes.isEmpty
               ? Center(
-                  child: Text('No classes configured.',
+                  child: Text(context.tr('noClassesConfiguredShort'),
                       style: TextStyle(color: Colors.grey.shade500)))
               : TabBarView(
                   controller: _tab,
@@ -125,32 +126,32 @@ class _OverviewTabState extends State<_OverviewTab>
       loading: _loading,
       isEmpty: _summaries.isEmpty || _summaries.every((s) => !s.marked),
       onRefresh: _load,
-      loadingMessage: 'Loading today\'s snapshot…',
-      emptyMessage: 'No attendance marked today yet.',
+      loadingMessage: context.tr('loadingTodaysSnapshot'),
+      emptyMessage: context.tr('noAttendanceMarkedToday'),
       emptyIcon: Icons.bar_chart_outlined,
       builder: (context) => ListView(
       padding: const EdgeInsets.all(16),
       children: [
         // ── Stats row ───────────────────────────────────────────────────────
-        const _SectionTitle('Today\'s Snapshot'),
+        _SectionTitle(context.tr('todaysSnapshot')),
         const SizedBox(height: 8),
         Row(children: [
           _StatCard(
-            label: 'Classes Marked',
+            label: context.tr('classesMarked'),
             value: '${markedSummaries.length}/${_summaries.length}',
             color: AppTheme.primary,
             icon: Icons.fact_check_outlined,
           ),
           const SizedBox(width: 10),
           _StatCard(
-            label: 'Total Present',
+            label: context.tr('totalPresent'),
             value: '${markedSummaries.fold(0, (s, c) => s + c.present)}',
             color: Colors.green,
             icon: Icons.people_outline,
           ),
           const SizedBox(width: 10),
           _StatCard(
-            label: 'Total Absent',
+            label: context.tr('totalAbsent'),
             value: '${markedSummaries.fold(0, (s, c) => s + c.absent)}',
             color: Colors.red,
             icon: Icons.person_off_outlined,
@@ -159,7 +160,7 @@ class _OverviewTabState extends State<_OverviewTab>
         const SizedBox(height: 20),
 
         // ── Class comparison bar chart ──────────────────────────────────────
-        const _SectionTitle('Attendance % by Class'),
+        _SectionTitle(context.tr('attendancePctByClass')),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(16),
@@ -264,12 +265,12 @@ class _OverviewTabState extends State<_OverviewTab>
               ),
               const SizedBox(height: 12),
               // Legend
-              const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                _LegendDot(Colors.green, '≥85% Good'),
-                SizedBox(width: 14),
-                _LegendDot(Colors.orange, '75–84% OK'),
-                SizedBox(width: 14),
-                _LegendDot(Colors.red, '<75% Low'),
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                _LegendDot(Colors.green, context.tr('legendGood')),
+                const SizedBox(width: 14),
+                _LegendDot(Colors.orange, context.tr('legendOk')),
+                const SizedBox(width: 14),
+                _LegendDot(Colors.red, context.tr('legendLow')),
               ]),
             ],
           ),
@@ -277,7 +278,7 @@ class _OverviewTabState extends State<_OverviewTab>
         const SizedBox(height: 20),
 
         // ── Per-class summary tiles ─────────────────────────────────────────
-        const _SectionTitle('Class Details'),
+        _SectionTitle(context.tr('classDetails')),
         const SizedBox(height: 8),
         ...markedSummaries.map((s) {
           final pct = s.total > 0 ? s.present / s.total : 0.0;
@@ -320,7 +321,7 @@ class _OverviewTabState extends State<_OverviewTab>
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Present ${s.present} · Absent ${s.absent} · Leave ${s.leave} · Total ${s.total}',
+                  '${context.tr('presentLabel')} ${s.present} · ${context.tr('absentLabel')} ${s.absent} · ${context.tr('leaveLabel')} ${s.leave} · ${context.tr('totalLabel')} ${s.total}',
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
                 ),
               ],
@@ -438,18 +439,18 @@ class _AttendanceTrendTabState extends State<_AttendanceTrendTab>
         const SizedBox(height: 16),
 
         if (_loading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 60),
-            child: LoadingState(message: 'Loading attendance trend…'),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 60),
+            child: LoadingState(message: context.tr('loadingAttendanceTrend')),
           )
         else if (_spots.isEmpty)
-          const _EmptyState(
+          _EmptyState(
             icon: Icons.show_chart,
-            message: 'No attendance data for this month yet.',
+            message: context.tr('noAttendanceDataMonth'),
           )
         else ...[
           _SectionTitle(
-              'Attendance % — ${_monthLabel(DateTime.now())}'),
+              '${context.tr('attendancePctMonth')} ${_monthLabel(DateTime.now())}'),
           const SizedBox(height: 8),
 
           // Line chart
@@ -548,7 +549,7 @@ class _AttendanceTrendTabState extends State<_AttendanceTrendTab>
                     touchTooltipData: LineTouchTooltipData(
                       getTooltipItems: (spots) => spots
                           .map((s) => LineTooltipItem(
-                                'Day ${s.x.toInt()}\n${s.y.toStringAsFixed(1)}%',
+                                '${context.tr('dayPrefix')} ${s.x.toInt()}\n${s.y.toStringAsFixed(1)}%',
                                 const TextStyle(
                                     color: Colors.white, fontSize: 11),
                               ))
@@ -598,14 +599,14 @@ class _DaySummaryRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _MiniStat('Days', '${spots.length}', AppTheme.primary),
-          _MiniStat('Avg%', avg.toStringAsFixed(1), Colors.blue),
+          _MiniStat(context.tr('daysCapLabel'), '${spots.length}', AppTheme.primary),
+          _MiniStat(context.tr('avgPctShort'), avg.toStringAsFixed(1), Colors.blue),
           _MiniStat(
-              'Best',
+              context.tr('bestLabel'),
               max.toStringAsFixed(1),
               Colors.green),
           _MiniStat(
-              'Worst',
+              context.tr('worstLabel'),
               min.toStringAsFixed(1),
               Colors.red),
         ],
@@ -725,21 +726,20 @@ class _AbsenceLeaderboardTabState extends State<_AbsenceLeaderboardTab>
         const SizedBox(height: 16),
 
         if (_loading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 60),
-            child: LoadingState(message: 'Loading absence leaderboard…'),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 60),
+            child: LoadingState(message: context.tr('loadingAbsenceLeaderboard')),
           )
         else if (_leaderboard.isEmpty)
-          const _EmptyState(
+          _EmptyState(
             icon: Icons.emoji_events_outlined,
-            message:
-                'No absences in the last 30 days!\nAll students have been attending.',
+            message: context.tr('noAbsences30'),
           )
         else ...[
-          const _SectionTitle('Most Absent — Last 30 Days'),
+          _SectionTitle(context.tr('mostAbsent30Days')),
           const SizedBox(height: 4),
           Text(
-            '${_leaderboard.length} student${_leaderboard.length > 1 ? "s" : ""} have absences',
+            '${_leaderboard.length} ${_leaderboard.length > 1 ? context.tr('studentsWord') : context.tr('studentWord')} ${context.tr('haveAbsences')}',
             style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
           ),
           const SizedBox(height: 12),
@@ -793,7 +793,7 @@ class _AbsenceLeaderboardTabState extends State<_AbsenceLeaderboardTab>
                           style: const TextStyle(
                               fontSize: 14, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
-                      Text('Roll ${entry.roll}',
+                      Text('${context.tr('roll')} ${entry.roll}',
                           style: TextStyle(
                               fontSize: 11, color: Colors.grey.shade500)),
                       const SizedBox(height: 6),
@@ -819,7 +819,7 @@ class _AbsenceLeaderboardTabState extends State<_AbsenceLeaderboardTab>
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: color)),
-                    Text('days',
+                    Text(context.tr('daysShort'),
                         style: TextStyle(
                             fontSize: 10, color: Colors.grey.shade500)),
                   ],
@@ -923,15 +923,14 @@ class _FeeTabState extends State<_FeeTab>
       loading: _loading,
       isEmpty: configured.isEmpty,
       onRefresh: _load,
-      loadingMessage: 'Loading fee summary…',
-      emptyMessage:
-          'No fee structures set up yet.\nGo to Fee Management to configure.',
+      loadingMessage: context.tr('loadingFeeSummary'),
+      emptyMessage: context.tr('noFeeStructures'),
       emptyIcon: Icons.account_balance_wallet_outlined,
       builder: (context) => ListView(
       padding: const EdgeInsets.all(16),
       children: [
         // ── School-wide summary card ───────────────────────────────────────
-        const _SectionTitle('School-Wide Fee Summary'),
+        _SectionTitle(context.tr('schoolWideFeeSummary')),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(16),
@@ -945,21 +944,21 @@ class _FeeTabState extends State<_FeeTab>
               Row(children: [
                 Expanded(
                   child: _FeeStatCell(
-                    label: 'Total Billed',
+                    label: context.tr('totalBilled'),
                     value: '₹${_compact(totalFeeAll)}',
                     color: AppTheme.primary,
                   ),
                 ),
                 Expanded(
                   child: _FeeStatCell(
-                    label: 'Collected',
+                    label: context.tr('collectedLabel'),
                     value: '₹${_compact(totalPaidAll)}',
                     color: Colors.green,
                   ),
                 ),
                 Expanded(
                   child: _FeeStatCell(
-                    label: 'Pending',
+                    label: context.tr('statusPending'),
                     value: '₹${_compact(totalDue)}',
                     color: Colors.orange,
                   ),
@@ -979,7 +978,7 @@ class _FeeTabState extends State<_FeeTab>
               ),
               const SizedBox(height: 6),
               Text(
-                '${(overallPct * 100).toStringAsFixed(1)}% collected overall',
+                '${(overallPct * 100).toStringAsFixed(1)}% ${context.tr('collectedOverall')}',
                 style:
                     TextStyle(fontSize: 12, color: Colors.grey.shade500),
               ),
@@ -989,7 +988,7 @@ class _FeeTabState extends State<_FeeTab>
         const SizedBox(height: 20),
 
         // ── Per-class bar chart ────────────────────────────────────────────
-        const _SectionTitle('Collection % by Class'),
+        _SectionTitle(context.tr('collectionPctByClass')),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
@@ -1088,7 +1087,7 @@ class _FeeTabState extends State<_FeeTab>
         const SizedBox(height: 20),
 
         // ── Per-class detail tiles ─────────────────────────────────────────
-        const _SectionTitle('Class Details'),
+        _SectionTitle(context.tr('classDetails')),
         const SizedBox(height: 8),
         ...configured.map((e) {
           final pct = e.totalFee > 0
@@ -1131,7 +1130,7 @@ class _FeeTabState extends State<_FeeTab>
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Collected ₹${_compact(e.totalPaid)} · Due ₹${_compact(due)} · ${e.studentCount} students',
+                  '${context.tr('collectedLabel')} ₹${_compact(e.totalPaid)} · ${context.tr('dueLabel')} ₹${_compact(due)} · ${e.studentCount} ${context.tr('studentsWord')}',
                   style: TextStyle(
                       fontSize: 11, color: Colors.grey.shade500),
                 ),

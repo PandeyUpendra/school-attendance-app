@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../models/task.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
@@ -80,13 +81,13 @@ class _TaskMarkingScreenState extends State<TaskMarkingScreen> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Statuses saved successfully!')),
+          SnackBar(content: Text(context.tr('statusesSavedSuccess'))),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: $e')),
+          SnackBar(content: Text('${context.tr('failedToSave')} $e')),
         );
       }
     } finally {
@@ -118,7 +119,7 @@ class _TaskMarkingScreenState extends State<TaskMarkingScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Mark completion for ${widget.className} ${widget.section}',
+                          '${context.tr('markCompletionFor')} ${widget.className} ${widget.section}',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -126,7 +127,7 @@ class _TaskMarkingScreenState extends State<TaskMarkingScreen> {
                         onTap: () => _markAll(!allChecked),
                         child: Row(
                           children: [
-                            const Text('Mark All'),
+                            Text(context.tr('markAll')),
                             const SizedBox(width: 8),
                             SizedBox(
                               width: 24,
@@ -155,7 +156,7 @@ class _TaskMarkingScreenState extends State<TaskMarkingScreen> {
 
                       return CheckboxListTile(
                         title: Text(student.name),
-                        subtitle: Text('Roll: ${student.roll}'),
+                        subtitle: Text('${context.tr('rollColon')} ${student.roll}'),
                         value: isDone,
                         activeColor: AppTheme.success,
                         onChanged: (val) {

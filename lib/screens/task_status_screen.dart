@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
 import '../theme.dart';
@@ -18,7 +19,7 @@ class TaskStatusScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Task Status'),
+        title: Text(context.tr('taskStatus')),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
       ),
@@ -37,10 +38,10 @@ class TaskStatusScreen extends StatelessWidget {
             // Stream is live; pull-to-refresh just gives tactile feedback.
             onRefresh: () async =>
                 Future<void>.delayed(const Duration(milliseconds: 400)),
-            loadingMessage: 'Loading task status…',
-            emptyMessage: 'No tasks created yet.',
+            loadingMessage: context.tr('loadingTaskStatus'),
+            emptyMessage: context.tr('noTasksCreatedYet'),
             emptyIcon: Icons.task_alt_outlined,
-            errorMessage: 'Error: ${snapshot.error}',
+            errorMessage: '${context.tr('errorPrefix')} ${snapshot.error}',
             builder: (context) => ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: tasks.length,

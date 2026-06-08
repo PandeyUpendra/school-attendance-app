@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/staff_task.dart';
 import '../../services/staff_task_service.dart';
 import '../../widgets/refreshable_data.dart';
@@ -15,15 +16,15 @@ class StaffTaskAnalyticsView extends StatelessWidget {
       stream: StaffTaskService().getAllStaffTasks(schoolId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const LoadingState(message: 'Loading task analytics…');
+          return LoadingState(message: context.tr('loadingTaskAnalytics'));
         }
         if (snapshot.hasError && isIndexBuildingError(snapshot.error)) {
           return const IndexBuildingNotice();
         }
         final tasks = snapshot.data ?? [];
         if (tasks.isEmpty) {
-          return const EmptyState(
-            message: 'No task data available',
+          return EmptyState(
+            message: context.tr('noTaskDataAvailable'),
             icon: Icons.analytics_outlined,
           );
         }
@@ -39,18 +40,18 @@ class StaffTaskAnalyticsView extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           children: [
-            _buildSummaryCards(completed, overdue, inProgress, pending, total),
+            _buildSummaryCards(context, completed, overdue, inProgress, pending, total),
             const SizedBox(height: 24),
-            const Text('Completion Progress', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(context.tr('completionProgress'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            _buildCompletionPieChart(completed, overdue, inProgress, pending),
+            _buildCompletionPieChart(context, completed, overdue, inProgress, pending),
           ],
         );
       },
     );
   }
 
-  Widget _buildSummaryCards(int completed, int overdue, int inProgress, int pending, int total) {
+  Widget _buildSummaryCards(BuildContext context, int completed, int overdue, int inProgress, int pending, int total) {
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -59,10 +60,10 @@ class StaffTaskAnalyticsView extends StatelessWidget {
       mainAxisSpacing: 12,
       childAspectRatio: 2.5,
       children: [
-        _summaryCard('Total', '$total', Colors.blue),
-        _summaryCard('Done', '$completed', Colors.green),
-        _summaryCard('Ongoing', '$inProgress', Colors.orange),
-        _summaryCard('Overdue', '$overdue', Colors.red),
+        _summaryCard(context.tr('totalLabel'), '$total', Colors.blue),
+        _summaryCard(context.tr('doneLabel'), '$completed', Colors.green),
+        _summaryCard(context.tr('ongoingLabel'), '$inProgress', Colors.orange),
+        _summaryCard(context.tr('hwOverdue'), '$overdue', Colors.red),
       ],
     );
   }
@@ -81,7 +82,7 @@ class StaffTaskAnalyticsView extends StatelessWidget {
     );
   }
 
-  Widget _buildCompletionPieChart(int completed, int overdue, int inProgress, int pending) {
+  Widget _buildCompletionPieChart(BuildContext context, int completed, int overdue, int inProgress, int pending) {
     return Container(
       height: 150,
       padding: const EdgeInsets.all(8),
@@ -105,10 +106,10 @@ class StaffTaskAnalyticsView extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _legendItem('Done', Colors.green),
-              _legendItem('Overdue', Colors.red),
-              _legendItem('Ongoing', Colors.orange),
-              _legendItem('Pending', Colors.blue),
+              _legendItem(context.tr('doneLabel'), Colors.green),
+              _legendItem(context.tr('hwOverdue'), Colors.red),
+              _legendItem(context.tr('ongoingLabel'), Colors.orange),
+              _legendItem(context.tr('pendingLabel'), Colors.blue),
             ],
           ),
         ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../theme.dart';
 import '../models/todo_item.dart';
 import '../services/todo_service.dart';
@@ -71,8 +72,8 @@ class TodoReminderBanner extends StatelessWidget {
                   children: [
                     Text(
                       items.length == 1
-                          ? '1 task due today'
-                          : '${items.length} tasks due today',
+                          ? '1 ${context.tr('taskDueToday')}'
+                          : '${items.length} ${context.tr('tasksDueToday')}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
@@ -85,7 +86,7 @@ class TodoReminderBanner extends StatelessWidget {
                           ? items.first.title
                           : items.take(2).map((t) => t.title).join(', ') +
                               (items.length > 2
-                                  ? ' +${items.length - 2} more'
+                                  ? ' +${items.length - 2} ${context.tr('moreWord')}'
                                   : ''),
                       style: const TextStyle(
                         color: Colors.white70,
@@ -105,8 +106,8 @@ class TodoReminderBanner extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text('View',
-                    style: TextStyle(
+                child: Text(context.tr('viewLabel'),
+                    style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w600)),

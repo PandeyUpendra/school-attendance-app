@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../l10n/app_strings.dart';
 import '../utils/pdf_theme.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
@@ -284,8 +285,8 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Attendance History',
-                style: TextStyle(
+            Text(context.tr('attendanceHistory'),
+                style: const TextStyle(
                     fontSize: 17, fontWeight: FontWeight.bold)),
             Text(widget.className,
                 style:
@@ -295,7 +296,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf_outlined),
-            tooltip: 'Export PDF',
+            tooltip: context.tr('exportPdf'),
             onPressed:
                 _loading || _workingDays == 0 ? null : _exportPdf,
           ),
@@ -379,11 +380,11 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
               : _students.isEmpty
                   ? _emptyState(
                       Icons.group_outlined,
-                      'No students in ${widget.className}')
+                      '${context.tr('noStudentsIn')} ${widget.className}')
                   : _workingDays == 0
                       ? _emptyState(
                           Icons.event_busy_outlined,
-                          'No attendance recorded\nin ${_monthLabel(_month)}')
+                          '${context.tr('noAttendanceRecordedIn')} ${_monthLabel(_month)}')
                       : RefreshIndicator(
                           onRefresh: _loadAll,
                           color: AppTheme.primary,
@@ -518,8 +519,8 @@ class _StudentCard extends StatelessWidget {
                               color: Colors.red,
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Text('Low',
-                                style: TextStyle(
+                            child: Text(context.tr('lowLabel'),
+                                style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold)),
@@ -891,15 +892,15 @@ class _StudentCalendarScreenState extends State<_StudentCalendarScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const _Legend(color: Colors.green, label: 'Present'),
+                  _Legend(color: Colors.green, label: context.tr('presentLabel')),
                   const SizedBox(width: 18),
-                  const _Legend(color: Colors.red, label: 'Absent'),
-                  const SizedBox(width: 18),
-                  const _Legend(
-                      color: Color(0xFFF57F17), label: 'Leave'),
+                  _Legend(color: Colors.red, label: context.tr('absentLabel')),
                   const SizedBox(width: 18),
                   _Legend(
-                      color: Colors.grey.shade300, label: 'No School'),
+                      color: const Color(0xFFF57F17), label: context.tr('leaveLabel')),
+                  const SizedBox(width: 18),
+                  _Legend(
+                      color: Colors.grey.shade300, label: context.tr('noSchoolLabel')),
                 ],
               ),
             ),
