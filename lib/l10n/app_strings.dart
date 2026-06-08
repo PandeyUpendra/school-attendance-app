@@ -457,6 +457,19 @@ class AppStrings {
     'dutyExam':              {'en': 'Exam Duty',          'hi': 'परीक्षा ड्यूटी'},
     'dutyLibrary':           {'en': 'Library Duty',       'hi': 'पुस्तकालय ड्यूटी'},
 
+    // ── Class / section picker screen ────────────────────────────────────
+    'selectClass':           {'en': 'Select Class',       'hi': 'कक्षा चुनें'},
+    'chooseClassAttendance': {'en': 'Choose a class to take attendance', 'hi': 'उपस्थिति लेने के लिए कक्षा चुनें'},
+    'chooseClassHistory':    {'en': 'Choose a class to view attendance history', 'hi': 'उपस्थिति इतिहास देखने के लिए कक्षा चुनें'},
+    'chooseClassStudents':   {'en': 'Choose a class to view students', 'hi': 'छात्र देखने के लिए कक्षा चुनें'},
+    'noClassesAssignedToYou':{'en': 'No classes assigned to you', 'hi': 'आपको कोई कक्षा नहीं सौंपी गई'},
+    'noClassesConfiguredPlain':{'en': 'No classes configured', 'hi': 'कोई कक्षा सेट नहीं'},
+    'contactCoordinatorAssign':{'en': 'Contact your coordinator to get classes assigned', 'hi': 'कक्षाएँ सौंपने के लिए अपने समन्वयक से संपर्क करें'},
+    'askCoordinatorAddClasses':{'en': 'Ask the coordinator to add classes', 'hi': 'समन्वयक से कक्षाएँ जोड़ने को कहें'},
+    'sectionSingular':       {'en': 'section',            'hi': 'सेक्शन'},
+    'sectionPlural':         {'en': 'sections',           'hi': 'सेक्शन'},
+    'chooseSectionReport':   {'en': 'Choose a section to view its attendance report', 'hi': 'उपस्थिति रिपोर्ट देखने के लिए सेक्शन चुनें'},
+
     // ── Leave requests screen ────────────────────────────────────────────
     'teacherLeaveApplications':{'en': 'Teacher leave applications', 'hi': 'शिक्षक अवकाश आवेदन'},
     'resolvedTab':           {'en': 'Resolved',           'hi': 'निपटाए गए'},

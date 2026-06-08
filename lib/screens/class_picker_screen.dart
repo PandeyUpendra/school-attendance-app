@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../models/teacher.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
@@ -103,16 +104,16 @@ class _ClassPickerScreenState extends State<ClassPickerScreen> {
     }
   }
 
-  String get _title => 'Select Class';
+  String get _title => context.tr('selectClass');
 
   String get _subtitle {
     switch (widget.mode) {
       case ClassPickerMode.attendance:
-        return 'Choose a class to take attendance';
+        return context.tr('chooseClassAttendance');
       case ClassPickerMode.reports:
-        return 'Choose a class to view attendance history';
+        return context.tr('chooseClassHistory');
       default:
-        return 'Choose a class to view students';
+        return context.tr('chooseClassStudents');
     }
   }
 
@@ -148,16 +149,16 @@ class _ClassPickerScreenState extends State<ClassPickerScreen> {
                       const SizedBox(height: 16),
                       Text(
                         _noneAssigned
-                            ? 'No classes assigned to you'
-                            : 'No classes configured',
+                            ? context.tr('noClassesAssignedToYou')
+                            : context.tr('noClassesConfiguredPlain'),
                         style: TextStyle(
                             fontSize: 16, color: Colors.grey.shade400),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         _noneAssigned
-                            ? 'Contact your coordinator to get classes assigned'
-                            : 'Ask the coordinator to add classes',
+                            ? context.tr('contactCoordinatorAssign')
+                            : context.tr('askCoordinatorAddClasses'),
                         style: TextStyle(
                             fontSize: 13, color: Colors.grey.shade400),
                       ),
@@ -211,7 +212,7 @@ class _ClassPickerScreenState extends State<ClassPickerScreen> {
                                               fontWeight: FontWeight.w600)),
                                       if (sections.isNotEmpty)
                                         Text(
-                                          '${sections.length} section${sections.length == 1 ? '' : 's'}  ·  ${sections.map((s) => 'Sec $s').join(', ')}',
+                                          '${sections.length} ${sections.length == 1 ? context.tr('sectionSingular') : context.tr('sectionPlural')}  ·  ${sections.map((s) => '${context.tr('secPrefix')} $s').join(', ')}',
                                           style: TextStyle(
                                               fontSize: 12,
                                               color: Colors.grey.shade500),
@@ -256,8 +257,8 @@ class _SectionPickerStep extends StatelessWidget {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Select Section',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('selectSection'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
             Text(className,
                 style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
@@ -268,9 +269,9 @@ class _SectionPickerStep extends StatelessWidget {
           color: color,
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-          child: const Text(
-            'Choose a section to view its attendance report',
-            style: TextStyle(color: Colors.white70, fontSize: 13),
+          child: Text(
+            context.tr('chooseSectionReport'),
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
         ),
         Expanded(
@@ -303,7 +304,7 @@ class _SectionPickerStep extends StatelessWidget {
                     const SizedBox(width: 14),
                     Expanded(
                       child: Text(
-                        'Section $section',
+                        '${context.tr('sectionWord')} $section',
                         style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w600),
                       ),
