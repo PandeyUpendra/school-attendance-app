@@ -484,7 +484,7 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                         validator: Validators.email),
                     const SizedBox(height: 14),
                     _Field(controller: _phoneCtrl, label: context.tr('phoneNumberOptional'), icon: Icons.phone_outlined,
-                        keyboardType: TextInputType.phone),
+                        keyboardType: TextInputType.phone, validator: Validators.optionalPhone),
                     const SizedBox(height: 14),
                     _Field(controller: _desigCtrl, label: context.tr('designationOptional'), icon: Icons.badge_outlined,
                         hint: context.tr('designationHint')),

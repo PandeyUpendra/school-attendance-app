@@ -522,6 +522,12 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               keyboard: TextInputType.phone,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               maxLength: 10,
+              validator: (v) {
+                final s = (v ?? '').trim();
+                if (s.isEmpty) return null; // optional
+                if (s.length != 10) return context.tr('mustBe10Digits');
+                return null;
+              },
             ),
             const SizedBox(height: 14),
             _Field(

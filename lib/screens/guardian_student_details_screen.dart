@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,6 +12,7 @@ import '../models/guardian_provided_details.dart';
 import '../models/school_provided_details.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
+import '../utils/validators.dart';
 
 /// Localised label for a gender value (stored value stays English).
 String _localizedGender(BuildContext c, String g) => switch (g) {
@@ -462,8 +464,16 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
               _buildSectionTitle(context.tr('parentDetailsSection')),
               _buildTextField(_fatherNameController, context.tr('fatherNameLabel'), Icons.man),
               _buildTextField(_motherNameController, context.tr('motherNameLabel'), Icons.woman),
-              _buildTextField(_phoneController, context.tr('primaryContactNumber'), Icons.phone, keyboardType: TextInputType.phone),
-              _buildTextField(_parentPhoneController, context.tr('secondaryContactNumber'), Icons.phone_android, keyboardType: TextInputType.phone),
+              _buildTextField(_phoneController, context.tr('primaryContactNumber'), Icons.phone,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLength: 10,
+                  validator: Validators.optionalPhone),
+              _buildTextField(_parentPhoneController, context.tr('secondaryContactNumber'), Icons.phone_android,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLength: 10,
+                  validator: Validators.optionalPhone),
               _buildTextField(_addressController, context.tr('homeAddress'), Icons.home, maxLines: 2),
 
               const SizedBox(height: 24),
@@ -532,6 +542,9 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
     IconData icon, {
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
+    String? Function(String?)? validator,
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -542,9 +555,13 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
           prefixIcon: Icon(icon, color: AppTheme.primary, size: 20),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          counterText: '',
         ),
         keyboardType: keyboardType,
         maxLines: maxLines,
+        validator: validator,
+        inputFormatters: inputFormatters,
+        maxLength: maxLength,
       ),
     );
   }
