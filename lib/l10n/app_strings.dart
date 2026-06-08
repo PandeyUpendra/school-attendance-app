@@ -360,6 +360,15 @@ class AppStrings {
     'noTasksAssigned':       {'en': 'No tasks assigned',  'hi': 'कोई कार्य नहीं सौंपा गया'},
     'allCaughtUp':           {'en': 'You are all caught up!', 'hi': 'आपका सब कुछ पूरा है!'},
 
+    // ── To-do list screen ────────────────────────────────────────────────
+    'addTask':               {'en': 'Add Task',           'hi': 'कार्य जोड़ें'},
+    'addTodoTask':           {'en': 'Add To-Do Task',     'hi': 'टू-डू कार्य जोड़ें'},
+    'dailyReminder':         {'en': 'Daily reminder',     'hi': 'दैनिक अनुस्मारक'},
+    'dueDate':               {'en': 'Due date',           'hi': 'नियत तिथि'},
+    'overdue':               {'en': 'OVERDUE',            'hi': 'अतिदेय'},
+    'selectTask':            {'en': 'Select task',        'hi': 'कार्य चुनें'},
+    'customTaskTitle':       {'en': 'Custom task title',  'hi': 'कस्टम कार्य शीर्षक'},
+
     // ── Coordinator / Principal dashboards: tile subtitles ───────────────
     'subStaffTasksDesc':         {'en': 'Assign tasks to teachers and track progress', 'hi': 'शिक्षकों को कार्य सौंपें और प्रगति ट्रैक करें'},
     'subMeetingRecordsDesc':     {'en': 'Manage meetings, agenda points and teacher task assignments', 'hi': 'बैठकें, एजेंडा और शिक्षक कार्य प्रबंधित करें'},

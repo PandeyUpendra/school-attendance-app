@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import '../models/todo_item.dart';
 import '../services/todo_service.dart';
 import '../widgets/index_building_notice.dart';
@@ -40,7 +41,7 @@ class _TodoListScreenState extends State<TodoListScreen>
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('My To-Do List'),
+        title: Text(context.tr('myTodoList')),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -91,7 +92,7 @@ class _TodoListScreenState extends State<TodoListScreen>
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Add Task'),
+        label: Text(context.tr('addTask')),
       ),
     );
   }
@@ -228,16 +229,16 @@ class _TodoTile extends StatelessWidget {
         return await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('Delete Task'),
+            title: Text(context.tr('deleteTaskTitle')),
             content: Text('Delete "${item.title}"?'),
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancel')),
+                  child: Text(context.tr('cancel'))),
               TextButton(
                   onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Delete',
-                      style: TextStyle(color: AppTheme.danger))),
+                  child: Text(context.tr('delete'),
+                      style: const TextStyle(color: AppTheme.danger))),
             ],
           ),
         );
@@ -347,8 +348,8 @@ class _TodoTile extends StatelessWidget {
                               color: AppTheme.danger.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Text('OVERDUE',
-                                style: TextStyle(
+                            child: Text(context.tr('overdue'),
+                                style: const TextStyle(
                                     fontSize: 9,
                                     color: AppTheme.danger,
                                     fontWeight: FontWeight.bold)),
@@ -545,9 +546,9 @@ class _AddTodoSheetState extends State<_AddTodoSheet> {
                     color: AppTheme.primary, size: 20),
               ),
               const SizedBox(width: 10),
-              const Expanded(
-                  child: Text('Add To-Do Task',
-                      style: TextStyle(
+              Expanded(
+                  child: Text(context.tr('addTodoTask'),
+                      style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.bold))),
               IconButton(
                 icon: const Icon(Icons.close),
@@ -557,9 +558,9 @@ class _AddTodoSheetState extends State<_AddTodoSheet> {
             const SizedBox(height: 16),
 
             // Template dropdown
-            const Text('Select task',
+            Text(context.tr('selectTask'),
                 style:
-                    TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Container(
               decoration: BoxDecoration(
@@ -622,7 +623,7 @@ class _AddTodoSheetState extends State<_AddTodoSheet> {
                 maxLength: 120,
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
-                  labelText: 'Custom task title',
+                  labelText: context.tr('customTaskTitle'),
                   hintText: 'e.g. Update school calendar',
                   prefixIcon: const Icon(Icons.edit_outlined),
                   border: OutlineInputBorder(
@@ -640,9 +641,9 @@ class _AddTodoSheetState extends State<_AddTodoSheet> {
               const Icon(Icons.calendar_today_outlined,
                   size: 18, color: AppTheme.primary),
               const SizedBox(width: 8),
-              const Text('Due date',
+              Text(context.tr('dueDate'),
                   style:
-                      TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const Spacer(),
               GestureDetector(
                 onTap: _pickDate,
@@ -699,8 +700,8 @@ class _AddTodoSheetState extends State<_AddTodoSheet> {
               ),
               const SizedBox(width: 8),
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Daily reminder',
-                    style: TextStyle(
+                Text(context.tr('dailyReminder'),
+                    style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600)),
                 Text(
                   _reminderEnabled
@@ -856,9 +857,9 @@ class _EditTodoSheetState extends State<_EditTodoSheet> {
             const Icon(Icons.calendar_today_outlined,
                 size: 18, color: AppTheme.primary),
             const SizedBox(width: 8),
-            const Text('Due date',
+            Text(context.tr('dueDate'),
                 style:
-                    TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
             const Spacer(),
             GestureDetector(
               onTap: _pickDate,
@@ -911,8 +912,8 @@ class _EditTodoSheetState extends State<_EditTodoSheet> {
             ),
             const SizedBox(width: 8),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Daily reminder',
-                  style: TextStyle(
+              Text(context.tr('dailyReminder'),
+                  style: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w600)),
               Text(
                 _reminder
@@ -939,16 +940,16 @@ class _EditTodoSheetState extends State<_EditTodoSheet> {
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (ctx) => AlertDialog(
-                      title: const Text('Delete Task'),
+                      title: Text(context.tr('deleteTaskTitle')),
                       content: Text('Delete "${widget.item.title}"?'),
                       actions: [
                         TextButton(
                             onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Cancel')),
+                            child: Text(context.tr('cancel'))),
                         TextButton(
                             onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Delete',
-                                style: TextStyle(color: AppTheme.danger))),
+                            child: Text(context.tr('delete'),
+                                style: const TextStyle(color: AppTheme.danger))),
                       ],
                     ),
                   );
@@ -960,8 +961,8 @@ class _EditTodoSheetState extends State<_EditTodoSheet> {
                   }
                 },
                 icon: const Icon(Icons.delete_outline, color: AppTheme.danger),
-                label: const Text('Delete',
-                    style: TextStyle(color: AppTheme.danger)),
+                label: Text(context.tr('delete'),
+                    style: const TextStyle(color: AppTheme.danger)),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppTheme.danger),
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -975,7 +976,7 @@ class _EditTodoSheetState extends State<_EditTodoSheet> {
               child: ElevatedButton.icon(
                 onPressed: _save,
                 icon: const Icon(Icons.check),
-                label: const Text('Save'),
+                label: Text(context.tr('save')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
