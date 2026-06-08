@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme.dart';
+import '../l10n/app_strings.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -131,8 +132,8 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
               style: const TextStyle(
                   fontSize: 17, fontWeight: FontWeight.bold),
             ),
-            const Text('Tap a student to record payment',
-                style: TextStyle(fontSize: 12, color: Colors.white70)),
+            Text(context.tr('tapStudentRecordPayment'),
+                style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
       ),
@@ -140,7 +141,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
           ? const LoadingState()
           : _classes.isEmpty
               ? Center(
-                  child: Text('No classes configured.',
+                  child: Text(context.tr('noClassesConfiguredShort'),
                       style: TextStyle(color: Colors.grey.shade500)))
               : Column(
                   children: [
@@ -212,7 +213,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                     Expanded(
                       child: _students.isEmpty
                           ? Center(
-                              child: Text('No students in this class.',
+                              child: Text(context.tr('noStudentsInClass'),
                                   style: TextStyle(
                                       color: Colors.grey.shade500)),
                             )
@@ -331,19 +332,19 @@ class _InstallmentLegend extends StatelessWidget {
         children: [
           _Dot(Colors.green.shade600),
           const SizedBox(width: 3),
-          Text('Paid',
+          Text(context.tr('paidLabel'),
               style:
                   TextStyle(fontSize: 10, color: Colors.grey.shade500)),
           const SizedBox(width: 8),
           const _Dot(Color(0xFFF57F17)),
           const SizedBox(width: 3),
-          Text('Partial',
+          Text(context.tr('partialLabel'),
               style:
                   TextStyle(fontSize: 10, color: Colors.grey.shade500)),
           const SizedBox(width: 8),
           _Dot(Colors.red.shade400),
           const SizedBox(width: 3),
-          Text('Due',
+          Text(context.tr('dueLabel'),
               style:
                   TextStyle(fontSize: 10, color: Colors.grey.shade500)),
         ],
@@ -624,15 +625,15 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                     DropdownButtonFormField<String>(
                       value: selectedInstalment,
                       decoration: InputDecoration(
-                        labelText: 'Instalment (optional)',
+                        labelText: context.tr('instalmentOptional'),
                         prefixIcon: const Icon(Icons.event_note_outlined),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10)),
                       ),
                       items: [
-                        const DropdownMenuItem(
+                        DropdownMenuItem(
                             value: null,
-                            child: Text('No specific instalment')),
+                            child: Text(context.tr('noSpecificInstalment'))),
                         ...widget.structure.installments.map((inst) {
                           final pd =
                               _installmentPaid[inst.name] ?? 0;
@@ -672,8 +673,8 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                   ],
 
                   // Payment mode
-                  const Text('Payment Mode',
-                      style: TextStyle(
+                  Text(context.tr('paymentMode'),
+                      style: const TextStyle(
                           fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
                   Wrap(
@@ -698,7 +699,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                     maxLength: 200,
                     maxLengthEnforcement: MaxLengthEnforcement.enforced,
                     decoration: InputDecoration(
-                      labelText: 'Note (optional)',
+                      labelText: context.tr('noteOptional'),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),
                       counterText: '',
@@ -710,7 +711,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                   Row(children: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel'),
+                      child: Text(context.tr('cancel')),
                     ),
                     const Spacer(),
                     ElevatedButton.icon(
@@ -762,7 +763,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                               }
                             },
                       icon: const Icon(Icons.check, size: 18),
-                      label: const Text('Save Payment'),
+                      label: Text(context.tr('savePayment')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
                         foregroundColor: Colors.white,
@@ -898,7 +899,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Record Payment'),
+        label: Text(context.tr('recordPayment')),
       ),
       body: _loading
           ? const LoadingState()
@@ -951,8 +952,8 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
 
                 // ── Instalments section ──────────────────────────────
                 if (widget.structure.installments.isNotEmpty) ...[
-                  const Text('INSTALMENTS',
-                      style: TextStyle(
+                  Text(context.tr('secInstalmentsShort'),
+                      style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: Colors.grey,
@@ -984,8 +985,8 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                 ],
 
                 // ── Payment history ──────────────────────────────────
-                const Text('PAYMENT HISTORY',
-                    style: TextStyle(
+                Text(context.tr('secPaymentHistory'),
+                    style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey,
@@ -1005,7 +1006,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                           Icon(Icons.receipt_long_outlined,
                               size: 40, color: Colors.grey.shade300),
                           const SizedBox(height: 10),
-                          Text('No payments recorded yet.',
+                          Text(context.tr('noPaymentsYet'),
                               style: TextStyle(
                                   color: Colors.grey.shade500)),
                         ],
@@ -1200,7 +1201,7 @@ class _PaymentTile extends StatelessWidget {
       trailing: IconButton(
         icon: const Icon(Icons.print_outlined,
             color: AppTheme.primary, size: 20),
-        tooltip: 'Print Receipt',
+        tooltip: context.tr('printReceipt'),
         onPressed: onPrint,
       ),
     );

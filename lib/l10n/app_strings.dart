@@ -284,6 +284,24 @@ class AppStrings {
     'fullyPaidLabel':        {'en': 'Fully Paid',        'hi': 'पूर्ण भुगतान'},
     'noFeeStructures':       {'en': 'No fee structures configured', 'hi': 'कोई शुल्क संरचना सेट नहीं'},
 
+    // ── Fee collection screen ────────────────────────────────────────────
+    'tapStudentRecordPayment':{'en': 'Tap a student to record payment', 'hi': 'भुगतान दर्ज करने के लिए छात्र पर टैप करें'},
+    'noClassesConfiguredShort':{'en': 'No classes configured.', 'hi': 'कोई कक्षा सेट नहीं है।'},
+    'noStudentsInClass':     {'en': 'No students in this class.', 'hi': 'इस कक्षा में कोई छात्र नहीं।'},
+    'paidLabel':             {'en': 'Paid',               'hi': 'भुगतान'},
+    'partialLabel':          {'en': 'Partial',            'hi': 'आंशिक'},
+    'dueLabel':              {'en': 'Due',                'hi': 'बकाया'},
+    'recordPayment':         {'en': 'Record Payment',     'hi': 'भुगतान दर्ज करें'},
+    'instalmentOptional':    {'en': 'Instalment (optional)', 'hi': 'किस्त (वैकल्पिक)'},
+    'noSpecificInstalment':  {'en': 'No specific instalment', 'hi': 'कोई विशेष किस्त नहीं'},
+    'paymentMode':           {'en': 'Payment Mode',       'hi': 'भुगतान का तरीका'},
+    'noteOptional':          {'en': 'Note (optional)',    'hi': 'टिप्पणी (वैकल्पिक)'},
+    'savePayment':           {'en': 'Save Payment',       'hi': 'भुगतान सहेजें'},
+    'secInstalmentsShort':   {'en': 'INSTALMENTS',        'hi': 'किस्तें'},
+    'secPaymentHistory':     {'en': 'PAYMENT HISTORY',    'hi': 'भुगतान इतिहास'},
+    'noPaymentsYet':         {'en': 'No payments recorded yet.', 'hi': 'अभी कोई भुगतान दर्ज नहीं।'},
+    'printReceipt':          {'en': 'Print Receipt',      'hi': 'रसीद प्रिंट करें'},
+
     // ── Coordinator / Principal dashboards: tile subtitles ───────────────
     'subStaffTasksDesc':         {'en': 'Assign tasks to teachers and track progress', 'hi': 'शिक्षकों को कार्य सौंपें और प्रगति ट्रैक करें'},
     'subMeetingRecordsDesc':     {'en': 'Manage meetings, agenda points and teacher task assignments', 'hi': 'बैठकें, एजेंडा और शिक्षक कार्य प्रबंधित करें'},
