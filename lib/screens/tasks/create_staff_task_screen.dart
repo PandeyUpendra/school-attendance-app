@@ -1,10 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/staff_task.dart';
 import '../../models/teacher.dart';
 import '../../services/staff_task_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
+
+/// Localised label for a task priority (display only; stored value uses
+/// `priority.name`, so it is unaffected).
+String taskPriorityLabel(BuildContext context, TaskPriority p) => switch (p) {
+      TaskPriority.high => context.tr('priorityHigh'),
+      TaskPriority.medium => context.tr('priorityMedium'),
+      TaskPriority.low => context.tr('priorityLow'),
+    };
 
 class CreateStaffTaskScreen extends StatefulWidget {
   final String schoolId;
@@ -103,8 +112,8 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEdit
-            ? 'Edit Task'
-            : (widget.isPersonal ? 'New Personal Task' : 'Create Task')),
+            ? context.tr('editTask')
+            : (widget.isPersonal ? context.tr('newPersonalTask') : context.tr('createTaskTitle'))),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
       ),
@@ -119,20 +128,20 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
                   children: [
                     TextFormField(
                       controller: _titleCtrl,
-                      decoration: const InputDecoration(labelText: 'Task Title*', border: OutlineInputBorder()),
-                      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                      decoration: InputDecoration(labelText: context.tr('taskTitleStar'), border: const OutlineInputBorder()),
+                      validator: (v) => (v == null || v.isEmpty) ? context.tr('validationRequired') : null,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _descCtrl,
-                      decoration: const InputDecoration(labelText: 'Description*', border: OutlineInputBorder()),
+                      decoration: InputDecoration(labelText: context.tr('descriptionStar'), border: const OutlineInputBorder()),
                       maxLines: 3,
-                      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                      validator: (v) => (v == null || v.isEmpty) ? context.tr('validationRequired') : null,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _notesCtrl,
-                      decoration: const InputDecoration(labelText: 'Notes (Optional)', border: OutlineInputBorder()),
+                      decoration: InputDecoration(labelText: context.tr('notesOptional'), border: const OutlineInputBorder()),
                     ),
                     const SizedBox(height: 20),
                     Row(
@@ -140,8 +149,8 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
                         Expanded(
                           child: DropdownButtonFormField<TaskPriority>(
                             value: _priority,
-                            decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
-                            items: TaskPriority.values.map((p) => DropdownMenuItem(value: p, child: Text(p.name.toUpperCase()))).toList(),
+                            decoration: InputDecoration(labelText: context.tr('priorityLabel'), border: const OutlineInputBorder()),
+                            items: TaskPriority.values.map((p) => DropdownMenuItem(value: p, child: Text(taskPriorityLabel(context, p)))).toList(),
                             onChanged: (v) => setState(() => _priority = v!),
                           ),
                         ),
@@ -150,7 +159,7 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
                           child: InkWell(
                             onTap: _pickDate,
                             child: InputDecorator(
-                              decoration: const InputDecoration(labelText: 'Due Date', border: OutlineInputBorder()),
+                              decoration: InputDecoration(labelText: context.tr('dueDateLabel'), border: const OutlineInputBorder()),
                               child: Text('${_dueDate.day}/${_dueDate.month}/${_dueDate.year}'),
                             ),
                           ),
@@ -159,16 +168,16 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
                     ),
                     if (!widget.isPersonal) ...[
                       const SizedBox(height: 24),
-                      const Text('Assign To*', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(context.tr('assignToStar'), style: const TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       _buildAssigneeSelector(),
                       const SizedBox(height: 24),
-                      const Text('Target Classes (Optional)', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(context.tr('targetClassesOptional'), style: const TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       _buildClassSelector(),
                     ],
                     const SizedBox(height: 24),
-                    const Text('Checkpoints / Sub-tasks', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(context.tr('checkpointsSubtasks'), style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     _buildCheckpointSection(),
                     const SizedBox(height: 40),
@@ -178,7 +187,7 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
                       child: ElevatedButton(
                         onPressed: _submit,
                         style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary, foregroundColor: Colors.white),
-                        child: Text(_isEdit ? 'SAVE CHANGES' : 'CREATE TASK', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: Text(_isEdit ? context.tr('saveChangesUpper') : context.tr('createTaskUpper'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
@@ -192,12 +201,12 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Roles (Assign to all in role):', style: TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(context.tr('rolesAssignAll'), style: const TextStyle(fontSize: 12, color: Colors.grey)),
         Wrap(
           spacing: 8,
           children: [
             FilterChip(
-              label: const Text('All Teachers'),
+              label: Text(context.tr('allTeachers')),
               selected: _selectedTargetRoles.contains('teacher'),
               onSelected: (val) {
                 setState(() {
@@ -210,7 +219,7 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
               },
             ),
             FilterChip(
-              label: const Text('All Coordinators'),
+              label: Text(context.tr('allCoordinators')),
               selected: _selectedTargetRoles.contains('coordinator'),
               onSelected: (val) {
                 setState(() {
@@ -225,7 +234,7 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        const Text('Specific Staff:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(context.tr('specificStaff'), style: const TextStyle(fontSize: 12, color: Colors.grey)),
         Wrap(
           spacing: 8,
           children: [
@@ -234,7 +243,7 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
               final name = c['name'] as String? ?? email;
               final isSelected = _selectedUserIds.contains(email);
               return FilterChip(
-                label: Text('$name (Coord)'),
+                label: Text('$name ${context.tr('coordSuffix')}'),
                 selected: isSelected,
                 onSelected: (val) {
                   setState(() {
@@ -316,7 +325,7 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
             Expanded(
               child: TextField(
                 controller: _checkpointCtrl,
-                decoration: const InputDecoration(hintText: 'Add a checkpoint', border: UnderlineInputBorder()),
+                decoration: InputDecoration(hintText: context.tr('addCheckpoint'), border: const UnderlineInputBorder()),
               ),
             ),
             IconButton(
@@ -364,7 +373,7 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedUserIds.isEmpty && _selectedTargetRoles.isEmpty && !widget.isPersonal) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please assign to at least one person or role')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('assignToAtLeastOne'))));
       return;
     }
 
@@ -390,7 +399,7 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
       );
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task updated')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('taskUpdated'))));
       }
       return;
     }
@@ -420,7 +429,7 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
     await StaffTaskService().createTaskWithAutoId(task);
     if (mounted) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task created successfully')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('taskCreatedSuccess'))));
     }
   }
 }

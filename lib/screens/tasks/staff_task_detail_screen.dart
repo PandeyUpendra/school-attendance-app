@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/staff_task.dart';
 import '../../services/staff_task_service.dart';
 import '../../services/auth_service.dart';
@@ -58,7 +59,7 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
               body: IndexBuildingNotice(onRetry: () => setState(() {})));
         }
         if (!snapshot.hasData || !snapshot.data!.exists) {
-          return const Scaffold(body: Center(child: Text('Task not found')));
+          return Scaffold(body: Center(child: Text(context.tr('taskNotFound'))));
         }
 
         final task = StaffTask.fromJson(snapshot.data!.data() as Map<String, dynamic>, snapshot.data!.id);
@@ -67,14 +68,14 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Task Details'),
+            title: Text(context.tr('taskDetails')),
             backgroundColor: isOverdue ? Colors.red : AppTheme.primary,
             foregroundColor: Colors.white,
             actions: [
               if (isCreator)
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
-                  tooltip: 'Edit task',
+                  tooltip: context.tr('editTaskTooltip'),
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -93,7 +94,7 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
               if (isCreator)
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
-                  tooltip: 'Delete task',
+                  tooltip: context.tr('deleteTaskTooltip'),
                   onPressed: () => _confirmDelete(context, task),
                 ),
             ],
@@ -110,11 +111,11 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
                     padding: const EdgeInsets.all(12),
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.red)),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.warning_amber_rounded, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('OVERDUE TASK', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                        const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                        const SizedBox(width: 8),
+                        Text(context.tr('overdueTask'), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
@@ -127,31 +128,31 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text('Created by: ${task.creatorName} (${task.creatorRole})', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                Text('${context.tr('createdByPrefix')} ${task.creatorName} (${task.creatorRole})', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                 const SizedBox(height: 16),
-                const Text('Description', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(context.tr('descriptionLabel'), style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 Text(task.description),
                 if (task.notes?.isNotEmpty == true) ...[
                   const SizedBox(height: 16),
-                  const Text('Notes', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(context.tr('notesLabel2'), style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text(task.notes!, style: const TextStyle(fontStyle: FontStyle.italic)),
                 ],
                 const SizedBox(height: 24),
                 _buildInfoSection(task),
                 const SizedBox(height: 24),
-                const Text('Status', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(context.tr('statusLabelTitle'), style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 _buildStatusPicker(task),
                 const SizedBox(height: 24),
                 if (task.checkpoints.isNotEmpty) ...[
-                  const Text('Checkpoints', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(context.tr('checkpointsLabel'), style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   _buildCheckpoints(task),
                   const SizedBox(height: 24),
                 ],
-                const Text('Progress Updates', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(context.tr('progressUpdates'), style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 _buildUpdatesList(task),
                 const SizedBox(height: 12),
@@ -171,12 +172,12 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
       decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
-          _infoRow(Icons.calendar_today, 'Due Date', task.dueDate != null ? '${task.dueDate!.day}/${task.dueDate!.month}/${task.dueDate!.year}' : 'No due date'),
+          _infoRow(Icons.calendar_today, context.tr('dueDateLabel'), task.dueDate != null ? '${task.dueDate!.day}/${task.dueDate!.month}/${task.dueDate!.year}' : context.tr('noDueDateLabel')),
           const Divider(),
-          _infoRow(Icons.people, 'Assigned To', task.assignedToNames.join(", ")),
+          _infoRow(Icons.people, context.tr('assignedToLabel'), task.assignedToNames.join(", ")),
           if (task.targetClasses.isNotEmpty) ...[
             const Divider(),
-            _infoRow(Icons.class_outlined, 'Classes', task.targetClasses.join(", ")),
+            _infoRow(Icons.class_outlined, context.tr('classesLabel'), task.targetClasses.join(", ")),
           ],
         ],
       ),
@@ -210,9 +211,9 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _statusButton(task, TaskStatus.pending, 'Pending', Colors.blue),
-        _statusButton(task, TaskStatus.inProgress, 'In Progress', Colors.orange),
-        _statusButton(task, TaskStatus.completed, 'Completed', Colors.green),
+        _statusButton(task, TaskStatus.pending, context.tr('statusPending'), Colors.blue),
+        _statusButton(task, TaskStatus.inProgress, context.tr('inProgressLabel'), Colors.orange),
+        _statusButton(task, TaskStatus.completed, context.tr('completedLabel'), Colors.green),
       ],
     );
   }
@@ -252,7 +253,7 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
 
   Widget _buildUpdatesList(StaffTask task) {
     if (task.progressUpdates.isEmpty) {
-      return Text('No updates yet', style: TextStyle(color: Colors.grey.shade500, fontStyle: FontStyle.italic, fontSize: 13));
+      return Text(context.tr('noUpdatesYet'), style: TextStyle(color: Colors.grey.shade500, fontStyle: FontStyle.italic, fontSize: 13));
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -278,7 +279,7 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
         Expanded(
           child: TextField(
             controller: _updateCtrl,
-            decoration: const InputDecoration(hintText: 'Add progress note...', border: UnderlineInputBorder()),
+            decoration: InputDecoration(hintText: context.tr('addProgressNote'), border: const UnderlineInputBorder()),
             style: const TextStyle(fontSize: 13),
           ),
         ),
@@ -318,10 +319,10 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Task'),
-        content: const Text('Are you sure you want to delete this task? (It will be soft-deleted)'),
+        title: Text(ctx.tr('deleteTaskTitle')),
+        content: Text(ctx.tr('deleteTaskSoftQ')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(ctx.tr('cancel').toUpperCase())),
           TextButton(
             onPressed: () {
               StaffTaskService().deleteTask(task, _userEmail, _userName, _userRole);
@@ -329,7 +330,7 @@ class _StaffTaskDetailScreenState extends State<StaffTaskDetailScreen> {
               Navigator.pop(context); // Screen
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('DELETE'),
+            child: Text(ctx.tr('delete').toUpperCase()),
           ),
         ],
       ),
@@ -359,7 +360,7 @@ class _PriorityBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
-      child: Text(priority.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+      child: Text(taskPriorityLabel(context, priority), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
 }
