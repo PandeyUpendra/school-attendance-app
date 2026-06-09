@@ -532,8 +532,10 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
     });
   }
 
+  double get _annualFee => widget.student.feeAmount ?? widget.structure.totalAnnualFee;
+
   double get _due =>
-      (widget.structure.totalAnnualFee - _totalPaid).clamp(0.0, double.infinity);
+      (_annualFee - _totalPaid).clamp(0.0, double.infinity);
 
   // ── Record payment bottom sheet ──────────────────────────────────────────
 
@@ -620,7 +622,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                       // outstanding due — previously any amount was accepted,
                       // corrupting collected totals (#47). (₹1 tolerance for
                       // rounding.)
-                      if (widget.structure.totalAnnualFee > 0 && n > _due + 1) {
+                      if (_annualFee > 0 && n > _due + 1) {
                         return 'Cannot exceed outstanding due of ₹${_due.toStringAsFixed(0)}';
                       }
                       return null;
@@ -752,6 +754,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                                   roll:        widget.student.roll,
                                   payment:     payment,
                                   clientTxnId: clientTxnId,
+                                  studentId:   widget.student.id,
                                 );
                                 if (ctx.mounted) {
                                   Navigator.pop(ctx, true);
@@ -805,11 +808,28 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Center(
-            child: pw.Text('FEE RECEIPT',
+            child: pw.Text(p.reversed ? 'VOID / REVERSED RECEIPT' : 'FEE RECEIPT',
                 style: pw.TextStyle(
-                    fontSize: 20, fontWeight: pw.FontWeight.bold,
-                    color: PdfTheme.primaryDark)),
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                    color: p.reversed ? PdfColors.red : PdfTheme.primaryDark)),
           ),
+          if (p.reversed) ...[
+            pw.SizedBox(height: 6),
+            pw.Center(
+              child: pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.red, width: 2),
+                ),
+                child: pw.Text('VOID',
+                    style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.red)),
+              ),
+            ),
+          ],
           pw.SizedBox(height: 6),
           pw.Center(
             child: pw.Text('Receipt No: ${p.receiptNo}',
@@ -882,7 +902,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final s     = widget.student;
-    final total = widget.structure.totalAnnualFee;
+    final total = s.feeAmount ?? widget.structure.totalAnnualFee;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -1087,7 +1107,8 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                             _PaymentTile(
                               payment: _reversedPayments[i],
                               reversed: true,
-                              onPrint: () {},
+                              onPrint: () =>
+                                  _printReceipt(_reversedPayments[i]),
                             ),
                           ],
                         ],

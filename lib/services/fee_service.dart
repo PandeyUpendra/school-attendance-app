@@ -121,6 +121,7 @@ class FeeService extends BaseFirestoreService {
     required Payment payment,
     String? clientTxnId,
     bool enforceCap = true,
+    String? studentId,
   }) async {
     // Sanitize and validate payment mode input (#663)
     const allowedModes = {'Cash', 'UPI', 'Bank', 'Cheque'};
@@ -157,15 +158,31 @@ class FeeService extends BaseFirestoreService {
         return (data['receiptNo'] as String?) ?? payment.receiptNo;
       }
 
+      var capPaise = 0;
+
+      // Read student custom feeAmount if studentId is provided (#24)
+      if (studentId != null && studentId.isNotEmpty) {
+        final studentSnap = await tx.get(
+            db.collection('schools').doc(_sid).collection('students').doc(studentId));
+        if (studentSnap.exists && studentSnap.data() != null) {
+          final data = studentSnap.data() as Map?;
+          final customFee = (data?['feeAmount'] as num?)?.toDouble();
+          if (customFee != null) {
+            capPaise = rupeesToPaise(customFee);
+          }
+        }
+      }
+
       // Read Fee Structure to get cap and check installments (#655)
       final structureSnap = await tx.get(structureDocRef);
-      var capPaise = 0;
       final validInstallmentNames = <String>{};
       if (structureSnap.exists && structureSnap.data() != null) {
         final struct = FeeStructure.fromJson(
             Map<String, dynamic>.from(structureSnap.data()!));
-        capPaise = struct.totalAnnualFeePaise;
         validInstallmentNames.addAll(struct.installments.map((i) => i.name));
+        if (capPaise == 0) {
+          capPaise = struct.totalAnnualFeePaise;
+        }
       }
 
       // Validate installment name if provided (#655)
