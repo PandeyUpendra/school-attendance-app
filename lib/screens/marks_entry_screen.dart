@@ -71,7 +71,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       for (final sub in exam.subjects) {
         final saved = savedMap[s.roll]?.marks[sub];
         subjectCtrls[sub] = TextEditingController(
-          text: saved != null ? saved.toStringAsFixed(0) : '',
+          text: saved == -1.0 ? 'AB' : (saved != null ? saved.toStringAsFixed(0) : ''),
         );
       }
       ctrlMap[s.roll] = subjectCtrls;
@@ -90,8 +90,8 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     for (final s in _students) {
       final ctrls = _controllers[s.roll]!;
       for (final sub in exam.subjects) {
-        final txt = ctrls[sub]!.text.trim();
-        if (txt.isNotEmpty) {
+        final txt = ctrls[sub]!.text.trim().toUpperCase();
+        if (txt.isNotEmpty && txt != 'AB' && txt != 'A') {
           final v = double.tryParse(txt);
           if (v == null || v < 0 || v > exam.maxMarks) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -111,8 +111,12 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       final ctrls = _controllers[s.roll]!;
       final marks = <String, double?>{};
       for (final sub in exam.subjects) {
-        final txt = ctrls[sub]!.text.trim();
-        marks[sub] = txt.isEmpty ? null : double.tryParse(txt);
+        final txt = ctrls[sub]!.text.trim().toUpperCase();
+        if (txt == 'AB' || txt == 'A') {
+          marks[sub] = -1.0;
+        } else {
+          marks[sub] = txt.isEmpty ? null : double.tryParse(txt);
+        }
       }
       final result = ExamResult(
         roll:        s.roll,
@@ -290,14 +294,17 @@ class _StudentMarksRowState extends State<_StudentMarksRow> {
   void _recalc() {
     double t = 0;
     for (final ctrl in widget.controllers.values) {
-      t += double.tryParse(ctrl.text.trim()) ?? 0;
+      final txt = ctrl.text.trim().toUpperCase();
+      if (txt != 'AB' && txt != 'A') {
+        t += double.tryParse(txt) ?? 0;
+      }
     }
     if (mounted) setState(() => _total = t);
   }
 
   bool _isInvalid(String sub) {
-    final txt = widget.controllers[sub]?.text.trim() ?? '';
-    if (txt.isEmpty) return false;
+    final txt = widget.controllers[sub]?.text.trim().toUpperCase() ?? '';
+    if (txt.isEmpty || txt == 'AB' || txt == 'A') return false;
     final v = double.tryParse(txt);
     return v == null || v < 0 || v > widget.exam.maxMarks;
   }
@@ -352,7 +359,7 @@ class _StudentMarksRowState extends State<_StudentMarksRow> {
                         decimal: true),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
-                          RegExp(r'[0-9.]')),
+                          RegExp(r'[0-9.aAbB]')),
                     ],
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 13),

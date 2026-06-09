@@ -344,17 +344,19 @@ pw.TableRow _buildSubjectRow({
   final marks   = result.marks[subject];
   // Guard against a misconfigured exam with maxMarks 0 — dividing by it would
   // render Infinity/NaN on the report card (#36).
-  final pct     = (marks != null && maxMarks > 0) ? (marks / maxMarks * 100) : 0.0;
-  final passed  = marks != null && maxMarks > 0 && marks >= maxMarks * 0.33;
-  final marksStr = marks != null ? marks.toStringAsFixed(0) : 'AB';
-  final pctStr   = marks != null ? '${pct.toStringAsFixed(1)}%' : '—';
-  final gradeStr = marks != null
+  final isAbsent = marks == -1.0;
+  final hasMarks = marks != null && !isAbsent;
+  final pct     = (hasMarks && maxMarks > 0) ? (marks / maxMarks * 100) : 0.0;
+  final passed  = hasMarks && maxMarks > 0 && marks >= maxMarks * 0.33;
+  final marksStr = isAbsent ? 'AB' : (marks != null ? marks.toStringAsFixed(0) : '—');
+  final pctStr   = hasMarks ? '${pct.toStringAsFixed(1)}%' : '—';
+  final gradeStr = hasMarks
       ? (template.gradeScheme.isNotEmpty
           ? template.gradeForPercent(pct)
           : result.grade)
       : '—';
 
-  final rowBg = marks == null
+  final rowBg = (marks == null || isAbsent)
       ? _kGrey50
       : passed ? _kGreen50 : _kRed50;
 
@@ -363,7 +365,7 @@ pw.TableRow _buildSubjectRow({
     children: [
       _cell(subject),
       _cell(marksStr,
-          color: marks == null ? _kTextLight : passed ? _kGreenDk : _kRedDk,
+          color: (marks == null || isAbsent) ? _kTextLight : passed ? _kGreenDk : _kRedDk,
           bold: true),
       _cell('$maxMarks', color: _kTextLight),
       _cell(pctStr),
@@ -651,9 +653,9 @@ pw.TableRow _buildClassRow({
       ...exam.subjects.map((sub) {
         final v = result?.marks[sub];
         return _cell(
-          v != null ? v.toStringAsFixed(0) : '—',
+          v == -1.0 ? 'AB' : (v != null ? v.toStringAsFixed(0) : '—'),
           fontSize: 8,
-          color: v == null ? _kTextLight : null,
+          color: (v == null || v == -1.0) ? _kTextLight : null,
         );
       }),
       _cell(

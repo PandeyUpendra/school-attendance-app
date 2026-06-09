@@ -1059,6 +1059,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
             final pct        = result.percentage;
             final total      = result.total;
             final maxTotal   = result.subjectCount * result.maxMarks;
+            final isAllAbsent = result.marks.values.isNotEmpty && result.marks.values.every((v) => v == -1.0);
 
             return Column(children: [
               InkWell(
@@ -1114,12 +1115,12 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text('${pct.toStringAsFixed(1)}%',
+                        Text(isAllAbsent ? 'Absent' : '${pct.toStringAsFixed(1)}%',
                             style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: gradeColor)),
-                        Text('$total/$maxTotal',
+                        Text(isAllAbsent ? '' : '$total/$maxTotal',
                             style: TextStyle(
                                 fontSize: 10,
                                 color: Colors.grey.shade500)),
@@ -1178,7 +1179,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                       ...result.marks.entries.map((me) {
                         final subj    = me.key;
                         final marks   = me.value;
-                        final subPct  = marks == null
+                        final subPct  = (marks == null || marks == -1.0)
                             ? null
                             : marks / result.maxMarks * 100;
                         final subCol  = subPct == null
@@ -1200,9 +1201,11 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                             SizedBox(
                               width: 60,
                               child: Text(
-                                marks == null
+                                marks == -1.0
                                     ? 'Absent'
-                                    : '${marks.toStringAsFixed(0)}/${result.maxMarks}',
+                                    : (marks != null
+                                        ? '${marks.toStringAsFixed(0)}/${result.maxMarks}'
+                                        : '—'),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                     fontSize: 12,
@@ -2516,6 +2519,7 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
                 final pct = result.percentage;
                 final total = result.total;
                 final maxTotal = result.subjectCount * result.maxMarks;
+                final isAllAbsent = result.marks.values.isNotEmpty && result.marks.values.every((v) => v == -1.0);
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -2552,9 +2556,9 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text('${pct.toStringAsFixed(1)}%',
+                                Text(isAllAbsent ? 'Absent' : '${pct.toStringAsFixed(1)}%',
                                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: gradeColor)),
-                                Text('$total/$maxTotal', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                                Text(isAllAbsent ? '' : '$total/$maxTotal', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
                               ],
                             ),
                             const SizedBox(width: 8),
@@ -2581,7 +2585,7 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
                               ...result.marks.entries.map((me) {
                                 final subj = me.key;
                                 final marks = me.value;
-                                final subPct = marks == null ? null : marks / result.maxMarks * 100;
+                                final subPct = (marks == null || marks == -1.0) ? null : marks / result.maxMarks * 100;
                                 final subCol = subPct == null
                                     ? Colors.grey
                                     : subPct >= 75
@@ -2596,7 +2600,11 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
                                     SizedBox(
                                       width: 60,
                                       child: Text(
-                                        marks == null ? 'Absent' : '${marks.toStringAsFixed(0)}/${result.maxMarks}',
+                                        marks == -1.0
+                                            ? 'Absent'
+                                            : (marks != null
+                                                ? '${marks.toStringAsFixed(0)}/${result.maxMarks}'
+                                                : '—'),
                                         textAlign: TextAlign.center,
                                         style: TextStyle(fontWeight: FontWeight.bold, color: subCol, fontSize: 13),
                                       ),

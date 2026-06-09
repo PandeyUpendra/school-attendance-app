@@ -644,19 +644,22 @@ class _StudentResultCard extends StatelessWidget {
               runSpacing: 4,
               children: subjects.map((sub) {
                 final marks = r.marks[sub];
-                final ok = marks != null && marks >= (maxMarks * 0.33);
+                final isAbsent = marks == -1.0;
+                final ok = marks != null && !isAbsent && marks >= (maxMarks * 0.33);
+                final label = isAbsent ? 'AB' : (marks != null ? marks.toStringAsFixed(0) : '—');
+                final isPendingOrAbsent = marks == null || isAbsent;
                 return Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: marks == null
+                    color: isPendingOrAbsent
                         ? Colors.grey.shade100
                         : ok
                             ? Colors.green.shade50
                             : Colors.red.shade50,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: marks == null
+                      color: isPendingOrAbsent
                           ? Colors.grey.shade300
                           : ok
                               ? Colors.green.shade200
@@ -664,10 +667,10 @@ class _StudentResultCard extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    '$sub: ${marks != null ? marks.toStringAsFixed(0) : 'AB'}/$maxMarks',
+                    '$sub: $label/$maxMarks',
                     style: TextStyle(
                         fontSize: 11,
-                        color: marks == null
+                        color: isPendingOrAbsent
                             ? Colors.grey
                             : ok
                                 ? Colors.green.shade800

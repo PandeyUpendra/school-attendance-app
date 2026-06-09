@@ -68,7 +68,7 @@ class ExamResult {
   });
 
   double get total => marks.values
-      .where((v) => v != null)
+      .where((v) => v != null && v >= 0)
       .fold(0.0, (s, v) => s + v!);
 
   int get subjectCount => marks.length;
