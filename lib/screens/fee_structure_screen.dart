@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/app_strings.dart';
 import '../theme.dart';
 import '../models/fee.dart';
 import '../services/fee_service.dart';
@@ -138,7 +139,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text('Fee Structure — $_selectedClass',
+                Text('${context.tr('feeStructure')} — $_selectedClass',
                     style: const TextStyle(
                         fontSize: 17, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 14),
@@ -152,13 +153,13 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                     FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                   ],
                   decoration: InputDecoration(
-                    labelText: 'Total Annual Fee (₹)',
+                    labelText: context.tr('totalAnnualFeeRs'),
                     prefixIcon: const Icon(Icons.currency_rupee),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
                   ),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (v == null || v.trim().isEmpty) return context.tr('validationRequired');
                     final n = double.tryParse(v.trim());
                     if (n == null || n < 1 || n > 9999999) return '1–9,999,999';
                     return null;
@@ -170,13 +171,13 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Fee Components',
-                        style: TextStyle(
+                    Text(context.tr('feeComponents'),
+                        style: const TextStyle(
                             fontSize: 13, fontWeight: FontWeight.w600)),
                     TextButton.icon(
                       onPressed: () => addComponent(setS),
                       icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Add'),
+                      label: Text(context.tr('addBtn')),
                       style: TextButton.styleFrom(
                           foregroundColor: Colors.green.shade700),
                     ),
@@ -186,7 +187,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Text(
-                      'No components added. Tap Add to break down the fee.',
+                      context.tr('noComponentsHint'),
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey.shade500),
                     ),
@@ -207,7 +208,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                                 RegExp(r'[a-zA-Z ]')),
                           ],
                           decoration: InputDecoration(
-                            labelText: 'Name (e.g. Tuition)',
+                            labelText: context.tr('componentNameHint'),
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8)),
                             contentPadding: const EdgeInsets.symmetric(
@@ -216,7 +217,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                           ),
                           validator: (v) =>
                               (v == null || v.trim().isEmpty)
-                                  ? 'Required'
+                                  ? context.tr('validationRequired')
                                   : null,
                         ),
                       ),
@@ -232,14 +233,14 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                                 RegExp(r'[0-9.]')),
                           ],
                           decoration: InputDecoration(
-                            labelText: '₹ Amount',
+                            labelText: context.tr('amountFieldRs'),
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8)),
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 10),
                           ),
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Required';
+                            if (v == null || v.trim().isEmpty) return context.tr('validationRequired');
                             final n = double.tryParse(v.trim());
                             if (n == null || n <= 0) return '> 0';
                             return null;
@@ -260,13 +261,13 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Instalments',
-                        style: TextStyle(
+                    Text(context.tr('instalmentsLabel'),
+                        style: const TextStyle(
                             fontSize: 13, fontWeight: FontWeight.w600)),
                     TextButton.icon(
                       onPressed: () => addInstalment(setS),
                       icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Add'),
+                      label: Text(context.tr('addBtn')),
                       style: TextButton.styleFrom(
                           foregroundColor: AppTheme.primary),
                     ),
@@ -276,7 +277,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Text(
-                      'No instalments. Tap Add to split into terms/quarters.',
+                      context.tr('noInstalmentsHint'),
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey.shade500),
                     ),
@@ -296,7 +297,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                             maxLengthEnforcement:
                                 MaxLengthEnforcement.enforced,
                             decoration: InputDecoration(
-                              labelText: 'Name (e.g. Term 1)',
+                              labelText: context.tr('instalmentNameHint'),
                               border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8)),
                               contentPadding: const EdgeInsets.symmetric(
@@ -305,7 +306,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                             ),
                             validator: (v) =>
                                 (v == null || v.trim().isEmpty)
-                                    ? 'Required'
+                                    ? context.tr('validationRequired')
                                     : null,
                           ),
                         ),
@@ -331,7 +332,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                             ),
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) {
-                                return 'Required';
+                                return context.tr('validationRequired');
                               }
                               final n = double.tryParse(v.trim());
                               if (n == null || n <= 0) return '> 0';
@@ -363,7 +364,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                                     '${dt.day}/${dt.month}/${dt.year}',
                                     style: const TextStyle(fontSize: 11),
                                   ),
-                                  Text('Due date',
+                                  Text(context.tr('dueDateSmall'),
                                       style: TextStyle(
                                           fontSize: 9,
                                           color: Colors.grey.shade500)),
@@ -386,7 +387,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                 Row(children: [
                   TextButton(
                     onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('Cancel'),
+                    child: Text(context.tr('cancel')),
                   ),
                   const Spacer(),
                   ElevatedButton.icon(
@@ -431,7 +432,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                             if (ctx.mounted) Navigator.pop(ctx, true);
                           },
                     icon: const Icon(Icons.save_outlined, size: 18),
-                    label: const Text('Save'),
+                    label: Text(context.tr('save')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primary,
                       foregroundColor: Colors.white,
@@ -456,21 +457,21 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Fee Structure',
+            Text(context.tr('feeStructure'),
                 style:
-                    TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('Set annual fees per class',
-                style: TextStyle(fontSize: 12, color: Colors.white70)),
+                    const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('setAnnualFeesPerClass'),
+                style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
         actions: [
           if (_selectedClass != null)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Edit structure',
+              tooltip: context.tr('editStructure'),
               onPressed: _editStructure,
             ),
         ],
@@ -485,7 +486,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                       Icon(Icons.school_outlined,
                           size: 56, color: Colors.grey.shade400),
                       const SizedBox(height: 12),
-                      Text('No classes configured yet.',
+                      Text(context.tr('noClassesConfigured'),
                           style: TextStyle(color: Colors.grey.shade500)),
                     ],
                   ),
@@ -535,7 +536,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
               backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.edit),
-              label: const Text('Edit'),
+              label: Text(context.tr('edit')),
             )
           : null,
     );
@@ -556,15 +557,15 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('ANNUAL FEE',
-                  style: TextStyle(
+              Text(context.tr('annualFeeCaps'),
+                  style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.2)),
               const SizedBox(height: 8),
               Text(
-                isEmpty ? 'Not configured' : '₹${_fmt(s.totalAnnualFee)}',
+                isEmpty ? context.tr('notConfigured') : '₹${_fmt(s.totalAnnualFee)}',
                 style: const TextStyle(
                     color: Colors.white,
                     fontSize: 32,
@@ -573,7 +574,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
               if (!isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text('per academic year  •  ${s.className}',
+                  child: Text('${context.tr('perAcademicYear')}  •  ${s.className}',
                       style: const TextStyle(
                           color: Colors.white70, fontSize: 12)),
                 ),
@@ -587,7 +588,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
           const SizedBox(height: 14),
           Center(
             child: Text(
-              'No fee structure configured yet.\nTap Edit to set up.',
+              context.tr('noFeeStructureYet'),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade500),
             ),
@@ -595,8 +596,8 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
         ] else ...[
           if (s.components.isNotEmpty) ...[
             const SizedBox(height: 20),
-            const Text('FEE BREAKDOWN',
-                style: TextStyle(
+            Text(context.tr('feeBreakdownCaps'),
+                style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey,
@@ -650,8 +651,8 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
           // ── Instalments ──────────────────────────────────────────
           if (s.installments.isNotEmpty) ...[
             const SizedBox(height: 20),
-            const Text('PAYMENT INSTALMENTS',
-                style: TextStyle(
+            Text(context.tr('paymentInstalmentsCaps'),
+                style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey,
@@ -691,7 +692,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                               fontSize: 14,
                               fontWeight: FontWeight.w500)),
                       subtitle: Text(
-                        'Due: ${s.installments[i].dueDate.day}/${s.installments[i].dueDate.month}/${s.installments[i].dueDate.year}',
+                        '${context.tr('dueColon')} ${s.installments[i].dueDate.day}/${s.installments[i].dueDate.month}/${s.installments[i].dueDate.year}',
                         style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey.shade500),
@@ -754,9 +755,9 @@ class _TotalCheck extends StatelessWidget {
         Expanded(
           child: Text(
             match
-                ? 'Components total matches annual fee ✓'
-                : 'Components total ₹${compTotal.toStringAsFixed(0)} differs '
-                    'from annual fee ₹${totalAnnual.toStringAsFixed(0)}',
+                ? context.tr('componentsMatchAnnual')
+                : '${context.tr('componentsTotalLabel')} ₹${compTotal.toStringAsFixed(0)} '
+                    '${context.tr('differsFromAnnual')} ₹${totalAnnual.toStringAsFixed(0)}',
             style: TextStyle(
               fontSize: 12,
               color: match

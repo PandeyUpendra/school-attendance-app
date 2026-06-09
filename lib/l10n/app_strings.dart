@@ -1386,6 +1386,28 @@ class AppStrings {
     'entExamResult':           {'en': 'Exam Result',          'hi': 'परीक्षा परिणाम'},
     'entAuthUser':             {'en': 'Auth / User',          'hi': 'प्रमाणीकरण / उपयोगकर्ता'},
     'auditTypeLabel':          {'en': 'Type',                 'hi': 'प्रकार'},
+
+    // ── Fee structure ────────────────────────────────────────────────────
+    'totalAnnualFeeRs':        {'en': 'Total Annual Fee (₹)', 'hi': 'कुल वार्षिक फ़ीस (₹)'},
+    'feeComponents':           {'en': 'Fee Components',       'hi': 'फ़ीस घटक'},
+    'noComponentsHint':        {'en': 'No components added. Tap Add to break down the fee.', 'hi': 'कोई घटक नहीं जोड़ा गया। फ़ीस को विभाजित करने के लिए जोड़ें दबाएँ।'},
+    'componentNameHint':       {'en': 'Name (e.g. Tuition)',  'hi': 'नाम (जैसे ट्यूशन)'},
+    'amountFieldRs':           {'en': '₹ Amount',             'hi': '₹ राशि'},
+    'instalmentsLabel':        {'en': 'Instalments',          'hi': 'किस्तें'},
+    'noInstalmentsHint':       {'en': 'No instalments. Tap Add to split into terms/quarters.', 'hi': 'कोई किस्त नहीं। टर्म/तिमाही में बाँटने के लिए जोड़ें दबाएँ।'},
+    'instalmentNameHint':      {'en': 'Name (e.g. Term 1)',   'hi': 'नाम (जैसे टर्म 1)'},
+    'dueDateSmall':            {'en': 'Due date',             'hi': 'देय तारीख'},
+    'setAnnualFeesPerClass':   {'en': 'Set annual fees per class', 'hi': 'प्रति कक्षा वार्षिक फ़ीस सेट करें'},
+    'editStructure':           {'en': 'Edit structure',       'hi': 'संरचना संपादित करें'},
+    'annualFeeCaps':           {'en': 'ANNUAL FEE',           'hi': 'वार्षिक फ़ीस'},
+    'notConfigured':           {'en': 'Not configured',       'hi': 'कॉन्फ़िगर नहीं'},
+    'perAcademicYear':         {'en': 'per academic year',    'hi': 'प्रति शैक्षणिक वर्ष'},
+    'noFeeStructureYet':       {'en': 'No fee structure configured yet.\nTap Edit to set up.', 'hi': 'अभी कोई फ़ीस संरचना कॉन्फ़िगर नहीं की गई।\nसेट करने के लिए संपादित करें दबाएँ।'},
+    'feeBreakdownCaps':        {'en': 'FEE BREAKDOWN',        'hi': 'फ़ीस विवरण'},
+    'paymentInstalmentsCaps':  {'en': 'PAYMENT INSTALMENTS',  'hi': 'भुगतान किस्तें'},
+    'componentsMatchAnnual':   {'en': 'Components total matches annual fee ✓', 'hi': 'घटकों का योग वार्षिक फ़ीस से मेल खाता है ✓'},
+    'componentsTotalLabel':    {'en': 'Components total',     'hi': 'घटकों का योग'},
+    'differsFromAnnual':       {'en': 'differs from annual fee', 'hi': 'वार्षिक फ़ीस से भिन्न है'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then
