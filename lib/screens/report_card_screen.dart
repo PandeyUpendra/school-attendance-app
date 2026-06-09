@@ -42,9 +42,14 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
   StreamSubscription<List<Student>>? _studentSub;
 
   bool _loading = true;
-  List<Student>    _students = [];
-  List<ExamResult> _results  = [];
-  Map<int, int>    _ranks    = {};
+  List<Student>           _students = [];
+  List<ExamResult>        _results  = [];
+  Map<int, int>           _ranks    = {};
+  // Loaded alongside students/results so on-screen grade labels use the
+  // school's custom grade scheme rather than the hardcoded ExamResult.grade
+  // getter (#38). Null until the first template fetch resolves; cards fall
+  // back to r.grade in the meantime.
+  ReportCardTemplate?     _activeTemplate;
 
   @override
   void initState() {
@@ -67,6 +72,8 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    final sid   = AuthService.currentSchoolId;
+    final brand = await _schoolSvc.getBrandName(sid);
     final data = await Future.wait([
       _studentSvc.getStudentsByClass(
           className: widget.className, section: widget.section),
@@ -76,12 +83,26 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
     final results  = data[1] as List<ExamResult>;
     final ranks    = _examSvc.computeRanks(results);
 
+    // Load templates to pick up the school's custom grade scheme (#38).
+    // Use the first non-system template if available, else the first preset.
+    ReportCardTemplate? tmpl;
+    try {
+      await _templateSvc.seedDefaultTemplates(schoolId: sid, brandName: brand);
+      final templates = await _templateSvc.getTemplates();
+      tmpl = templates.firstWhere(
+            (t) => !t.isSystemPreset,
+            orElse: () => templates.first);
+    } catch (_) {
+      // Non-fatal — fall back to ExamResult.grade which uses hardcoded bands.
+    }
+
     if (!mounted) return;
     setState(() {
-      _students = students;
-      _results  = results;
-      _ranks    = ranks;
-      _loading  = false;
+      _students       = students;
+      _results        = results;
+      _ranks          = ranks;
+      _activeTemplate = tmpl;
+      _loading        = false;
     });
   }
 
@@ -258,6 +279,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
                         results:    _results,
                         ranks:      _ranks,
                         studentMap: {for (final s in _students) s.roll: s},
+                        template:   _activeTemplate,
                       ),
                       const SizedBox(height: 12),
                       _StatsSummary(
@@ -278,6 +300,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
                             rank:     _ranks[s.roll],
                             subjects: exam.subjects,
                             maxMarks: exam.maxMarks,
+                            template: _activeTemplate,
                             onShare:  result != null
                                 ? () => _shareStudentReport(s, result)
                                 : null,
@@ -420,11 +443,14 @@ class _TopperBanner extends StatelessWidget {
   final List<ExamResult>  results;
   final Map<int, int>     ranks;
   final Map<int, Student> studentMap;
+  // Optional custom grade scheme (#38). Null = fall back to ExamResult.grade.
+  final ReportCardTemplate? template;
 
   const _TopperBanner({
     required this.results,
     required this.ranks,
     required this.studentMap,
+    this.template,
   });
 
   @override
@@ -434,6 +460,9 @@ class _TopperBanner extends StatelessWidget {
     if (toppers.isEmpty) return const SizedBox.shrink();
     final top  = toppers.first;
     final name = studentMap[top.roll]?.name ?? top.studentName;
+    final grade = template != null && top.percentage > 0
+        ? template!.gradeForPercent(top.percentage)
+        : top.grade;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -457,7 +486,7 @@ class _TopperBanner extends StatelessWidget {
                       fontWeight: FontWeight.bold)),
               Text(
                 '${top.total.toStringAsFixed(0)} ${context.tr('marksWord')}  •  '
-                '${top.percentage.toStringAsFixed(1)}%  •  ${context.tr('gradePrefix')} ${top.grade}',
+                '${top.percentage.toStringAsFixed(1)}%  •  ${context.tr('gradePrefix')} $grade',
                 style: const TextStyle(
                     color: Colors.white70, fontSize: 12),
               ),
@@ -542,6 +571,9 @@ class _StudentResultCard extends StatelessWidget {
   final List<String> subjects;
   final int          maxMarks;
   final VoidCallback? onShare;
+  // Optional custom grade scheme from the school's active template (#38).
+  // When null, falls back to the ExamResult.grade hardcoded bands.
+  final ReportCardTemplate? template;
 
   const _StudentResultCard({
     required this.student,
@@ -550,6 +582,7 @@ class _StudentResultCard extends StatelessWidget {
     required this.subjects,
     required this.maxMarks,
     this.onShare,
+    this.template,
   });
 
   Color get _gradeColor {
@@ -689,7 +722,8 @@ class _StudentResultCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${context.tr('gradePrefix')} ${r.grade}',
+                  // Use the school's custom grade scheme when available (#38).
+                  '${context.tr('gradePrefix')} ${template != null && r.percentage > 0 ? template!.gradeForPercent(r.percentage) : r.grade}',
                   style: TextStyle(
                       color: color,
                       fontSize: 12,

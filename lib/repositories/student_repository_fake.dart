@@ -114,6 +114,14 @@ class FakeStudentRepository implements StudentRepository {
       _students.containsKey(docId(roll, className, section));
 
   @override
+  Future<bool> existsByAdmissionId(
+      String admissionId, {String excludeDocId = ''}) async {
+    if (admissionId.isEmpty) return false;
+    return _students.entries.any((e) =>
+        e.value.admissionId == admissionId && e.key != excludeDocId);
+  }
+
+  @override
   Future<void> upsert(Student s) async {
     final id = docId(s.roll, s.className, s.section);
     _students[id] = _withId(s, id);
