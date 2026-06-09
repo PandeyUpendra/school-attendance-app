@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_strings.dart';
 import '../../models/parental_consent.dart';
 import '../../services/consent_service.dart';
 import '../../theme.dart';
@@ -111,7 +112,7 @@ class _ParentalConsentFlowState extends State<ParentalConsentFlow> {
     if (!_formKey.currentState!.validate()) return false;
     final phone = _phoneCtrl.text.trim();
     if (!phone.startsWith('+') || phone.length < 10) {
-      _showError('Enter phone in E.164 format, e.g. +91XXXXXXXXXX');
+      _showError(context.tr('enterPhoneE164'));
       return false;
     }
     return true;
@@ -152,7 +153,7 @@ class _ParentalConsentFlowState extends State<ParentalConsentFlow> {
   Future<void> _verifyOtp() async {
     final code = _otpCtrl.text.trim();
     if (code.length < 4) {
-      setState(() => _otpError = 'Enter the full OTP');
+      setState(() => _otpError = context.tr('enterFullOtp'));
       return;
     }
     setState(() { _verifying = true; _otpError = null; });
@@ -199,7 +200,7 @@ class _ParentalConsentFlowState extends State<ParentalConsentFlow> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      _showError('Could not save consent: $e');
+      _showError('${context.tr('couldNotSaveConsent')} $e');
     }
   }
 
@@ -210,7 +211,7 @@ class _ParentalConsentFlowState extends State<ParentalConsentFlow> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Text(widget.isReConsent ? 'Renew Consent' : 'Parental Consent'),
+        title: Text(widget.isReConsent ? context.tr('renewConsent') : context.tr('parentalConsent')),
         leading: _step == 0
             ? CloseButton(onPressed: () => Navigator.pop(context, null))
             : BackButton(onPressed: () => _goTo(_step - 1)),
@@ -295,27 +296,27 @@ class _GuardianDetailsStep extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           _StepHeader(
             icon: Icons.person_outline,
-            title: 'Guardian Details',
-            subtitle: 'For $studentName\'s consent record',
+            title: context.tr('guardianDetailsTitle'),
+            subtitle: '${context.tr('consentRecordFor')} $studentName',
           ),
           const SizedBox(height: 28),
           _Field(
             controller: nameCtrl,
-            label:  'Guardian Name',
+            label:  context.tr('guardianNameLabel'),
             icon:   Icons.badge_outlined,
             validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Required' : null,
+                (v == null || v.trim().isEmpty) ? context.tr('validationRequired') : null,
           ),
           const SizedBox(height: 16),
           _Field(
             controller: phoneCtrl,
-            label:   'Phone (E.164, e.g. +91XXXXXXXXXX)',
+            label:   context.tr('phoneE164Label'),
             icon:    Icons.phone_outlined,
             keyboard: TextInputType.phone,
             validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Required';
+              if (v == null || v.trim().isEmpty) return context.tr('validationRequired');
               if (!v.trim().startsWith('+') || v.trim().length < 10) {
-                return 'Use E.164 format: +91XXXXXXXXXX';
+                return context.tr('useE164Format');
               }
               return null;
             },
@@ -326,7 +327,7 @@ class _GuardianDetailsStep extends StatelessWidget {
             isOptional: true,
             validator: Validators.optionalEmail,
             decoration: InputDecoration(
-              labelText:    'Email (optional)',
+              labelText:    context.tr('emailOptionalLabel'),
               prefixIcon:   const Icon(Icons.email_outlined, color: AppTheme.primary),
               border:       OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10)),
@@ -335,7 +336,7 @@ class _GuardianDetailsStep extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 32),
-          _NextButton(label: 'Continue', onPressed: onNext),
+          _NextButton(label: context.tr('continueLabel'), onPressed: onNext),
         ]),
       ),
     );
@@ -361,14 +362,14 @@ class _PrivacyNoticeStep extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const _StepHeader(
+          _StepHeader(
             icon: Icons.privacy_tip_outlined,
-            title: 'Privacy Notice',
-            subtitle: 'Please read before consenting',
+            title: context.tr('privacyNotice'),
+            subtitle: context.tr('pleaseReadBeforeConsent'),
           ),
           const SizedBox(height: 12),
           Row(children: [
-            const Text('Language: ', style: TextStyle(fontSize: 13)),
+            Text('${context.tr('languageColon')} ', style: const TextStyle(fontSize: 13)),
             ChoiceChip(
               label: const Text('English'),
               selected: lang == 'en',
@@ -401,7 +402,7 @@ class _PrivacyNoticeStep extends StatelessWidget {
       ),
       Padding(
         padding: const EdgeInsets.all(20),
-        child: _NextButton(label: 'I Have Read This Notice', onPressed: onNext),
+        child: _NextButton(label: context.tr('haveReadNotice'), onPressed: onNext),
       ),
     ]);
   }
@@ -431,13 +432,12 @@ class _ScopeSelectionStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(children: [
-      const Padding(
-        padding: EdgeInsets.fromLTRB(24, 20, 24, 4),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
         child: _StepHeader(
           icon: Icons.checklist_outlined,
-          title: 'Choose Consents',
-          subtitle:
-              'You may opt out of specific data types. Core attendance and academic records are required by the school.',
+          title: context.tr('chooseConsents'),
+          subtitle: context.tr('chooseConsentsSub'),
         ),
       ),
       Expanded(
@@ -451,7 +451,7 @@ class _ScopeSelectionStep extends StatelessWidget {
                              s.dataType == 'academic_records';
             return CheckboxListTile(
               title: Text(
-                _labelFor(s.dataType),
+                _labelFor(context, s.dataType),
                 style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
               ),
               subtitle: Text(s.purpose,
@@ -481,18 +481,18 @@ class _ScopeSelectionStep extends StatelessWidget {
       ),
       Padding(
         padding: const EdgeInsets.all(20),
-        child: _NextButton(label: 'Confirm Selection', onPressed: onNext),
+        child: _NextButton(label: context.tr('confirmSelection'), onPressed: onNext),
       ),
     ]);
   }
 
-  String _labelFor(String dt) {
+  String _labelFor(BuildContext context, String dt) {
     switch (dt) {
-      case 'attendance':       return 'Attendance Records';
-      case 'academic_records': return 'Academic Records & Grades';
-      case 'fees':             return 'Fee Records';
-      case 'photos':           return 'Profile Photo';
-      case 'communication':    return 'Notifications & Announcements';
+      case 'attendance':       return context.tr('scopeAttendance');
+      case 'academic_records': return context.tr('scopeAcademic');
+      case 'fees':             return context.tr('scopeFees');
+      case 'photos':           return context.tr('scopePhotos');
+      case 'communication':    return context.tr('scopeCommunication');
       default:                 return dt;
     }
   }
@@ -538,10 +538,10 @@ class _OtpStep extends StatelessWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const _StepHeader(
+        _StepHeader(
           icon: Icons.verified_user_outlined,
-          title: 'Verify Identity',
-          subtitle: 'Confirm guardian identity before recording consent',
+          title: context.tr('verifyIdentity'),
+          subtitle: context.tr('verifyIdentitySub'),
         ),
         const SizedBox(height: 24),
 
@@ -549,7 +549,7 @@ class _OtpStep extends StatelessWidget {
         Row(children: [
           Expanded(
             child: _MethodChip(
-              label:    'OTP via SMS',
+              label:    context.tr('otpViaSms'),
               icon:     Icons.sms_outlined,
               selected: method == _ConsentMethod.otp,
               onTap:    () => onMethodChanged(_ConsentMethod.otp),
@@ -558,7 +558,7 @@ class _OtpStep extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: _MethodChip(
-              label:    'In-Person Signed',
+              label:    context.tr('inPersonSigned'),
               icon:     Icons.draw_outlined,
               selected: method == _ConsentMethod.inPerson,
               onTap:    () => onMethodChanged(_ConsentMethod.inPerson),
@@ -578,7 +578,7 @@ class _OtpStep extends StatelessWidget {
             ),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Text(
-                'Sending OTP to:\n$phoneNumber',
+                '${context.tr('sendingOtpTo')}\n$phoneNumber',
                 style: const TextStyle(fontSize: 13, height: 1.5),
               ),
               const SizedBox(height: 16),
@@ -591,7 +591,7 @@ class _OtpStep extends StatelessWidget {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.send_outlined),
-                  label: Text(otpSending ? 'Sending…' : 'Send OTP'),
+                  label: Text(otpSending ? context.tr('sendingEllipsis') : context.tr('sendOtp')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primary,
                     foregroundColor: Colors.white,
@@ -605,9 +605,9 @@ class _OtpStep extends StatelessWidget {
                   maxLength:    6,
                   textAlign:    TextAlign.center,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    labelText: 'Enter OTP',
-                    border:    OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.tr('enterOtp'),
+                    border:    const OutlineInputBorder(),
                     counterText: '',
                   ),
                   style: const TextStyle(
@@ -622,7 +622,7 @@ class _OtpStep extends StatelessWidget {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.check_circle_outline),
-                  label: Text(verifying ? 'Verifying…' : 'Verify & Consent'),
+                  label: Text(verifying ? context.tr('verifyingEllipsis') : context.tr('verifyAndConsent')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.success,
                     foregroundColor: Colors.white,
@@ -632,7 +632,7 @@ class _OtpStep extends StatelessWidget {
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: verifying ? null : onSendOtp,
-                  child: const Text('Resend OTP'),
+                  child: Text(context.tr('resendOtp')),
                 ),
               ],
               if (otpError != null) ...[
@@ -652,15 +652,15 @@ class _OtpStep extends StatelessWidget {
               boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
             ),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              const Text(
-                'Use this option when the guardian has signed the consent form physically in school.',
-                style: TextStyle(fontSize: 13, height: 1.5),
+              Text(
+                context.tr('inPersonHelp'),
+                style: const TextStyle(fontSize: 13, height: 1.5),
               ),
               const SizedBox(height: 16),
               CheckboxListTile(
-                title: const Text(
-                  'I confirm the guardian has read and signed the printed consent form in my presence.',
-                  style: TextStyle(fontSize: 13),
+                title: Text(
+                  context.tr('inPersonConfirmText'),
+                  style: const TextStyle(fontSize: 13),
                 ),
                 value: inPersonConfirmed,
                 activeColor: AppTheme.primary,
@@ -678,7 +678,7 @@ class _OtpStep extends StatelessWidget {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.task_alt_outlined),
-                label: Text(verifying ? 'Saving…' : 'Record In-Person Consent'),
+                label: Text(verifying ? context.tr('savingEllipsis') : context.tr('recordInPersonConsent')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.success,
                   foregroundColor: Colors.white,
@@ -719,24 +719,24 @@ class _SuccessStep extends StatelessWidget {
                 size: 72, color: AppTheme.success),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Consent Recorded',
+          Text(
+            context.tr('consentRecorded'),
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
                 fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.primaryDark),
           ),
           const SizedBox(height: 12),
           if (consent != null)
             Text(
-              'Method: ${consent!.method.label}\n'
-              'Version: ${consent!.consentVersion}\n'
-              'Recorded: ${_fmtDate(consent!.consentedAt.toDate())}',
+              '${context.tr('methodLabel')}: ${consent!.method.label}\n'
+              '${context.tr('versionLabel')}: ${consent!.consentVersion}\n'
+              '${context.tr('recordedLabel')}: ${_fmtDate(consent!.consentedAt.toDate())}',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.7),
             ),
           const SizedBox(height: 8),
           Text(
-            '${consent?.scopes.where((s) => s.optedIn).length ?? 0} data scope(s) consented',
+            '${consent?.scopes.where((s) => s.optedIn).length ?? 0} ${context.tr('dataScopesConsentedSuffix')}',
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 13, color: AppTheme.success),
           ),
@@ -750,7 +750,7 @@ class _SuccessStep extends StatelessWidget {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Done', style: TextStyle(fontSize: 16)),
+            child: Text(context.tr('doneLabel'), style: const TextStyle(fontSize: 16)),
           ),
         ],
       ),
