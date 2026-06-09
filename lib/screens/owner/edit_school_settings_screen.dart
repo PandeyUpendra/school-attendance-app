@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/school_settings_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/school_settings_service.dart';
+import '../../l10n/app_strings.dart';
 import '../../theme.dart';
 import '../../utils/validators.dart';
 import '../../widgets/email_text_form_field.dart';
@@ -49,21 +51,21 @@ class _EditSchoolSettingsScreenState extends State<EditSchoolSettingsScreen>
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text('School Settings'),
+        title: Text(context.tr('schoolSettingsTitle')),
         actions: [
           if (!_editing)
             TextButton.icon(
               icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 18),
-              label: const Text(
-                'Edit',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              label: Text(
+                context.tr('edit'),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
               ),
               onPressed: () => setState(() => _editing = true),
             )
           else
             TextButton.icon(
               icon: const Icon(Icons.close, color: Colors.white, size: 18),
-              label: const Text('Cancel', style: TextStyle(color: Colors.white)),
+              label: Text(context.tr('cancel'), style: const TextStyle(color: Colors.white)),
               onPressed: () => setState(() => _editing = false),
             ),
           const SizedBox(width: 4),
@@ -75,12 +77,12 @@ class _EditSchoolSettingsScreenState extends State<EditSchoolSettingsScreen>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
           labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-          tabs: const [
-            Tab(text: 'Basic Info'),
-            Tab(text: 'Address'),
-            Tab(text: 'Academic'),
-            Tab(text: 'Fees'),
-            Tab(text: 'Communication'),
+          tabs: [
+            Tab(text: context.tr('tabBasicInfo')),
+            Tab(text: context.tr('tabAddress')),
+            Tab(text: context.tr('tabAcademic')),
+            Tab(text: context.tr('tabFees')),
+            Tab(text: context.tr('tabCommunication')),
           ],
         ),
       ),
@@ -90,13 +92,13 @@ class _EditSchoolSettingsScreenState extends State<EditSchoolSettingsScreen>
             Container(
               color: AppTheme.warning.withValues(alpha: 0.12),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: const Row(children: [
-                Icon(Icons.lock_outline, size: 16, color: AppTheme.warning),
-                SizedBox(width: 8),
+              child: Row(children: [
+                const Icon(Icons.lock_outline, size: 16, color: AppTheme.warning),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'View only — tap Edit to make changes',
-                    style: TextStyle(
+                    context.tr('viewOnlyWarning'),
+                    style: const TextStyle(
                         fontSize: 12,
                         color: AppTheme.warning,
                         fontWeight: FontWeight.w500),
@@ -204,7 +206,7 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
   Future<void> _save() async {
     final emailVal = _emailCtrl.text.trim();
     if (emailVal.isNotEmpty && !Validators.isValidEmail(emailVal)) {
-      _snack('Enter a valid email address');
+      _snack(context.tr('enterValidEmailMsg'));
       return;
     }
     setState(() => _saving = true);
@@ -233,7 +235,7 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
         if (oldVal != newVal) await p.logChange(k, oldVal, newVal, uid);
       }
       if (mounted) {
-        _snack('Settings updated', success: true);
+        _snack(context.tr('settingsUpdated'), success: true);
         widget.onSaved();
       }
     } catch (e) {
@@ -250,17 +252,17 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
       child: Column(children: [
         _logoPicker(),
         const SizedBox(height: 16),
-        _field(_nameCtrl, 'School Name *', Icons.school_outlined, readOnly: !widget.editing),
+        _field(_nameCtrl, context.tr('schoolNameRequiredLabel'), Icons.school_outlined, readOnly: !widget.editing),
         const SizedBox(height: 12),
-        _dropdown('School Type', _type, _types, Icons.business_outlined,
+        _dropdown(context.tr('schoolTypeLabel'), _type, _types, Icons.business_outlined,
             (v) => setState(() => _type = v!), enabled: widget.editing,
             fieldKey: 'school_type'),
         const SizedBox(height: 12),
-        _dropdown('Board', _board, _boards, Icons.menu_book_outlined,
+        _dropdown(context.tr('boardLabel'), _board, _boards, Icons.menu_book_outlined,
             (v) => setState(() => _board = v!), enabled: widget.editing,
             fieldKey: 'school_board'),
         const SizedBox(height: 12),
-        _field(_phoneCtrl, 'Phone', Icons.phone_outlined,
+        _field(_phoneCtrl, context.tr('phoneLabel'), Icons.phone_outlined,
             type: TextInputType.phone, readOnly: !widget.editing),
         const SizedBox(height: 12),
         const SizedBox(height: 12),
@@ -268,25 +270,25 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
           controller: _emailCtrl,
           readOnly: !widget.editing,
           decoration: InputDecoration(
-            labelText: 'Email',
+            labelText: context.tr('emailLabel'),
             prefixIcon: const Icon(Icons.email_outlined),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           ),
         ),
         const SizedBox(height: 12),
-        _field(_principalCtrl, 'Principal Name', Icons.person_outline,
+        _field(_principalCtrl, context.tr('principalNameLabel'), Icons.person_outline,
             readOnly: !widget.editing),
         const SizedBox(height: 12),
-        _field(_yearCtrl, 'Established Year', Icons.calendar_today_outlined,
+        _field(_yearCtrl, context.tr('establishedYearEditLabel'), Icons.calendar_today_outlined,
             type: TextInputType.number, readOnly: !widget.editing),
         const SizedBox(height: 12),
-        _field(_tagCtrl, 'School Tagline', Icons.format_quote_outlined,
+        _field(_tagCtrl, context.tr('schoolTaglineEditLabel'), Icons.format_quote_outlined,
             readOnly: !widget.editing),
         const SizedBox(height: 12),
-        _field(_websiteCtrl, 'Website', Icons.language_outlined,
+        _field(_websiteCtrl, context.tr('websiteLabel'), Icons.language_outlined,
             type: TextInputType.url, readOnly: !widget.editing),
         const SizedBox(height: 20),
-        if (widget.editing) _saveBtn(_saving, _save),
+        if (widget.editing) _saveBtn(context, _saving, _save),
         const SizedBox(height: 16),
         _changeLogSection(),
         const SizedBox(height: 32),
@@ -394,7 +396,7 @@ class _AddressTabState extends State<_AddressTab>
         'pinCode': _pinCtrl.text.trim(),
       });
       if (mounted) {
-        _snack('Settings updated', success: true);
+        _snack(context.tr('settingsUpdated'), success: true);
         widget.onSaved();
       }
     } catch (e) {
@@ -409,17 +411,17 @@ class _AddressTabState extends State<_AddressTab>
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(children: [
-        _field(_addrCtrl, 'Full Address', Icons.location_on_outlined,
+        _field(_addrCtrl, context.tr('fullAddressLabel'), Icons.location_on_outlined,
             maxLines: 3, readOnly: !widget.editing),
         const SizedBox(height: 12),
-        _field(_cityCtrl, 'City', Icons.location_city_outlined,
+        _field(_cityCtrl, context.tr('cityLabel'), Icons.location_city_outlined,
             readOnly: !widget.editing),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           value: _state.isEmpty ? null : _state,
           isExpanded: true,
           decoration: InputDecoration(
-            labelText: 'State',
+            labelText: context.tr('stateLabel'),
             prefixIcon: const Icon(Icons.map_outlined),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             isDense: true,
@@ -428,10 +430,10 @@ class _AddressTabState extends State<_AddressTab>
           onChanged: widget.editing ? (v) => setState(() => _state = v ?? '') : null,
         ),
         const SizedBox(height: 12),
-        _field(_pinCtrl, 'PIN Code', Icons.pin_drop_outlined,
+        _field(_pinCtrl, context.tr('pinCodeLabel'), Icons.pin_drop_outlined,
             type: TextInputType.number, maxLength: 6, readOnly: !widget.editing),
         const SizedBox(height: 20),
-        if (widget.editing) _saveBtn(_saving, _save),
+        if (widget.editing) _saveBtn(context, _saving, _save),
         const SizedBox(height: 32),
       ]),
     );
@@ -496,8 +498,8 @@ class _AcademicTabState extends State<_AcademicTab>
   }
 
   Future<void> _save() async {
-    if (_sections.isEmpty) { _snack('Select at least one section'); return; }
-    if (_toIdx < _fromIdx) { _snack('Class To must be ≥ Class From'); return; }
+    if (_sections.isEmpty) { _snack(context.tr('selectAtLeastOneSecMsg')); return; }
+    if (_toIdx < _fromIdx) { _snack(context.tr('classToMinMsg')); return; }
 
     final p = context.read<SchoolSettingsProvider>();
     final oldClasses = List<String>.from(p.classList);
@@ -505,14 +507,13 @@ class _AcademicTabState extends State<_AcademicTab>
     final periodsChanged = p.periodsPerDay != _periods;
     if (periodsChanged && mounted) {
       final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
-        title: const Text('Change Periods Per Day?'),
-        content: const Text(
-            'This will reset the timetable. All existing assignments will be cleared.'),
+        title: Text(context.tr('changePeriodsQ')),
+        content: Text(context.tr('changePeriodsBody')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.tr('cancel'))),
           ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Continue')),
+              child: Text(context.tr('btnContinue'))),
         ],
       ));
       if (ok != true) return;
@@ -523,15 +524,15 @@ class _AcademicTabState extends State<_AcademicTab>
     final removed = oldClasses.where((c) => !newClasses.contains(c)).toList();
     if (removed.isNotEmpty && mounted) {
       final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
-        title: const Text('Remove Classes?'),
+        title: Text(context.tr('removeClassesQ')),
         content: Text(
-            'Classes ${removed.join(", ")} will be hidden from class lists but student data will not be deleted. Continue?'),
+            '${context.tr('removeClassesPrefix')} ${removed.join(", ")} ${context.tr('removeClassesSuffix')}'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.tr('cancel'))),
           ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Continue')),
+              child: Text(context.tr('btnContinue'))),
         ],
       ));
       if (ok != true) return;
@@ -559,7 +560,7 @@ class _AcademicTabState extends State<_AcademicTab>
       final added = newClasses.where((c) => !oldClasses.contains(c)).toList();
       await Future.wait(added.map((c) => svc.createClassDocument(c)));
       if (mounted) {
-        _snack('Settings updated', success: true);
+        _snack(context.tr('settingsUpdated'), success: true);
         widget.onSaved();
       }
     } catch (e) {
@@ -593,14 +594,14 @@ class _AcademicTabState extends State<_AcademicTab>
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _sectionLabel('Class Range'),
+        _sectionLabel(context.tr('classRangeLabel')),
         Row(children: [
-          Expanded(child: _classDropdown('From', _fromIdx, (v) => setState(() => _fromIdx = v))),
+          Expanded(child: _classDropdown(context.tr('rangeFrom'), _fromIdx, (v) => setState(() => _fromIdx = v))),
           const SizedBox(width: 12),
-          Expanded(child: _classDropdown('To', _toIdx, (v) => setState(() => _toIdx = v))),
+          Expanded(child: _classDropdown(context.tr('rangeTo'), _toIdx, (v) => setState(() => _toIdx = v))),
         ]),
         const SizedBox(height: 16),
-        _sectionLabel('Sections'),
+        _sectionLabel(context.tr('sectionsLabel')),
         Wrap(
           spacing: 8,
           children: _sectionOptions.map((s) {
@@ -620,32 +621,32 @@ class _AcademicTabState extends State<_AcademicTab>
         if (_sections.isNotEmpty) ...[
           const SizedBox(height: 6),
           Text(
-            'Classes: ${_generateClassList().join(", ")}',
+            '${context.tr('classesLabel')}: ${_generateClassList().join(", ")}',
             style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
           ),
         ],
         const SizedBox(height: 16),
-        _sectionLabel('Academic Year Starts'),
+        _sectionLabel(context.tr('academicYearStartsLabel')),
         _segmented(['April', 'June'], _yearStart, (v) => setState(() => _yearStart = v)),
         const SizedBox(height: 16),
-        _sectionLabel('Working Days'),
+        _sectionLabel(context.tr('workingDaysLabel')),
         _segmented(['Mon-Sat', 'Mon-Fri'], _workingDays, (v) => setState(() => _workingDays = v)),
         const SizedBox(height: 16),
-        _sectionLabel('Periods Per Day  ($_periods)'),
+        _sectionLabel('${context.tr('periodsPerDayLabel')}  ($_periods)'),
         Slider(
           value: _periods.toDouble(), min: 4, max: 10, divisions: 6,
           label: '$_periods', activeColor: AppTheme.primary,
           onChanged: widget.editing ? (v) => setState(() => _periods = v.round()) : null,
         ),
         const SizedBox(height: 8),
-        _intDropdown('Period Duration', _duration, _durations, suffix: ' min',
+        _intDropdown(context.tr('periodDurationLabel'), _duration, _durations, suffix: ' min',
             onChanged: (v) => setState(() => _duration = v)),
         const SizedBox(height: 12),
-        _intDropdown('Lunch After Period', _lunch.clamp(1, maxLunch),
-            List.generate(maxLunch, (i) => i + 1), prefix: 'After period ',
+        _intDropdown(context.tr('lunchAfterPeriodLabel'), _lunch.clamp(1, maxLunch),
+            List.generate(maxLunch, (i) => i + 1), prefix: context.tr('afterPeriodPrefixEdit'), suffix: context.tr('afterPeriodSuffixEdit'),
             onChanged: (v) => setState(() => _lunch = v)),
         const SizedBox(height: 20),
-        if (widget.editing) _saveBtn(_saving, _save),
+        if (widget.editing) _saveBtn(context, _saving, _save),
         const SizedBox(height: 32),
       ]),
     );
@@ -763,7 +764,7 @@ class _FeesTabState extends State<_FeesTab>
         'updatedAt': FieldValue.serverTimestamp(),
       });
       if (mounted) {
-        _snack('Settings updated', success: true);
+        _snack(context.tr('settingsUpdated'), success: true);
         widget.onSaved();
       }
     } catch (e) { if (mounted) _snack('Error: $e'); }
@@ -776,7 +777,7 @@ class _FeesTabState extends State<_FeesTab>
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _sectionLabel('Fee Frequency'),
+        _sectionLabel(context.tr('feeFrequencyLabel')),
         Wrap(spacing: 8, runSpacing: 8, children: _freqs.map((f) {
           final sel = f == _freq;
           return ChoiceChip(
@@ -789,20 +790,20 @@ class _FeesTabState extends State<_FeesTab>
         DropdownButtonFormField<int>(
           value: _dueDate,
           decoration: InputDecoration(
-            labelText: 'Fee Due Date',
+            labelText: context.tr('feeDueDateLabel'),
             prefixIcon: const Icon(Icons.calendar_today_outlined),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             isDense: true,
           ),
           items: List.generate(28, (i) => i + 1)
-              .map((n) => DropdownMenuItem(value: n, child: Text('${_ordinal(n)} of month')))
+              .map((n) => DropdownMenuItem(value: n, child: Text(_dueDateText(context, n))))
               .toList(),
           onChanged: widget.editing ? (v) { if (v != null) setState(() => _dueDate = v); } : null,
         ),
         const SizedBox(height: 16),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('Late Fee Applicable',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          Text(context.tr('lateFeeApplicableLabel'),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
           Switch(value: _lateEnabled, activeColor: AppTheme.primary,
               onChanged: widget.editing ? (v) => setState(() => _lateEnabled = v) : null),
         ]),
@@ -813,7 +814,7 @@ class _FeesTabState extends State<_FeesTab>
             keyboardType: TextInputType.number,
             readOnly: !widget.editing,
             decoration: InputDecoration(
-              labelText: 'Late Fee Per Day (₹)',
+              labelText: '${context.tr('lateFeePerDayEditLabel')} (₹)',
               prefixIcon: const Icon(Icons.currency_rupee_outlined),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               isDense: true,
@@ -821,15 +822,23 @@ class _FeesTabState extends State<_FeesTab>
           ),
         ],
         const SizedBox(height: 16),
-        _sectionLabel('Reminder Days Before Due  ($_reminder days)'),
+        _sectionLabel('${context.tr('reminderDaysBeforeLabel')}  ($_reminder ${context.tr('daysLower')})'),
         Slider(value: _reminder.toDouble(), min: 1, max: 14, divisions: 13,
             label: '$_reminder', activeColor: AppTheme.primary,
             onChanged: widget.editing ? (v) => setState(() => _reminder = v.round()) : null),
         const SizedBox(height: 20),
-        if (widget.editing) _saveBtn(_saving, _save),
+        if (widget.editing) _saveBtn(context, _saving, _save),
         const SizedBox(height: 32),
       ]),
     );
+  }
+
+  String _dueDateText(BuildContext context, int n) {
+    final code = Provider.of<LocaleProvider>(context, listen: false).code;
+    if (code == 'hi') {
+      return 'महीने की $n तारीख';
+    }
+    return '${_ordinal(n)} of month';
   }
 
   String _ordinal(int n) {
@@ -898,7 +907,7 @@ class _CommunicationTabState extends State<_CommunicationTab>
         'updatedAt': FieldValue.serverTimestamp(),
       });
       if (mounted) {
-        _snack('Settings updated', success: true);
+        _snack(context.tr('settingsUpdated'), success: true);
         widget.onSaved();
       }
     } catch (e) { if (mounted) _snack('Error: $e'); }
@@ -911,7 +920,7 @@ class _CommunicationTabState extends State<_CommunicationTab>
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _toggleRow('WhatsApp Notifications', _whatsapp,
+        _toggleRow(context.tr('whatsAppNotificationsLabel'), _whatsapp,
             (v) => setState(() => _whatsapp = v)),
         if (_whatsapp) ...[
           const SizedBox(height: 12),
@@ -921,7 +930,7 @@ class _CommunicationTabState extends State<_CommunicationTab>
             maxLength: 10,
             readOnly: !widget.editing,
             decoration: InputDecoration(
-              labelText: 'WhatsApp Number',
+              labelText: context.tr('whatsappNumberLabel'),
               prefixText: '+91 ',
               prefixIcon: const Icon(Icons.chat_outlined),
               counterText: '',
@@ -931,26 +940,27 @@ class _CommunicationTabState extends State<_CommunicationTab>
           ),
         ],
         const SizedBox(height: 16),
-        _sectionLabel('Preferred Language'),
+        _sectionLabel(context.tr('preferredLanguageLabel')),
         Wrap(spacing: 8, children: _langs.map((l) {
           final sel = l == _lang;
           return ChoiceChip(
-            label: Text(l), selected: sel,
+            label: Text(context.tr('lang$l')),
+            selected: sel,
             selectedColor: AppTheme.primaryLight,
             onSelected: widget.editing ? (_) => setState(() => _lang = l) : null,
           );
         }).toList()),
         const SizedBox(height: 16),
-        _toggleRow('Bus Service Available', _bus, (v) => setState(() => _bus = v)),
+        _toggleRow(context.tr('busServiceAvailableLabel'), _bus, (v) => setState(() => _bus = v)),
         if (_bus) ...[
           const SizedBox(height: 12),
-          _sectionLabel('Number of Routes  ($_routes)'),
+          _sectionLabel('${context.tr('numberOfRoutesLabel')}  ($_routes)'),
           Slider(value: _routes.clamp(1, 50).toDouble(), min: 1, max: 50,
               activeColor: AppTheme.primary,
               onChanged: widget.editing ? (v) => setState(() => _routes = v.round()) : null),
         ],
         const SizedBox(height: 20),
-        if (widget.editing) _saveBtn(_saving, _save),
+        if (widget.editing) _saveBtn(context, _saving, _save),
         const SizedBox(height: 16),
         _changeLogSection(),
         const SizedBox(height: 32),
@@ -1036,7 +1046,7 @@ Widget _dropdown(
   );
 }
 
-Widget _saveBtn(bool saving, VoidCallback onSave) => SizedBox(
+Widget _saveBtn(BuildContext context, bool saving, VoidCallback onSave) => SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
         icon: saving
@@ -1045,7 +1055,7 @@ Widget _saveBtn(bool saving, VoidCallback onSave) => SizedBox(
                 height: 16,
                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
             : const Icon(Icons.save_outlined),
-        label: Text(saving ? 'Saving…' : 'Save Settings'),
+        label: Text(saving ? context.tr('savingLabel') : context.tr('saveSettingsLabel')),
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -1068,10 +1078,10 @@ Widget _changeLogSection() {
         final logs = snap.data ?? [];
         if (logs.isEmpty) return const SizedBox.shrink();
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('Recent Changes',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(context.tr('recentChanges'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
           ),
           ...logs.map((log) {
             final ts = log['changedAt'];
@@ -1093,7 +1103,7 @@ Widget _changeLogSection() {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${log['field']} changed by ${log['changedBy'] ?? 'owner'}',
+                    _formatChangeLog(context, log),
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),
@@ -1105,6 +1115,53 @@ Widget _changeLogSection() {
       },
     );
   });
+}
+
+String _formatChangeLog(BuildContext context, Map<String, dynamic> log) {
+  final field = log['field']?.toString() ?? '';
+  final changedBy = log['changedBy']?.toString() ?? 'owner';
+  
+  final translatedField = _translateField(context, field);
+  final author = changedBy == 'owner' ? context.trRole('owner') : changedBy;
+  
+  return context.tr('changeLogEntry')
+      .replaceAll('{field}', translatedField)
+      .replaceAll('{author}', author);
+}
+
+String _translateField(BuildContext context, String field) {
+  switch (field) {
+    case 'schoolName':
+      return context.tr('schoolNameLabel');
+    case 'logoUrl':
+      return context.tr('logoLabel');
+    case 'phone':
+      return context.tr('phoneLabel');
+    case 'email':
+      return context.tr('emailLabel');
+    case 'principalName':
+      return context.tr('principalNameLabel');
+    case 'establishedYear':
+      return context.tr('establishedYearEditLabel');
+    case 'tagline':
+      return context.tr('schoolTaglineEditLabel');
+    case 'website':
+      return context.tr('websiteLabel');
+    case 'schoolType':
+      return context.tr('schoolTypeLabel');
+    case 'board':
+      return context.tr('boardLabel');
+    case 'address':
+      return context.tr('fullAddressLabel');
+    case 'city':
+      return context.tr('cityLabel');
+    case 'state':
+      return context.tr('stateLabel');
+    case 'pinCode':
+      return context.tr('pinCodeLabel');
+    default:
+      return field;
+  }
 }
 
 extension _SnackExt on State {
