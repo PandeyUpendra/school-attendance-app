@@ -8,11 +8,17 @@ import '../models/guardian_provided_details.dart';
 import '../models/school_provided_details.dart';
 import '../repositories/student_repository.dart';
 import '../utils/app_logger.dart';
+import '../utils/phone_utils.dart';
 import '../utils/school_clock.dart';
 import 'audit_log_service.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
 import 'timetable_service.dart';
+
+String stripHtml(String s) => s.replaceAll(RegExp(r'<[^>]*>'), '');
+
+String normalizePhone(String phone) => PhoneUtils.normalize(phone);
+
 
 /// High-level orchestration layer for all student-related operations.
 ///
@@ -212,55 +218,104 @@ class StudentService extends BaseFirestoreService {
 
   /// Returns null on success, error string on duplicate roll.
   Future<String?> addStudent({required Student student}) async {
-    if (await _repo.existsByRoll(
-        student.className, student.section, student.roll)) {
-      final sec =
-          student.section.isNotEmpty ? ' Section ${student.section}' : '';
-      return 'Roll number ${student.roll} already exists in '
-          '${student.className}$sec.';
+    // 1. Sanitize fields
+    var sanitized = student.copyWith(
+      name: stripHtml(student.name).trim(),
+      fatherName: stripHtml(student.fatherName).trim(),
+      motherName: student.motherName != null ? stripHtml(student.motherName!).trim() : null,
+      phone: student.phone.isNotEmpty ? normalizePhone(student.phone) : '',
+      parentPhone: student.parentPhone != null && student.parentPhone!.isNotEmpty
+          ? normalizePhone(student.parentPhone!)
+          : null,
+    );
+
+    // 2. Stamp stable admissionId
+    if (sanitized.admissionId.trim().isEmpty) {
+      sanitized = sanitized.copyWith(admissionId: _newAdmissionId());
     }
-    // Stamp a stable admissionId on first creation so the student keeps one
-    // identity across class promotions (#70).
-    if (student.admissionId.trim().isEmpty) {
-      student = student.copyWith(admissionId: _newAdmissionId());
+
+    // 3. Atomically add student checking duplicates
+    final error = await _repo.addStudentUnique(sanitized);
+    if (error != null) {
+      return error;
     }
-    await _repo.upsert(student);
+
+    final docId = Student.buildDocId(sanitized.roll, sanitized.className, sanitized.section);
     AuditService.emit(
       action:   'create',
       entity:   'student',
-      entityId: student.id.isNotEmpty
-          ? student.id
-          : '${student.className}_${student.section}_${student.roll}',
-      after: student.toJson(),
+      entityId: docId,
+      after: sanitized.copyWith(id: docId).toJson(),
     );
+
     // If a guardian email is provided, create their Firebase Auth account.
-    if (student.guardianEmail != null &&
-        student.guardianEmail!.trim().isNotEmpty) {
+    if (sanitized.guardianEmail != null &&
+        sanitized.guardianEmail!.trim().isNotEmpty) {
       await _upsertGuardianAccount(
-        email:     student.guardianEmail!.trim().toLowerCase(),
-        className: student.className,
-        roll:      student.roll,
-        section:   student.section,
-        name:      student.name,
-        admissionId: student.admissionId,
+        email:     sanitized.guardianEmail!.trim().toLowerCase(),
+        className: sanitized.className,
+        roll:      sanitized.roll,
+        section:   sanitized.section,
+        name:      sanitized.name,
+        admissionId: sanitized.admissionId,
       );
     }
     return null;
   }
 
-  Future<void> updateStudent({required Student updated}) async {
-    final before = await _repo.fetchByRoll(
-        updated.className, updated.section, updated.roll);
-    await _repo.upsert(updated);
+  Future<String?> updateStudent({required Student updated}) async {
+    // 1. Sanitize fields
+    var sanitized = updated.copyWith(
+      name: stripHtml(updated.name).trim(),
+      fatherName: stripHtml(updated.fatherName).trim(),
+      motherName: updated.motherName != null ? stripHtml(updated.motherName!).trim() : null,
+      phone: updated.phone.isNotEmpty ? normalizePhone(updated.phone) : '',
+      parentPhone: updated.parentPhone != null && updated.parentPhone!.isNotEmpty
+          ? normalizePhone(updated.parentPhone!)
+          : null,
+    );
+
+    // 2. Fetch before state to check key changes
+    final oldDocId = sanitized.id;
+    if (oldDocId.isEmpty) {
+      await _repo.upsert(sanitized);
+      return null;
+    }
+
+    final before = await _repo.fetchById(oldDocId);
+    if (before == null) {
+      await _repo.upsert(sanitized);
+      return null;
+    }
+
+    final changedId = sanitized.roll != before.roll ||
+        sanitized.className != before.className ||
+        sanitized.section != before.section;
+
+    if (changedId) {
+      // Check duplicate roll on target
+      final newDocId = Student.buildDocId(sanitized.roll, sanitized.className, sanitized.section);
+      if (await _repo.existsByRoll(sanitized.className, sanitized.section, sanitized.roll)) {
+        final sec = sanitized.section.isNotEmpty ? ' Section ${sanitized.section}' : '';
+        return 'Roll number ${sanitized.roll} already exists in ${sanitized.className}$sec.';
+      }
+
+      // Upsert under new ID and delete old document
+      await _repo.upsert(sanitized.copyWith(id: newDocId));
+      await _repo.delete(oldDocId);
+      sanitized = sanitized.copyWith(id: newDocId);
+    } else {
+      await _repo.upsert(sanitized);
+    }
+
     AuditService.emit(
       action:   'update',
       entity:   'student',
-      entityId: updated.id.isNotEmpty
-          ? updated.id
-          : '${updated.className}_${updated.section}_${updated.roll}',
-      before: before?.toJson(),
-      after:  updated.toJson(),
+      entityId: sanitized.id,
+      before: before.toJson(),
+      after:  sanitized.toJson(),
     );
+    return null;
   }
 
   /// Marks the source-class record as promoted (#70) so it leaves active rosters

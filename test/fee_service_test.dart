@@ -5,7 +5,7 @@ import 'package:school_app/services/fee_service.dart';
 void main() {
   group('FeeService.maskSensitiveInfo', () {
     test('masks typical 16-digit credit card numbers', () {
-      final input = 'Paid using card 1234567812345678';
+      const input = 'Paid using card 1234567812345678';
       final masked = FeeService().maskSensitiveInfo(input);
       expect(masked, 'Paid using card ****-****-****-5678');
     });

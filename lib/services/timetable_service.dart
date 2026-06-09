@@ -6,6 +6,7 @@ import '../firebase_options.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../utils/app_logger.dart';
+import '../utils/phone_utils.dart';
 import '../utils/secure_password.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
@@ -858,7 +859,7 @@ class TimetableService extends BaseFirestoreService {
   /// Looks up a guardian profile by phone number stored in [allowed_users].
   /// Returns the document data (with 'email' key added) or null if not found.
   Future<Map<String, dynamic>?> getGuardianByPhone(String phone) async {
-    final normalized = phone.trim();
+    final normalized = PhoneUtils.normalize(phone);
     if (normalized.isEmpty) return null;
     final snap = await _allowedUsers
         .where('phone', isEqualTo: normalized)
@@ -1227,7 +1228,7 @@ class TimetableService extends BaseFirestoreService {
       if (studentAdmissionId != null && studentAdmissionId.isNotEmpty)
         'studentAdmissionId': studentAdmissionId,
       if (schoolId != null) 'schoolId': schoolId,
-      if (phone != null && phone.isNotEmpty) 'phone': phone.trim(),
+      if (phone != null && phone.isNotEmpty) 'phone': PhoneUtils.normalize(phone),
     }, SetOptions(merge: true));
   }
 

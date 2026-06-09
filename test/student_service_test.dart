@@ -281,4 +281,100 @@ void main() {
     expect(ivy?.deletionPending, isFalse,
         reason: 'Rejecting the request must reactivate the student');
   });
+
+  // ── 13. HTML stripping & phone normalization ─────────────────────────────
+
+  test('addStudent and updateStudent strip HTML tags and normalize phone numbers', () async {
+    const student = Student(
+      roll: 2,
+      name: '<b>Alice</b>',
+      className: 'Class 6',
+      section: 'A',
+      fatherName: '<p>John</p>',
+      motherName: '<span>Jane</span>',
+      phone: '9876543210',
+      parentPhone: '09876543211',
+    );
+
+    final error = await service.addStudent(student: student);
+    expect(error, isNull);
+
+    final fetched = await service.getStudentByRoll('Class 6', 2, section: 'A');
+    expect(fetched, isNotNull);
+    expect(fetched!.name, 'Alice');
+    expect(fetched.fatherName, 'John');
+    expect(fetched.motherName, 'Jane');
+    expect(fetched.phone, '+919876543210');
+    expect(fetched.parentPhone, '+919876543211');
+  });
+
+  // ── 14. updateStudent — collision checks on key changes ───────────────────
+
+  test('updateStudent returns error string if roll collision occurs on change', () async {
+    final student1 = _student(roll: 1, name: 'Alice', className: 'Class 6');
+    final student2 = _student(roll: 2, name: 'Bob', className: 'Class 6');
+    await service.addStudent(student: student1);
+    await service.addStudent(student: student2);
+
+    final bobOriginal = await service.getStudentByRoll('Class 6', 2);
+    expect(bobOriginal, isNotNull);
+
+    // Try to update Bob's roll to 1 (collision)
+    final bobWithCollidingRoll = bobOriginal!.copyWith(roll: 1);
+    final error = await service.updateStudent(updated: bobWithCollidingRoll);
+    expect(error, isNotNull);
+    expect(error!.toLowerCase(), contains('already exists'));
+
+    // Verify Bob's record wasn't updated to roll 1
+    final unchangedBob = await repo.fetchByRoll('Class 6', '', 2);
+    expect(unchangedBob?.name, 'Bob');
+  });
+
+  // ── 15. updateStudent — old document cleanup on key changes ───────────────
+
+  test('updateStudent deletes old document and creates new document when key identifying fields change', () async {
+    final student = _student(roll: 10, name: 'Charlie', className: 'Class 6', section: 'A');
+    final err = await service.addStudent(student: student);
+    expect(err, isNull);
+
+    final originalDocId = Student.buildDocId(10, 'Class 6', 'A');
+    final oldDoc = await repo.fetchById(originalDocId);
+    expect(oldDoc, isNotNull);
+
+    // Update class and section
+    final updatedStudent = oldDoc!.copyWith(className: 'Class 7', section: 'B');
+    final updateErr = await service.updateStudent(updated: updatedStudent);
+    expect(updateErr, isNull);
+
+    // Verify old document is deleted
+    final deletedDoc = await repo.fetchById(originalDocId);
+    expect(deletedDoc, isNull);
+
+    // Verify new document exists
+    final newDocId = Student.buildDocId(10, 'Class 7', 'B');
+    final newDoc = await repo.fetchById(newDocId);
+    expect(newDoc, isNotNull);
+    expect(newDoc!.className, 'Class 7');
+    expect(newDoc.section, 'B');
+    expect(newDoc.name, 'Charlie');
+  });
+
+  // ── 16. Student.fromJson — graceful handling ──────────────────────────────
+
+  test('Student.fromJson handles malformed JSON gracefully', () {
+    final malformed = <String, dynamic>{
+      'roll': 'not-an-int',
+      'name': 12345, // not a string
+      'className': null,
+      'feeAmount': 'invalid-double',
+      'birthMonth': 'invalid-month',
+    };
+
+    final student = Student.fromJson(malformed);
+    expect(student, isNotNull);
+    expect(student.roll, 0);
+    expect(student.name, 'Corrupted Profile');
+    expect(student.className, '');
+  });
 }
+

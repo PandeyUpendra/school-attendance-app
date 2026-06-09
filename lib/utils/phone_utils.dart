@@ -29,4 +29,20 @@ abstract class PhoneUtils {
     if (digits.length == 10) digits = '$cc$digits';
     return digits;
   }
+
+  /// Normalises a phone number to standard E.164-like format (e.g. "+919876543210").
+  static String normalize(String phone) {
+    var clean = phone.replaceAll(RegExp(r'\D'), ''); // Keep only digits
+    if (clean.length == 10) {
+      return '+91$clean';
+    } else if (clean.length == 11 && clean.startsWith('0')) {
+      return '+91${clean.substring(1)}';
+    } else if (clean.length == 12 && clean.startsWith('91')) {
+      return '+$clean';
+    } else if (phone.trim().startsWith('+')) {
+      return '+$clean';
+    }
+    return phone.trim();
+  }
 }
+

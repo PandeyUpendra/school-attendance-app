@@ -370,9 +370,25 @@ exports.deleteStudent = onCall(
         .where(admin.firestore.FieldPath.documentId(), "<", `${prefix}\uf8ff`)
         .get();
       const FV = admin.firestore.FieldValue;
-      for (let i = 0; i < snap.docs.length; i += 400) {
+
+      const classKey = className.replace(/ /g, "_");
+      const expectedPrefix = section
+        ? `${classKey}_${section.replace(/ /g, "_")}_`
+        : `${classKey}_`;
+
+      const matchedDocs = snap.docs.filter((doc) => {
+        const id = doc.id;
+        if (!id.startsWith(expectedPrefix)) return false;
+        if (!section) {
+          const suffix = id.substring(expectedPrefix.length);
+          if (suffix.includes("_")) return false; // Contains section part (e.g. Class_9_A_2026...)
+        }
+        return true;
+      });
+
+      for (let i = 0; i < matchedDocs.length; i += 400) {
         const batch = db.batch();
-        snap.docs.slice(i, i + 400).forEach((doc) => {
+        matchedDocs.slice(i, i + 400).forEach((doc) => {
           batch.set(doc.ref, {
             rolls: { [roll]: FV.delete() },
             reasons: { [roll]: FV.delete() },

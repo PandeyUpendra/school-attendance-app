@@ -123,56 +123,67 @@ class Student {
     return sec.isEmpty ? '${base}_$roll' : '${base}_${sec}_$roll';
   }
 
-  factory Student.fromJson(Map<String, dynamic> json) => Student(
-        id: json['id'] as String? ??
-            (json['roll'] != null
-                ? buildDocId(
-                    json['roll'] as int,
-                    json['className'] as String? ?? '',
-                    json['section'] as String? ?? '')
-                : ''),
-        admissionId: (json['admissionId'] as String?)?.trim().isNotEmpty == true
-            ? json['admissionId'] as String
-            : (json['roll'] != null
-                ? buildDocId(
-                    json['roll'] as int,
-                    json['className'] as String? ?? '',
-                    json['section'] as String? ?? '')
-                : ''),
-        roll: json['roll'] as int,
-        name: json['name'] as String,
-        className: json['className'] as String? ?? '',
-        section: json['section'] as String? ?? '',
-        fatherName: json['fatherName'] as String? ?? '',
-        motherName: json['motherName'] as String?,
-        phone: json['phone'] as String? ?? '',
-        parentPhone: json['parentPhone'] as String?,
-        photoPath: json['photoPath'] as String?,
-        photoUrl: json['photoUrl'] as String?,
-        feeStatus: json['feeStatus'] as String? ?? 'Pending',
-        feeDueDate: json['feeDueDate'] as String?,
-        feeAmount: (json['feeAmount'] as num?)?.toDouble(),
-        teacherId: json['teacherId'] as String?,
+  factory Student.fromJson(Map<String, dynamic> json) {
+    try {
+      final rollVal = (json['roll'] as num?)?.toInt() ??
+          int.tryParse(json['roll']?.toString() ?? '') ??
+          0;
+      final classNameVal = json['className']?.toString() ?? '';
+      final sectionVal = json['section']?.toString() ?? '';
+
+      return Student(
+        id: json['id']?.toString() ??
+            (rollVal > 0 ? buildDocId(rollVal, classNameVal, sectionVal) : ''),
+        admissionId: (json['admissionId']?.toString() ?? '').trim().isNotEmpty
+            ? json['admissionId']?.toString() ?? ''
+            : (rollVal > 0 ? buildDocId(rollVal, classNameVal, sectionVal) : ''),
+        roll: rollVal,
+        name: json['name']?.toString() ?? '',
+        className: classNameVal,
+        section: sectionVal,
+        fatherName: json['fatherName']?.toString() ?? '',
+        motherName: json['motherName']?.toString(),
+        phone: json['phone']?.toString() ?? '',
+        parentPhone: json['parentPhone']?.toString(),
+        photoPath: json['photoPath']?.toString(),
+        photoUrl: json['photoUrl']?.toString(),
+        feeStatus: json['feeStatus']?.toString() ?? 'Pending',
+        feeDueDate: json['feeDueDate']?.toString(),
+        feeAmount: (json['feeAmount'] as num?)?.toDouble() ??
+            double.tryParse(json['feeAmount']?.toString() ?? ''),
+        teacherId: json['teacherId']?.toString(),
         guardianDetails: json['guardianDetails'] != null
             ? GuardianStudentDetails.fromJson(
                 Map<String, dynamic>.from(json['guardianDetails']))
             : null,
-        guardianEmail: json['guardianEmail'] as String?,
+        guardianEmail: json['guardianEmail']?.toString(),
         dateOfBirth: json['dateOfBirth'] as Timestamp?,
-        birthMonth: json['birthMonth'] as int? ??
+        birthMonth: (json['birthMonth'] as num?)?.toInt() ??
             (json['dateOfBirth'] as Timestamp?)?.toDate().month,
-        birthDay: json['birthDay'] as int? ??
+        birthDay: (json['birthDay'] as num?)?.toInt() ??
             (json['dateOfBirth'] as Timestamp?)?.toDate().day,
-        gender: json['gender'] as String?,
-        address: json['address'] as String?,
-        previousSchool: json['previousSchool'] as String?,
-        emergencyContact: json['emergencyContact'] as String?,
-        bloodGroup: json['bloodGroup'] as String?,
-        allergies: json['allergies'] as String?,
-        transportMode: json['transportMode'] as String?,
-        deletionPending: json['deletionPending'] as bool? ?? false,
-        promoted: json['promoted'] as bool? ?? false,
+        gender: json['gender']?.toString(),
+        address: json['address']?.toString(),
+        previousSchool: json['previousSchool']?.toString(),
+        emergencyContact: json['emergencyContact']?.toString(),
+        bloodGroup: json['bloodGroup']?.toString(),
+        allergies: json['allergies']?.toString(),
+        transportMode: json['transportMode']?.toString(),
+        deletionPending: json['deletionPending'] == true,
+        promoted: json['promoted'] == true,
       );
+    } catch (e) {
+      // Return a minimal fallback student to prevent roster crashes
+      return Student(
+        id: json['id']?.toString() ?? '',
+        roll: 0,
+        name: 'Corrupted Profile',
+        className: '',
+        fatherName: '',
+        phone: '',
+      );
+    }
+  }
 
   Student copyWith({
     String? id,

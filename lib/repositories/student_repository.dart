@@ -43,6 +43,12 @@ abstract class StudentRepository {
   /// Returns `true` if a student with this roll already exists in the class.
   Future<bool> existsByRoll(String className, String section, int roll);
 
+  /// Fetch a single student by its Firestore document [id].
+  Future<Student?> fetchById(String id);
+
+  /// Atomically inserts a student checking for duplicate roll inside a transaction.
+  Future<String?> addStudentUnique(Student s);
+
   /// Create or replace a student record (upsert semantics).
   /// The document ID is derived from `student.className`, `student.section`,
   /// and `student.roll` — the caller does not need to supply it.
@@ -244,6 +250,29 @@ class FirestoreStudentRepository implements StudentRepository {
     final doc =
         await _students.doc(_docId(roll, className, section)).get();
     return doc.exists;
+  }
+
+  @override
+  Future<Student?> fetchById(String id) async {
+    final doc = await _students.doc(id).get();
+    if (!doc.exists || doc.data() == null) return null;
+    return _fromDoc(doc);
+  }
+
+  @override
+  Future<String?> addStudentUnique(Student s) async {
+    final id = _docId(s.roll, s.className, s.section);
+    final docRef = _students.doc(id);
+
+    return _db.runTransaction<String?>((tx) async {
+      final doc = await tx.get(docRef);
+      if (doc.exists) {
+        final sec = s.section.isNotEmpty ? ' Section ${s.section}' : '';
+        return 'Roll number ${s.roll} already exists in ${s.className}$sec.';
+      }
+      tx.set(docRef, s.toJson());
+      return null;
+    });
   }
 
   @override

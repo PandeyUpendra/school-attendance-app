@@ -84,6 +84,20 @@ class FakeStudentRepository implements StudentRepository {
       _students[docId(roll, className, section)];
 
   @override
+  Future<Student?> fetchById(String id) async => _students[id];
+
+  @override
+  Future<String?> addStudentUnique(Student s) async {
+    final id = docId(s.roll, s.className, s.section);
+    if (_students.containsKey(id)) {
+      final sec = s.section.isNotEmpty ? ' Section ${s.section}' : '';
+      return 'Roll number ${s.roll} already exists in ${s.className}$sec.';
+    }
+    _students[id] = _withId(s, id);
+    return null;
+  }
+
+  @override
   Future<List<Student>> fetchByRolls(
     String className,
     String section,
