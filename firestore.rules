@@ -99,6 +99,17 @@ service cloud.firestore {
       return getUserData() != null && 'studentSection' in getUserData() ? getUserData().studentSection : '';
     }
 
+    /// Caller's child's STABLE admission id (#39). Stamped on the guardian's
+    /// allowed_users doc at provisioning. Unlike studentRoll, it never changes
+    /// across promotion / roll reuse, so notifications addressed to
+    /// 'guardian_adm:{admissionId}' can never be inherited by a later student
+    /// who reuses the vacated class+roll. Returns null when absent (legacy
+    /// guardians) so the admissionId audience branch simply never matches.
+    function userStudentAdmissionId() {
+      return getUserData() != null && 'studentAdmissionId' in getUserData()
+        ? getUserData().studentAdmissionId : null;
+    }
+
     /// The student document ID for the caller's own child:
     /// "{studentClass}_{studentSection}_{studentRoll}" (spaces → underscores),
     /// matching how the app builds student doc IDs. Used to scope guardian
@@ -1201,6 +1212,15 @@ service cloud.firestore {
           && resource.data.audience.matches('guardian:.*:.*')
           && resource.data.audience.split(':')[1] == userStudentClass()
           && resource.data.audience.split(':')[2] == string(userStudentRoll())) ||
+
+        // Guardian — 'guardian_adm:{admissionId}' (#39): the STABLE-identity
+        // variant. Matches the caller's own child's admissionId only. A null
+        // admissionId (legacy guardian) never equals a string audience id, so
+        // this branch is inert until the guardian doc carries the field.
+        (isRole('guardian')
+          && userStudentAdmissionId() != null
+          && resource.data.audience.matches('guardian_adm:.*')
+          && resource.data.audience.split(':')[1] == userStudentAdmissionId()) ||
 
         // Class-wide notice — 'class:{className}'
         // Posted by the class teacher to every guardian in the class. A guardian
