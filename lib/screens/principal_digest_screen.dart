@@ -4,6 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../utils/pdf_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../l10n/app_strings.dart';
 import '../theme.dart';
 import '../services/principal_digest_service.dart';
 import '../widgets/refreshable_data.dart';
@@ -92,18 +93,18 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Today's Digest",
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            Text('End-of-day summary',
-                style: TextStyle(fontSize: 11, color: Colors.white70)),
+            Text(context.tr('todaysDigest'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('endOfDaySummary'),
+                style: const TextStyle(fontSize: 11, color: Colors.white70)),
           ],
         ),
         actions: [
           IconButton(
-            tooltip: 'Refresh',
+            tooltip: context.tr('refreshAction'),
             icon: const Icon(Icons.refresh),
             onPressed: _loading ? null : _load,
           ),
@@ -133,7 +134,7 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _previewPdf,
                       icon: const Icon(Icons.picture_as_pdf_outlined),
-                      label: const Text('Preview PDF'),
+                      label: Text(context.tr('previewPdf')),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -141,7 +142,7 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
                     child: ElevatedButton.icon(
                       onPressed: _sharePdf,
                       icon: const Icon(Icons.share),
-                      label: const Text('Share PDF'),
+                      label: Text(context.tr('sharePdf')),
                     ),
                   ),
                 ]),
@@ -156,27 +157,27 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
         _HeaderCard(snap: s),
         const SizedBox(height: 14),
 
-        const _SectionHeader('ATTENDANCE'),
+        _SectionHeader(context.tr('secAttendanceCaps')),
         _AttendanceCard(snap: s),
         const SizedBox(height: 12),
 
-        const _SectionHeader('TEACHERS'),
+        _SectionHeader(context.tr('secTeachersCaps')),
         _TeachersCard(snap: s),
         const SizedBox(height: 12),
 
-        const _SectionHeader('LEAVES'),
+        _SectionHeader(context.tr('secLeavesCaps')),
         _LeavesCard(snap: s),
         const SizedBox(height: 12),
 
-        _SectionHeader("INCIDENTS / REMARKS  (${s.remarksToday.length})"),
+        _SectionHeader("${context.tr('secIncidentsRemarks')}  (${s.remarksToday.length})"),
         _RemarksCard(snap: s),
         const SizedBox(height: 12),
 
-        const _SectionHeader('FEES COLLECTED TODAY'),
+        _SectionHeader(context.tr('secFeesToday')),
         _FeesCard(snap: s),
         const SizedBox(height: 12),
 
-        const _SectionHeader('COPY-CHECK BACKLOG (last 7 days)'),
+        _SectionHeader(context.tr('secCopyBacklog')),
         _CopyBacklogCard(snap: s),
       ];
 
@@ -529,7 +530,7 @@ class _AttendanceCard extends StatelessWidget {
                           fontSize: 13, fontWeight: FontWeight.w600)),
                 ),
                 if (!c.marked)
-                  Text('Not marked',
+                  Text(context.tr('notMarked'),
                       style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey.shade400,
@@ -580,8 +581,8 @@ class _TeachersCard extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
                 t.isEmpty
-                    ? 'All teachers present today'
-                    : '${t.length} teacher${t.length == 1 ? '' : 's'} absent',
+                    ? context.tr('allTeachersPresent')
+                    : '${t.length} ${context.tr('teachersAbsentSuffix')}',
                 style: const TextStyle(
                     fontSize: 13, fontWeight: FontWeight.w600)),
           ]),
@@ -608,15 +609,15 @@ class _LeavesCard extends StatelessWidget {
   Widget build(BuildContext context) => _Card(
         child: Row(children: [
           _StatColumn(
-              label: 'Pending',
+              label: context.tr('pendingLabel'),
               value: '${snap.pendingLeaves}',
               color: snap.pendingLeaves > 0 ? AppTheme.danger : Colors.grey),
           _StatColumn(
-              label: 'Approved today',
+              label: context.tr('approvedTodayLabel'),
               value: '${snap.approvedToday}',
               color: AppTheme.success),
           _StatColumn(
-              label: 'Rejected today',
+              label: context.tr('rejectedTodayLabel'),
               value: '${snap.rejectedToday}',
               color: Colors.grey),
         ]),
@@ -630,13 +631,13 @@ class _RemarksCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (snap.remarksToday.isEmpty) {
-      return const _Card(
+      return _Card(
         child: Row(children: [
-          Icon(Icons.check_circle_outline,
+          const Icon(Icons.check_circle_outline,
               color: AppTheme.success, size: 18),
-          SizedBox(width: 8),
-          Text('No remarks logged today',
-              style: TextStyle(fontSize: 13)),
+          const SizedBox(width: 8),
+          Text(context.tr('noRemarksToday'),
+              style: const TextStyle(fontSize: 13)),
         ]),
       );
     }
@@ -681,7 +682,7 @@ class _RemarksCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
-                  '… and ${snap.remarksToday.length - 10} more in the PDF',
+                  '… ${context.tr('andMorePrefix')} ${snap.remarksToday.length - 10} ${context.tr('moreInPdf')}',
                   style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey.shade500,
@@ -704,11 +705,11 @@ class _FeesCard extends StatelessWidget {
           children: [
             Row(children: [
               _StatColumn(
-                  label: 'Collected',
+                  label: context.tr('collectedLabel'),
                   value: _PrincipalDigestScreenState._money(snap.feesCollected),
                   color: AppTheme.success),
               _StatColumn(
-                  label: 'Payments',
+                  label: context.tr('paymentsLabel'),
                   value: '${snap.paymentsCount}',
                   color: AppTheme.primary),
             ]),
@@ -760,8 +761,8 @@ class _CopyBacklogCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                   snap.copyBacklog == 0
-                      ? 'No copy-check backlog'
-                      : '${snap.copyBacklog} student${snap.copyBacklog == 1 ? '' : 's'} pending',
+                      ? context.tr('noCopyBacklog')
+                      : '${snap.copyBacklog} ${context.tr('studentsPendingSuffix')}',
                   style: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w600)),
             ]),
@@ -876,15 +877,14 @@ class _ErrorView extends StatelessWidget {
               Icon(Icons.summarize_outlined,
                   size: 44, color: Colors.grey.shade400),
               const SizedBox(height: 12),
-              Text("No digest to show yet",
+              Text(context.tr('noDigestYet'),
                   style: TextStyle(
                       fontSize: 15,
                       color: Colors.grey.shade700,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               Text(
-                  "There's no end-of-day activity to summarise right now. "
-                  'Pull to refresh once the day gets going.',
+                  context.tr('noDigestBody'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 12, color: Colors.grey.shade500)),
@@ -892,7 +892,7 @@ class _ErrorView extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Refresh'),
+                label: Text(context.tr('refreshAction')),
               ),
             ],
           ),

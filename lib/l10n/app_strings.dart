@@ -1408,6 +1408,31 @@ class AppStrings {
     'componentsMatchAnnual':   {'en': 'Components total matches annual fee ✓', 'hi': 'घटकों का योग वार्षिक फ़ीस से मेल खाता है ✓'},
     'componentsTotalLabel':    {'en': 'Components total',     'hi': 'घटकों का योग'},
     'differsFromAnnual':       {'en': 'differs from annual fee', 'hi': 'वार्षिक फ़ीस से भिन्न है'},
+
+    // ── Principal digest ─────────────────────────────────────────────────
+    'todaysDigest':            {'en': "Today's Digest",       'hi': 'आज का सारांश'},
+    'endOfDaySummary':         {'en': 'End-of-day summary',   'hi': 'दिन के अंत का सारांश'},
+    'refreshAction':           {'en': 'Refresh',              'hi': 'रिफ़्रेश करें'},
+    'previewPdf':              {'en': 'Preview PDF',          'hi': 'PDF पूर्वावलोकन'},
+    'secAttendanceCaps':       {'en': 'ATTENDANCE',           'hi': 'उपस्थिति'},
+    'secTeachersCaps':         {'en': 'TEACHERS',             'hi': 'शिक्षक'},
+    'secLeavesCaps':           {'en': 'LEAVES',               'hi': 'अवकाश'},
+    'secIncidentsRemarks':     {'en': 'INCIDENTS / REMARKS',  'hi': 'घटनाएँ / टिप्पणियाँ'},
+    'secFeesToday':            {'en': 'FEES COLLECTED TODAY', 'hi': 'आज एकत्रित फ़ीस'},
+    'secCopyBacklog':          {'en': 'COPY-CHECK BACKLOG (last 7 days)', 'hi': 'कॉपी-जाँच बैकलॉग (पिछले 7 दिन)'},
+    'notMarked':               {'en': 'Not marked',           'hi': 'चिह्नित नहीं'},
+    'allTeachersPresent':      {'en': 'All teachers present today', 'hi': 'आज सभी शिक्षक उपस्थित'},
+    'teachersAbsentSuffix':    {'en': 'teachers absent',      'hi': 'शिक्षक अनुपस्थित'},
+    'approvedTodayLabel':      {'en': 'Approved today',       'hi': 'आज स्वीकृत'},
+    'rejectedTodayLabel':      {'en': 'Rejected today',       'hi': 'आज अस्वीकृत'},
+    'noRemarksToday':          {'en': 'No remarks logged today', 'hi': 'आज कोई टिप्पणी दर्ज नहीं'},
+    'andMorePrefix':           {'en': 'and',                  'hi': 'और'},
+    'moreInPdf':               {'en': 'more in the PDF',      'hi': 'PDF में और'},
+    'paymentsLabel':           {'en': 'Payments',             'hi': 'भुगतान'},
+    'noCopyBacklog':           {'en': 'No copy-check backlog', 'hi': 'कोई कॉपी-जाँच बैकलॉग नहीं'},
+    'studentsPendingSuffix':   {'en': 'students pending',     'hi': 'छात्र लंबित'},
+    'noDigestYet':             {'en': 'No digest to show yet', 'hi': 'अभी दिखाने के लिए कोई सारांश नहीं'},
+    'noDigestBody':            {'en': "There's no end-of-day activity to summarise right now. Pull to refresh once the day gets going.", 'hi': 'अभी सारांश बनाने के लिए दिन के अंत की कोई गतिविधि नहीं है। दिन शुरू होने पर रिफ़्रेश करने के लिए खींचें।'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then
