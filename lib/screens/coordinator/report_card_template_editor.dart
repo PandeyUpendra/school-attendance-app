@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:printing/printing.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/exam.dart';
 import '../../models/report_card_template.dart';
 import '../../models/student.dart';
@@ -63,7 +64,7 @@ class _ReportCardTemplateListScreenState
       await _svc.cloneTemplate(t);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cloned as "Copy of ${t.name}"')),
+        SnackBar(content: Text('${context.tr('clonedAs')} "Copy of ${t.name}"')),
       );
       _load();
     } catch (e) {
@@ -75,15 +76,15 @@ class _ReportCardTemplateListScreenState
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Template'),
-        content: Text('Delete "${t.name}"? This cannot be undone.'),
+        title: Text(context.tr('deleteTemplate')),
+        content: Text('${context.tr('delete')} "${t.name}"? ${context.tr('cannotBeUndone')}'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(context.tr('delete')),
           ),
         ],
       ),
@@ -112,11 +113,11 @@ class _ReportCardTemplateListScreenState
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Report Card Templates'),
+        title: Text(context.tr('reportCardTemplates')),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'New Template',
+            tooltip: context.tr('newTemplateTitle'),
             onPressed: () => _openEditor(null),
           ),
         ],
@@ -131,13 +132,13 @@ class _ReportCardTemplateListScreenState
                       Icon(Icons.description_outlined,
                           size: 52, color: Colors.grey.shade300),
                       const SizedBox(height: 12),
-                      Text('No templates yet.',
+                      Text(context.tr('noTemplatesYet'),
                           style: TextStyle(color: Colors.grey.shade500)),
                       const SizedBox(height: 12),
                       ElevatedButton.icon(
                         onPressed: () => _openEditor(null),
                         icon: const Icon(Icons.add),
-                        label: const Text('Create Template'),
+                        label: Text(context.tr('createTemplate')),
                       ),
                     ],
                   ),
@@ -229,7 +230,7 @@ class _TemplateCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(color: Colors.amber.shade200),
                       ),
-                      child: Text('System',
+                      child: Text(context.tr('systemLabel'),
                           style: TextStyle(
                               fontSize: 9, color: Colors.amber.shade800)),
                     ),
@@ -567,7 +568,7 @@ class _ReportCardTemplateEditorState
         MaterialPageRoute(
           builder: (_) => Scaffold(
             appBar: AppBar(
-              title: const Text('Template Preview'),
+              title: Text(context.tr('templatePreview')),
               backgroundColor: AppTheme.primaryDark,
             ),
             body: PdfPreview(
@@ -583,7 +584,7 @@ class _ReportCardTemplateEditorState
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Preview failed: $e'),
+        SnackBar(content: Text('${context.tr('previewFailed')} $e'),
             backgroundColor: Colors.red),
       );
     } finally {
@@ -599,7 +600,7 @@ class _ReportCardTemplateEditorState
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Text(isNew ? 'New Template' : 'Edit Template'),
+        title: Text(isNew ? context.tr('newTemplateTitle') : context.tr('editTemplate')),
         actions: [
           if (_previewing)
             const Padding(
@@ -613,7 +614,7 @@ class _ReportCardTemplateEditorState
           else
             IconButton(
               icon: const Icon(Icons.visibility_outlined),
-              tooltip: 'Preview PDF',
+              tooltip: context.tr('previewPdf'),
               onPressed: _preview,
             ),
           if (_saving)
@@ -628,7 +629,7 @@ class _ReportCardTemplateEditorState
           else
             IconButton(
               icon: const Icon(Icons.save_outlined),
-              tooltip: 'Save',
+              tooltip: context.tr('save'),
               onPressed: _save,
             ),
         ],
@@ -638,16 +639,16 @@ class _ReportCardTemplateEditorState
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _sectionHeader('Template Basics'),
+            _sectionHeader(context.tr('templateBasics')),
             _buildNameField(),
             const SizedBox(height: 12),
             _buildBoardSelector(),
 
             const SizedBox(height: 20),
-            _sectionHeader('Header'),
+            _sectionHeader(context.tr('headerLabel')),
             _buildTextField(
               controller: _headerTextCtrl,
-              label: 'School Branding / Header Text',
+              label: context.tr('schoolBrandingHeader'),
               hint: "Pulled from your school's brandName by default",
               required: false,
               maxLines: 2,
@@ -655,49 +656,49 @@ class _ReportCardTemplateEditorState
             const SizedBox(height: 10),
             _buildTextField(
               controller: _headerLogoCtrl,
-              label: 'Logo Storage URL (optional)',
-              hint: 'Leave blank to skip logo',
+              label: context.tr('logoStorageUrl'),
+              hint: context.tr('leaveBlankSkipLogo'),
               required: false,
             ),
 
             const SizedBox(height: 20),
-            _sectionHeader('Display Options'),
+            _sectionHeader(context.tr('displayOptions')),
             _buildToggleTile(
-              title:    'Show Class Rank',
-              subtitle: 'Print the student\'s rank in class on the report',
+              title:    context.tr('showClassRank'),
+              subtitle: context.tr('showClassRankSub'),
               value:    _showRank,
               onChanged: (v) => setState(() => _showRank = v),
             ),
             _buildToggleTile(
-              title:    'Show Attendance',
-              subtitle: 'Print attendance days present / total',
+              title:    context.tr('showAttendanceOpt'),
+              subtitle: context.tr('showAttendanceSub'),
               value:    _showAttendance,
               onChanged: (v) => setState(() => _showAttendance = v),
             ),
             _buildToggleTile(
-              title:    'Show Co-Curricular',
-              subtitle: 'Add blank rows for activity grades',
+              title:    context.tr('showCoCurricular'),
+              subtitle: context.tr('showCoCurricularSub'),
               value:    _showCoCurricular,
               onChanged: (v) => setState(() => _showCoCurricular = v),
             ),
 
             const SizedBox(height: 20),
-            _sectionHeader('Page Layout'),
+            _sectionHeader(context.tr('pageLayout')),
             _buildLayoutRow(),
 
             const SizedBox(height: 20),
-            _sectionHeader('Subject Columns (Preview / Default Config)'),
+            _sectionHeader(context.tr('subjectColumnsHeader')),
             _buildSubjectList(),
 
             const SizedBox(height: 20),
-            _sectionHeader('Grade Scheme'),
+            _sectionHeader(context.tr('gradeScheme')),
             _buildGradeSchemeTable(),
 
             const SizedBox(height: 20),
-            _sectionHeader('Footer'),
+            _sectionHeader(context.tr('footerLabel')),
             _buildTextField(
               controller: _footerCtrl,
-              label: 'Footer Text',
+              label: context.tr('footerText'),
               hint: 'e.g. Class Teacher: _____  Principal: _____',
               required: false,
               maxLines: 2,
@@ -712,7 +713,7 @@ class _ReportCardTemplateEditorState
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.save),
-              label: Text(isNew ? 'Create Template' : 'Save Changes'),
+              label: Text(isNew ? context.tr('createTemplate') : context.tr('saveChanges')),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
@@ -739,14 +740,14 @@ class _ReportCardTemplateEditorState
     controller: _nameCtrl,
     maxLength: 60,
     maxLengthEnforcement: MaxLengthEnforcement.enforced,
-    decoration: const InputDecoration(
-      labelText: 'Template Name *',
+    decoration: InputDecoration(
+      labelText: context.tr('templateNameReq'),
       counterText: '',
       filled: true,
       fillColor: Colors.white,
     ),
     validator: (v) =>
-        (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+        (v == null || v.trim().isEmpty) ? context.tr('nameRequired') : null,
   );
 
   Widget _buildTextField({
@@ -820,8 +821,8 @@ class _ReportCardTemplateEditorState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Page Size',
-                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(context.tr('pageSizeLabel'),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
               const SizedBox(height: 4),
               SegmentedButton<String>(
                 segments: const [
@@ -844,13 +845,13 @@ class _ReportCardTemplateEditorState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Orientation',
-                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(context.tr('orientationLabel'),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
               const SizedBox(height: 4),
               SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'portrait',  label: Text('Portrait')),
-                  ButtonSegment(value: 'landscape', label: Text('Landscape')),
+                segments: [
+                  ButtonSegment(value: 'portrait',  label: Text(context.tr('portraitLabel'))),
+                  ButtonSegment(value: 'landscape', label: Text(context.tr('landscapeLabel'))),
                 ],
                 selected: {_orientation},
                 onSelectionChanged: (s) =>
@@ -878,7 +879,7 @@ class _ReportCardTemplateEditorState
           onPressed: () => setState(() =>
               _subjects.add(const SubjectColumn(subject: '', maxMarks: 100))),
           icon: const Icon(Icons.add, size: 16),
-          label: const Text('Add Subject'),
+          label: Text(context.tr('addSubject')),
         ),
       ],
     );
@@ -901,8 +902,8 @@ class _ReportCardTemplateEditorState
             flex: 3,
             child: TextFormField(
               initialValue: sub.subject,
-              decoration: const InputDecoration(
-                labelText: 'Subject',
+              decoration: InputDecoration(
+                labelText: context.tr('subjectColLabel'),
                 isDense: true,
                 filled: true,
                 fillColor: AppTheme.background,
@@ -919,8 +920,8 @@ class _ReportCardTemplateEditorState
               initialValue: '${sub.maxMarks}',
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
-                labelText: 'Max',
+              decoration: InputDecoration(
+                labelText: context.tr('maxColLabel'),
                 isDense: true,
                 filled: true,
                 fillColor: AppTheme.background,
@@ -932,7 +933,7 @@ class _ReportCardTemplateEditorState
           const SizedBox(width: 4),
           // Grade checkbox
           Tooltip(
-            message: 'Include Grade column',
+            message: context.tr('includeGradeColumn'),
             child: Checkbox(
               value: sub.includeGrade,
               onChanged: (v) => setState(
@@ -943,7 +944,7 @@ class _ReportCardTemplateEditorState
           const Text('G', style: TextStyle(fontSize: 10)),
           // Remarks checkbox
           Tooltip(
-            message: 'Include Remarks column',
+            message: context.tr('includeRemarksColumn'),
             child: Checkbox(
               value: sub.includeRemarks,
               onChanged: (v) => setState(
@@ -993,7 +994,7 @@ class _ReportCardTemplateEditorState
                       grade: '', gpa: 0));
             }),
             icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add Band'),
+            label: Text(context.tr('addBand')),
           ),
         ],
       ),
@@ -1003,16 +1004,16 @@ class _ReportCardTemplateEditorState
   Widget _gradeHeader() => Container(
     color: Colors.grey.shade50,
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    child: const Row(children: [
-      Expanded(flex: 2, child: Text('Min %',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-      Expanded(flex: 2, child: Text('Max %',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-      Expanded(flex: 2, child: Text('Grade',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-      Expanded(flex: 2, child: Text('GPA',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-      SizedBox(width: 32),
+    child: Row(children: [
+      Expanded(flex: 2, child: Text(context.tr('minPct'),
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+      Expanded(flex: 2, child: Text(context.tr('maxPct'),
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+      Expanded(flex: 2, child: Text(context.tr('gradeColLabel'),
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+      Expanded(flex: 2, child: Text(context.tr('gpaColLabel'),
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+      const SizedBox(width: 32),
     ]),
   );
 
