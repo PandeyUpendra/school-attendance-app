@@ -209,15 +209,18 @@ class AuthService {
       } else {
         await prefs.remove(_keyStudentSection);
       }
-      if (studentAdmissionId != null && studentAdmissionId.isNotEmpty) {
-        await prefs.setString(_keyStudentAdmissionId, studentAdmissionId);
-      } else {
-        await prefs.remove(_keyStudentAdmissionId);
-      }
     } else {
       await prefs.remove(_keyStudentClass);
       await prefs.remove(_keyStudentRoll);
       await prefs.remove(_keyStudentSection);
+    }
+
+    // Guardian's provisioned admissionId (#39) — stored independently of the
+    // single studentClass/roll because guardian logins persist a studentLinks
+    // list instead. Drives the safe 'guardian_adm:' notification subscription.
+    if (studentAdmissionId != null && studentAdmissionId.isNotEmpty) {
+      await prefs.setString(_keyStudentAdmissionId, studentAdmissionId);
+    } else {
       await prefs.remove(_keyStudentAdmissionId);
     }
 
@@ -279,9 +282,10 @@ class AuthService {
       result['studentClass']   = sClass;
       result['studentRoll']    = sRoll;
       result['studentSection'] = sSection ?? '';
-      final sAdm = prefs.getString(_keyStudentAdmissionId);
-      if (sAdm != null && sAdm.isNotEmpty) result['studentAdmissionId'] = sAdm;
     }
+    // Independent of studentClass (guardian logins persist studentLinks instead).
+    final sAdm = prefs.getString(_keyStudentAdmissionId);
+    if (sAdm != null && sAdm.isNotEmpty) result['studentAdmissionId'] = sAdm;
 
     final assignedRaw = prefs.getString(_keyAssignedClasses);
     if (assignedRaw != null && assignedRaw.isNotEmpty) {

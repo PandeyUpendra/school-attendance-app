@@ -96,6 +96,8 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
         name:         name,
         schoolId:     schoolId,
         studentLinks: sessionLinks,
+        // Provisioned stable id (#39) for the safe guardian_adm subscription.
+        studentAdmissionId: userData['studentAdmissionId'] as String?,
       );
 
       if (!mounted) return;

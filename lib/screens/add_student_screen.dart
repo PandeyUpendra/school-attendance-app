@@ -297,6 +297,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               studentClass: student.className,
               studentRoll:  student.roll,
               studentName:  student.name,
+              studentAdmissionId: student.admissionId,
               schoolId:     BaseFirestoreService.currentSchoolId,
             );
             if (mounted) {

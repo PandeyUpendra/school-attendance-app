@@ -68,6 +68,18 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   late String _activeClass;
   late int    _activeRoll;
   late String _activeSection;
+  // Active child's STABLE admission id (#39). Drives the 'guardian_adm:' notif
+  // subscription. SAFETY: set ONLY when the active child's admissionId equals
+  // the guardian's PROVISIONED id (`_sessionAdmissionId`, == the top-level
+  // studentAdmissionId the firestore.rules check). Subscribing to a guardian_adm
+  // value the rules can't authorise would get the WHOLE notifications whereIn
+  // query denied (proven in test_rules/notifications.test.mjs), so we never do.
+  String? _activeAdmissionId;
+  // The guardian's provisioned admissionId from their allowed_users doc (carried
+  // in the session). Null for guardians provisioned before #39 / not yet
+  // backfilled — in which case the guardian_adm channel stays off (legacy roll
+  // channel only) and the feed is never at risk.
+  String? _sessionAdmissionId;
 
   // Every student that shares this guardian's email — i.e. all their children.
   // When more than one, a child switcher appears in the header.
@@ -153,11 +165,15 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       return;
     }
     setState(() {
-      _activeClass   = child.className;
-      _activeRoll    = child.roll;
-      _activeSection = child.section;
-      _student       = null;
-      _loading       = true;
+      _activeClass       = child.className;
+      _activeRoll        = child.roll;
+      _activeSection     = child.section;
+      // Reset until _loadAll confirms the new child's admissionId matches the
+      // provisioned (rules-authorised) id — avoids ever subscribing to a
+      // guardian_adm value the rules would reject.
+      _activeAdmissionId = null;
+      _student           = null;
+      _loading           = true;
     });
     _notifSub?.cancel();
     _initNotifStream();
@@ -177,9 +193,10 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
 
     _notifSub = NotificationService()
         .streamFor(
-          role:         'guardian',
-          studentClass: _activeClass,
-          studentRoll:  _activeRoll,
+          role:               'guardian',
+          studentClass:       _activeClass,
+          studentRoll:        _activeRoll,
+          studentAdmissionId: _activeAdmissionId,
         )
         .listen((items) {
       if (!mounted) return;
@@ -281,6 +298,21 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         _teacherById    = {for (final t in teachers) t.id: t};
         _loading        = false;
       });
+
+      // Load the guardian's provisioned admissionId once (from the session,
+      // sourced from allowed_users at login).
+      _sessionAdmissionId ??=
+          (await AuthService().getSession())?['studentAdmissionId'] as String?;
+      // Subscribe to the stable-identity channel ONLY when the loaded child's
+      // admissionId matches the provisioned id the rules authorise — otherwise
+      // the channel stays off (safe). See the field doc above.
+      final adm  = _student?.admissionId ?? '';
+      final next = (adm.isNotEmpty && adm == _sessionAdmissionId) ? adm : null;
+      if (next != _activeAdmissionId) {
+        _activeAdmissionId = next;
+        _notifSub?.cancel();
+        _initNotifStream();
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {

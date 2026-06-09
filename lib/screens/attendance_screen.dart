@@ -459,6 +459,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   roll:        s.roll,
                   studentName: s.name,
                   status:      status!,
+                  admissionId: s.admissionId,
                 );
               } catch (_) {/* non-fatal */}
             }

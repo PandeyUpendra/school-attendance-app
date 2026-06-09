@@ -203,6 +203,12 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
         name:         name,
         schoolId:     schoolId,
         studentLinks: sessionLinks,
+        // Stable id (#39) for the safe guardian_adm subscription. Only for a
+        // single-child link — the rules authorise the top-level id, so a
+        // multi-child OTP login leaves it null (legacy roll channel only).
+        studentAdmissionId: links.length == 1
+            ? links.first['studentAdmissionId'] as String?
+            : null,
       );
 
       if (!mounted) return;

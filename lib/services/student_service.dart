@@ -242,6 +242,7 @@ class StudentService extends BaseFirestoreService {
         roll:      student.roll,
         section:   student.section,
         name:      student.name,
+        admissionId: student.admissionId,
       );
     }
     return null;
@@ -298,6 +299,7 @@ class StudentService extends BaseFirestoreService {
     String          section  = '',
     String?         name,
     String?         schoolId,
+    String?         admissionId,
   }) async {
     final svc = TimetableService();
     // schoolId must be stamped on every allowed_users write — the security
@@ -318,12 +320,14 @@ class StudentService extends BaseFirestoreService {
       schoolId:     effectiveSchoolId,
       studentClass: className,
       studentRoll:  roll,
+      studentAdmissionId: admissionId,
     );
     await svc.linkGuardianEmail(
       email:        email,
       studentClass: className,
       studentRoll:  roll,
       studentName:  name,
+      studentAdmissionId: admissionId,
     );
   }
 
@@ -368,6 +372,7 @@ class StudentService extends BaseFirestoreService {
         roll:      roll,
         section:   section,
         name:      studentName,
+        admissionId: existing?.admissionId,
       );
     } catch (e) {
       AppLogger.e('StudentService',

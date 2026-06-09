@@ -554,6 +554,7 @@ class TimetableService extends BaseFirestoreService {
     String?       schoolId,
     String?       studentClass,
     int?          studentRoll,
+    String?       studentAdmissionId,
     List<String>? assignedClasses,
     String?       createdByEmail,
     String?       createdByRole,
@@ -597,6 +598,10 @@ class TimetableService extends BaseFirestoreService {
     if (role == 'guardian' && studentClass != null && studentRoll != null) {
       data['studentClass'] = studentClass;
       data['studentRoll']  = studentRoll;
+      // Stable identity for the #39 'guardian_adm:{admissionId}' rule branch.
+      if (studentAdmissionId != null && studentAdmissionId.isNotEmpty) {
+        data['studentAdmissionId'] = studentAdmissionId;
+      }
     }
     if (role == 'coordinator' || role == 'principal' || role == 'owner') {
       data['assignedClasses'] = assignedClasses ?? [];
@@ -795,6 +800,7 @@ class TimetableService extends BaseFirestoreService {
     required String studentClass,
     required int    studentRoll,
     required String studentName,
+    String?         studentAdmissionId,
     String?         schoolId,
     String?         phone,   // E.164 format
   }) async {
@@ -807,6 +813,7 @@ class TimetableService extends BaseFirestoreService {
       studentClass: studentClass,
       studentRoll:  studentRoll,
       studentName:  studentName,
+      studentAdmissionId: studentAdmissionId,
       schoolId:     schoolId,
       phone:        phone,
     );
@@ -1158,7 +1165,13 @@ class TimetableService extends BaseFirestoreService {
     final cls  = data['studentClass'] as String?;
     final roll = data['studentRoll'];
     if (cls == null || roll == null) return null;
-    return [{'studentClass': cls, 'studentRoll': roll, 'studentName': ''}];
+    return [{
+      'studentClass': cls,
+      'studentRoll':  roll,
+      'studentName':  '',
+      if (data['studentAdmissionId'] != null)
+        'studentAdmissionId': data['studentAdmissionId'],
+    }];
   }
 
   /// Returns true if the given email exists in the allowed_users collection.
@@ -1176,6 +1189,7 @@ class TimetableService extends BaseFirestoreService {
     required String studentClass,
     required int    studentRoll,
     String?         studentName,
+    String?         studentAdmissionId,
     String?         schoolId,
     String?         phone,           // E.164 format, e.g. "+919876543210"
   }) async {
@@ -1197,6 +1211,8 @@ class TimetableService extends BaseFirestoreService {
         'studentClass': studentClass,
         'studentRoll':  studentRoll,
         if (studentName != null) 'studentName': studentName,
+        if (studentAdmissionId != null && studentAdmissionId.isNotEmpty)
+          'studentAdmissionId': studentAdmissionId,
       });
     }
 
@@ -1206,6 +1222,10 @@ class TimetableService extends BaseFirestoreService {
       'studentLinks': links,
       'studentClass': studentClass,  // legacy compat
       'studentRoll':  studentRoll,   // legacy compat
+      // Top-level stable id (last-linked child) — the firestore.rules
+      // guardian_adm branch reads getUserData().studentAdmissionId (#39).
+      if (studentAdmissionId != null && studentAdmissionId.isNotEmpty)
+        'studentAdmissionId': studentAdmissionId,
       if (schoolId != null) 'schoolId': schoolId,
       if (phone != null && phone.isNotEmpty) 'phone': phone.trim(),
     }, SetOptions(merge: true));
