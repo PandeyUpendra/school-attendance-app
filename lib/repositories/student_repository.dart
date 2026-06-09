@@ -61,6 +61,13 @@ abstract class StudentRepository {
   /// access — that orchestration belongs in [StudentService.removeStudent].
   Future<void> delete(String id);
 
+  /// Atomically promotes a batch of students by creating new records in target
+  /// class and updating old records to marked as promoted.
+  Future<void> promoteStudentsAtomic(
+    List<Student> newStudents,
+    List<Student> oldStudents,
+  );
+
   /// Patch only the `guardianEmail` field on an existing student record.
   Future<void> setGuardianEmail(
     String className,
@@ -284,6 +291,42 @@ class FirestoreStudentRepository implements StudentRepository {
   @override
   Future<void> delete(String id) async {
     await _students.doc(id).delete();
+  }
+
+  @override
+  Future<void> promoteStudentsAtomic(
+    List<Student> newStudents,
+    List<Student> oldStudents,
+  ) async {
+    if (newStudents.isEmpty) return;
+    assert(newStudents.length == oldStudents.length);
+
+    // Firestore batch limit is 500 operations.
+    // Each student promotion has 2 operations: 1 set (new) and 1 update (old).
+    // So we can process up to 250 students per batch. Let's use a chunk size of 200.
+    const chunkSize = 200;
+    for (var i = 0; i < newStudents.length; i += chunkSize) {
+      final end = (i + chunkSize < newStudents.length)
+          ? i + chunkSize
+          : newStudents.length;
+      final newChunk = newStudents.sublist(i, end);
+      final oldChunk = oldStudents.sublist(i, end);
+
+      final batch = _db.batch();
+      for (var j = 0; j < newChunk.length; j++) {
+        final ns = newChunk[j];
+        final os = oldChunk[j];
+
+        final nextId = _docId(ns.roll, ns.className, ns.section);
+        batch.set(_students.doc(nextId), ns.toJson());
+
+        final oldId = os.id.isNotEmpty
+            ? os.id
+            : _docId(os.roll, os.className, os.section);
+        batch.update(_students.doc(oldId), {'promoted': true});
+      }
+      await batch.commit();
+    }
   }
 
   @override

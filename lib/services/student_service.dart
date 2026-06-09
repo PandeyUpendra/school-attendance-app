@@ -154,6 +154,13 @@ class StudentService extends BaseFirestoreService {
       _visibleOnly(
           await _repo.fetchByClass(className, section, teacherId: teacherId));
 
+  /// Fetches raw student records for a class/section (including promoted and deletion pending).
+  Future<List<Student>> getStudentsByClassRaw({
+    required String className,
+    String section = '',
+  }) async =>
+      _repo.fetchByClass(className, section);
+
   /// Real-time stream of students for a class/section.
   /// Emits a new sorted list on every Firestore change (add / update / delete).
   Stream<List<Student>> watchStudentsByClass({
@@ -343,6 +350,81 @@ class StudentService extends BaseFirestoreService {
           : '${student.className}_${student.section}_${student.roll}',
       reason:   'promoted to next class',
     );
+  }
+
+  /// Atomically promotes a batch of students and parallelizes post-promotion tasks.
+  Future<void> promoteStudents(
+    List<Student> newStudents,
+    List<Student> oldStudents,
+  ) async {
+    if (newStudents.isEmpty) return;
+    assert(newStudents.length == oldStudents.length);
+
+    // 1. Database write (atomic batch)
+    await _repo.promoteStudentsAtomic(newStudents, oldStudents);
+
+    // 2. Parallel post-promotion tasks
+    final tasks = <Future<void>>[];
+    for (var i = 0; i < newStudents.length; i++) {
+      final ns = newStudents[i];
+      final os = oldStudents[i];
+
+      // Audit log for creation of target student record
+      final nsDocId = Student.buildDocId(ns.roll, ns.className, ns.section);
+      AuditService.emit(
+        action: 'create',
+        entity: 'student',
+        entityId: nsDocId,
+        after: ns.copyWith(id: nsDocId).toJson(),
+      );
+
+      // Audit log for archiving/promotion of source student record
+      final osDocId = os.id.isNotEmpty
+          ? os.id
+          : Student.buildDocId(os.roll, os.className, os.section);
+      AuditService.emit(
+        action: 'update',
+        entity: 'student',
+        entityId: osDocId,
+        before: os.toJson(),
+        after: os.copyWith(promoted: true).toJson(),
+        reason: 'promoted to next class',
+      );
+
+      // Guardian account upsert (async best-effort)
+      if (ns.guardianEmail != null && ns.guardianEmail!.trim().isNotEmpty) {
+        tasks.add(() async {
+          try {
+            await _upsertGuardianAccount(
+              email: ns.guardianEmail!.trim().toLowerCase(),
+              className: ns.className,
+              roll: ns.roll,
+              section: ns.section,
+              name: ns.name,
+              admissionId: ns.admissionId,
+            );
+          } catch (e) {
+            AppLogger.e('StudentService',
+                'promote guardian account upsert failed: $e', e);
+          }
+        }());
+      }
+
+      // Purge stale notifications (async best-effort)
+      tasks.add(() async {
+        try {
+          await _cascadeDeleteStudentNotifications(os.className, os.roll);
+          await _cascadeDeleteStudentLeaveNotifications(
+              os.className, os.roll, os.name);
+        } catch (e) {
+          AppLogger.e('StudentService', 'promote notification purge failed: $e', e);
+        }
+      }());
+    }
+
+    if (tasks.isNotEmpty) {
+      await Future.wait(tasks);
+    }
   }
 
   /// Creates/updates a Firebase Auth account + allowed_users entry for a guardian.

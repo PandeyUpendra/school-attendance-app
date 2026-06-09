@@ -26,12 +26,27 @@ class PromotionResult {
 /// move history. Following a student's full history across years is keyed by
 /// [Student.admissionId] (the stable id), which a later reporting layer can use.
 class PromotionService {
-  static final PromotionService _instance = PromotionService._();
-  PromotionService._();
-  factory PromotionService() => _instance;
+  static PromotionService? _instance;
+  final StudentService _students;
+  final TimetableService _timetable;
 
-  final StudentService _students = StudentService();
-  final TimetableService _timetable = TimetableService();
+  factory PromotionService({
+    StudentService? studentService,
+    TimetableService? timetableService,
+  }) {
+    if (studentService != null || timetableService != null) {
+      return PromotionService._(
+        studentService ?? StudentService(),
+        timetableService ?? TimetableService(),
+      );
+    }
+    return _instance ??= PromotionService._(
+      StudentService(),
+      TimetableService(),
+    );
+  }
+
+  PromotionService._(this._students, this._timetable);
 
   Future<PromotionResult> promoteStudents({
     required List<Student> students,
@@ -59,14 +74,54 @@ class PromotionService {
       targetTeacherId = match?.id;
     } catch (_) {/* best-effort — fall back to carrying the old teacherId */}
 
-    var promoted = 0;
+    // Fetch target class's raw roster to check for roll and admission ID collisions.
+    final List<Student> targetStudents;
+    try {
+      targetStudents = await _students.getStudentsByClassRaw(
+        className: targetClass,
+        section: targetSection,
+      );
+    } catch (e) {
+      // If fetching target students fails, we cannot proceed safely with checks.
+      return PromotionResult(
+        0,
+        students
+            .map((s) =>
+                '${s.name} (roll ${s.roll}): failed to query target class: $e')
+            .toList(),
+      );
+    }
+
+    final existingRolls = targetStudents.map((s) => s.roll).toSet();
+    final existingAdmissions = targetStudents.map((s) => s.admissionId).toSet();
+
+    final toPromoteNew = <Student>[];
+    final toPromoteOld = <Student>[];
     final skipped = <String>[];
+
     for (final s in students) {
-      if (s.promoted) continue;
+      if (s.promoted) {
+        continue;
+      }
       if (s.className == targetClass && s.section == targetSection) {
         skipped.add('${s.name} (roll ${s.roll}): already in $targetClass');
         continue;
       }
+
+      // Check if student's admissionId is already in target class (i.e. already promoted)
+      if (existingAdmissions.contains(s.admissionId)) {
+        skipped.add(
+            '${s.name} (roll ${s.roll}): already in $targetClass (by admission ID)');
+        continue;
+      }
+
+      // Check for roll collision
+      if (existingRolls.contains(s.roll)) {
+        skipped.add(
+            '${s.name} (roll ${s.roll}): roll number ${s.roll} already exists in $targetClass');
+        continue;
+      }
+
       final next = Student(
         id: '', // new doc id derived from target class/roll
         admissionId: s.admissionId, // stable identity carried across years
@@ -93,14 +148,28 @@ class PromotionService {
         allergies: s.allergies,
         transportMode: s.transportMode,
       );
-      final err = await _students.addStudent(student: next);
-      if (err != null) {
-        skipped.add('${s.name} (roll ${s.roll}): $err');
-        continue;
-      }
-      await _students.markPromoted(s);
-      promoted++;
+
+      // Sanitize fields before promoting (same as in StudentService.addStudent)
+      final sanitizedNext = next.copyWith(
+        name: stripHtml(next.name).trim(),
+        fatherName: stripHtml(next.fatherName).trim(),
+        motherName: next.motherName != null
+            ? stripHtml(next.motherName!).trim()
+            : null,
+        phone: next.phone.isNotEmpty ? normalizePhone(next.phone) : '',
+        parentPhone: next.parentPhone != null && next.parentPhone!.isNotEmpty
+            ? normalizePhone(next.parentPhone!)
+            : null,
+      );
+
+      toPromoteNew.add(sanitizedNext);
+      toPromoteOld.add(s);
     }
-    return PromotionResult(promoted, skipped);
+
+    if (toPromoteNew.isNotEmpty) {
+      await _students.promoteStudents(toPromoteNew, toPromoteOld);
+    }
+
+    return PromotionResult(toPromoteNew.length, skipped);
   }
 }

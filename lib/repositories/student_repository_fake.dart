@@ -126,6 +126,31 @@ class FakeStudentRepository implements StudentRepository {
   }
 
   @override
+  Future<void> promoteStudentsAtomic(
+    List<Student> newStudents,
+    List<Student> oldStudents,
+  ) async {
+    if (newStudents.isEmpty) return;
+    assert(newStudents.length == oldStudents.length);
+
+    for (var i = 0; i < newStudents.length; i++) {
+      final ns = newStudents[i];
+      final os = oldStudents[i];
+
+      final nextId = docId(ns.roll, ns.className, ns.section);
+      _students[nextId] = _withId(ns, nextId);
+
+      final oldId = os.id.isNotEmpty
+          ? os.id
+          : docId(os.roll, os.className, os.section);
+      final existing = _students[oldId];
+      if (existing != null) {
+        _students[oldId] = existing.copyWith(promoted: true);
+      }
+    }
+  }
+
+  @override
   Future<void> setGuardianEmail(
     String className,
     String section,
