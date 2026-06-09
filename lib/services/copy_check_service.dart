@@ -207,6 +207,14 @@ class CopyCheckService {
     for (final s in statuses) {
       batch.set(_statuses(checkId).doc('${s.roll}'), s.toJson());
     }
+    final pendingCount = statuses
+        .where((s) => s.status == 'incomplete' || s.status == 'not_done')
+        .length;
+    final totalCount = statuses.length;
+    batch.update(_coll.doc(checkId), {
+      'pendingCount': pendingCount,
+      'totalCount': totalCount,
+    });
     await batch.commit();
   }
 

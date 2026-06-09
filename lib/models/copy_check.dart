@@ -11,6 +11,9 @@ class CopyCheck {
   final DateTime checkDate;
   final DateTime createdAt;
 
+  final int?     pendingCount;
+  final int?     totalCount;
+
   const CopyCheck({
     required this.id,
     required this.teacherId,
@@ -20,6 +23,8 @@ class CopyCheck {
     required this.subject,
     required this.checkDate,
     required this.createdAt,
+    this.pendingCount,
+    this.totalCount,
   });
 
   Map<String, dynamic> toJson() => {
@@ -30,6 +35,8 @@ class CopyCheck {
         'subject':     subject,
         'checkDate':   Timestamp.fromDate(checkDate),
         'createdAt':   FieldValue.serverTimestamp(),
+        if (pendingCount != null) 'pendingCount': pendingCount,
+        if (totalCount != null) 'totalCount': totalCount,
       };
 
   factory CopyCheck.fromDoc(String id, Map<String, dynamic> data) {
@@ -44,6 +51,8 @@ class CopyCheck {
       subject:     (data['subject']     as String?) ?? '',
       checkDate:   ts  is Timestamp ? ts.toDate()  : DateTime.now(),
       createdAt:   cts is Timestamp ? cts.toDate() : DateTime.now(),
+      pendingCount: (data['pendingCount'] as num?)?.toInt(),
+      totalCount:   (data['totalCount']   as num?)?.toInt(),
     );
   }
 }

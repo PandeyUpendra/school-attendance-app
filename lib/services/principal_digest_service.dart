@@ -36,7 +36,7 @@ class PrincipalDigestService {
     final allLeavesF    = TimetableService().getLeaveApplications();
     final pendingLeavesF= TimetableService().getLeaveApplications(status: 'pending');
     final remarksTodayF = _fetchTodayRemarks(sid, dayStart);
-    final paymentsTodayF= _fetchTodayPayments(sid, classes, dayStart);
+    final paymentsTodayF= _fetchTodayPayments(sid, dayStart);
     final copyChecksF   = CopyCheckService().getAllChecks();
 
     final summaries     = await summariesF;
@@ -121,13 +121,19 @@ class PrincipalDigestService {
         .where((c) => c.checkDate.isAfter(cutoff) ||
                       c.checkDate.isAtSameMomentAs(cutoff))
         .toList();
-    final pendingPerCheck = await Future.wait(
-      recentChecks.map((c) => CopyCheckService().getPendingStatuses(c.id)),
+    final pendingCounts = await Future.wait(
+      recentChecks.map((c) async {
+        if (c.pendingCount != null) {
+          return c.pendingCount!;
+        }
+        final pendingStatuses = await CopyCheckService().getPendingStatuses(c.id);
+        return pendingStatuses.length;
+      }),
     );
     int copyBacklog = 0;
     final backlogByTeacher = <String, int>{};
     for (var i = 0; i < recentChecks.length; i++) {
-      final n = pendingPerCheck[i].length;
+      final n = pendingCounts[i];
       copyBacklog += n;
       if (n > 0) {
         final key = recentChecks[i].teacherName.isNotEmpty
@@ -170,69 +176,49 @@ class PrincipalDigestService {
       String sid, DateTime dayStart) async {
    try {
     final cutoff = Timestamp.fromDate(dayStart);
-    final studentsSnap =
-        await _db.collection('schools').doc(sid).collection('students').get();
+    final rs = await _db
+        .collectionGroup('remarks')
+        .where('schoolId', isEqualTo: sid)
+        .where('timestamp', isGreaterThanOrEqualTo: cutoff)
+        .get();
 
-    final perStudent = await Future.wait(studentsSnap.docs.map((sdoc) async {
-      final rs = await sdoc.reference
-          .collection('remarks')
-          .where('timestamp', isGreaterThanOrEqualTo: cutoff)
-          .get();
-      return rs.docs.map((doc) {
-        final data = doc.data();
-        final ts = data['timestamp'];
-        final dt = ts is Timestamp ? ts.toDate() : dayStart;
-        return RemarkItem(
-          studentId:  sdoc.id,
-          remark:     (data['remark']    as String?) ?? '',
-          role:       (data['role']      as String?) ?? '',
-          createdBy:  (data['createdBy'] as String?) ?? '',
-          timestamp:  dt,
-        );
-      }).toList();
-    }));
+    final remarks = rs.docs.map((doc) {
+      final data = doc.data();
+      final ts = data['timestamp'];
+      final dt = ts is Timestamp ? ts.toDate() : dayStart;
+      final studentId = doc.reference.parent.parent?.id ?? '';
+      return RemarkItem(
+        studentId:  studentId,
+        remark:     (data['remark']    as String?) ?? '',
+        role:       (data['role']      as String?) ?? '',
+        createdBy:  (data['createdBy'] as String?) ?? '',
+        timestamp:  dt,
+      );
+    }).toList();
 
-    final remarks = perStudent.expand((e) => e).toList();
     remarks.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return remarks;
    } catch (_) {
-     // A missing index or access hiccup on one subtree must not sink the whole
-     // digest — degrade this section to empty so the rest still renders.
      return [];
    }
   }
 
   /// Today's fee payments for [sid] only.
   ///
-  /// Walks `schools/{sid}/fee_payments/{class}/students/*/payments` (the path
-  /// [FeeService] writes to) with a server-side `paidOn >= dayStart` filter.
-  /// Returns each payment's raw data map for aggregation by the caller.
+  /// Uses a collectionGroup query on 'payments' with a server-side filter
+  /// on 'schoolId' and 'paidOn >= dayStart'.
   Future<List<Map<String, dynamic>>> _fetchTodayPayments(
-      String sid, List<String> classes, DateTime dayStart) async {
+      String sid, DateTime dayStart) async {
    try {
     final cutoff = Timestamp.fromDate(dayStart);
-    final feePayments =
-        _db.collection('schools').doc(sid).collection('fee_payments');
+    final rs = await _db
+        .collectionGroup('payments')
+        .where('schoolId', isEqualTo: sid)
+        .where('paidOn', isGreaterThanOrEqualTo: cutoff)
+        .get();
 
-    final perClass = await Future.wait(classes.map((className) async {
-      final classDocId = className.replaceAll(' ', '_');
-      final studentsSnap =
-          await feePayments.doc(classDocId).collection('students').get();
-      final perStudent = await Future.wait(studentsSnap.docs.map((sd) {
-        return sd.reference
-            .collection('payments')
-            .where('paidOn', isGreaterThanOrEqualTo: cutoff)
-            .get();
-      }));
-      return perStudent
-          .expand((snap) => snap.docs)
-          .map((d) => d.data())
-          .toList();
-    }));
-
-    return perClass.expand((e) => e).toList();
+    return rs.docs.map((d) => d.data()).toList();
    } catch (_) {
-     // Degrade fees-collected-today to empty rather than failing the digest.
      return [];
    }
   }
