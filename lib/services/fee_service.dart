@@ -34,6 +34,20 @@ class FeeService extends BaseFirestoreService {
           .doc('$roll')
           .collection('payments');
 
+  // ── Masking Helper ─────────────────────────────────────────────────────────
+
+  String maskSensitiveInfo(String input) {
+    // Match 13 to 19 digit card/account numbers (allowing spaces or hyphens)
+    final cardRegex = RegExp(r'\b(?:\d[ -]*?){13,19}\b');
+    return input.replaceAllMapped(cardRegex, (match) {
+      final clean = match.group(0)!.replaceAll(RegExp(r'\D'), '');
+      if (clean.length >= 13 && clean.length <= 19) {
+        return '****-****-****-${clean.substring(clean.length - 4)}';
+      }
+      return match.group(0)!;
+    });
+  }
+
   // ── Fee Structure ──────────────────────────────────────────────────────────
 
   Future<FeeStructure> getFeeStructure({String? schoolId, required String className}) async {
@@ -108,32 +122,31 @@ class FeeService extends BaseFirestoreService {
     String? clientTxnId,
     bool enforceCap = true,
   }) async {
-    // Server-side over-payment guard (#24), in addition to the UI validator —
-    // covers programmatic callers and is computed against the freshly-summed
-    // total. (A pre-read, not transactional: simultaneous cashiers on the SAME
-    // student is rare; a fully race-proof cap needs the per-student paid
-    // counter from the aggregation work, #25.)
-    if (enforceCap && !payment.reversed) {
-      final structure = await getFeeStructure(className: className);
-      final capPaise = structure.totalAnnualFeePaise;
-      if (capPaise > 0) {
-        final alreadyPaise = rupeesToPaise(
-            await getTotalPaid(className: className, roll: roll));
-        // ₹1 (100 paise) tolerance for rounding.
-        if (alreadyPaise + payment.amountPaise > capPaise + 100) {
-          final remaining = paiseToRupees(
-              (capPaise - alreadyPaise).clamp(0, capPaise));
-          throw FeeOverpaymentException(
-              'Payment exceeds the outstanding due of '
-              '₹${remaining.toStringAsFixed(0)}.');
-        }
-      }
+    // Sanitize and validate payment mode input (#663)
+    const allowedModes = {'Cash', 'UPI', 'Bank', 'Cheque'};
+    if (!allowedModes.contains(payment.mode)) {
+      throw ArgumentError(
+          'Invalid payment mode "${payment.mode}". Allowed modes: ${allowedModes.join(", ")}');
     }
+
+    // Sanitize and mask sensitive info in note (#664)
+    final sanitizedNote = payment.note != null ? maskSensitiveInfo(payment.note!) : null;
 
     final col = _paymentsCol(className, roll);
     final ref = (clientTxnId != null && clientTxnId.isNotEmpty)
         ? col.doc(clientTxnId)
         : col.doc();
+
+    final studentFeeDocRef = schoolCollection(_sid, 'fee_payments')
+        .doc(className.replaceAll(' ', '_'))
+        .collection('students')
+        .doc('$roll');
+
+    final structureDocRef = _feeStructures.doc(className.replaceAll(' ', '_'));
+
+    // Cold-start fallback calculation outside transaction
+    final initialPaidPaise = rupeesToPaise(
+        await getTotalPaid(className: className, roll: roll));
 
     final receiptNo = await db.runTransaction<String>((tx) async {
       // Idempotency guard — a retry with the same clientTxnId finds the doc
@@ -144,6 +157,50 @@ class FeeService extends BaseFirestoreService {
         return (data['receiptNo'] as String?) ?? payment.receiptNo;
       }
 
+      // Read Fee Structure to get cap and check installments (#655)
+      final structureSnap = await tx.get(structureDocRef);
+      var capPaise = 0;
+      final validInstallmentNames = <String>{};
+      if (structureSnap.exists && structureSnap.data() != null) {
+        final struct = FeeStructure.fromJson(
+            Map<String, dynamic>.from(structureSnap.data()!));
+        capPaise = struct.totalAnnualFeePaise;
+        validInstallmentNames.addAll(struct.installments.map((i) => i.name));
+      }
+
+      // Validate installment name if provided (#655)
+      final instName = payment.installmentName;
+      if (instName != null && instName.isNotEmpty) {
+        if (!validInstallmentNames.contains(instName)) {
+          throw ArgumentError(
+              'Invalid installment name "$instName". Must match one of the configured installments: ${validInstallmentNames.join(", ")}');
+        }
+      }
+
+      // Read current total paid from student summary doc to prevent race conditions (#651)
+      final studentFeeSnap = await tx.get(studentFeeDocRef);
+      var alreadyPaise = 0;
+      if (studentFeeSnap.exists && studentFeeSnap.data() != null && studentFeeSnap.data()?['totalPaidPaise'] != null) {
+        alreadyPaise = (studentFeeSnap.data()?['totalPaidPaise'] as num).toInt();
+      } else {
+        alreadyPaise = initialPaidPaise;
+      }
+
+      // Enforce cap check inside transaction (#651)
+      if (enforceCap && !payment.reversed) {
+        if (capPaise > 0) {
+          // ₹1 (100 paise) tolerance for rounding.
+          if (alreadyPaise + payment.amountPaise > capPaise + 100) {
+            final remaining = paiseToRupees(
+                (capPaise - alreadyPaise).clamp(0, capPaise));
+            throw FeeOverpaymentException(
+                'Payment exceeds the outstanding due of '
+                '₹${remaining.toStringAsFixed(0)}.');
+          }
+        }
+      }
+
+      // Allocate receipt sequence atomically (#654)
       final counterSnap = await tx.get(_receiptCounter);
       final current = counterSnap.exists
           ? ((counterSnap.data()?['receiptSeq']) as num?)?.toInt() ?? 0
@@ -153,11 +210,15 @@ class FeeService extends BaseFirestoreService {
 
       final data = Map<String, dynamic>.from(payment.toJson())
         ..['receiptNo'] = rno
-        // schoolId stamped so the collection-group payments query (EOD digest)
-        // can be tenant-filtered once multi-tenancy lands (Phase 1 prep).
-        ..['schoolId'] = _sid;
+        ..['schoolId'] = _sid
+        ..['note'] = sanitizedNote;
       tx.set(_receiptCounter, {'receiptSeq': next}, SetOptions(merge: true));
       tx.set(ref, data);
+
+      // Update student fee summary metadata doc (#651)
+      final newTotal = (alreadyPaise + payment.amountPaise).toInt();
+      tx.set(studentFeeDocRef, {'totalPaidPaise': newTotal}, SetOptions(merge: true));
+
       return rno;
     });
 
@@ -168,7 +229,8 @@ class FeeService extends BaseFirestoreService {
       after:    payment.toJson()
         ..['className'] = className
         ..['roll']      = roll
-        ..['receiptNo'] = receiptNo,
+        ..['receiptNo'] = receiptNo
+        ..['note']      = sanitizedNote,
     );
     return receiptNo;
   }
@@ -183,27 +245,64 @@ class FeeService extends BaseFirestoreService {
     String? reason,
   }) async {
     final ref = _paymentsCol(className, roll).doc(paymentId);
-    final doc = await ref.get();
-    final before = doc.exists && doc.data() != null
-        ? Map<String, dynamic>.from(doc.data()! as Map)
-        : null;
-    await ref.set({
-      'reversed':       true,
-      'reversedAt':     FieldValue.serverTimestamp(),
-      if (reason != null && reason.isNotEmpty) 'reversedReason': reason,
-    }, SetOptions(merge: true));
+    final studentFeeDocRef = schoolCollection(_sid, 'fee_payments')
+        .doc(className.replaceAll(' ', '_'))
+        .collection('students')
+        .doc('$roll');
+
+    // Run in transaction to decrement totalPaidPaise atomically (#651)
+    await db.runTransaction((tx) async {
+      final doc = await tx.get(ref);
+      if (!doc.exists) return;
+      final data = Map<String, dynamic>.from(doc.data()! as Map);
+      if (data['reversed'] == true) return; // already reversed
+
+      final amountPaise = (data['amountPaise'] as num?)?.toInt() ??
+          rupeesToPaise((data['amount'] as num?)?.toDouble() ?? 0);
+
+      tx.set(ref, {
+        'reversed':       true,
+        'reversedAt':     FieldValue.serverTimestamp(),
+        'reversedReason': reason ?? 'Reversed', // Ensure non-null reason (#665)
+      }, SetOptions(merge: true));
+
+      final studentFeeSnap = await tx.get(studentFeeDocRef);
+      var totalPaidPaise = 0;
+      if (studentFeeSnap.exists && studentFeeSnap.data() != null) {
+        totalPaidPaise = (studentFeeSnap.data()?['totalPaidPaise'] as num?)?.toInt() ?? 0;
+      }
+      final newTotal = (totalPaidPaise - amountPaise).clamp(0, double.infinity).toInt();
+      tx.set(studentFeeDocRef, {'totalPaidPaise': newTotal}, SetOptions(merge: true));
+    });
+
+    final docAfter = await ref.get();
     AuditService.emit(
       action:   'reverse',
       entity:   'fee_payment',
       entityId: paymentId,
-      before:   before,
+      before:   docAfter.exists ? Map<String, dynamic>.from(docAfter.data()! as Map) : null,
     );
   }
 
+  /// Returns the total paid by a single student, using the student summary cache doc
+  /// to avoid O(N) queries on payments listing (#25, #652, #653).
   Future<double> getTotalPaid({String? schoolId, required String className, required int roll}) async {
+    final studentFeeDocRef = schoolCollection(_sid, 'fee_payments')
+        .doc(className.replaceAll(' ', '_'))
+        .collection('students')
+        .doc('$roll');
+
+    final snap = await studentFeeDocRef.get();
+    if (snap.exists && snap.data() != null && snap.data()?['totalPaidPaise'] != null) {
+      return paiseToRupees((snap.data()?['totalPaidPaise'] as num).toInt());
+    }
+
+    // Fallback: calculate from payment documents list
     final payments = await getPayments(className: className, roll: roll);
-    // Sum in integer paise, then convert once — no floating-point drift (#31).
     final paise = payments.fold<int>(0, (acc, p) => acc + p.amountPaise);
+    
+    // Save to metadata document for future instant loads
+    await studentFeeDocRef.set({'totalPaidPaise': paise}, SetOptions(merge: true));
     return paiseToRupees(paise);
   }
 
@@ -228,38 +327,36 @@ class FeeService extends BaseFirestoreService {
 
   // ── Class-wide fee overview ────────────────────────────────────────────────
 
-  /// One-shot school-wide aggregation of non-reversed paid amounts via a SINGLE
-  /// `collectionGroup('payments')` query (#25/#72), replacing the per-student
-  /// read fan-out on the coordinator/principal fee dashboards. Returns
-  /// className → roll → paidPaise, or NULL if the query fails (e.g. the
-  /// collection-group index isn't built yet) so callers fall back to the
-  /// accurate per-roll path. The className is recovered from each payment's doc
-  /// path (…/fee_payments/{classKey}/students/{roll}/payments/{id}).
+  /// Fetches summaries class-wide class-by-class in parallel, reducing database reads
+  /// by orders of magnitude and resolving query storm issues (#25, #652, #653).
   Future<Map<String, Map<int, int>>?> _aggregatePaidPaise(
       List<String> classes) async {
     try {
-      final keyToClass = {for (final c in classes) c.replaceAll(' ', '_'): c};
-      final snap = await db
-          .collectionGroup('payments')
-          .where('schoolId', isEqualTo: _sid)
-          .get();
       final out = <String, Map<int, int>>{};
-      for (final doc in snap.docs) {
-        final data = Map<String, dynamic>.from(doc.data() as Map);
-        if (data['reversed'] == true) continue;
-        final segs = doc.reference.path.split('/');
-        final i = segs.indexOf('fee_payments');
-        if (i < 0 || i + 3 >= segs.length) continue;
-        final className = keyToClass[segs[i + 1]];
-        final roll = int.tryParse(segs[i + 3]);
-        if (className == null || roll == null) continue;
-        final paise = (data['amountPaise'] as num?)?.toInt() ??
-            rupeesToPaise((data['amount'] as num?)?.toDouble() ?? 0);
-        (out[className] ??= {})[roll] = ((out[className]![roll]) ?? 0) + paise;
-      }
+      final futures = classes.map((cls) async {
+        final classKey = cls.replaceAll(' ', '_');
+        final snap = await schoolCollection(_sid, 'fee_payments')
+            .doc(classKey)
+            .collection('students')
+            .get();
+
+        final classMap = <int, int>{};
+        for (final doc in snap.docs) {
+          final roll = int.tryParse(doc.id);
+          if (roll != null) {
+            final paise = (doc.data()['totalPaidPaise'] as num?)?.toInt() ?? 0;
+            classMap[roll] = paise;
+          }
+        }
+        return MapEntry(cls, classMap);
+      });
+
+      final entries = await Future.wait(futures);
+      out.addEntries(entries);
       return out;
-    } catch (_) {
-      return null; // index missing / query failed → per-roll fallback
+    } catch (e, stack) {
+      handleError(e, stack);
+      return null; // Fallback to per-roll calculation if aggregation fails
     }
   }
 
@@ -272,20 +369,44 @@ class FeeService extends BaseFirestoreService {
   ) async {
     if (agg != null) {
       final m = agg[className] ?? const {};
-      return {for (final r in rolls) r: paiseToRupees(m[r] ?? 0)};
+      final out = <int, double>{};
+      for (final r in rolls) {
+        if (m.containsKey(r)) {
+          out[r] = paiseToRupees(m[r]!);
+        } else {
+          out[r] = await getTotalPaid(className: className, roll: r);
+        }
+      }
+      return out;
     }
     return getClassFeeOverview(className: className, rolls: rolls);
   }
 
-  /// Returns { roll → totalPaid } for every student in a class.
+  /// Returns { roll → totalPaid } for every student in a class by querying the class student summary collection.
   Future<Map<int, double>> getClassFeeOverview({String? schoolId, required String className, required List<int> rolls}) async {
     if (rolls.isEmpty) return {};
-    final futures = rolls.map((roll) async {
-      final paid = await getTotalPaid(className: className, roll: roll);
-      return MapEntry(roll, paid);
-    });
-    final entries = await Future.wait(futures);
-    return Map.fromEntries(entries);
+    final snap = await schoolCollection(_sid, 'fee_payments')
+        .doc(className.replaceAll(' ', '_'))
+        .collection('students')
+        .get();
+
+    final result = <int, double>{};
+    final found = <int, int>{};
+    for (final doc in snap.docs) {
+      final r = int.tryParse(doc.id);
+      if (r != null) {
+        found[r] = (doc.data()['totalPaidPaise'] as num?)?.toInt() ?? 0;
+      }
+    }
+
+    for (final roll in rolls) {
+      if (found.containsKey(roll)) {
+        result[roll] = paiseToRupees(found[roll]!);
+      } else {
+        result[roll] = await getTotalPaid(className: className, roll: roll);
+      }
+    }
+    return result;
   }
 
   // ── School-wide class summaries (for FeeOverviewScreen) ───────────────────
@@ -408,7 +529,7 @@ class FeeService extends BaseFirestoreService {
         final shortfallPaise = duePaise - paidPaise;
         if (shortfallPaise > 0) {
           pendingP += shortfallPaise;
-          final days = _daysOverdue(structure, paiseToRupees(paidPaise), now);
+          final days = daysOverdue(structure, paiseToRupees(paidPaise), now);
           if (days > 0) overdueP += shortfallPaise;
           defaulters.add({
             'name':      sData['name'] ?? '',
@@ -446,7 +567,7 @@ class FeeService extends BaseFirestoreService {
   /// the student's payments do not yet cover. Returns 0 when fully covered, not
   /// yet due, or when no instalment schedule is configured (can't age without a
   /// due date) — replacing the hardcoded 0 in the defaulters report (#51).
-  static int _daysOverdue(FeeStructure structure, double paid, DateTime now) {
+  static int daysOverdue(FeeStructure structure, double paid, DateTime now) {
     if (structure.installments.isEmpty) return 0;
     final schedule = [...structure.installments]
       ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
