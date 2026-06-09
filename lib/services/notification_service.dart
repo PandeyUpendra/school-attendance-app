@@ -35,19 +35,32 @@ class NotificationService extends BaseFirestoreService {
 
   // ── Writers ────────────────────────────────────────────────────────────────
 
+  /// Builds the guardian audience for a notice. Prefers the STABLE
+  /// 'guardian_adm:{admissionId}' identity (#39) when an admissionId is known —
+  /// it can never be inherited by a later student reusing the vacated class+roll
+  /// — and falls back to the legacy 'guardian:{class}:{roll}' otherwise. The
+  /// matching firestore.rules read branches accept both; guardians subscribe to
+  /// both via `_audiencesFor`.
+  static String guardianAudience(
+      String className, int roll, String? admissionId) {
+    final adm = admissionId?.trim() ?? '';
+    return adm.isNotEmpty ? 'guardian_adm:$adm' : 'guardian:$className:$roll';
+  }
+
   /// Called when a student is marked Absent or Leave — notifies the guardian.
   Future<void> addAbsenceNotice({
     required String className,
     required int    roll,
     required String studentName,
     required String status, // 'Absent' | 'Leave'
+    String? admissionId,
   }) async {
     await _coll.add({
       'type':      'absent',
       'title':     '$studentName marked $status today',
       'body':      'Your child has been marked $status today in $className. '
                    'Please contact the school if this is incorrect.',
-      'audience':  'guardian:$className:$roll',
+      'audience':  guardianAudience(className, roll, admissionId),
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -200,13 +213,14 @@ class NotificationService extends BaseFirestoreService {
     required int    studentRoll,
     required String studentName,
     required String status,
+    String? admissionId,
   }) async {
     await _coll.add({
       'type':      'student_leave_resolved',
       'status':    status,
       'title':     'Leave $status for $studentName',
       'body':      "Your child's leave application has been $status.",
-      'audience':  'guardian:$studentClass:$studentRoll',
+      'audience':  guardianAudience(studentClass, studentRoll, admissionId),
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -243,6 +257,7 @@ class NotificationService extends BaseFirestoreService {
     String? teacherId,
     String? studentClass,
     int?    studentRoll,
+    String? studentAdmissionId,
   }) {
     final audiences = <String>{'all'};
 
@@ -278,6 +293,13 @@ class NotificationService extends BaseFirestoreService {
           audiences.add('guardian:$studentClass:$studentRoll');
         }
       }
+      // Stable-identity channel (#39). Subscribed to IN ADDITION to the legacy
+      // roll channel so both pre-existing roll-audienced notices and new
+      // admissionId-audienced notices are delivered. The matching
+      // firestore.rules branch permits it only for the caller's own child.
+      if (studentAdmissionId != null && studentAdmissionId.isNotEmpty) {
+        audiences.add('guardian_adm:$studentAdmissionId');
+      }
     }
     return audiences.toList();
   }
@@ -289,6 +311,7 @@ class NotificationService extends BaseFirestoreService {
     String? teacherId,
     String? studentClass,
     int?    studentRoll,
+    String? studentAdmissionId,
   }) {
     return _coll
         .where('audience',
@@ -297,6 +320,7 @@ class NotificationService extends BaseFirestoreService {
               teacherId: teacherId,
               studentClass: studentClass,
               studentRoll: studentRoll,
+              studentAdmissionId: studentAdmissionId,
             ))
         .orderBy('createdAt', descending: true)
         .limit(50)
@@ -325,6 +349,7 @@ class NotificationService extends BaseFirestoreService {
     String? teacherId,
     String? studentClass,
     int?    studentRoll,
+    String? studentAdmissionId,
     String? userEmail,
     String? schoolId,
   }) async {
@@ -335,6 +360,7 @@ class NotificationService extends BaseFirestoreService {
               teacherId: teacherId,
               studentClass: studentClass,
               studentRoll: studentRoll,
+              studentAdmissionId: studentAdmissionId,
             ))
         .orderBy('createdAt', descending: true)
         .limit(50)
@@ -360,6 +386,7 @@ class NotificationService extends BaseFirestoreService {
     String? teacherId,
     String? studentClass,
     int?    studentRoll,
+    String? studentAdmissionId,
     String? schoolId,
     String? userEmail,
   }) async {
@@ -368,6 +395,7 @@ class NotificationService extends BaseFirestoreService {
       teacherId: teacherId,
       studentClass: studentClass,
       studentRoll: studentRoll,
+      studentAdmissionId: studentAdmissionId,
     );
     final prefs = await SharedPreferences.getInstance();
     final lastSeenMs = prefs.getInt(_lastSeenKey) ?? 0;

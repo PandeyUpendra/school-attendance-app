@@ -29,6 +29,7 @@ class AuthService {
   static const _keyStudentClass    = 'auth_student_class';
   static const _keyStudentRoll     = 'auth_student_roll';
   static const _keyStudentSection  = 'auth_student_section';
+  static const _keyStudentAdmissionId = 'auth_student_admission_id';
   static const _keyAssignedClasses = 'auth_assigned_classes';
   static const _keyName            = 'auth_name';
   static const _keySchoolId        = 'auth_school_id';
@@ -184,6 +185,7 @@ class AuthService {
     String?       studentClass,
     int?          studentRoll,
     String?       studentSection,
+    String?       studentAdmissionId,
     List<String>? assignedClasses,
     String?       name,
     String?       schoolId,
@@ -207,10 +209,16 @@ class AuthService {
       } else {
         await prefs.remove(_keyStudentSection);
       }
+      if (studentAdmissionId != null && studentAdmissionId.isNotEmpty) {
+        await prefs.setString(_keyStudentAdmissionId, studentAdmissionId);
+      } else {
+        await prefs.remove(_keyStudentAdmissionId);
+      }
     } else {
       await prefs.remove(_keyStudentClass);
       await prefs.remove(_keyStudentRoll);
       await prefs.remove(_keyStudentSection);
+      await prefs.remove(_keyStudentAdmissionId);
     }
 
     if (assignedClasses != null && assignedClasses.isNotEmpty) {
@@ -271,6 +279,8 @@ class AuthService {
       result['studentClass']   = sClass;
       result['studentRoll']    = sRoll;
       result['studentSection'] = sSection ?? '';
+      final sAdm = prefs.getString(_keyStudentAdmissionId);
+      if (sAdm != null && sAdm.isNotEmpty) result['studentAdmissionId'] = sAdm;
     }
 
     final assignedRaw = prefs.getString(_keyAssignedClasses);
