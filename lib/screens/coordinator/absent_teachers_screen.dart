@@ -13,6 +13,7 @@ import '../../services/notification_service.dart';
 import '../../services/substitution_history_service.dart';
 import '../../widgets/index_building_notice.dart';
 import '../../services/timetable_service.dart';
+import '../../l10n/app_strings.dart';
 import '../../theme.dart';
 import '../../widgets/refreshable_data.dart';
 
@@ -212,7 +213,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('${substitute.name} assigned for Bell $bell'),
+      content: Text('${substitute.name} ${context.tr('assignedForBell')} $bell'),
       backgroundColor: AppTheme.success,
       duration: const Duration(seconds: 2),
     ));
@@ -222,17 +223,17 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Remove Substitute'),
-        content: Text('Remove substitute for Bell $bell in $className?'),
+        title: Text(context.tr('removeSubstituteTitle')),
+        content: Text('${context.tr('removeSubstituteForBell')} $bell ${context.tr('inWord')} $className?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove',
-                style: TextStyle(color: AppTheme.danger)),
+            child: Text(context.tr('removeAction'),
+                style: const TextStyle(color: AppTheme.danger)),
           ),
         ],
       ),
@@ -240,9 +241,9 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
     if (confirmed != true || !mounted) return;
     await TimetableService().setSubstitution(className, bell, null);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Substitute removed'),
-      duration: Duration(seconds: 2),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(context.tr('substituteRemoved')),
+      duration: const Duration(seconds: 2),
     ));
   }
 
@@ -287,7 +288,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                         color: AppTheme.primary,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text('Bell $bell',
+                      child: Text('${context.tr('bellWord')} $bell',
                           style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -303,7 +304,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                     ),
                   ]),
                   const SizedBox(height: 4),
-                  Text('Covering for ${absent.name}',
+                  Text('${context.tr('coveringFor')} ${absent.name}',
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey.shade600)),
                 ],
@@ -314,7 +315,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Text(
-                  'No free teachers available at Bell $bell',
+                  '${context.tr('noFreeTeachersAtBell')} $bell',
                   style: TextStyle(
                       color: Colors.grey.shade600, fontSize: 14),
                 ),
@@ -357,7 +358,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                           border: Border.all(
                               color: AppTheme.success.withValues(alpha: 0.3)),
                         ),
-                        child: Text('Free B$bell',
+                        child: Text('${context.tr('freeBPrefix')}$bell',
                             style: const TextStyle(
                                 color: AppTheme.success,
                                 fontSize: 11,
@@ -428,15 +429,15 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Mark Teacher Absent',
-                      style: TextStyle(
+                  Text(context.tr('markTeacherAbsent'),
+                      style: const TextStyle(
                           fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
 
                   DropdownButtonFormField<Teacher>(
                     value: selected,
                     decoration: InputDecoration(
-                      labelText: 'Select Teacher',
+                      labelText: context.tr('selectTeacher'),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),
                       prefixIcon: const Icon(Icons.person_outlined),
@@ -453,12 +454,12 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                   DropdownButtonFormField<String>(
                     value: selectedReason,
                     decoration: InputDecoration(
-                      labelText: 'Reason (optional)',
+                      labelText: context.tr('reasonOptional'),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),
                       prefixIcon: const Icon(Icons.notes_outlined),
                     ),
-                    hint: const Text('Select a reason'),
+                    hint: Text(context.tr('selectAReason')),
                     items: kReasonOptions.map((r) {
                       final value = r == 'Custom…' ? kCustomReason : r;
                       return DropdownMenuItem(
@@ -480,7 +481,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                       autofocus: true,
                       onChanged: (_) => setLocal(() {}),
                       decoration: InputDecoration(
-                        labelText: 'Enter custom reason',
+                        labelText: context.tr('enterCustomReason'),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10)),
                         prefixIcon: const Icon(Icons.edit_outlined),
@@ -519,7 +520,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                               _load();
                             },
                       icon: const Icon(Icons.person_off_outlined),
-                      label: const Text('Mark Absent'),
+                      label: Text(context.tr('markAbsent')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.danger,
                         foregroundColor: Colors.white,
@@ -622,22 +623,22 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Absent Teachers — $dateStr',
+            Text('${context.tr('absentTeachersTitle')} — $dateStr',
                 style: const TextStyle(
                     fontSize: 16, fontWeight: FontWeight.bold)),
-            const Text('Substitution management',
-                style: TextStyle(fontSize: 11, color: Colors.white70)),
+            Text(context.tr('substitutionManagement'),
+                style: const TextStyle(fontSize: 11, color: Colors.white70)),
           ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf_outlined),
-            tooltip: 'Export PDF',
+            tooltip: context.tr('exportPdf'),
             onPressed: _loading ? null : _exportPdf,
           ),
           IconButton(
             icon: const Icon(Icons.person_off_outlined),
-            tooltip: 'Mark Teacher Absent',
+            tooltip: context.tr('markTeacherAbsent'),
             onPressed: _loading ? null : _showMarkAbsentSheet,
           ),
         ],
@@ -687,11 +688,11 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                 Icon(Icons.check_circle_outline,
                     size: 64, color: Colors.green.shade400),
                 const SizedBox(height: 16),
-                const Text('All teachers present today',
-                    style: TextStyle(
+                Text(context.tr('allTeachersPresent'),
+                    style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
-                Text('No absences recorded',
+                Text(context.tr('noAbsencesRecorded'),
                     style: TextStyle(color: Colors.grey.shade500)),
               ],
             ),
@@ -801,7 +802,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey.shade700)),
                   if (teacher.classTeacherOf != null)
-                    Text('Class teacher of ${teacher.classTeacherOf}',
+                    Text('${context.tr('classTeacherOfPrefix')} ${teacher.classTeacherOf}',
                         style: TextStyle(
                             fontSize: 11, color: Colors.grey.shade500)),
                   if (isOnLeave && leaveReason.isNotEmpty)
@@ -810,7 +811,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                           size: 12, color: AppTheme.danger),
                       const SizedBox(width: 4),
                       Expanded(
-                        child: Text('Leave: $leaveReason',
+                        child: Text('${context.tr('leaveColonPrefix')}: $leaveReason',
                             style: const TextStyle(
                                 fontSize: 11, color: AppTheme.danger),
                             maxLines: 1,
@@ -823,7 +824,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                           size: 12, color: AppTheme.warning),
                       const SizedBox(width: 4),
                       Expanded(
-                        child: Text('Reason: $manualReason',
+                        child: Text('${context.tr('reasonColonPrefix')}: $manualReason',
                             style: const TextStyle(
                                 fontSize: 11, color: AppTheme.warning),
                             maxLines: 1,
@@ -842,7 +843,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                       Border.all(color: AppTheme.danger.withValues(alpha: 0.3)),
                 ),
                 child: Text(
-                  isOnLeave ? 'On Leave' : 'Absent',
+                  isOnLeave ? context.tr('onLeaveStatus') : context.tr('absentLabel'),
                   style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
@@ -856,14 +857,14 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
           if (periods.isEmpty)
             Padding(
               padding: const EdgeInsets.all(14),
-              child: Text('No periods assigned today',
+              child: Text(context.tr('noPeriodsToday'),
                   style: TextStyle(
                       fontSize: 13, color: Colors.grey.shade500)),
             )
           else ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
-              child: Text('UNCOVERED PERIODS TODAY',
+              child: Text(context.tr('uncoveredPeriodsToday'),
                   style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
@@ -919,8 +920,8 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
                       height: 1.0)),
-              const Text('bell',
-                  style: TextStyle(
+              Text(context.tr('bellSmall'),
+                  style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 8,
                       height: 1.0)),
@@ -952,8 +953,8 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.success)),
-                const Text('Long press to remove',
-                    style: TextStyle(fontSize: 9, color: Colors.grey)),
+                Text(context.tr('longPressToRemove'),
+                    style: const TextStyle(fontSize: 9, color: Colors.grey)),
               ]),
               const SizedBox(width: 6),
               const Icon(Icons.check_circle,
@@ -969,8 +970,8 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                 subs:      subs,
               ),
               icon: const Icon(Icons.person_add_outlined, size: 16),
-              label: const Text('Assign',
-                  style: TextStyle(fontSize: 12)),
+              label: Text(context.tr('assign'),
+                  style: const TextStyle(fontSize: 12)),
               style: TextButton.styleFrom(
                 foregroundColor: AppTheme.warning,
                 padding: const EdgeInsets.symmetric(

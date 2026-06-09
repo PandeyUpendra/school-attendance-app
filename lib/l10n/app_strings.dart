@@ -1474,6 +1474,31 @@ class AppStrings {
     'versionLabel':            {'en': 'Version',              'hi': 'संस्करण'},
     'recordedLabel':           {'en': 'Recorded',             'hi': 'दर्ज'},
     'dataScopesConsentedSuffix':{'en': 'data scope(s) consented', 'hi': 'डेटा दायरे सहमत'},
+
+    // ── Absent teachers / substitution ───────────────────────────────────
+    'assignedForBell':         {'en': 'assigned for Bell',    'hi': 'बेल के लिए नियुक्त'},
+    'removeSubstituteTitle':   {'en': 'Remove Substitute',    'hi': 'स्थानापन्न हटाएँ'},
+    'removeSubstituteForBell': {'en': 'Remove substitute for Bell', 'hi': 'बेल के लिए स्थानापन्न हटाएँ'},
+    'inWord':                  {'en': 'in',                   'hi': 'में'},
+    'substituteRemoved':       {'en': 'Substitute removed',   'hi': 'स्थानापन्न हटाया गया'},
+    'bellWord':                {'en': 'Bell',                 'hi': 'बेल'},
+    'coveringFor':             {'en': 'Covering for',         'hi': 'इनके लिए कवर'},
+    'noFreeTeachersAtBell':    {'en': 'No free teachers available at Bell', 'hi': 'बेल पर कोई खाली शिक्षक उपलब्ध नहीं'},
+    'freeBPrefix':             {'en': 'Free B',               'hi': 'खाली B'},
+    'markTeacherAbsent':       {'en': 'Mark Teacher Absent',  'hi': 'शिक्षक अनुपस्थित चिह्नित करें'},
+    'selectAReason':           {'en': 'Select a reason',      'hi': 'कोई कारण चुनें'},
+    'enterCustomReason':       {'en': 'Enter custom reason',  'hi': 'कस्टम कारण दर्ज करें'},
+    'markAbsent':              {'en': 'Mark Absent',          'hi': 'अनुपस्थित चिह्नित करें'},
+    'absentTeachersTitle':     {'en': 'Absent Teachers',      'hi': 'अनुपस्थित शिक्षक'},
+    'substitutionManagement':  {'en': 'Substitution management', 'hi': 'स्थानापन्न प्रबंधन'},
+    'noAbsencesRecorded':      {'en': 'No absences recorded', 'hi': 'कोई अनुपस्थिति दर्ज नहीं'},
+    'classTeacherOfPrefix':    {'en': 'Class teacher of',     'hi': 'कक्षा शिक्षक'},
+    'leaveColonPrefix':        {'en': 'Leave',                'hi': 'अवकाश'},
+    'reasonColonPrefix':       {'en': 'Reason',               'hi': 'कारण'},
+    'noPeriodsToday':          {'en': 'No periods assigned today', 'hi': 'आज कोई पीरियड नहीं सौंपा गया'},
+    'uncoveredPeriodsToday':   {'en': 'UNCOVERED PERIODS TODAY', 'hi': 'आज बिना कवर पीरियड'},
+    'longPressToRemove':       {'en': 'Long press to remove', 'hi': 'हटाने के लिए देर तक दबाएँ'},
+    'onLeaveStatus':           {'en': 'On Leave',             'hi': 'अवकाश पर'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then
