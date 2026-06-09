@@ -1367,6 +1367,25 @@ class AppStrings {
 
     // ── Consent gate (#17) ───────────────────────────────────────────────
     'consentNotOnRecord':      {'en': "Not shared — parental consent to share this child's data is not on record.", 'hi': 'साझा नहीं किया — इस बच्चे का डेटा साझा करने की अभिभावक सहमति रिकॉर्ड में नहीं है।'},
+
+    // ── Audit log ────────────────────────────────────────────────────────
+    'loadErrorPrefix':         {'en': 'Load error:',          'hi': 'लोड त्रुटि:'},
+    'exportFailedPrefix':      {'en': 'Export failed:',       'hi': 'निर्यात विफल:'},
+    'exportCsv':               {'en': 'Export CSV',           'hi': 'CSV निर्यात करें'},
+    'noAuditEntries':          {'en': 'No audit entries found.', 'hi': 'कोई ऑडिट प्रविष्टि नहीं मिली।'},
+    'loadingActors':           {'en': 'Loading actors…',      'hi': 'कर्ता लोड हो रहे हैं…'},
+    'actorLabel':              {'en': 'Actor',                'hi': 'कर्ता'},
+    'allActors':               {'en': 'All actors',           'hi': 'सभी कर्ता'},
+    'anyWord':                 {'en': 'Any',                  'hi': 'कोई भी'},
+    'applyAction':             {'en': 'Apply',                'hi': 'लागू करें'},
+    'diffBefore':              {'en': 'Before',               'hi': 'पहले'},
+    'diffAfter':               {'en': 'After',                'hi': 'बाद में'},
+    'entAllTypes':             {'en': 'All Types',            'hi': 'सभी प्रकार'},
+    'entFeePayment':           {'en': 'Fee Payment',          'hi': 'फ़ीस भुगतान'},
+    'entExam':                 {'en': 'Exam',                 'hi': 'परीक्षा'},
+    'entExamResult':           {'en': 'Exam Result',          'hi': 'परीक्षा परिणाम'},
+    'entAuthUser':             {'en': 'Auth / User',          'hi': 'प्रमाणीकरण / उपयोगकर्ता'},
+    'auditTypeLabel':          {'en': 'Type',                 'hi': 'प्रकार'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import '../../l10n/app_strings.dart';
 import '../../services/audit_log_service.dart';
 import '../../theme.dart';
 
@@ -20,16 +21,17 @@ const _kEntities = [
   'auth',
 ];
 
-const _kEntityLabels = {
-  '':             'All Types',
-  'student':      'Student',
-  'attendance':   'Attendance',
-  'fee_payment':  'Fee Payment',
-  'fee_structure':'Fee Structure',
-  'exam':         'Exam',
-  'exam_result':  'Exam Result',
-  'auth':         'Auth / User',
-};
+/// Localised display label for a stored entity key (keys stay English).
+String _entityLabel(BuildContext c, String key) => switch (key) {
+      'student' => c.tr('studentLabelField'),
+      'attendance' => c.tr('attendanceLabel'),
+      'fee_payment' => c.tr('entFeePayment'),
+      'fee_structure' => c.tr('feeStructure'),
+      'exam' => c.tr('entExam'),
+      'exam_result' => c.tr('entExamResult'),
+      'auth' => c.tr('entAuthUser'),
+      _ => c.tr('entAllTypes'),
+    };
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -113,7 +115,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Load error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('${context.tr('loadErrorPrefix')} $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -186,7 +188,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('${context.tr('exportFailedPrefix')} $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -207,7 +209,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Audit Log'),
+        title: Text(context.tr('auditLog')),
         actions: [
           if (_exporting)
             const Padding(
@@ -223,7 +225,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           else
             IconButton(
               icon: const Icon(Icons.download_outlined),
-              tooltip: 'Export CSV',
+              tooltip: context.tr('exportCsv'),
               onPressed: _exportCsv,
             ),
         ],
@@ -266,7 +268,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                         Icon(Icons.history_outlined,
                             size: 52, color: Colors.grey.shade300),
                         const SizedBox(height: 12),
-                        Text('No audit entries found.',
+                        Text(context.tr('noAuditEntries'),
                             style:
                                 TextStyle(color: Colors.grey.shade500)),
                       ],
@@ -328,8 +330,8 @@ class _FilterBar extends StatelessWidget {
     required this.onApply,
   });
 
-  String _fmt(DateTime? d) => d == null
-      ? 'Any'
+  String _fmt(BuildContext context, DateTime? d) => d == null
+      ? context.tr('anyWord')
       : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
   @override
@@ -350,7 +352,7 @@ class _FilterBar extends StatelessWidget {
               child: DropdownButtonFormField<String>(
                 value: entityFilter,
                 decoration: InputDecoration(
-                  labelText: 'Type',
+                  labelText: context.tr('auditTypeLabel'),
                   isDense: true,
                   filled: true,
                   fillColor: AppTheme.background,
@@ -362,7 +364,7 @@ class _FilterBar extends StatelessWidget {
                 items: _kEntities
                     .map((e) => DropdownMenuItem(
                           value: e,
-                          child: Text(_kEntityLabels[e] ?? e,
+                          child: Text(_entityLabel(context, e),
                               style: const TextStyle(fontSize: 12)),
                         ))
                     .toList(),
@@ -378,7 +380,7 @@ class _FilterBar extends StatelessWidget {
                 value: actorFilter,
                 isExpanded: true,
                 decoration: InputDecoration(
-                  labelText: actorsLoading ? 'Loading actors…' : 'Actor',
+                  labelText: actorsLoading ? context.tr('loadingActors') : context.tr('actorLabel'),
                   isDense: true,
                   filled: true,
                   fillColor: AppTheme.background,
@@ -389,10 +391,10 @@ class _FilterBar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8)),
                 ),
                 items: [
-                  const DropdownMenuItem(
+                  DropdownMenuItem(
                     value: '',
-                    child: Text('All actors',
-                        style: TextStyle(fontSize: 12)),
+                    child: Text(context.tr('allActors'),
+                        style: const TextStyle(fontSize: 12)),
                   ),
                   ...actors.map((a) => DropdownMenuItem(
                         value: a.uid,
@@ -415,13 +417,13 @@ class _FilterBar extends StatelessWidget {
           // Row 2: Date range + Apply + Clear
           Row(children: [
             _DateChip(
-              label: 'From: ${_fmt(from)}',
+              label: '${context.tr('rangeFrom')}: ${_fmt(context, from)}',
               onTap: onPickFrom,
               active: from != null,
             ),
             const SizedBox(width: 6),
             _DateChip(
-              label: 'To: ${_fmt(to)}',
+              label: '${context.tr('rangeTo')}: ${_fmt(context, to)}',
               onTap: onPickTo,
               active: to != null,
             ),
@@ -432,7 +434,7 @@ class _FilterBar extends StatelessWidget {
                 style: TextButton.styleFrom(
                     foregroundColor: Colors.grey,
                     padding: const EdgeInsets.symmetric(horizontal: 8)),
-                child: const Text('Clear', style: TextStyle(fontSize: 12)),
+                child: Text(context.tr('clearAction'), style: const TextStyle(fontSize: 12)),
               ),
             ElevatedButton(
               onPressed: onApply,
@@ -442,7 +444,7 @@ class _FilterBar extends StatelessWidget {
                     horizontal: 14, vertical: 8),
               ),
               child:
-                  const Text('Apply', style: TextStyle(fontSize: 12)),
+                  Text(context.tr('applyAction'), style: const TextStyle(fontSize: 12)),
             ),
           ]),
         ],
@@ -501,7 +503,7 @@ class _LoadMoreButton extends StatelessWidget {
               : OutlinedButton.icon(
                   onPressed: onTap,
                   icon: const Icon(Icons.expand_more, size: 16),
-                  label: const Text('Load more'),
+                  label: Text(context.tr('loadMorePrefix')),
                 ),
         ),
       );
@@ -576,7 +578,7 @@ class _AuditEntryCardState extends State<_AuditEntryCard> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    _kEntityLabels[e.entity] ?? e.entity,
+                    _entityLabel(context, e.entity),
                     style: const TextStyle(
                         fontSize: 10, color: AppTheme.primary),
                   ),
@@ -642,13 +644,13 @@ class _AuditEntryCardState extends State<_AuditEntryCard> {
                 const Divider(height: 1),
                 const SizedBox(height: 8),
                 if (e.before != null) ...[
-                  _DiffSection(label: 'Before', data: e.before!,
+                  _DiffSection(label: context.tr('diffBefore'), data: e.before!,
                       color: Colors.red.shade50,
                       borderColor: Colors.red.shade200),
                   const SizedBox(height: 6),
                 ],
                 if (e.after != null)
-                  _DiffSection(label: 'After', data: e.after!,
+                  _DiffSection(label: context.tr('diffAfter'), data: e.after!,
                       color: Colors.green.shade50,
                       borderColor: Colors.green.shade200),
               ],
@@ -706,7 +708,7 @@ class _DiffSection extends StatelessWidget {
             children: [
               ...fields.map((e) => _kv(e.key, '${e.value}')),
               if (hasMore)
-                Text('+${data.length - fields.length} more',
+                Text('+${data.length - fields.length} ${context.tr('moreSuffix')}',
                     style: TextStyle(
                         fontSize: 10, color: Colors.grey.shade500)),
             ],
