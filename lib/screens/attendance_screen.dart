@@ -477,6 +477,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           });
           await _showSavedDialog();
           return;
+        } on AttendanceLockedException catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(e.message),
+              backgroundColor: Colors.orange,
+            ));
+          }
+          return;
         } catch (e) {
           // The online write failed (e.g. permission-denied or a network/DNS
           // drop). Previously this threw out of _save with no feedback AND

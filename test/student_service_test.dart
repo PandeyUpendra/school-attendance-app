@@ -376,5 +376,20 @@ void main() {
     expect(student.name, 'Corrupted Profile');
     expect(student.className, '');
   });
+
+  // ── 17. removeStudent — cascade delete on fake repository ──────────────────
+
+  test('removeStudent deletes student from fake repository', () async {
+    final alice = _student(roll: 1, name: 'Alice', className: 'Class 6');
+    await service.addStudent(student: alice);
+
+    var fetched = await service.getStudentByRoll('Class 6', 1);
+    expect(fetched, isNotNull);
+
+    await service.removeStudent(1, 'Class 6');
+
+    fetched = await service.getStudentByRoll('Class 6', 1);
+    expect(fetched, isNull);
+  });
 }
 

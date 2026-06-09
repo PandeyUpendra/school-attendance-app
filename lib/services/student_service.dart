@@ -19,6 +19,13 @@ String stripHtml(String s) => s.replaceAll(RegExp(r'<[^>]*>'), '');
 
 String normalizePhone(String phone) => PhoneUtils.normalize(phone);
 
+class AttendanceLockedException implements Exception {
+  final String message;
+  AttendanceLockedException([this.message = 'Attendance is locked for this date.']);
+  @override
+  String toString() => message;
+}
+
 
 /// High-level orchestration layer for all student-related operations.
 ///
@@ -550,22 +557,124 @@ class StudentService extends BaseFirestoreService {
     }
 
     if (!serverDone) {
-      // Client best-effort cascade. Each step is guarded so a hiccup on a
-      // secondary collection never aborts the deletion.
-      await _cascadeDeleteRemarks(student.id);
-      await _repo.delete(student.id);
-      try {
-        await _cascadeDeleteAttendance(roll, className, section: section);
-      } catch (e) {
-        AppLogger.e('StudentService', 'cascade attendance delete failed: $e', e);
+      if (_repo is! FirestoreStudentRepository) {
+        await _repo.delete(student.id);
+      } else {
+        final studentDocId = student.id;
+        final audience = 'guardian:$className:$roll';
+        final attKey = section.trim().isEmpty ? className : '$className ${section.trim()}';
+        final prefix = '${attKey.replaceAll(' ', '_')}_';
+        final wantTitle = 'Leave request: ${student.name}';
+        final wantSection = section.trim();
+        final studentNode = schoolCollection(_schoolId, 'fee_payments')
+            .doc(className.replaceAll(' ', '_'))
+            .collection('students')
+            .doc('$roll');
+
+        // Fetch everything in parallel
+        final results = await Future.wait([
+          _studentsRef.doc(studentDocId).collection('remarks').get(),
+          _attendance
+              .where(FieldPath.documentId, isGreaterThanOrEqualTo: prefix)
+              .where(FieldPath.documentId, isLessThan: '$prefix■')
+              .get(),
+          schoolCollection(_schoolId, 'notifications')
+              .where('audience', isEqualTo: audience)
+              .get(),
+          schoolCollection(_schoolId, 'notifications')
+              .where('audience', isEqualTo: 'class_teacher:$className')
+              .get(),
+          schoolCollection(_schoolId, 'leave_applications')
+              .where('applicantType', isEqualTo: 'guardian')
+              .where('studentClass', isEqualTo: className)
+              .where('studentRoll', isEqualTo: roll)
+              .get(),
+          schoolCollection(_schoolId, 'exams')
+              .where('className', isEqualTo: className)
+              .get(),
+          studentNode.collection('payments').get(),
+        ]);
+
+        final remarksSnap = results[0];
+        final attendanceSnap = results[1];
+        final notificationsSnap = results[2];
+        final teacherNotificationsSnap = results[3];
+        final leaveAppsSnap = results[4];
+        final examsSnap = results[5];
+        final paymentsSnap = results[6];
+
+        // Filters client-side
+        final leaveNotificationsMatches = teacherNotificationsSnap.docs.where((d) {
+          final data = d.data();
+          if (data['type'] != 'student_leave_submitted') return false;
+          final r = (data['studentRoll'] as num?)?.toInt();
+          return r != null ? r == roll : data['title'] == wantTitle;
+        }).toList();
+
+        final leaveAppsMatches = wantSection.isEmpty
+            ? leaveAppsSnap.docs
+            : leaveAppsSnap.docs.where((d) =>
+                ((d.data()['studentSection'] as String?) ?? '').trim() == wantSection)
+                .toList();
+
+        final batchOps = <Future<void> Function(WriteBatch)>[];
+
+        // 1. Delete student doc
+        batchOps.add((batch) async => batch.delete(_studentsRef.doc(studentDocId)));
+
+        // 2. Remarks
+        for (final doc in remarksSnap.docs) {
+          batchOps.add((batch) async => batch.delete(doc.reference));
+        }
+
+        // 3. Attendance updates
+        for (final doc in attendanceSnap.docs) {
+          final rolls = Map<String, dynamic>.from((doc.data()['rolls'] as Map?) ?? {});
+          if (rolls.containsKey(roll.toString())) {
+            batchOps.add((batch) async => batch.update(doc.reference, {'rolls.$roll': FieldValue.delete()}));
+          }
+        }
+
+        // 4. Notifications
+        for (final doc in notificationsSnap.docs) {
+          batchOps.add((batch) async => batch.delete(doc.reference));
+        }
+
+        // 5. Leave notifications
+        for (final doc in leaveNotificationsMatches) {
+          batchOps.add((batch) async => batch.delete(doc.reference));
+        }
+
+        // 6. Leave applications
+        for (final doc in leaveAppsMatches) {
+          batchOps.add((batch) async => batch.delete(doc.reference));
+        }
+
+        // 7. Exam results
+        for (final examDoc in examsSnap.docs) {
+          final ref = schoolCollection(_schoolId, 'exam_results')
+              .doc(examDoc.id)
+              .collection('students')
+              .doc('$roll');
+          batchOps.add((batch) async => batch.delete(ref));
+        }
+
+        // 8. Fee payments
+        for (final doc in paymentsSnap.docs) {
+          batchOps.add((batch) async => batch.delete(doc.reference));
+        }
+        batchOps.add((batch) async => batch.delete(studentNode));
+
+        // Commit in chunks of 450
+        for (var i = 0; i < batchOps.length; i += 450) {
+          final batch = FirebaseFirestore.instance.batch();
+          final chunk = batchOps.sublist(i, i + 450 > batchOps.length ? batchOps.length : i + 450);
+          for (final op in chunk) {
+            await op(batch);
+          }
+          await batch.commit();
+        }
       }
-      await _cascadeDeleteStudentNotifications(className, roll);
-      await _cascadeDeleteStudentLeaveNotifications(
-          className, roll, student.name);
-      await _cascadeDeleteStudentLeaveApplications(className, roll,
-          section: section);
-      await _cascadeDeleteExamResults(className, roll);
-      await _cascadeDeleteFeePayments(className, roll);
     }
 
     AuditService.emit(
@@ -759,6 +868,19 @@ class StudentService extends BaseFirestoreService {
       {required String className,
       required Map<int, String> attendance,
       required DateTime date}) async {
+    final session = await AuthService().getSession();
+    final role = session?['role'] as String?;
+    const mgmt = ['coordinator', 'principal', 'admin', 'owner', 'ownerPrincipal'];
+    if (!mgmt.contains(role)) {
+      final days = SchoolClock.today()
+          .difference(DateTime(date.year, date.month, date.day))
+          .inDays;
+      if (days > 7) {
+        throw AttendanceLockedException(
+            'Attendance for this date is locked. Only management can edit historical records older than 7 days.');
+      }
+    }
+
     final prefix = className.replaceAll(' ', '_');
     final key    = '${prefix}_${date.year}-${date.month}-${date.day}';
     final rolls  = attendance.map((k, v) => MapEntry(k.toString(), v));
@@ -1180,20 +1302,6 @@ class StudentService extends BaseFirestoreService {
     }
   }
 
-  /// Deletes every remark in the student's `remarks` subcollection.
-  Future<void> _cascadeDeleteRemarks(String studentDocId) async {
-    try {
-      final snap =
-          await _studentsRef.doc(studentDocId).collection('remarks').get();
-      if (snap.docs.isEmpty) return;
-      final batch = FirebaseFirestore.instance.batch();
-      for (final doc in snap.docs) {
-        batch.delete(doc.reference);
-      }
-      await batch.commit();
-    } catch (_) {}
-  }
-
   /// Deletes all notifications addressed to this student's guardian.
   Future<void> _cascadeDeleteStudentNotifications(
       String className, int roll) async {
@@ -1242,102 +1350,6 @@ class StudentService extends BaseFirestoreService {
       }
       await batch.commit();
     } catch (_) {}
-  }
-
-  /// Deletes the student's own (guardian-filed) leave applications so a removed
-  /// student's pending/approved leave no longer lingers in the class teacher's
-  /// "student leave requests" screen. Rolls repeat across sections within a
-  /// class, so when [section] is given we additionally narrow to it (filtered
-  /// client-side to avoid a wider composite index).
-  Future<void> _cascadeDeleteStudentLeaveApplications(
-      String className, int roll, {String section = ''}) async {
-    try {
-      final snap = await schoolCollection(_schoolId, 'leave_applications')
-          .where('applicantType', isEqualTo: 'guardian')
-          .where('studentClass',  isEqualTo: className)
-          .where('studentRoll',   isEqualTo: roll)
-          .get();
-      final wantSection = section.trim();
-      final matches = wantSection.isEmpty
-          ? snap.docs
-          : snap.docs
-              .where((d) =>
-                  ((d.data()['studentSection'] as String?) ?? '').trim() ==
-                  wantSection)
-              .toList();
-      if (matches.isEmpty) return;
-      final batch = FirebaseFirestore.instance.batch();
-      for (final doc in matches) {
-        batch.delete(doc.reference);
-      }
-      await batch.commit();
-    } catch (_) {}
-  }
-
-  /// Deletes the student's result document in every exam for their class.
-  Future<void> _cascadeDeleteExamResults(
-      String className, int roll) async {
-    try {
-      final examsSnap = await schoolCollection(_schoolId, 'exams')
-          .where('className', isEqualTo: className)
-          .get();
-      if (examsSnap.docs.isEmpty) return;
-      final batch = FirebaseFirestore.instance.batch();
-      for (final examDoc in examsSnap.docs) {
-        batch.delete(schoolCollection(_schoolId, 'exam_results')
-            .doc(examDoc.id)
-            .collection('students')
-            .doc('$roll'));
-      }
-      await batch.commit();
-    } catch (_) {}
-  }
-
-  /// Deletes fee payment records for the student.
-  Future<void> _cascadeDeleteFeePayments(
-      String className, int roll) async {
-    try {
-      final studentNode = schoolCollection(_schoolId, 'fee_payments')
-          .doc(className.replaceAll(' ', '_'))
-          .collection('students')
-          .doc('$roll');
-      final paymentsSnap =
-          await studentNode.collection('payments').get();
-      final batch = FirebaseFirestore.instance.batch();
-      for (final doc in paymentsSnap.docs) {
-        batch.delete(doc.reference);
-      }
-      batch.delete(studentNode);
-      await batch.commit();
-    } catch (_) {}
-  }
-
-  /// Removes [roll] from every attendance document in [className]/[section].
-  /// Uses a Firestore document-ID prefix query to limit the scan scope.
-  Future<void> _cascadeDeleteAttendance(int roll, String className,
-      {String section = ''}) async {
-    final attKey = section.trim().isEmpty
-        ? className
-        : '$className ${section.trim()}';
-    final prefix = '${attKey.replaceAll(' ', '_')}_';
-
-    final snap = await _attendance
-        .where(FieldPath.documentId, isGreaterThanOrEqualTo: prefix)
-        .where(FieldPath.documentId, isLessThan: '$prefix■')
-        .get();
-
-    if (snap.docs.isEmpty) return;
-
-    final batch = FirebaseFirestore.instance.batch();
-    for (final doc in snap.docs) {
-      final rolls =
-          Map<String, dynamic>.from((doc.data()['rolls'] as Map?) ?? {});
-      if (rolls.containsKey(roll.toString())) {
-        batch.update(doc.reference,
-            {'rolls.$roll': FieldValue.delete()});
-      }
-    }
-    await batch.commit();
   }
 
   // ── Guardian / School Detail Updates Synced Workflows ──────────────────────────
