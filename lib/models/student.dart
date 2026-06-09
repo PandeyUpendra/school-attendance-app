@@ -31,6 +31,8 @@ class Student {
   /// Guardian's Gmail address used for Guardian Portal login.
   final String? guardianEmail;
   final Timestamp? dateOfBirth;
+  final int? birthMonth;
+  final int? birthDay;
   final String? gender;
   final String? address;
   final String? previousSchool;
@@ -69,6 +71,8 @@ class Student {
     this.guardianDetails,
     this.guardianEmail,
     this.dateOfBirth,
+    this.birthMonth,
+    this.birthDay,
     this.gender,
     this.address,
     this.previousSchool,
@@ -100,6 +104,8 @@ class Student {
         if (guardianDetails != null) 'guardianDetails': guardianDetails!.toJson(),
         if (guardianEmail != null) 'guardianEmail': guardianEmail,
         if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
+        if (birthMonth != null) 'birthMonth': birthMonth,
+        if (birthDay != null) 'birthDay': birthDay,
         if (gender != null) 'gender': gender,
         if (address != null) 'address': address,
         if (previousSchool != null) 'previousSchool': previousSchool,
@@ -153,6 +159,10 @@ class Student {
             : null,
         guardianEmail: json['guardianEmail'] as String?,
         dateOfBirth: json['dateOfBirth'] as Timestamp?,
+        birthMonth: json['birthMonth'] as int? ??
+            (json['dateOfBirth'] as Timestamp?)?.toDate().month,
+        birthDay: json['birthDay'] as int? ??
+            (json['dateOfBirth'] as Timestamp?)?.toDate().day,
         gender: json['gender'] as String?,
         address: json['address'] as String?,
         previousSchool: json['previousSchool'] as String?,
@@ -184,6 +194,8 @@ class Student {
     GuardianStudentDetails? guardianDetails,
     String? guardianEmail,
     Timestamp? dateOfBirth,
+    int? birthMonth,
+    int? birthDay,
     String? gender,
     String? address,
     String? previousSchool,
@@ -214,6 +226,8 @@ class Student {
         guardianDetails: guardianDetails ?? this.guardianDetails,
         guardianEmail: guardianEmail ?? this.guardianEmail,
         dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+        birthMonth: birthMonth ?? this.birthMonth,
+        birthDay: birthDay ?? this.birthDay,
         gender: gender ?? this.gender,
         address: address ?? this.address,
         previousSchool: previousSchool ?? this.previousSchool,

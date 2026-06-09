@@ -4,6 +4,7 @@ import 'base_firestore_service.dart';
 
 import 'audit_log_service.dart';
 import 'dropdown_options_service.dart';
+import 'birthday_service.dart';
 import 'push_service.dart';
 
 /// Outcome of a self-service password-reset request.
@@ -52,12 +53,20 @@ class AuthService {
   static bool isRootAdminEmail(String? email) =>
       (email ?? '').trim().toLowerCase() == rootAdminEmail;
 
-  /// Returns the current school ID set during login, falling back to the
-  /// default production school ID so pre-migration sessions still work.
-  /// Delegates to [BaseFirestoreService.currentSchoolId] which is set by
-  /// all three login screens as soon as the allowed_users doc is read.
-  static String get currentSchoolId =>
-      BaseFirestoreService.currentSchoolId ?? 'school_1';
+  /// Returns the current school ID set during login.
+  /// Throws a [StateError] if a Firebase user is authenticated but the school ID
+  /// has not been initialized (session restore or login race condition), preventing
+  /// queries from targeting the wrong tenant/test tenant ('school_1') under active sessions.
+  static String get currentSchoolId {
+    final id = BaseFirestoreService.currentSchoolId;
+    if (id == null) {
+      if (_auth.currentUser != null) {
+        throw StateError('Firebase user is signed in but currentSchoolId is not initialized.');
+      }
+      return 'school_1';
+    }
+    return id;
+  }
 
   static final AuthService _instance = AuthService._();
   AuthService._();
@@ -192,8 +201,8 @@ class AuthService {
     List<String>? studentLinks,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyEmail, email);
-    await prefs.setString(_keyRole, role);
+    await prefs.setString(_keyEmail, email.trim().toLowerCase());
+    await prefs.setString(_keyRole, role.trim());
 
     if (teacherId != null) {
       await prefs.setString(_keyTeacherId, teacherId);
@@ -261,6 +270,9 @@ class AuthService {
       studentClass: studentClass,
       studentRoll:  studentRoll,
     );
+
+    // Trigger legacy birthday migration
+    BirthdayService().migrateLegacyBirthdays();
   }
 
   /// Returns session map with keys: email, role, and optional role-specific

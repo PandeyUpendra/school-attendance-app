@@ -76,13 +76,10 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
             className: cn, section: sec, classNames: ac);
         break;
       case 2:
-        staff = (await _svc.getAllStaffBirthdays())
-            .where((m) => _svc.isBirthdayThisMonth(m['dateOfBirth'] as Timestamp))
-            .toList();
-        students = (await _svc.getAllStudentBirthdays(
-                className: cn, section: sec, classNames: ac))
-            .where((m) => _svc.isBirthdayThisMonth(m['dateOfBirth'] as Timestamp))
-            .toList();
+        final currentMonth = DateTime.now().month;
+        staff = await _svc.getMonthlyStaffBirthdays(currentMonth);
+        students = await _svc.getMonthlyStudentBirthdays(currentMonth,
+            className: cn, section: sec, classNames: ac);
         break;
       default:
         staff = await _svc.getAllStaffBirthdays();

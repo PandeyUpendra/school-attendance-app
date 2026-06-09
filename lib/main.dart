@@ -24,6 +24,7 @@ import 'screens/owner/owner_home.dart';
 import 'screens/owner/owner_principal_home.dart';
 import 'services/auth_service.dart';
 import 'services/base_firestore_service.dart';
+import 'services/birthday_service.dart';
 import 'services/timetable_service.dart';
 
 void main() async {
@@ -245,6 +246,7 @@ class _SplashGateState extends State<_SplashGate> {
     final schoolId = session['schoolId'] as String?;
     if (schoolId != null && schoolId.isNotEmpty) {
       BaseFirestoreService.currentSchoolId = schoolId;
+      BirthdayService().migrateLegacyBirthdays();
     }
 
     // IDENTITY GUARD — the cached session and the live Firebase Auth user must

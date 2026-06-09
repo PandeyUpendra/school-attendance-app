@@ -12,6 +12,8 @@ class Teacher {
   final List<String> assignedClasses; // classes a subject teacher is allowed to access
   final String? phone;
   final Timestamp? dateOfBirth;
+  final int? birthMonth;
+  final int? birthDay;
   final String? photoUrl;          // profile photo (Firebase Storage download URL)
   final String? designation;       // e.g. Senior Teacher, HOD
   final Timestamp? joiningDate;    // date the teacher joined the school
@@ -31,6 +33,8 @@ class Teacher {
     this.assignedClasses = const [],
     this.phone,
     this.dateOfBirth,
+    this.birthMonth,
+    this.birthDay,
     this.photoUrl,
     this.designation,
     this.joiningDate,
@@ -51,6 +55,8 @@ class Teacher {
         'assignedClasses': assignedClasses,
         if (phone != null) 'phone': phone,
         if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
+        if (birthMonth != null) 'birthMonth': birthMonth,
+        if (birthDay != null) 'birthDay': birthDay,
         if (photoUrl != null) 'photoUrl': photoUrl,
         if (designation != null) 'designation': designation,
         if (joiningDate != null) 'joiningDate': joiningDate,
@@ -74,6 +80,10 @@ class Teacher {
             [],
         phone: json['phone'] as String?,
         dateOfBirth: json['dateOfBirth'] as Timestamp?,
+        birthMonth: json['birthMonth'] as int? ??
+            (json['dateOfBirth'] as Timestamp?)?.toDate().month,
+        birthDay: json['birthDay'] as int? ??
+            (json['dateOfBirth'] as Timestamp?)?.toDate().day,
         photoUrl: json['photoUrl'] as String?,
         designation: json['designation'] as String?,
         joiningDate: json['joiningDate'] as Timestamp?,
@@ -93,6 +103,8 @@ class Teacher {
     List<String>? assignedClasses,
     String? phone,
     Timestamp? dateOfBirth,
+    int? birthMonth,
+    int? birthDay,
     String? photoUrl,
     String? designation,
     Timestamp? joiningDate,
@@ -112,6 +124,8 @@ class Teacher {
         assignedClasses: assignedClasses ?? this.assignedClasses,
         phone: phone ?? this.phone,
         dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+        birthMonth: birthMonth ?? this.birthMonth,
+        birthDay: birthDay ?? this.birthDay,
         photoUrl: photoUrl ?? this.photoUrl,
         designation: designation ?? this.designation,
         joiningDate: joiningDate ?? this.joiningDate,
