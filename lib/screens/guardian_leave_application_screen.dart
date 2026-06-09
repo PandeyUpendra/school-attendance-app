@@ -165,6 +165,9 @@ class _GuardianLeaveApplicationScreenState
         startDate:     dateStr,
         numberOfDays:  _numberOfDays,
         reason:        finalReason,
+        // Pass the stable admissionId so resolved-leave notices use the
+        // 'guardian_adm:{id}' audience channel and not the reusable roll (#39).
+        admissionId:   widget.student.admissionId,
       );
 
       // Notify the teacher's dashboard (sent to role 'teacher' audience for the class)

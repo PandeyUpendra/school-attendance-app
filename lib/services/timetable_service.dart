@@ -985,6 +985,10 @@ class TimetableService extends BaseFirestoreService {
     required int    numberOfDays,
     required String reason,
     String          studentSection = '',
+    // Stable identity — stored so that leave-resolved notifications can use
+    // the 'guardian_adm:{id}' audience channel rather than the roll-based
+    // fallback, avoiding ghost alerts if a roll is reused (#39).
+    String?         admissionId,
   }) async {
     await _leaveApps.add({
       'applicantType': 'guardian',
@@ -994,6 +998,8 @@ class TimetableService extends BaseFirestoreService {
       'studentName'  : studentName,
       if (guardianName != null && guardianName.isNotEmpty)
         'guardianName': guardianName,
+      if (admissionId != null && admissionId.isNotEmpty)
+        'admissionId': admissionId,
       'toRole'       : 'teacher',
       'startDate'    : startDate,
       'numberOfDays' : numberOfDays,

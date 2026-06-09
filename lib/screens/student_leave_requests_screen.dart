@@ -98,6 +98,9 @@ class _StudentLeaveRequestsScreenState
     final roll   = (app['studentRoll'] as int?) ?? 0;
     final name   = (app['studentName'] as String?) ?? '';
     final cls    = (app['studentClass'] as String?) ?? widget.studentClass;
+    // Stable guardian identity stored at submission time (#39) — may be null
+    // for applications that predate the admissionId field.
+    final admId  = app['admissionId']  as String?;
 
     String remarks = '';
     if (status == 'approved' || status == 'rejected') {
@@ -132,6 +135,7 @@ class _StudentLeaveRequestsScreenState
         studentRoll:  roll,
         studentName:  name,
         status:       'approved',
+        admissionId:  admId,
       );
 
       if (mounted) {
@@ -147,6 +151,7 @@ class _StudentLeaveRequestsScreenState
         studentRoll:  roll,
         studentName:  name,
         status:       'rejected',
+        admissionId:  admId,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(

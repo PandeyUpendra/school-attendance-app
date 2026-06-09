@@ -43,6 +43,11 @@ abstract class StudentRepository {
   /// Returns `true` if a student with this roll already exists in the class.
   Future<bool> existsByRoll(String className, String section, int roll);
 
+  /// Returns `true` if ANY student document (other than [excludeDocId]) uses
+  /// this [admissionId]. Pass the current student's Firestore doc ID as
+  /// [excludeDocId] so the self-document is not flagged as a collision (#40).
+  Future<bool> existsByAdmissionId(String admissionId, {String excludeDocId = ''});
+
   /// Fetch a single student by its Firestore document [id].
   Future<Student?> fetchById(String id);
 
@@ -257,6 +262,20 @@ class FirestoreStudentRepository implements StudentRepository {
     final doc =
         await _students.doc(_docId(roll, className, section)).get();
     return doc.exists;
+  }
+
+  @override
+  Future<bool> existsByAdmissionId(
+      String admissionId, {String excludeDocId = ''}) async {
+    if (admissionId.isEmpty) return false;
+    final snap = await _students
+        .where('admissionId', isEqualTo: admissionId)
+        .limit(2)  // 2 so we can detect self vs. collision
+        .get();
+    for (final doc in snap.docs) {
+      if (doc.id != excludeDocId) return true;
+    }
+    return false;
   }
 
   @override

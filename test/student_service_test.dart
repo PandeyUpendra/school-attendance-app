@@ -391,5 +391,71 @@ void main() {
     fetched = await service.getStudentByRoll('Class 6', 1);
     expect(fetched, isNull);
   });
+
+  // ── 18. updateStudent — admissionId duplicate guard (#40) ─────────────────
+
+  test('updateStudent rejects duplicate admissionId collision (#40)', () async {
+    final alice = _student(roll: 1, name: 'Alice', className: 'Class 6')
+        .copyWith(admissionId: 'ADM-001');
+    final bob   = _student(roll: 2, name: 'Bob', className: 'Class 6')
+        .copyWith(admissionId: 'ADM-002');
+    await service.addStudent(student: alice);
+    await service.addStudent(student: bob);
+
+    // Try to change Bob's admissionId to Alice's
+    final aliceDoc = await repo.fetchByRoll('Class 6', '', 1);
+    final bobDoc   = await repo.fetchByRoll('Class 6', '', 2);
+    expect(aliceDoc, isNotNull);
+    expect(bobDoc, isNotNull);
+
+    final collidingBob = bobDoc!.copyWith(admissionId: 'ADM-001');
+    final error = await service.updateStudent(updated: collidingBob);
+
+    expect(error, isNotNull,
+        reason: 'updateStudent must reject a duplicate admissionId');
+    expect(error!.toLowerCase(), contains('already assigned'),
+        reason: 'Error message must explain the conflict');
+
+    // Bob's admissionId must remain ADM-002
+    final unchangedBob = await repo.fetchByRoll('Class 6', '', 2);
+    expect(unchangedBob?.admissionId, 'ADM-002');
+  });
+
+  test('updateStudent allows admissionId update when no conflict exists (#40)', () async {
+    final dave = _student(roll: 3, name: 'Dave', className: 'Class 6')
+        .copyWith(admissionId: 'ADM-003');
+    await service.addStudent(student: dave);
+
+    final daveDoc = await repo.fetchByRoll('Class 6', '', 3);
+    expect(daveDoc, isNotNull);
+
+    // Change to a fresh admissionId — should succeed
+    final updatedDave = daveDoc!.copyWith(admissionId: 'ADM-999');
+    final error = await service.updateStudent(updated: updatedDave);
+    expect(error, isNull, reason: 'Non-colliding admissionId change must succeed');
+
+    final newDave = await repo.fetchByRoll('Class 6', '', 3);
+    expect(newDave?.admissionId, 'ADM-999');
+  });
+
+  test('updateStudent ignores admissionId check when unchanged (#40)', () async {
+    // When the admissionId hasn't changed, the guard must not be triggered
+    // (avoids an unnecessary DB round-trip).
+    final eve = _student(roll: 4, name: 'Eve', className: 'Class 6')
+        .copyWith(admissionId: 'ADM-004');
+    await service.addStudent(student: eve);
+
+    final eveDoc = await repo.fetchByRoll('Class 6', '', 4);
+    expect(eveDoc, isNotNull);
+
+    // Update only the name, not admissionId
+    final updatedEve = eveDoc!.copyWith(name: 'Eve Updated');
+    final error = await service.updateStudent(updated: updatedEve);
+    expect(error, isNull, reason: 'Unchanged admissionId must not trigger duplicate guard');
+
+    final newEve = await repo.fetchByRoll('Class 6', '', 4);
+    expect(newEve?.name, 'Eve Updated');
+    expect(newEve?.admissionId, 'ADM-004');
+  });
 }
 

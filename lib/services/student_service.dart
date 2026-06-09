@@ -302,6 +302,16 @@ class StudentService extends BaseFirestoreService {
       return null;
     }
 
+    // 3. Guard: admissionId must remain unique across the school (#40).
+    //    Only check when the admissionId actually changed (saves a DB round-trip
+    //    for the common case where it's unchanged).
+    final adm = sanitized.admissionId.trim();
+    if (adm.isNotEmpty && adm != before.admissionId.trim()) {
+      if (await _repo.existsByAdmissionId(adm, excludeDocId: oldDocId)) {
+        return 'Admission ID "$adm" is already assigned to another student.';
+      }
+    }
+
     final changedId = sanitized.roll != before.roll ||
         sanitized.className != before.className ||
         sanitized.section != before.section;
@@ -1187,11 +1197,14 @@ class StudentService extends BaseFirestoreService {
     final now    = SchoolClock.now();
     final prefix = className.replaceAll(' ', '_');
 
-    // Ordered today→past; Future.wait preserves order so the streak walk below
-    // still sees days newest-first.
+    // Build ordered list of (index, date) pairs — today first, past last.
+    // Future.wait preserves order so the streak walk below sees days
+    // newest → oldest.
+    final dates = List.generate(maxDays, (i) => now.subtract(Duration(days: i)));
     final datas = await Future.wait(
-      List.generate(maxDays, (i) {
-        final date = now.subtract(Duration(days: i));
+      dates.asMap().entries.map((e) {
+        final i    = e.key;
+        final date = e.value;
         final key  = '${prefix}_${date.year}-${date.month}-${date.day}';
         return _dayDocData(key, cacheable: i != 0); // i==0 is today
       }),
@@ -1200,8 +1213,33 @@ class StudentService extends BaseFirestoreService {
     final streaks = <int, int>{};
     final broken  = <int>{};
 
-    for (final data in datas) {
-      if (data == null) continue;
+    for (int i = 0; i < datas.length; i++) {
+      final date = dates[i];
+      final data = datas[i];
+
+      // Skip weekend days — Sat (6) and Sun (7) are not school days and
+      // must never break or extend a streak (#42).
+      if (date.weekday == DateTime.saturday ||
+          date.weekday == DateTime.sunday) { continue; }
+
+      if (data == null) {
+        // Missing doc on a weekday:
+        //   • Within the last 7 days: attendance SHOULD have been taken —
+        //     treat as "no one absent that day" → breaks any active streak.
+        //   • Older than 7 days: could be a public holiday / closed day —
+        //     skip (don't penalise or reward).
+        if (i < 7) {
+          // A missing recent weekday doc means the teacher didn't mark
+          // anyone absent — that implies students were present.
+          // Add every student currently in a streak to the broken set.
+          final currentlyStreaking = streaks.keys
+              .where((r) => !broken.contains(r))
+              .toList();
+          broken.addAll(currentlyStreaking);
+        }
+        continue;
+      }
+
       final rolls = Map<String, dynamic>.from((data['rolls'] as Map?) ?? {});
       if (rolls.isEmpty) continue;
 
@@ -1219,6 +1257,7 @@ class StudentService extends BaseFirestoreService {
     }
     return streaks;
   }
+
 
   // ── Remarks ─────────────────────────────────────────────────────────────────
 
