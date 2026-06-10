@@ -69,6 +69,7 @@ class _CoordinatorManagementScreenState
       backgroundColor: Colors.transparent,
       builder: (_) => _CoordinatorForm(
         allClasses: _allClasses,
+        coordinators: _coordinators,
         existing: existing,
         principalEmail: widget.principalEmail,
         onSaved: _load,
@@ -312,12 +313,14 @@ class _InfoRow extends StatelessWidget {
 
 class _CoordinatorForm extends StatefulWidget {
   final List<String> allClasses;
+  final List<Map<String, dynamic>> coordinators;
   final Map<String, dynamic>? existing;
   final String principalEmail;
   final VoidCallback onSaved;
 
   const _CoordinatorForm({
     required this.allClasses,
+    required this.coordinators,
     required this.principalEmail,
     required this.onSaved,
     this.existing,
@@ -335,6 +338,7 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
   late final TextEditingController _desigCtrl;
 
   late Set<String> _selectedClasses;
+  late final Map<String, String> _alreadyAssignedClasses;
   bool _saving = false;
 
   bool get _isEdit => widget.existing != null;
@@ -353,6 +357,24 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
     _selectedClasses = e?['assignedClasses'] != null
         ? Set<String>.from(e!['assignedClasses'] as List)
         : {};
+
+    _alreadyAssignedClasses = {};
+    final currentEmail = e?['email'] as String?;
+    for (final coord in widget.coordinators) {
+      final email = coord['email'] as String?;
+      if (currentEmail != null &&
+          email != null &&
+          email.toLowerCase().trim() == currentEmail.toLowerCase().trim()) {
+        continue;
+      }
+      final name = coord['name'] as String? ?? email ?? '';
+      final classes = coord['assignedClasses'] != null
+          ? List<String>.from(coord['assignedClasses'] as List)
+          : <String>[];
+      for (final cls in classes) {
+        _alreadyAssignedClasses[cls] = name;
+      }
+    }
   }
 
   @override
@@ -505,21 +527,33 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                         spacing: 8, runSpacing: 8,
                         children: _allClasses.map((cls) {
                           final selected = _selectedClasses.contains(cls);
+                          final assignedTo = _alreadyAssignedClasses[cls];
+                          final isAssignedToOther = assignedTo != null;
+
                           return FilterChip(
-                            label: Text(cls),
+                            label: Text(
+                              isAssignedToOther ? '$cls ($assignedTo)' : cls,
+                              style: TextStyle(
+                                decoration: isAssignedToOther ? TextDecoration.lineThrough : null,
+                              ),
+                            ),
                             selected: selected,
-                            onSelected: (v) => setState(() {
+                            onSelected: isAssignedToOther ? null : (v) => setState(() {
                               if (v) { _selectedClasses.add(cls); }
                               else   { _selectedClasses.remove(cls); }
                             }),
                             selectedColor: AppTheme.primary.withValues(alpha: 0.15),
                             // Constant weight so selecting never reflows the label width.
                             labelStyle: TextStyle(
-                              color: selected ? AppTheme.primary : Colors.grey.shade700,
+                              color: isAssignedToOther
+                                  ? Colors.grey.shade400
+                                  : (selected ? AppTheme.primary : Colors.grey.shade700),
                               fontWeight: FontWeight.w600,
                             ),
                             side: BorderSide(
-                              color: selected ? AppTheme.primary : Colors.grey.shade300,
+                              color: isAssignedToOther
+                                  ? Colors.grey.shade200
+                                  : (selected ? AppTheme.primary : Colors.grey.shade300),
                             ),
                           );
                         }).toList(),
@@ -531,7 +565,10 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                         TextButton.icon(
                           icon: const Icon(Icons.select_all, size: 16),
                           label: Text(context.tr('selectAll')),
-                          onPressed: () => setState(() => _selectedClasses = Set.from(_allClasses)),
+                          onPressed: () => setState(() {
+                            final unassigned = _allClasses.where((cls) => !_alreadyAssignedClasses.containsKey(cls));
+                            _selectedClasses = Set.from(unassigned);
+                          }),
                           style: TextButton.styleFrom(foregroundColor: AppTheme.primary, padding: EdgeInsets.zero),
                         ),
                         const SizedBox(width: 12),
