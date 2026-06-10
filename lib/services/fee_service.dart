@@ -259,8 +259,11 @@ class FeeService extends BaseFirestoreService {
     required String className,
     required int    roll,
     required String paymentId,
-    String? reason,
+    required String reason,
   }) async {
+    if (reason.trim().isEmpty) {
+      throw ArgumentError('Reversal reason is required');
+    }
     final ref = _paymentsCol(className, roll).doc(paymentId);
     final studentFeeDocRef = schoolCollection(_sid, 'fee_payments')
         .doc(className.replaceAll(' ', '_'))
@@ -280,7 +283,7 @@ class FeeService extends BaseFirestoreService {
       tx.set(ref, {
         'reversed':       true,
         'reversedAt':     FieldValue.serverTimestamp(),
-        'reversedReason': reason ?? 'Reversed', // Ensure non-null reason (#665)
+        'reversedReason': reason.trim(),
       }, SetOptions(merge: true));
 
       final studentFeeSnap = await tx.get(studentFeeDocRef);

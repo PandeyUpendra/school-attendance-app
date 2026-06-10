@@ -1116,6 +1116,7 @@ class AppStrings {
     'addAgenda':               {'en': 'Add Agenda',            'hi': 'एजेंडा जोड़ें'},
     'pickCommonAgenda':        {'en': 'Pick a common agenda',  'hi': 'कोई सामान्य एजेंडा चुनें'},
     'typeCustomAgenda':        {'en': 'Type a custom agenda...', 'hi': 'कस्टम एजेंडा लिखें...'},
+    'agendaCannotBeEmpty':     {'en': 'Agenda point cannot be empty', 'hi': 'एजेंडा बिंदु खाली नहीं हो सकता'},
     'addBtn':                  {'en': 'Add',                   'hi': 'जोड़ें'},
     'markCompletedTooltip':    {'en': 'Mark Completed',        'hi': 'पूर्ण चिह्नित करें'},
     'generatePdfTooltip':      {'en': 'Generate PDF',          'hi': 'PDF बनाएँ'},

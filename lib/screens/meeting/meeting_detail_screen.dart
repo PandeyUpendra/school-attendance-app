@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -139,11 +140,17 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 
   // ── Add a discussion point ────────────────────────────────────────────────
 
+  String _generatePointId() {
+    final rand = Random.secure();
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    return List.generate(20, (_) => chars[rand.nextInt(chars.length)]).join();
+  }
+
   void _addPoint(String rawText) {
     final text = rawText.trim();
     if (text.isEmpty) return;
     final point = MeetingPoint(
-      id:      '${DateTime.now().millisecondsSinceEpoch}',
+      id:      _generatePointId(),
       text:    text,
       addedBy: widget.createdBy,
       addedAt: DateTime.now(),
@@ -166,7 +173,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     final text = rawText.trim();
     if (text.isEmpty) return;
     final point = MeetingPoint(
-      id:      '${DateTime.now().millisecondsSinceEpoch}_${Object.hash(DateTime.now(), 0)}',
+      id:      _generatePointId(),
       text:    text,
       addedBy: widget.createdBy,
       addedAt: DateTime.now(),
@@ -922,7 +929,12 @@ class _AgendaPickerState extends State<_AgendaPicker> {
 
   void _addCustom() {
     final text = _customCtrl.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('agendaCannotBeEmpty'))),
+      );
+      return;
+    }
     widget.onAdd(text);
     _customCtrl.clear();
   }
