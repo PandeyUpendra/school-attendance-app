@@ -202,11 +202,19 @@ class FirestoreStudentRepository implements StudentRepository {
     return Student.fromJson(data);
   }
 
+  String _toTitleCase(String text) {
+    if (text.trim().isEmpty) return text;
+    return text.trim().split(RegExp(r'\s+')).map((word) {
+      if (word.isEmpty) return '';
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
   // ── Students ────────────────────────────────────────────────────────────────
 
   @override
   Future<List<Student>> fetchAll() async {
-    final snap = await _students.get();
+    final snap = await _students.limit(500).get();
     return snap.docs
         .map(_fromDoc)
         .toList()
@@ -219,19 +227,19 @@ class FirestoreStudentRepository implements StudentRepository {
     String section, {
     String? teacherId,
   }) async {
+    final normalizedClassName = _toTitleCase(className);
     Query<Map<String, dynamic>> q =
-        _students.where('className', isEqualTo: className);
+        _students.where('className', isEqualTo: normalizedClassName);
     if (section.trim().isNotEmpty) {
       q = q.where('section', isEqualTo: section.trim());
     }
     if (teacherId != null && teacherId.isNotEmpty) {
       q = q.where('teacherId', isEqualTo: teacherId);
     }
-    final snap = await q.get();
+    final snap = await q.orderBy('roll').get();
     return snap.docs
         .map(_fromDoc)
-        .toList()
-      ..sort((a, b) => a.roll.compareTo(b.roll));
+        .toList();
   }
 
   @override
@@ -368,23 +376,23 @@ class FirestoreStudentRepository implements StudentRepository {
     String section, {
     String? teacherId,
   }) {
+    final normalizedClassName = _toTitleCase(className);
     Query<Map<String, dynamic>> q =
-        _students.where('className', isEqualTo: className);
+        _students.where('className', isEqualTo: normalizedClassName);
     if (section.trim().isNotEmpty) {
       q = q.where('section', isEqualTo: section.trim());
     }
     if (teacherId != null && teacherId.isNotEmpty) {
       q = q.where('teacherId', isEqualTo: teacherId);
     }
-    return q.snapshots().map((snap) => snap.docs
+    return q.orderBy('roll').snapshots().map((snap) => snap.docs
         .map(_fromDoc)
-        .toList()
-      ..sort((a, b) => a.roll.compareTo(b.roll)));
+        .toList());
   }
 
   @override
   Stream<List<Student>> watchAll() {
-    return _students.snapshots().map((snap) => snap.docs
+    return _students.limit(500).snapshots().map((snap) => snap.docs
         .map(_fromDoc)
         .toList()
       ..sort((a, b) => a.roll.compareTo(b.roll)));
@@ -450,7 +458,12 @@ class FirestoreStudentRepository implements StudentRepository {
     if (!doc.exists) return;
     final data = Map<String, dynamic>.from(doc.data()!);
     if (data['createdBy'] != currentUserEmail) {
-      throw StateError('You can only delete your own remarks.');
+      final session = await AuthService().getSession();
+      final role = (session?['role'] as String?)?.toLowerCase();
+      final isAuthorized = role == 'principal' || role == 'coordinator';
+      if (!isAuthorized) {
+        throw StateError('You can only delete your own remarks.');
+      }
     }
     await ref.delete();
   }

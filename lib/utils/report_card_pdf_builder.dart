@@ -349,7 +349,7 @@ pw.TableRow _buildSubjectRow({
   final pct     = (hasMarks && maxMarks > 0) ? (marks / maxMarks * 100) : 0.0;
   final passed  = hasMarks && maxMarks > 0 && marks >= maxMarks * 0.33;
   final marksStr = isAbsent ? 'AB' : (marks != null ? marks.toStringAsFixed(0) : '—');
-  final pctStr   = hasMarks ? '${pct.toStringAsFixed(1)}%' : '—';
+  final pctStr   = (hasMarks && maxMarks > 0) ? '${pct.toStringAsFixed(1)}%' : '—';
   final gradeStr = hasMarks
       ? (template.gradeScheme.isNotEmpty
           ? template.gradeForPercent(pct)
@@ -527,10 +527,12 @@ pw.Widget _buildFooter(ReportCardTemplate template) {
 // ─── Class-wide stats row ─────────────────────────────────────────────────────
 
 pw.Widget _buildClassStatsRow(List<ExamResult> results, Exam exam) {
-  final passCount = results.where((r) => r.isPassed).length;
-  final avgPct    = results.isEmpty
+  // All elements are non-nullable; validResults retains the variable for clarity.
+  final validResults = results;
+  final passCount = validResults.where((r) => r.isPassed).length;
+  final avgPct    = validResults.isEmpty
       ? 0.0
-      : results.fold(0.0, (s, r) => s + r.percentage) / results.length;
+      : validResults.fold(0.0, (s, r) => s + r.percentage) / validResults.length;
 
   return pw.Container(
     padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 14),
@@ -667,7 +669,7 @@ pw.TableRow _buildClassRow({
         fontSize: 8,
       ),
       _cell(grade, bold: true, fontSize: 8),
-      if (rank != null) _cell('#$rank', fontSize: 8),
+      if (template.showRank) _cell(rank != null ? '#$rank' : '—', fontSize: 8),
     ],
   );
 }

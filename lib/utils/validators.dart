@@ -30,24 +30,22 @@ abstract class Validators {
     return null;
   }
 
-  /// True when [value] is a usable Indian mobile number. Accepts common entry
-  /// forms — spaces/dashes, a leading national-trunk `0`, or a `+91`/`91`
-  /// country prefix — and checks the remaining local part is a 10-digit number
-  /// starting 6–9 (the valid Indian mobile range). Mirrors
-  /// `PhoneUtils.whatsAppNumber` normalisation so a number that validates here
-  /// also dials/links correctly.
+  /// True when [value] is a valid phone number. Strips leading `+` and non-digits,
+  /// verifying the length is between 7 and 15 digits (E.164 standard).
   static bool isValidPhone(String? value) {
-    var d = (value ?? '').replaceAll(RegExp(r'\D'), '');
-    d = d.replaceFirst(RegExp(r'^0+'), '');
-    if (d.length == 12 && d.startsWith('91')) d = d.substring(2);
-    return RegExp(r'^[6-9]\d{9}$').hasMatch(d);
+    var v = (value ?? '').trim();
+    if (v.startsWith('+')) {
+      v = v.substring(1);
+    }
+    final d = v.replaceAll(RegExp(r'\D'), '');
+    return d.length >= 7 && d.length <= 15;
   }
 
   /// `TextFormField.validator` for required phone fields.
   static String? phone(String? value, {String fieldLabel = 'phone number'}) {
     final v = (value ?? '').trim();
     if (v.isEmpty) return 'Enter a $fieldLabel';
-    if (!isValidPhone(v)) return 'Enter a valid 10-digit $fieldLabel';
+    if (!isValidPhone(v)) return 'Enter a valid $fieldLabel';
     return null;
   }
 
@@ -56,7 +54,14 @@ abstract class Validators {
   static String? optionalPhone(String? value) {
     final v = (value ?? '').trim();
     if (v.isEmpty) return null;
-    if (!isValidPhone(v)) return 'Enter a valid 10-digit phone number';
+    if (!isValidPhone(v)) return 'Enter a valid phone number';
+    return null;
+  }
+
+  /// `TextFormField.validator` for required name/text fields.
+  static String? name(String? value, {String fieldLabel = 'name'}) {
+    final v = (value ?? '').trim();
+    if (v.isEmpty) return 'Enter a $fieldLabel';
     return null;
   }
 }

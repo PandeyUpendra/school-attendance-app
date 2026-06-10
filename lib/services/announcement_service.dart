@@ -80,41 +80,32 @@ class AnnouncementService {
     await _coll.doc(id).update({'isPinned': pinned});
   }
 
-  /// Fetches all announcements posted by a specific role, sorted newest first.
-  Future<List<Announcement>> getAnnouncementsByRole(String role) async {
-    final snap = await _coll.get();
-    final list = snap.docs
+  /// Fetches announcements posted by a specific role, sorted newest first.
+  /// Uses a server-side filter (#8080) so the whole collection is never
+  /// downloaded — capped at 200 to bound memory usage.
+  Future<List<Announcement>> getAnnouncementsByRole(String role, {int limit = 200}) async {
+    final snap = await _coll
+        .where('postedByRole', isEqualTo: role)
+        .orderBy('postedAt', descending: true)
+        .limit(limit)
+        .get();
+    return snap.docs
         .map((d) => Announcement.fromDoc(d.id, d.data()))
-        .where((a) => a.postedByRole == role)
         .toList();
-    list.sort((a, b) {
-      final ta = a.postedAt;
-      final tb = b.postedAt;
-      if (ta == null && tb == null) return 0;
-      if (ta == null) return 1;
-      if (tb == null) return -1;
-      return tb.compareTo(ta);
-    });
-    return list;
   }
 
-  /// Fetches all announcements posted by a specific user (by posterName/email),
+  /// Fetches announcements posted by a specific user (by posterName/email),
   /// sorted newest first. Used for "My Log" tab.
-  Future<List<Announcement>> getAnnouncementsByPoster(String posterName) async {
-    final snap = await _coll.get();
-    final list = snap.docs
+  /// Uses a server-side filter (#8080) so the whole collection is not fetched.
+  Future<List<Announcement>> getAnnouncementsByPoster(String posterName, {int limit = 200}) async {
+    final snap = await _coll
+        .where('postedBy', isEqualTo: posterName)
+        .orderBy('postedAt', descending: true)
+        .limit(limit)
+        .get();
+    return snap.docs
         .map((d) => Announcement.fromDoc(d.id, d.data()))
-        .where((a) => a.postedBy == posterName)
         .toList();
-    list.sort((a, b) {
-      final ta = a.postedAt;
-      final tb = b.postedAt;
-      if (ta == null && tb == null) return 0;
-      if (ta == null) return 1;
-      if (tb == null) return -1;
-      return tb.compareTo(ta);
-    });
-    return list;
   }
 
   /// Batch-deletes multiple announcements by ID.
