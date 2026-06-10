@@ -707,8 +707,193 @@ class TimetableService extends BaseFirestoreService {
   /// the login record locally and returns `false`, so access is still cut off
   /// even though deep cleanup is deferred until the function is deployed.
   /// Genuine authorization / validation errors are rethrown.
+  Future<void> _cascadeDeleteSchoolLocally(String email, String? role, String? schoolId) async {
+    final normEmail = email.toLowerCase().trim();
+    final batch = FirebaseFirestore.instance.batch();
+
+    if ((role == 'owner' || role == 'ownerPrincipal') && schoolId != null && schoolId.isNotEmpty) {
+      AppLogger.d('TimetableService', 'Starting local cascade deletion for schoolId: $schoolId');
+
+      // 1. Delete all allowed_users belonging to this school
+      try {
+        final usersSnap = await _allowedUsers.where('schoolId', isEqualTo: schoolId).get();
+        for (var doc in usersSnap.docs) {
+          batch.delete(doc.reference);
+        }
+      } catch (e) {
+        AppLogger.e('TimetableService', 'Failed to fetch allowed_users for local cascade: $e');
+      }
+
+      // 2. Delete school-scoped collections: students, teachers, classes
+      final schoolRef = FirebaseFirestore.instance.collection('schools').doc(schoolId);
+      
+      try {
+        final studentsSnap = await schoolRef.collection('students').get();
+        for (var doc in studentsSnap.docs) {
+          batch.delete(doc.reference);
+        }
+      } catch (e) {
+        AppLogger.e('TimetableService', 'Failed to delete students in local cascade: $e');
+      }
+
+      try {
+        final teachersSnap = await schoolRef.collection('teachers').get();
+        for (var doc in teachersSnap.docs) {
+          batch.delete(doc.reference);
+        }
+      } catch (e) {
+        AppLogger.e('TimetableService', 'Failed to delete teachers in local cascade: $e');
+      }
+
+      try {
+        final classesSnap = await schoolRef.collection('classes').get();
+        for (var doc in classesSnap.docs) {
+          batch.delete(doc.reference);
+        }
+      } catch (e) {
+        AppLogger.e('TimetableService', 'Failed to delete classes in local cascade: $e');
+      }
+
+      // 3. Delete other root collection documents scoped to the orphaned schoolId
+      final rootCollections = ['homework', 'copy_checks', 'substitution_history', 'tasks'];
+      for (final coll in rootCollections) {
+        try {
+          final snap = await FirebaseFirestore.instance.collection(coll).where('schoolId', isEqualTo: schoolId).get();
+          for (var doc in snap.docs) {
+            batch.delete(doc.reference);
+          }
+        } catch (e) {
+          AppLogger.e('TimetableService', 'Failed to clean $coll for school $schoolId: $e');
+        }
+      }
+
+      // Delete the root school document
+      batch.delete(schoolRef);
+    } else {
+      // If it is not an owner or has no schoolId, just delete the user's allowed_users doc
+      batch.delete(_allowedUsers.doc(normEmail));
+    }
+
+    await batch.commit();
+    AppLogger.d('TimetableService', 'Local cascade deletion complete for $normEmail');
+  }
+
+  Future<void> cleanOrphanedSchools() async {
+    try {
+      // 1. Get all allowed_users
+      final allUsersSnap = await _allowedUsers.get();
+      final allUsers = allUsersSnap.docs.map((d) => d.data()).toList();
+
+      // 2. Identify active owner schoolIds
+      final activeSchoolIds = <String>{};
+      for (final u in allUsers) {
+        final role = u['role'] as String?;
+        final schoolId = u['schoolId'] as String?;
+        if ((role == 'owner' || role == 'ownerPrincipal') && schoolId != null && schoolId.isNotEmpty) {
+          activeSchoolIds.add(schoolId);
+        }
+      }
+
+      // 3. Find orphaned users and schoolIds
+      final orphanedUsers = <String>[];
+      final orphanedSchoolIds = <String>{};
+
+      for (final doc in allUsersSnap.docs) {
+        final data = doc.data();
+        final email = doc.id;
+        final role = data['role'] as String?;
+        final schoolId = data['schoolId'] as String?;
+
+        if (role == 'admin') continue;
+        if (schoolId == null || schoolId.isEmpty) continue;
+
+        if (!activeSchoolIds.contains(schoolId)) {
+          orphanedUsers.add(email);
+          orphanedSchoolIds.add(schoolId);
+        }
+      }
+
+      if (orphanedUsers.isEmpty && orphanedSchoolIds.isEmpty) {
+        return;
+      }
+
+      AppLogger.d('TimetableService', 'Found orphaned users: $orphanedUsers and schools: $orphanedSchoolIds. Cleaning up...');
+
+      final batch = FirebaseFirestore.instance.batch();
+
+      // Delete orphaned users
+      for (final email in orphanedUsers) {
+        batch.delete(_allowedUsers.doc(email));
+      }
+
+      // Delete orphaned schools and their subcollections
+      for (final schoolId in orphanedSchoolIds) {
+        final schoolRef = FirebaseFirestore.instance.collection('schools').doc(schoolId);
+
+        try {
+          final studentsSnap = await schoolRef.collection('students').get();
+          for (var doc in studentsSnap.docs) {
+            batch.delete(doc.reference);
+          }
+        } catch (e) {
+          AppLogger.e('TimetableService', 'Failed to fetch students for orphan cleanup: $e');
+        }
+
+        try {
+          final teachersSnap = await schoolRef.collection('teachers').get();
+          for (var doc in teachersSnap.docs) {
+            batch.delete(doc.reference);
+          }
+        } catch (e) {
+          AppLogger.e('TimetableService', 'Failed to fetch teachers for orphan cleanup: $e');
+        }
+
+        try {
+          final classesSnap = await schoolRef.collection('classes').get();
+          for (var doc in classesSnap.docs) {
+            batch.delete(doc.reference);
+          }
+        } catch (e) {
+          AppLogger.e('TimetableService', 'Failed to fetch classes for orphan cleanup: $e');
+        }
+
+        final rootCollections = ['homework', 'copy_checks', 'substitution_history', 'tasks'];
+        for (final coll in rootCollections) {
+          try {
+            final snap = await FirebaseFirestore.instance.collection(coll).where('schoolId', isEqualTo: schoolId).get();
+            for (var doc in snap.docs) {
+              batch.delete(doc.reference);
+            }
+          } catch (e) {
+            AppLogger.e('TimetableService', 'Failed to clean $coll for orphaned school $schoolId: $e');
+          }
+        }
+
+        batch.delete(schoolRef);
+      }
+
+      await batch.commit();
+      AppLogger.d('TimetableService', 'Orphan cleanup complete.');
+    } catch (e) {
+      AppLogger.e('TimetableService', 'cleanOrphanedSchools failed: $e');
+    }
+  }
+
   Future<bool> deleteAccountFully(String email) async {
     final normEmail = email.toLowerCase().trim();
+    String? schoolId;
+    String? role;
+    try {
+      final snap = await _allowedUsers.doc(normEmail).get();
+      if (snap.exists) {
+        final data = snap.data();
+        schoolId = data?['schoolId'] as String?;
+        role = data?['role'] as String?;
+      }
+    } catch (e) {
+      AppLogger.e('TimetableService', 'Failed to pre-fetch user doc for delete: $e');
+    }
+
     try {
       await FirebaseFunctions.instance
           .httpsCallable('deleteAccount')
@@ -722,7 +907,7 @@ class TimetableService extends BaseFirestoreService {
       if ((e.code == 'unauthenticated' || e.code == 'permission-denied') &&
           FirebaseAuth.instance.currentUser != null) {
         AppLogger.d('TimetableService', 'deleteAccount Cloud Function returned auth/permission error ($e). Falling back to local Firestore revocation.');
-        await removeAllowedUser(normEmail);
+        await _cascadeDeleteSchoolLocally(normEmail, role, schoolId);
         return false;
       }
 
@@ -732,8 +917,8 @@ class TimetableService extends BaseFirestoreService {
         rethrow;
       }
       // not-found / unavailable / internal / others → function not deployed or transient.
-      // Minimal fallback: revoke the login so the account can't be used.
-      await removeAllowedUser(normEmail);
+      // Fallback: revoke the login and delete associated school data locally.
+      await _cascadeDeleteSchoolLocally(normEmail, role, schoolId);
       return false;
     }
   }

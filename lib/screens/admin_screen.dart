@@ -56,6 +56,9 @@ class _AdminScreenState extends State<AdminScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
+      // Automatically clean up any orphaned users or school databases left from previous deletions
+      await _service.cleanOrphanedSchools();
+
       // Admin sees only Owner accounts. Query owners directly with
       // where('role' == 'owner') — an unscoped allowed_users read is rejected
       // by the security rules (non-owner managers may only read docs in their
