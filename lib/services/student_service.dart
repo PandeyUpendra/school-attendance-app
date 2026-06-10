@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
@@ -222,6 +223,81 @@ class StudentService extends BaseFirestoreService {
         .map((snap) => snap.docs
             .map((d) => DeletedStudent.fromJson(d.id, d.data()))
             .toList());
+  }
+
+  /// Real-time stream of all students for a class/section, including those
+  /// marked as pending deletion (but excluding promoted ones).
+  Stream<List<Student>> watchAllStudentsByClass({
+    required String className,
+    String section = '',
+    String? teacherId,
+  }) {
+    return _repo
+        .watchByClass(className, section, teacherId: teacherId)
+        .map((list) => list.where((s) => !s.promoted).toList());
+  }
+
+  /// Live stream of deleted students combined with students pending deletion,
+  /// newest first. Pending deletion students are represented as DeletedStudent
+  /// objects with a null deletedAt timestamp.
+  Stream<List<DeletedStudent>> watchDeletedAndPendingStudents({
+    String? className,
+    String? section,
+  }) {
+    final deletedStream = watchDeletedStudents();
+    final Stream<List<Student>> activeStream;
+    if (className != null && className.isNotEmpty) {
+      activeStream = _repo.watchByClass(className, section ?? '');
+    } else {
+      activeStream = _repo.watchAll();
+    }
+
+    final controller = StreamController<List<DeletedStudent>>();
+    List<DeletedStudent> lastDeleted = [];
+    List<Student> lastPending = [];
+
+    void emitMerged() {
+      if (controller.isClosed) return;
+      final pendingList = lastPending
+          .where((s) => s.deletionPending && !s.promoted)
+          .map((s) => DeletedStudent(
+                id: 'pending_${s.id}',
+                roll: s.roll,
+                name: s.name,
+                className: s.className,
+                section: s.section,
+                guardianEmail: s.guardianEmail,
+                teacherId: s.teacherId,
+                deletedAt: null,
+              ))
+          .toList();
+
+      final merged = [...pendingList, ...lastDeleted];
+      merged.sort((a, b) {
+        if (a.deletedAt == null && b.deletedAt == null) return a.name.compareTo(b.name);
+        if (a.deletedAt == null) return -1;
+        if (b.deletedAt == null) return 1;
+        return b.deletedAt!.compareTo(a.deletedAt!);
+      });
+      controller.add(merged);
+    }
+
+    final sub1 = deletedStream.listen((data) {
+      lastDeleted = data;
+      emitMerged();
+    });
+
+    final sub2 = activeStream.listen((data) {
+      lastPending = data;
+      emitMerged();
+    });
+
+    controller.onCancel = () {
+      sub1.cancel();
+      sub2.cancel();
+    };
+
+    return controller.stream;
   }
 
   /// Generates a stable cross-year admission id (#70). Format: STU-<ms>-<rand>.

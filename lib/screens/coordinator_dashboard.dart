@@ -32,7 +32,6 @@ import 'analytics_screen.dart';
 import 'student_remarks_screen.dart';
 import 'staff_remarks_screen.dart';
 import 'deleted_students_screen.dart';
-import 'student_deletion_requests_screen.dart';
 import 'tasks/unified_staff_task_screen.dart';
 import 'coordinator/absent_teachers_screen.dart';
 import '../services/staff_task_service.dart';
@@ -420,21 +419,10 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               subtitle: context.tr('subDeletedStudentsDesc'),
               onTap: () => _navigate(const DeletedStudentsScreen()),
             ),
-            const _Divider(),
-            StreamBuilder<int>(
-              stream: StudentService().streamPendingDeletionCount(),
-              builder: (context, snap) {
-                final n = snap.data ?? 0;
-                return _FeatureTile(
-                  icon: Icons.person_remove_outlined,
-                  color: AppTheme.danger,
-                  title: context.tr('studentDeletionRequests'),
-                  subtitle: 'Review & approve teacher requests to remove student records',
-                  badge: n > 0 ? '$n' : null,
-                  onTap: () => _navigate(const StudentDeletionRequestsScreen()),
-                );
-              },
-            ),
+            // Student Deletion Requests are reviewed by the PRINCIPAL only
+            // (Firestore rules exclude coordinators from reading
+            // student_deletion_requests), so the tile lives on the principal
+            // dashboard — not here.
 
             // ── Free Bells & Substitution ──────────────────────────────────
             _SectionHeader(context.tr('secFreeBells')),

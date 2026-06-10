@@ -151,7 +151,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
     super.initState();
     _loadUserRole();
     _studentSub = _service
-        .watchStudentsByClass(className: widget.className,
+        .watchAllStudentsByClass(className: widget.className,
             section: widget.section, teacherId: widget.teacherId)
         .listen((list) {
       if (!mounted) return;

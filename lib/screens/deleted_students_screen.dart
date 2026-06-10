@@ -37,7 +37,10 @@ class DeletedStudentsScreen extends StatelessWidget {
         title: Text(context.tr('deletedStudents')),
       ),
       body: StreamBuilder<List<DeletedStudent>>(
-        stream: StudentService().watchDeletedStudents(),
+        stream: StudentService().watchDeletedAndPendingStudents(
+          className: classNameFilter,
+          section: sectionFilter,
+        ),
         builder: (context, snap) {
           final waiting = snap.connectionState == ConnectionState.waiting;
           final all = snap.data ?? const <DeletedStudent>[];
@@ -212,11 +215,20 @@ class _DeletedStudentCard extends StatelessWidget {
               height: 38,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: AppTheme.danger.withValues(alpha: 0.08),
+                color: student.deletedAt == null
+                    ? AppTheme.warning.withValues(alpha: 0.08)
+                    : AppTheme.danger.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.person_off_outlined,
-                  size: 20, color: AppTheme.danger),
+              child: Icon(
+                student.deletedAt == null
+                    ? Icons.hourglass_top_outlined
+                    : Icons.person_off_outlined,
+                size: 20,
+                color: student.deletedAt == null
+                    ? AppTheme.warning
+                    : AppTheme.danger,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -236,13 +248,29 @@ class _DeletedStudentCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.event_busy_outlined,
-                          size: 12, color: Colors.grey.shade500),
+                      Icon(
+                        student.deletedAt == null
+                            ? Icons.hourglass_top_outlined
+                            : Icons.event_busy_outlined,
+                        size: 12,
+                        color: student.deletedAt == null
+                            ? AppTheme.warning
+                            : Colors.grey.shade500,
+                      ),
                       const SizedBox(width: 4),
                       Text(
-                        '${context.tr('deletedPrefix')} ${_fmtDate(context, student.deletedAt)}',
+                        student.deletedAt == null
+                            ? context.tr('awaitingPrincipalApproval')
+                            : '${context.tr('deletedPrefix')} ${_fmtDate(context, student.deletedAt)}',
                         style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade500),
+                          fontSize: 11,
+                          color: student.deletedAt == null
+                              ? AppTheme.warning
+                              : Colors.grey.shade500,
+                          fontWeight: student.deletedAt == null
+                              ? FontWeight.bold
+                              : null,
+                        ),
                       ),
                     ],
                   ),
