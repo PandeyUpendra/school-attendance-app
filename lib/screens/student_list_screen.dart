@@ -10,6 +10,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import '../utils/pdf_theme.dart';
+import '../services/auth_service.dart';
 import '../l10n/app_strings.dart';
 import '../models/guardian_student_details.dart';
 import '../models/guardian_provided_details.dart';
@@ -100,6 +105,16 @@ class _StudentListScreenState extends State<StudentListScreen> {
   StreamSubscription<List<Student>>? _studentSub;
   List<Student> _students = [];
   bool _loading = true;
+  bool _isPrincipal = false;
+
+  Future<void> _loadUserRole() async {
+    final session = await AuthService().getSession();
+    if (session != null && mounted) {
+      setState(() {
+        _isPrincipal = session['role'] == 'principal';
+      });
+    }
+  }
 
   // Consent visibility (#17): which students have active parental consent, so
   // staff can see at a glance who is missing it. Loaded once per roster refresh
@@ -134,6 +149,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
   @override
   void initState() {
     super.initState();
+    _loadUserRole();
     _studentSub = _service
         .watchStudentsByClass(className: widget.className,
             section: widget.section, teacherId: widget.teacherId)
@@ -427,6 +443,124 @@ class _StudentListScreenState extends State<StudentListScreen> {
     }
   }
 
+  Future<void> _exportPDF() async {
+    final students = [..._students]..sort((a, b) => a.roll.compareTo(b.roll));
+    if (students.isEmpty) return;
+
+    final doc = pw.Document();
+    final now = DateTime.now();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        header: (_) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text('Student List Report',
+                style: pw.TextStyle(
+                    fontSize: 20, fontWeight: pw.FontWeight.bold,
+                    color: PdfTheme.primary)),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              'Class: ${widget.className}   |   Section: ${widget.section.isEmpty ? 'N/A' : widget.section}   |   '
+              'Total Students: ${students.length}   |   '
+              'Date: ${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}',
+              style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+            ),
+            pw.Divider(color: PdfTheme.primary, thickness: 1),
+            pw.SizedBox(height: 8),
+          ],
+        ),
+        footer: (context) => pw.Column(
+          children: [
+            pw.Divider(color: PdfColors.grey300, thickness: 0.5),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'School Management System  •  Confidential',
+                  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
+                ),
+                pw.Text(
+                  'Page ${context.pageNumber} of ${context.pagesCount}',
+                  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
+                ),
+              ],
+            ),
+          ],
+        ),
+        build: (_) => [
+          pw.Table(
+            border: pw.TableBorder.all(
+                color: PdfTheme.primaryLight, width: 0.5),
+            columnWidths: {
+              0: const pw.FixedColumnWidth(40),  // Roll
+              1: const pw.FlexColumnWidth(3),    // Name
+              2: const pw.FlexColumnWidth(2.5),  // Father's Name
+              3: const pw.FixedColumnWidth(90),  // Phone
+              4: const pw.FixedColumnWidth(70),  // Fee Status
+            },
+            children: [
+              // Header
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: PdfTheme.primaryTint),
+                children: [
+                  'Roll',
+                  'Student Name',
+                  "Father's Name",
+                  'Phone',
+                  'Fee Status'
+                ].map((h) => pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                  child: pw.Text(
+                    h,
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 9,
+                      color: PdfTheme.primaryDark,
+                    ),
+                  ),
+                )).toList(),
+              ),
+              // Rows
+              ...students.map((s) {
+                return pw.TableRow(
+                  children: [
+                    s.roll.toString(),
+                    s.name,
+                    s.fatherName,
+                    s.phone,
+                    s.feeStatus,
+                  ].map((cell) => pw.Padding(
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                    child: pw.Text(
+                      cell,
+                      style: const pw.TextStyle(fontSize: 9),
+                    ),
+                  )).toList(),
+                );
+              }),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    final cls = widget.className.replaceAll(' ', '_');
+    final sec = widget.section.trim().isEmpty ? '' : '_${widget.section.trim()}';
+    try {
+      await Printing.sharePdf(
+        bytes: await doc.save(),
+        filename: 'students_$cls$sec.pdf',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${context.tr('exportFailed')} $e')));
+    }
+  }
+
   Future<void> _importCSV() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -627,11 +761,45 @@ class _StudentListScreenState extends State<StudentListScreen> {
               ]
             : [
                 if (_students.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.download_outlined),
-                    tooltip: context.tr('exportToCsv'),
-                    onPressed: _exportCSV,
-                  ),
+                  _isPrincipal
+                      ? PopupMenuButton<String>(
+                          icon: const Icon(Icons.download_outlined),
+                          tooltip: 'Export options',
+                          onSelected: (value) {
+                            if (value == 'csv') {
+                              _exportCSV();
+                            } else if (value == 'pdf') {
+                              _exportPDF();
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: 'csv',
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.description_outlined, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(context.tr('exportCsv')),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'pdf',
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.picture_as_pdf_outlined, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(context.tr('exportPdf')),
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.download_outlined),
+                          tooltip: context.tr('exportToCsv'),
+                          onPressed: _exportCSV,
+                        ),
                 if (widget.isClassTeacher)
                   IconButton(
                     icon: const Icon(Icons.upload_file_outlined),

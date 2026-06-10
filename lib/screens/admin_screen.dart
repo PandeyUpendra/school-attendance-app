@@ -189,7 +189,10 @@ class _AdminScreenState extends State<AdminScreen> {
         },
       ),
     );
-    confirmCtrl.dispose();
+    // Dispose after the dialog's close animation finishes. Disposing the
+    // controller synchronously while its TextField is still unmounting trips
+    // framework.dart's `_dependents.isEmpty` assertion (red error screen).
+    Future.delayed(const Duration(milliseconds: 350), confirmCtrl.dispose);
     if (ok != true) return;
     try {
       final full = await _service.deleteAccountFully(email);

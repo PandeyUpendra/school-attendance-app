@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import '../../utils/pdf_theme.dart';
 import '../../l10n/app_strings.dart';
 import '../../services/audit_log_service.dart';
 import '../../theme.dart';
@@ -196,6 +200,137 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     }
   }
 
+  Future<void> _exportPdf() async {
+    setState(() => _exporting = true);
+    try {
+      final all = await _svc.fetchAll(
+        entityFilter: _entityFilter.isEmpty ? null : _entityFilter,
+        actorFilter:  _actorFilter.isEmpty  ? null : _actorFilter,
+        from:         _from,
+        to:           _to,
+      );
+
+      final doc = pw.Document();
+      final now = DateTime.now();
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4.landscape,
+          margin: const pw.EdgeInsets.all(24),
+          header: (_) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('Audit Log Report',
+                  style: pw.TextStyle(
+                      fontSize: 18, fontWeight: pw.FontWeight.bold,
+                      color: PdfTheme.primary)),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                'Generated on: ${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} '
+                '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}   |   '
+                'Total Entries: ${all.length}',
+                style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey700),
+              ),
+              pw.Divider(color: PdfTheme.primary, thickness: 1),
+              pw.SizedBox(height: 6),
+            ],
+          ),
+          footer: (context) => pw.Column(
+            children: [
+              pw.Divider(color: PdfColors.grey300, thickness: 0.5),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'School Management System  •  Confidential',
+                    style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey500),
+                  ),
+                  pw.Text(
+                    'Page ${context.pageNumber} of ${context.pagesCount}',
+                    style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey500),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          build: (_) => [
+            pw.Table(
+              border: pw.TableBorder.all(
+                  color: PdfTheme.primaryLight, width: 0.5),
+              columnWidths: {
+                0: const pw.FixedColumnWidth(95),  // Timestamp
+                1: const pw.FlexColumnWidth(2.2),  // Actor (Name & Role)
+                2: const pw.FixedColumnWidth(110), // Action & Type
+                3: const pw.FlexColumnWidth(2),    // Entity ID
+                4: const pw.FlexColumnWidth(3),    // Reason
+              },
+              children: [
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfTheme.primaryTint),
+                  children: [
+                    'Timestamp',
+                    'Actor (Role)',
+                    'Action & Type',
+                    'Entity ID',
+                    'Reason'
+                  ].map((h) => pw.Padding(
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                    child: pw.Text(
+                      h,
+                      style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold,
+                        fontSize: 8.5,
+                        color: PdfTheme.primaryDark,
+                      ),
+                    ),
+                  )).toList(),
+                ),
+                ...all.map((e) {
+                  final ts = e.timestamp;
+                  final tsStr =
+                      '${ts.day.toString().padLeft(2, '0')}/${ts.month.toString().padLeft(2, '0')}/${ts.year} '
+                      '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}';
+                  
+                  final actionType = '${e.action.toUpperCase()} ${_entityLabel(context, e.entity)}';
+
+                  return pw.TableRow(
+                    children: [
+                      tsStr,
+                      '${e.actorName} (${e.actorRole})',
+                      actionType,
+                      e.entityId,
+                      e.reason ?? '',
+                    ].map((cell) => pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                      child: pw.Text(
+                        cell,
+                        style: const pw.TextStyle(fontSize: 8),
+                      ),
+                    )).toList(),
+                  );
+                }),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      await Printing.sharePdf(
+        bytes: await doc.save(),
+        filename: 'audit_log_$ts.pdf',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${context.tr('exportFailedPrefix')} $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
   String _mapSummary(Map<String, dynamic>? m) {
     if (m == null || m.isEmpty) return '';
     final pairs = m.entries.take(4).map((e) => '${e.key}=${e.value}').join('; ');
@@ -223,10 +358,38 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
               ),
             )
           else
-            IconButton(
+            PopupMenuButton<String>(
               icon: const Icon(Icons.download_outlined),
-              tooltip: context.tr('exportCsv'),
-              onPressed: _exportCsv,
+              tooltip: 'Export options',
+              onSelected: (value) {
+                if (value == 'csv') {
+                  _exportCsv();
+                } else if (value == 'pdf') {
+                  _exportPdf();
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'csv',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.description_outlined, size: 20),
+                      const SizedBox(width: 8),
+                      Text(context.tr('exportCsv')),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'pdf',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.picture_as_pdf_outlined, size: 20),
+                      const SizedBox(width: 8),
+                      Text(context.tr('exportPdf')),
+                    ],
+                  ),
+                ),
+              ],
             ),
         ],
       ),
