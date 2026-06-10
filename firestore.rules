@@ -954,6 +954,7 @@ service cloud.firestore {
             && classId == userStudentClass().replace(' ', '_')
             && roll == string(userStudentRoll()))
         );
+        allow write: if isSignedIn() && inSchool(sid) && isManagement();
       }
 
       // (fee_meta counter rule is defined as a sibling match below.)
