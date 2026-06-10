@@ -13,6 +13,7 @@ import '../utils/school_clock.dart';
 import 'audit_log_service.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
+import 'notification_service.dart';
 import 'timetable_service.dart';
 
 String stripHtml(String s) => s.replaceAll(RegExp(r'<[^>]*>'), '');
@@ -822,10 +823,17 @@ class StudentService extends BaseFirestoreService {
   // NOTE: attendance operations still talk to Firestore directly.
   //       They will migrate to AttendanceRepository in a follow-up PR.
 
+  static String _attendanceDocKey(String className, DateTime date) {
+    final prefix = className.replaceAll(' ', '_');
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '${prefix}_${date.year}-$m-$d';
+  }
+
   String _todayKey(String className) {
     // Anchor "today" to the school timezone, not the device's (#43).
     final now = SchoolClock.now();
-    return '${className.replaceAll(' ', '_')}_${now.year}-${now.month}-${now.day}';
+    return _attendanceDocKey(className, now);
   }
 
   /// Returns 'Present' | 'Absent' | 'Leave' per roll number.
@@ -893,8 +901,7 @@ class StudentService extends BaseFirestoreService {
       }
     }
 
-    final prefix = className.replaceAll(' ', '_');
-    final key    = '${prefix}_${date.year}-${date.month}-${date.day}';
+    final key    = _attendanceDocKey(className, date);
     final rolls  = attendance.map((k, v) => MapEntry(k.toString(), v));
     await _attendance
         .doc(key)
@@ -951,8 +958,7 @@ class StudentService extends BaseFirestoreService {
   /// Sets [roll] to 'Leave' on [date] unless that day is already 'Present'.
   Future<void> _markLeavePreservingPresent(
       String className, int roll, DateTime date) async {
-    final key =
-        '${className.replaceAll(' ', '_')}_${date.year}-${date.month}-${date.day}';
+    final key = _attendanceDocKey(className, date);
     final doc = await _attendance.doc(key).get();
     if (doc.exists && doc.data() != null) {
       final rolls =
@@ -1016,7 +1022,9 @@ class StudentService extends BaseFirestoreService {
 
     // 2. Build attendance doc key(s) per class.
     final now     = SchoolClock.now();
-    final dateSfx = '_${now.year}-${now.month}-${now.day}';
+    final m       = now.month.toString().padLeft(2, '0');
+    final d       = now.day.toString().padLeft(2, '0');
+    final dateSfx = '_${now.year}-$m-$d';
 
     final classToKeys = <String, List<String>>{};
     for (final cls in classes) {
@@ -1110,12 +1118,11 @@ class StudentService extends BaseFirestoreService {
   Future<Map<int, int>> loadRecentAbsenceDays(
       {required String className, int days = 14}) async {
     final now    = SchoolClock.now();
-    final prefix = className.replaceAll(' ', '_');
 
     final datas = await Future.wait(
       List.generate(days, (i) {
         final date = now.subtract(Duration(days: i));
-        final key  = '${prefix}_${date.year}-${date.month}-${date.day}';
+        final key  = _attendanceDocKey(className, date);
         return _dayDocData(key, cacheable: i != 0); // i==0 is today
       }),
     );
@@ -1168,7 +1175,6 @@ class StudentService extends BaseFirestoreService {
       required int year,
       required int month,
       String? schoolId}) async {
-    final prefix      = className.replaceAll(' ', '_');
     final daysInMonth = DateTime(year, month + 1, 0).day;
     final now         = SchoolClock.now();
     final today       = DateTime(now.year, now.month, now.day);
@@ -1179,7 +1185,8 @@ class StudentService extends BaseFirestoreService {
         // Cache strictly-past days only; today (and any future day in the
         // current month) is always read fresh.
         final cacheable = DateTime(year, month, day).isBefore(today);
-        return _dayDocData('${prefix}_$year-$month-$day', cacheable: cacheable);
+        final key = _attendanceDocKey(className, DateTime(year, month, day));
+        return _dayDocData(key, cacheable: cacheable);
       }),
     );
 
@@ -1199,7 +1206,6 @@ class StudentService extends BaseFirestoreService {
   Future<Map<int, int>> loadConsecutiveAbsenceDays(String className,
       {int maxDays = 20}) async {
     final now    = SchoolClock.now();
-    final prefix = className.replaceAll(' ', '_');
 
     // Build ordered list of (index, date) pairs — today first, past last.
     // Future.wait preserves order so the streak walk below sees days
@@ -1209,7 +1215,7 @@ class StudentService extends BaseFirestoreService {
       dates.asMap().entries.map((e) {
         final i    = e.key;
         final date = e.value;
-        final key  = '${prefix}_${date.year}-${date.month}-${date.day}';
+        final key  = _attendanceDocKey(className, date);
         return _dayDocData(key, cacheable: i != 0); // i==0 is today
       }),
     );
@@ -1318,8 +1324,7 @@ class StudentService extends BaseFirestoreService {
   /// Load attendance doc for a specific date (for history).
   Future<Map<String, dynamic>?> loadAttendanceForDate(
       {required String className, required DateTime date}) async {
-    final key =
-        '${className.replaceAll(' ', '_')}_${date.year}-${date.month}-${date.day}';
+    final key = _attendanceDocKey(className, date);
     final doc = await _attendance.doc(key).get();
     if (!doc.exists || doc.data() == null) return null;
     return Map<String, dynamic>.from(doc.data()!);
@@ -1411,6 +1416,23 @@ class StudentService extends BaseFirestoreService {
       String studentId, GuardianProvidedDetails details) async {
     final ref = _guardianDetailsRef(studentId);
     await ref.add(details.toJson());
+
+    try {
+      final studentDoc = await _studentsRef.doc(studentId).get();
+      if (studentDoc.exists && studentDoc.data() != null) {
+        final data = studentDoc.data()!;
+        final className = data['className'] as String? ?? '';
+        final studentName = data['name'] as String? ?? '';
+        if (className.isNotEmpty && studentName.isNotEmpty) {
+          await NotificationService().addGuardianCorrectionSubmitted(
+            className: className,
+            studentName: studentName,
+          );
+        }
+      }
+    } catch (e, stack) {
+      AppLogger.e('StudentService', 'Failed to send guardian correction notification: $e', e, stack);
+    }
   }
 
   Stream<List<GuardianProvidedDetails>> watchGuardianProvidedDetails(String studentId) {

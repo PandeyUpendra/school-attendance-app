@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/school_onboarding.dart';
 import '../../theme.dart';
@@ -130,6 +131,7 @@ class Step4FeesState extends State<Step4Fees> {
             TextFormField(
               controller: _lateCtrl,
               keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: InputDecoration(
                 labelText: '${context.tr('lateFeePerDayLabel')} *',
                 prefixIcon: const Icon(Icons.currency_rupee_outlined),

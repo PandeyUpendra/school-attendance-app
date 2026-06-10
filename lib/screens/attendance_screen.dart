@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../providers/school_settings_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../theme.dart';
@@ -537,7 +539,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             _SummaryRow('Absent', '$_absent', const Color(0xFFC62828)),
           ]),
           actions: [
-            if (_absent + _leave > 0)
+            if (_absent + _leave > 0 && Provider.of<SchoolSettingsProvider>(context, listen: false).whatsappEnabled)
               TextButton.icon(
                 onPressed: () { Navigator.pop(ctx); _showWhatsAppSheet(); },
                 icon: const Icon(FontAwesomeIcons.whatsapp, size: 16, color: Colors.green),
@@ -1094,7 +1096,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             ),
           ),
 
-          if (_absent + _leave > 0) ...[
+          if (_absent + _leave > 0 && Provider.of<SchoolSettingsProvider>(context, listen: false).whatsappEnabled) ...[
             const SizedBox(height: 10),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1569,7 +1571,7 @@ class _AttendanceSummaryCard extends StatelessWidget {
                   : Text(context.tr('saveAttendance'),
                       style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
             ),
-            if (absent > 0 || leave > 0) ...[
+            if ((absent > 0 || leave > 0) && Provider.of<SchoolSettingsProvider>(context, listen: false).whatsappEnabled) ...[
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: onNotify,

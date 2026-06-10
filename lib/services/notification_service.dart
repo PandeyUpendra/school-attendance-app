@@ -99,6 +99,20 @@ class NotificationService extends BaseFirestoreService {
     });
   }
 
+  /// Called when a guardian submits profile corrections — notifies the class teacher.
+  Future<void> addGuardianCorrectionSubmitted({
+    required String className,
+    required String studentName,
+  }) async {
+    await _coll.add({
+      'type':      'guardian_correction',
+      'title':     'Profile Correction: $studentName',
+      'body':      'Guardian has submitted profile corrections for $studentName ($className).',
+      'audience':  'class_teacher:$className',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   /// Called when a teacher is assigned as substitute for a class+bell+date.
   Future<void> addSubstitutionAssigned({
     required String   teacherId,

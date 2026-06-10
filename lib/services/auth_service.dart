@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'base_firestore_service.dart';
+import '../utils/app_logger.dart';
 
 import 'audit_log_service.dart';
 import 'dropdown_options_service.dart';
@@ -368,7 +369,8 @@ class AuthService {
       case 'requires-recent-login':
         return 'Please sign in again before changing your password.';
       default:
-        return e.message ?? 'Authentication error. Please try again.';
+        AppLogger.e('AuthService', 'Firebase Auth Error (${e.code}): ${e.message}', e);
+        return 'Authentication error. Please try again.';
     }
   }
 }

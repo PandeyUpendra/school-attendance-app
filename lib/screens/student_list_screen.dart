@@ -4,6 +4,8 @@ import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../providers/school_settings_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1609,19 +1611,21 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                       onTap: _call,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _ActionBtn(
-                      iconWidget: const FaIcon(
-                        FontAwesomeIcons.whatsapp,
-                        color: Color(0xFF25D366),
-                        size: 24,
+                  if (Provider.of<SchoolSettingsProvider>(context, listen: false).whatsappEnabled) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ActionBtn(
+                        iconWidget: const FaIcon(
+                          FontAwesomeIcons.whatsapp,
+                          color: Color(0xFF25D366),
+                          size: 24,
+                        ),
+                        label: 'WhatsApp',
+                        color: const Color(0xFF25D366),
+                        onTap: _whatsapp,
                       ),
-                      label: 'WhatsApp',
-                      color: const Color(0xFF25D366),
-                      onTap: _whatsapp,
                     ),
-                  ),
+                  ],
                 ]),
               ),
             _InfoRow(Icons.phone_android_outlined, context.tr('secondaryContact'),
@@ -1780,24 +1784,26 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                             onPressed: _resendInvite,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            icon: const FaIcon(FontAwesomeIcons.whatsapp,
-                                size: 15, color: Color(0xFF25D366)),
-                            label: const Text('WhatsApp', style: TextStyle(fontSize: 13)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.1),
-                              foregroundColor: const Color(0xFF128C7E),
-                              elevation: 0,
-                              side: const BorderSide(color: Color(0xFF25D366)),
-                              padding: const EdgeInsets.symmetric(vertical: 9),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
+                        if (Provider.of<SchoolSettingsProvider>(context, listen: false).whatsappEnabled) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              icon: const FaIcon(FontAwesomeIcons.whatsapp,
+                                  size: 15, color: Color(0xFF25D366)),
+                              label: const Text('WhatsApp', style: TextStyle(fontSize: 13)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.1),
+                                foregroundColor: const Color(0xFF128C7E),
+                                elevation: 0,
+                                side: const BorderSide(color: Color(0xFF25D366)),
+                                padding: const EdgeInsets.symmetric(vertical: 9),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onPressed: _shareGuardianAppInfo,
                             ),
-                            onPressed: _shareGuardianAppInfo,
                           ),
-                        ),
+                        ],
                       ]),
                     ],
                   ),

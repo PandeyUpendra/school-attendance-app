@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/school_settings_provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_strings.dart';
@@ -1092,15 +1094,16 @@ class _PendingTab extends StatelessWidget {
                 constraints:
                     const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
-              IconButton(
-                icon: const Icon(FontAwesomeIcons.whatsapp,
-                    color: Colors.green, size: 20),
-                onPressed: () => onWhatsApp(s),
-                tooltip: 'WhatsApp',
-                padding: EdgeInsets.zero,
-                constraints:
-                    const BoxConstraints(minWidth: 36, minHeight: 36),
-              ),
+              if (Provider.of<SchoolSettingsProvider>(context, listen: false).whatsappEnabled)
+                IconButton(
+                  icon: const Icon(FontAwesomeIcons.whatsapp,
+                      color: Colors.green, size: 20),
+                  onPressed: () => onWhatsApp(s),
+                  tooltip: 'WhatsApp',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
             ],
           ]),
         );

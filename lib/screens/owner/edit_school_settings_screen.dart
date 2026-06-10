@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -813,6 +814,7 @@ class _FeesTabState extends State<_FeesTab>
             controller: _lateCtrl,
             keyboardType: TextInputType.number,
             readOnly: !widget.editing,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               labelText: '${context.tr('lateFeePerDayEditLabel')} (₹)',
               prefixIcon: const Icon(Icons.currency_rupee_outlined),

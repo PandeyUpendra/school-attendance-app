@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/school_settings_provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../theme.dart';
 import '../l10n/app_strings.dart';
@@ -656,15 +658,17 @@ class _CallCard extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             // WhatsApp button
-            Expanded(
-              child: _ActionButton(
-                icon: FontAwesomeIcons.whatsapp,
-                label: 'WhatsApp',
-                color: const Color(0xFF25D366),
-                onTap: onWhatsApp,
+            if (Provider.of<SchoolSettingsProvider>(context, listen: false).whatsappEnabled) ...[
+              Expanded(
+                child: _ActionButton(
+                  icon: FontAwesomeIcons.whatsapp,
+                  label: 'WhatsApp',
+                  color: const Color(0xFF25D366),
+                  onTap: onWhatsApp,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
+              const SizedBox(width: 8),
+            ],
             // Note button
             Expanded(
               child: _ActionButton(
