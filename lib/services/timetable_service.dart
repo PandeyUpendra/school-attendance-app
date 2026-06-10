@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../firebase_options.dart';
@@ -714,14 +715,23 @@ class TimetableService extends BaseFirestoreService {
           .call(<String, dynamic>{'email': normEmail});
       return true;
     } on FirebaseFunctionsException catch (e) {
-      // Surface real authz / validation failures to the caller.
-      if (e.code == 'permission-denied' ||
-          e.code == 'unauthenticated' ||
-          e.code == 'invalid-argument' ||
+      // If the user is authenticated locally, any unauthenticated/permission-denied
+      // failure from the functions endpoint is likely a Cloud Run gateway configuration
+      // issue (e.g. missing allUsers invoker policy binding). Fallback to local
+      // revocation so access is still revoked and the UI remains in sync.
+      if ((e.code == 'unauthenticated' || e.code == 'permission-denied') &&
+          FirebaseAuth.instance.currentUser != null) {
+        AppLogger.d('TimetableService', 'deleteAccount Cloud Function returned auth/permission error ($e). Falling back to local Firestore revocation.');
+        await removeAllowedUser(normEmail);
+        return false;
+      }
+
+      // Surface real validation failures to the caller.
+      if (e.code == 'invalid-argument' ||
           e.code == 'failed-precondition') {
         rethrow;
       }
-      // not-found / unavailable / internal → function not deployed or transient.
+      // not-found / unavailable / internal / others → function not deployed or transient.
       // Minimal fallback: revoke the login so the account can't be used.
       await removeAllowedUser(normEmail);
       return false;
