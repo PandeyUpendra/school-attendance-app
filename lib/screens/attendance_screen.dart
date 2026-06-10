@@ -1736,8 +1736,22 @@ class _WhatsAppNotifySheet extends StatelessWidget {
     if (digits.isEmpty) return;
     final url = Uri.parse(
         'https://wa.me/$digits?text=${Uri.encodeComponent(message)}');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+    try {
+      final launched = await canLaunchUrl(url) &&
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.tr('whatsappNotAvailable')),
+          backgroundColor: Colors.orange,
+        ));
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.tr('whatsappNotAvailable')),
+          backgroundColor: Colors.orange,
+        ));
+      }
     }
   }
 

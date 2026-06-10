@@ -768,7 +768,9 @@ class StudentService extends BaseFirestoreService {
       if (roll <= 0 || className.isEmpty) return;
       try {
         await _repo.setDeletionPending(roll, className, section, value);
-      } catch (_) {/* non-fatal — request is already filed */}
+      } catch (e, stack) {
+        AppLogger.e('StudentService', 'Failed to mark deletion pending for student: $e', e, stack);
+      }
     }));
   }
 
@@ -940,7 +942,9 @@ class StudentService extends BaseFirestoreService {
       if (workingDays == 'Mon-Fri') {
         return {DateTime.saturday, DateTime.sunday};
       }
-    } catch (_) {/* fall through to the safe default */}
+    } catch (e, stack) {
+      AppLogger.e('StudentService', 'Error getting settings for non-working weekdays: $e', e, stack);
+    }
     return {DateTime.sunday};
   }
 
@@ -1355,7 +1359,9 @@ class StudentService extends BaseFirestoreService {
         batch.delete(doc.reference);
       }
       await batch.commit();
-    } catch (_) {}
+    } catch (e, stack) {
+      AppLogger.e('StudentService', 'Error in cascade delete student notifications: $e', e, stack);
+    }
   }
 
   /// Purges leave-request notifications tied to this student.
@@ -1388,7 +1394,9 @@ class StudentService extends BaseFirestoreService {
         batch.delete(doc.reference);
       }
       await batch.commit();
-    } catch (_) {}
+    } catch (e, stack) {
+      AppLogger.e('StudentService', 'Error in cascade delete student leave notifications: $e', e, stack);
+    }
   }
 
   // ── Guardian / School Detail Updates Synced Workflows ──────────────────────────

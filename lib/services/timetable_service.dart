@@ -376,9 +376,14 @@ class TimetableService extends BaseFirestoreService {
 
       rawData.forEach((day, bellsRaw) {
         final bells = Map<String, dynamic>.from(bellsRaw as Map);
-        dayMap[day as String] = bells.map(
-          (k, v) => MapEntry(int.parse(k), TimetableEntry.fromJson(v)),
-        );
+        final dayBells = <int, TimetableEntry>{};
+        bells.forEach((k, v) {
+          final bellNum = int.tryParse(k);
+          if (bellNum != null) {
+            dayBells[bellNum] = TimetableEntry.fromJson(v);
+          }
+        });
+        dayMap[day as String] = dayBells;
       });
       result[className] = dayMap;
     }

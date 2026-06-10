@@ -285,6 +285,10 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
 
     final dateStr = _fmtDate(m.date);
 
+    // Fetch actual tasks for this meeting to map per-point assignees
+    final tasks = await _svc.getTasksForMeeting(m.id);
+    final taskMap = {for (var t in tasks) t.id: t.assignedToName};
+
     // ── Page 1: Meeting Summary ───────────────────────────────────────────
     doc.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
@@ -321,9 +325,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
             final i = entry.key;
             final p = entry.value;
             final assignedName = p.convertedToTask
-                ? (m.assignedTeacherNames.isNotEmpty
-                    ? m.assignedTeacherNames.join(', ')
-                    : 'Teacher')
+                ? (taskMap[p.taskId] ?? 'Teacher')
                 : '-';
             return [
               '${i + 1}',
@@ -394,9 +396,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
           pw.TableHelper.fromTextArray(
             headers: ['Teacher', 'Task', 'Status'],
             data: taskPoints.map((p) => [
-                  m.assignedTeacherNames.isNotEmpty
-                      ? m.assignedTeacherNames.first
-                      : 'Teacher',
+                  taskMap[p.taskId] ?? 'Teacher',
                   p.text,
                   p.isChecked ? 'Completed' : 'Pending',
                 ]).toList(),
@@ -721,6 +721,10 @@ Future<void> shareMeetingPdf(Meeting m) async {
   const purple = PdfColor.fromInt(0xFF003D33);
   final dateStr = _fmtMeetingDate(m.date);
 
+  // Fetch actual tasks for this meeting to map per-point assignees
+  final tasks = await MeetingService().getTasksForMeeting(m.id);
+  final taskMap = {for (var t in tasks) t.id: t.assignedToName};
+
   doc.addPage(pw.MultiPage(
     pageFormat: PdfPageFormat.a4,
     margin: const pw.EdgeInsets.all(40),
@@ -756,9 +760,7 @@ Future<void> shareMeetingPdf(Meeting m) async {
           data: m.points.asMap().entries.map((e) {
             final p = e.value;
             final assigned = p.convertedToTask
-                ? (m.assignedTeacherNames.isNotEmpty
-                    ? m.assignedTeacherNames.join(', ')
-                    : 'Teacher')
+                ? (taskMap[p.taskId] ?? 'Teacher')
                 : '-';
             return ['${e.key + 1}', p.text, p.isChecked ? 'Discussed' : 'Pending', assigned];
           }).toList(),
@@ -814,7 +816,7 @@ Future<void> shareMeetingPdf(Meeting m) async {
         pw.TableHelper.fromTextArray(
           headers: ['Teacher', 'Task', 'Status'],
           data: taskPoints.map((p) => [
-            m.assignedTeacherNames.isNotEmpty ? m.assignedTeacherNames.first : 'Teacher',
+            taskMap[p.taskId] ?? 'Teacher',
             p.text,
             p.isChecked ? 'Completed' : 'Pending',
           ]).toList(),

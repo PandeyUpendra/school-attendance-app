@@ -233,7 +233,7 @@ class StaffTask {
     'status':         status.name,
     'priority':       priority.name,
     'classId':        classId,
-    'createdAt':      FieldValue.serverTimestamp(),
+    'createdAt':      Timestamp.fromDate(createdAt),
     'isGroupTask':    isGroupTask,
     if (groupTaskId.isNotEmpty) 'groupTaskId': groupTaskId,
     'checkpoints':    checkpoints.map((c) => c.toJson()).toList(),

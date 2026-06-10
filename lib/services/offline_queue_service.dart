@@ -97,15 +97,22 @@ class OfflineQueueService {
         final className = entry['className'] as String;
         final rollsRaw  = Map<String, dynamic>.from(
             entry['rolls'] as Map? ?? {});
-        final attendance = rollsRaw.map(
-            (k, v) => MapEntry(int.parse(k), v as String));
+        final attendance = <int, String>{};
+        rollsRaw.forEach((k, v) {
+          final r = int.tryParse(k);
+          if (r != null) {
+            attendance[r] = v as String;
+          }
+        });
 
         // Save to Firestore using the normal service
         // We temporarily override the today-key by saving on the correct date
         final dateKey = entry['dateKey'] as String;
         final parts   = dateKey.split('-');
-        final date    = DateTime(
-            int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+        final year    = parts.isNotEmpty ? (int.tryParse(parts[0]) ?? SchoolClock.now().year) : SchoolClock.now().year;
+        final month   = parts.length > 1 ? (int.tryParse(parts[1]) ?? SchoolClock.now().month) : SchoolClock.now().month;
+        final day     = parts.length > 2 ? (int.tryParse(parts[2]) ?? SchoolClock.now().day) : SchoolClock.now().day;
+        final date    = DateTime(year, month, day);
 
         await StudentService().saveAttendanceForDate(
           className: className, attendance: attendance, date: date);
@@ -153,7 +160,14 @@ class OfflineQueueService {
     if (entry == null) return null;
 
     final rollsRaw = Map<String, dynamic>.from(entry['rolls'] as Map? ?? {});
-    return rollsRaw.map((k, v) => MapEntry(int.parse(k), v as String));
+    final attendance = <int, String>{};
+    rollsRaw.forEach((k, v) {
+      final r = int.tryParse(k);
+      if (r != null) {
+        attendance[r] = v as String;
+      }
+    });
+    return attendance;
   }
 
   // ── Clear queue ────────────────────────────────────────────────────────────

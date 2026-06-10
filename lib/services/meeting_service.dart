@@ -140,33 +140,34 @@ class MeetingService {
     required String meetingId,
     required String pointTaskId, // the meetingTask ID stored on the point
   }) async {
-    final batch = _db.batch();
+    await _db.runTransaction((transaction) async {
+      final meetingRef = _meetings.doc(meetingId);
+      final meetingSnap = await transaction.get(meetingRef);
+      if (!meetingSnap.exists) return;
 
-    // Update meeting task status.
-    batch.update(_meetingTasks.doc(meetingTaskId), {'status': 'Completed'});
+      // Update meeting task status.
+      transaction.update(_meetingTasks.doc(meetingTaskId), {'status': 'Completed'});
 
-    // Update staff task status.
-    if (staffTaskId.isNotEmpty) {
-      batch.update(_staffTasks.doc(staffTaskId), {'status': 'completed'});
-    }
+      // Update staff task status.
+      if (staffTaskId.isNotEmpty) {
+        transaction.update(_staffTasks.doc(staffTaskId), {'status': 'completed'});
+      }
 
-    await batch.commit();
+      // Update the meeting point isChecked.
+      final data = meetingSnap.data()!;
+      final rawPoints = data['points'] as List? ?? [];
+      final points = rawPoints
+          .map((e) => MeetingPoint.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final updated = points.map((p) {
+        if (p.taskId == pointTaskId) return p.copyWith(isChecked: true);
+        return p;
+      }).toList();
 
-    // Update the meeting point isChecked.
-    final meetingSnap = await _meetings.doc(meetingId).get();
-    if (!meetingSnap.exists) return;
-    final data = meetingSnap.data()!;
-    final rawPoints = data['points'] as List? ?? [];
-    final points = rawPoints
-        .map((e) => MeetingPoint.fromJson(e as Map<String, dynamic>))
-        .toList();
-    final updated = points.map((p) {
-      if (p.taskId == pointTaskId) return p.copyWith(isChecked: true);
-      return p;
-    }).toList();
-    await _meetings.doc(meetingId).update({
-      'points':    updated.map((p) => p.toJson()).toList(),
-      'updatedAt': FieldValue.serverTimestamp(),
+      transaction.update(meetingRef, {
+        'points':    updated.map((p) => p.toJson()).toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     });
   }
 
@@ -213,6 +214,11 @@ class MeetingService {
           .where('meetingId', isEqualTo: meetingId)
           .snapshots()
           .map((s) => s.docs.map((d) => MeetingTask.fromJson(d.data(), d.id)).toList());
+
+  Future<List<MeetingTask>> getTasksForMeeting(String meetingId) async {
+    final s = await _meetingTasks.where('meetingId', isEqualTo: meetingId).get();
+    return s.docs.map((d) => MeetingTask.fromJson(d.data(), d.id)).toList();
+  }
 
   // ── One-off reads ─────────────────────────────────────────────────────────
 
