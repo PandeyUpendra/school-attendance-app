@@ -287,7 +287,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                   value: dropReason,
                   isExpanded: true,
                   decoration: InputDecoration(
-                    labelText: context.tr('reasonOptional'),
+                    labelText: context.tr('reasonLabel'),
                     prefixIcon: const Icon(Icons.info_outline, size: 18),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
@@ -317,6 +317,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                           borderRadius: BorderRadius.circular(10)),
                       contentPadding: const EdgeInsets.all(10),
                     ),
+                    onChanged: (v) => setLocal(() {}),
                   ),
                 ],
               ],
@@ -334,10 +335,12 @@ class _StudentListScreenState extends State<StudentListScreen> {
                   backgroundColor: AppTheme.primary,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10))),
-              onPressed: () {
-                if (!showCustom) reasonCtrl.text = dropReason ?? '';
-                Navigator.pop(_, true);
-              },
+              onPressed: (dropReason == null || (dropReason == 'Other (specify below)' && reasonCtrl.text.trim().isEmpty))
+                  ? null
+                  : () {
+                      if (!showCustom) reasonCtrl.text = dropReason ?? '';
+                      Navigator.pop(_, true);
+                    },
             ),
           ],
         ),
@@ -1132,7 +1135,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
               value: dropReason,
               isExpanded: true,
               decoration: InputDecoration(
-                labelText: context.tr('reasonOptional'),
+                labelText: context.tr('reasonLabel'),
                 prefixIcon: const Icon(Icons.info_outline, size: 18),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10)),
@@ -1162,6 +1165,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                       borderRadius: BorderRadius.circular(10)),
                   contentPadding: const EdgeInsets.all(10),
                 ),
+                onChanged: (v) => setLocal(() {}),
               ),
             ],
           ],
@@ -1179,10 +1183,12 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 backgroundColor: AppTheme.primary,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10))),
-            onPressed: () {
-              if (!showCustom) reasonCtrl.text = dropReason ?? '';
-              Navigator.pop(ctx, true);
-            },
+            onPressed: (dropReason == null || (dropReason == 'Other (specify below)' && reasonCtrl.text.trim().isEmpty))
+                ? null
+                : () {
+                    if (!showCustom) reasonCtrl.text = dropReason ?? '';
+                    Navigator.pop(ctx, true);
+                  },
           ),
         ],
       ),

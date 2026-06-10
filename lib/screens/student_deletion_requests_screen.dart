@@ -7,8 +7,8 @@ import '../theme.dart';
 import '../widgets/refreshable_data.dart';
 import '../widgets/index_building_notice.dart';
 
-/// Principal-only screen to review, approve or reject teacher-submitted
-/// student deletion requests.
+/// Screen for coordinators and principals to review, approve or reject
+/// teacher-submitted student deletion requests.
 class StudentDeletionRequestsScreen extends StatefulWidget {
   const StudentDeletionRequestsScreen({super.key});
 
@@ -257,8 +257,8 @@ class _RequestList extends StatelessWidget {
     );
   }
 
-  /// Groups the requests under per-class section headers so the principal can
-  /// review them class-by-class. Each request's class is derived from the
+  /// Groups the requests under per-class section headers so they can be
+  /// reviewed class-by-class. Each request's class is derived from the
   /// students it targets.
   Widget _buildGroupedByClass(BuildContext context, List<Map<String, dynamic>> items) {
     final groups = <String, List<Map<String, dynamic>>>{};
