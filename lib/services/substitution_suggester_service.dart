@@ -59,7 +59,7 @@ class SubstitutionSuggesterService {
   factory SubstitutionSuggesterService() => _instance;
 
   static const _dayNames = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
   ];
 
   Future<List<SuggestedSlot>> buildPlan({
@@ -72,22 +72,51 @@ class SubstitutionSuggesterService {
     final timetable  = await svc.getTimetable();
     final teachers   = await svc.getTeachers();
     final weekCounts = await SubstitutionHistoryService().getSubstituteCounts(days: 7);
-    final dutyIds    = (await svc.getTodayDuties()).keys.toSet();
 
     final absentTeacher =
         teachers.where((t) => t.id == absentTeacherId).firstOrNull;
     if (absentTeacher == null) return [];
 
     final today = DateTime.now();
+
+    // Fetch settings to determine non-working weekdays
+    final settings = await svc.getSettings();
+    final workingDays = (settings['workingDays'] as String?) ?? 'Mon-Sat';
+    final nonWorkingWeekdays = <int>{};
+    if (workingDays == 'Mon-Fri') {
+      nonWorkingWeekdays.addAll([DateTime.saturday, DateTime.sunday]);
+    } else {
+      nonWorkingWeekdays.add(DateTime.sunday);
+    }
+
+    // Collect all valid dates first
+    final activeDates = <DateTime>[];
+    for (int d = 0; d < numberOfDays; d++) {
+      final date = DateTime(startDate.year, startDate.month, startDate.day + d);
+      if (nonWorkingWeekdays.contains(date.weekday)) continue;
+      activeDates.add(date);
+    }
+
+    // Fetch substitutions and duties in parallel for all active dates
+    final subsFutures = activeDates.map((d) => svc.getSubstitutionsForDate(d));
+    final dutiesFutures = activeDates.map((d) => svc.getDutiesForDate(d));
+
+    final results = await Future.wait<Map<String, String>>([...subsFutures, ...dutiesFutures]);
+
+    final subsLookup = <DateTime, Map<String, String>>{};
+    final dutiesLookup = <DateTime, Set<String>>{};
+
+    for (int i = 0; i < activeDates.length; i++) {
+      subsLookup[activeDates[i]] = results[i];
+      dutiesLookup[activeDates[i]] = results[activeDates.length + i].keys.toSet();
+    }
+
     final slots = <SuggestedSlot>[];
 
-    for (int d = 0; d < numberOfDays; d++) {
-      final date = DateTime(
-          startDate.year, startDate.month, startDate.day + d);
-      if (date.weekday == DateTime.sunday) continue;
-      final dayName = _dayNames[(date.weekday - 1).clamp(0, 5)];
-
-      final existingSubs = await svc.getSubstitutionsForDate(date);
+    for (final date in activeDates) {
+      final dayName = _dayNames[date.weekday - 1];
+      final existingSubs = subsLookup[date]!;
+      final dutyIds = dutiesLookup[date]!;
 
       timetable.forEach((cls, dayMap) {
         final Map<int, TimetableEntry> bellMap = dayMap[dayName] ?? {};
@@ -127,9 +156,9 @@ class SubstitutionSuggesterService {
                 ? 'No subs this week'
                 : '$load sub${load == 1 ? '' : 's'} this week');
 
-            if (_sameDay(date, today) && dutyIds.contains(t.id)) {
+            if (dutyIds.contains(t.id)) {
               score -= 50;
-              reasons.add('On duty today');
+              reasons.add(_sameDay(date, today) ? 'On duty today' : 'On duty on this day');
             }
 
             ranked.add(RankedCandidate(

@@ -423,14 +423,16 @@ class TimetableService extends BaseFirestoreService {
 
   // ── Duties ────────────────────────────────────────────────────────────────
 
-  String _dutyKey() {
-    final d = DateTime.now();
+  String _dutyKeyForDate(DateTime d) {
     return '${d.year}-${d.month}-${d.day}';
   }
 
   /// Returns map of teacherId → duty string for today.
-  Future<Map<String, String>> getTodayDuties() async {
-    final doc = await _duties.doc(_dutyKey()).get();
+  Future<Map<String, String>> getTodayDuties() => getDutiesForDate(DateTime.now());
+
+  /// Returns map of teacherId → duty string for a specific date.
+  Future<Map<String, String>> getDutiesForDate(DateTime date) async {
+    final doc = await _duties.doc(_dutyKeyForDate(date)).get();
     if (!doc.exists || doc.data() == null) return {};
     final raw = Map<String, dynamic>.from(
         (doc.data()!['assignments'] as Map?) ?? {});
@@ -438,7 +440,7 @@ class TimetableService extends BaseFirestoreService {
   }
 
   Future<void> saveTodayDuties(Map<String, String> duties) async {
-    await _duties.doc(_dutyKey()).set({
+    await _duties.doc(_dutyKeyForDate(DateTime.now())).set({
       'assignments': duties,
       'updatedAt':   FieldValue.serverTimestamp(),
     });
@@ -773,7 +775,7 @@ class TimetableService extends BaseFirestoreService {
     }, SetOptions(merge: true));
 
     // Create Firebase Auth account (no-op if already exists).
-    final tempPassword = 'Tmp_${DateTime.now().millisecondsSinceEpoch}';
+    final tempPassword = generateSecurePassword();
     try {
       final res = await http.post(
         Uri.parse(
@@ -825,7 +827,7 @@ class TimetableService extends BaseFirestoreService {
     );
 
     // Create Firebase Auth account via REST (no-op if EMAIL_EXISTS).
-    final tempPassword = 'Tmp_${DateTime.now().millisecondsSinceEpoch}';
+    final tempPassword = generateSecurePassword();
     try {
       final res = await http.post(
         Uri.parse(
