@@ -230,8 +230,10 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             onLogout: () async {
               await AuthService().clearSession();
               if (context.mounted) {
-                Navigator.pushReplacement(context,
-                    MaterialPageRoute(builder: (_) => const RoleSelectionScreen()));
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+                  (route) => false,
+                );
               }
             },
           ),

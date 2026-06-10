@@ -285,11 +285,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       await AuthService().clearSession();
                       if (!mounted) return;
                       if (!context.mounted) return;
-                      Navigator.pushReplacement(
-                        context,
+                      Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(
-                            builder: (_) =>
-                                const RoleSelectionScreen()),
+                            builder: (_) => const RoleSelectionScreen()),
+                        (route) => false,
                       );
                     },
                   ),

@@ -211,8 +211,10 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   Future<void> _logout() async {
     await AuthService().clearSession();
     if (!mounted) return;
-    Navigator.pushReplacement(context,
-        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()));
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      (route) => false,
+    );
   }
 
   Future<void> _navigate(Widget screen) =>

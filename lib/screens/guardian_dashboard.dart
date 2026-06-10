@@ -621,8 +621,10 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   Future<void> _logout() async {
     await AuthService().clearSession();
     if (!mounted) return;
-    Navigator.pushReplacement(context,
-        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()));
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      (route) => false,
+    );
   }
 
   /// Horizontal chips to switch between this guardian's children. Hidden when
