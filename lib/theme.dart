@@ -46,6 +46,14 @@ abstract class AppTheme {
   /// Alias for [danger] — matches the supplied palette's `error` name.
   static const Color error   = danger;
 
+  // Light variants for backgrounds / badges
+  static const Color successLight = Color(0xFFE8F5E9);
+  static const Color warningLight = Color(0xFFFFF8E1);
+  static const Color dangerLight  = Color(0xFFFFEBEE);
+
+  // WhatsApp brand color
+  static const Color whatsapp     = Color(0xFF25D366);
+
   // ── ThemeData ─────────────────────────────────────────────────────────────
 
   static ThemeData get light => ThemeData(

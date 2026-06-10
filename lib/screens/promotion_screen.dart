@@ -5,6 +5,7 @@ import '../models/student.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../services/promotion_service.dart';
+import '../utils/app_logger.dart';
 
 /// Academic-year promotion / rollover (#70).
 ///
@@ -57,7 +58,8 @@ class _PromotionScreenState extends State<PromotionScreen> {
         _classes = classes;
         _loadingClasses = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e('PromotionScreen', 'Failed to load classes', e, st);
       if (!mounted) return;
       setState(() => _loadingClasses = false);
     }

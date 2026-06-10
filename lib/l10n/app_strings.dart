@@ -1368,6 +1368,10 @@ class AppStrings {
 
     // ── Consent gate (#17) ───────────────────────────────────────────────
     'consentNotOnRecord':      {'en': "Not shared — parental consent to share this child's data is not on record.", 'hi': 'साझा नहीं किया — इस बच्चे का डेटा साझा करने की अभिभावक सहमति रिकॉर्ड में नहीं है।'},
+    'consentRequiredTitle':    {'en': 'Consent Required',      'hi': 'सहमति आवश्यक'},
+    'consentRequiredMessage':  {'en': 'Please provide parental consent before viewing student records.', 'hi': 'कृपया छात्र रिकॉर्ड देखने से पहले अभिभावक सहमति प्रदान करें।'},
+    'giveConsent':             {'en': 'Provide Consent',       'hi': 'सहमति दें'},
+    'enrollmentCancelledConsentMandatory': {'en': 'Enrollment cancelled. Parental consent is mandatory under DPDP Act.', 'hi': 'नामांकन रद्द। DPDP अधिनियम के तहत अभिभावक सहमति अनिवार्य है।'},
 
     // ── Audit log ────────────────────────────────────────────────────────
     'loadErrorPrefix':         {'en': 'Load error:',          'hi': 'लोड त्रुटि:'},

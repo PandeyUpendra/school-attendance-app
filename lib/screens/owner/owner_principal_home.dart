@@ -25,6 +25,7 @@ import '../onboarding/school_onboarding_screen.dart';
 import '../principal_dashboard.dart';
 import 'staff_directory_helpers.dart';
 import '../../widgets/refreshable_data.dart';
+import '../../utils/app_logger.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Owner-Principal Home — menu-list entry point
@@ -67,7 +68,7 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
         ));
         return;
       }
-    } catch (_) {}
+    } catch (e, st) { AppLogger.e('OwnerPrincipalHome', 'Best-effort op failed', e, st); }
 
     if (!mounted) return;
     setState(() {
@@ -310,7 +311,7 @@ class _OPDashPageState extends State<_OPDashPage> {
         _classAtt = classAtt; _alerts = alerts; _trend = spots; _trendLabels = labels;
         _loading = false;
       });
-    } catch (_) { if (mounted) setState(() => _loading = false); }
+    } catch (e, st) { AppLogger.e('OwnerPrincipalHome', 'Load failed', e, st); if (mounted) setState(() => _loading = false); }
   }
 
   @override
@@ -437,7 +438,7 @@ class _OPStaffPageState extends State<_OPStaffPage> {
       final leaves = await _svc.getLeaveApplications(status: 'pending');
       if (!mounted) return;
       setState(() { _teachers = staff; _leaves = leaves; _loading = false; });
-    } catch (_) { if (mounted) setState(() => _loading = false); }
+    } catch (e, st) { AppLogger.e('OwnerPrincipalHome', 'Load failed', e, st); if (mounted) setState(() => _loading = false); }
   }
 
   Future<void> _updateLeave(String id, String status) async {
@@ -577,7 +578,7 @@ class _OPAcademicsPageState extends State<_OPAcademicsPage> {
         ..sort((a, b) => a.examDate.compareTo(b.examDate));
       if (!mounted) return;
       setState(() { _recent = all.take(5).toList(); _upcoming = upcoming; _loading = false; });
-    } catch (_) { if (mounted) setState(() => _loading = false); }
+    } catch (e, st) { AppLogger.e('OwnerPrincipalHome', 'Load failed', e, st); if (mounted) setState(() => _loading = false); }
   }
 
   @override
@@ -672,7 +673,7 @@ class _OPFinancePageState extends State<_OPFinancePage> {
       defaulters.sort((a, b) => (b['daysOverdue'] as int).compareTo(a['daysOverdue'] as int));
       if (!mounted) return;
       setState(() { _collected = col; _pending = pen; _overdue = ov; _defaulters = defaulters.take(10).toList(); _loading = false; });
-    } catch (_) { if (mounted) setState(() => _loading = false); }
+    } catch (e, st) { AppLogger.e('OwnerPrincipalHome', 'Load failed', e, st); if (mounted) setState(() => _loading = false); }
   }
 
   Future<void> _sendReminders() async {
@@ -823,7 +824,7 @@ class _OPManagePageState extends State<_OPManagePage> {
         _academicYearCtrl.text = d['academicYear'] as String? ?? '';
       }
       if (mounted) setState(() => _settingsLoaded = true);
-    } catch (_) {}
+    } catch (e, st) { AppLogger.e('OwnerPrincipalHome', 'Best-effort op failed', e, st); }
   }
 
   Future<void> _saveSchoolSettings() async {
@@ -845,7 +846,7 @@ class _OPManagePageState extends State<_OPManagePage> {
       final anns = await AnnouncementService().getAnnouncements();
       if (!mounted) return;
       setState(() { _announcements = anns.map((a) => {'title': a.title, 'body': a.body, 'audience': a.audience}).toList(); });
-    } catch (_) {}
+    } catch (e, st) { AppLogger.e('OwnerPrincipalHome', 'Best-effort op failed', e, st); }
   }
 
   Future<void> _createUser() async {

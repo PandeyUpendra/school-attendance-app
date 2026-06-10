@@ -337,6 +337,7 @@ class FeeService extends BaseFirestoreService {
     final payments = await getPayments(className: className, roll: roll);
     final paise    = <String, int>{};
     for (final p in payments) {
+      if (p.reversed) continue;
       final name = p.installmentName;
       if (name != null && name.isNotEmpty) {
         paise[name] = (paise[name] ?? 0) + p.amountPaise;

@@ -11,6 +11,7 @@ import '../../utils/pdf_theme.dart';
 import '../../l10n/app_strings.dart';
 import '../../services/audit_log_service.dart';
 import '../../theme.dart';
+import '../../utils/app_logger.dart';
 
 // ─── Entity labels ────────────────────────────────────────────────────────────
 
@@ -84,7 +85,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         _actors        = actors;
         _actorsLoading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e('AuditLogScreen', 'Failed to load actors for filter dropdown', e, st);
       if (mounted) setState(() => _actorsLoading = false);
     }
   }

@@ -16,6 +16,8 @@ import '../theme.dart';
 import '../widgets/email_text_form_field.dart';
 import '../widgets/managed_dropdown.dart';
 import 'consent/parental_consent_flow.dart';
+import '../models/parental_consent.dart';
+import '../services/audit_log_service.dart';
 
 class AddStudentScreen extends StatefulWidget {
   final String className;
@@ -142,7 +144,8 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         section:   widget.section,
         teacherId: widget.teacherId,
       );
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e('AddStudentScreen', 'Failed duplicate student check lookup', e, st);
       return true; // don't block saving if the lookup fails
     }
 
@@ -329,7 +332,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
 
         if (!mounted) return;
         failedStep = 'open parental consent';
-        await Navigator.push(
+        final consentResult = await Navigator.push<ParentalConsent?>(
           context,
           MaterialPageRoute(
             builder: (_) => ParentalConsentFlow(
@@ -347,6 +350,21 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
             fullscreenDialog: true,
           ),
         );
+
+        if (consentResult == null) {
+          await _rollbackStudentCreation(student);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(context.tr('enrollmentCancelledConsentMandatory')),
+                backgroundColor: AppTheme.danger,
+              ),
+            );
+            setState(() => _saving = false);
+          }
+          return;
+        }
+
         if (mounted) Navigator.pop(context, student);
       }
     } catch (e) {
@@ -366,7 +384,9 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
           final doc = await TimetableService().getAllowedUserDoc(email);
           classIds = (doc?['classIds'] as List?) ?? const [];
         }
-      } catch (_) {}
+      } catch (e, st) {
+        AppLogger.e('AddStudentScreen', 'Failed diagnostics fetch', e, st);
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
@@ -378,6 +398,56 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         duration: const Duration(seconds: 12),
       ));
       setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _rollbackStudentCreation(Student student) async {
+    final studentDocId = Student.buildDocId(student.roll, student.className, student.section);
+    final sid = BaseFirestoreService.currentSchoolId ?? 'school_1';
+
+    AppLogger.d('AddStudent', 'rolling back student creation because consent was skipped or cancelled: $studentDocId');
+
+    // 1. Delete student doc directly (not via removeStudent to avoid creating deleted_students tombstone)
+    try {
+      await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(sid)
+          .collection('students')
+          .doc(studentDocId)
+          .delete();
+    } catch (e) {
+      AppLogger.e('AddStudent', 'Failed to delete student doc during rollback', e);
+    }
+
+    // 2. Emit audit log for rollback/deletion
+    try {
+      AuditService.emit(
+        action: 'delete',
+        entity: 'student',
+        entityId: studentDocId,
+        reason: 'consent_refused_or_cancelled',
+      );
+    } catch (e) {
+      AppLogger.e('AddStudent', 'Failed to emit audit log during rollback', e);
+    }
+
+    // 3. Revoke guardian login/links
+    final guardianEmail = student.guardianEmail;
+    if (guardianEmail != null && guardianEmail.trim().isNotEmpty) {
+      try {
+        final svc = TimetableService();
+        await svc.removeGuardianLink(
+          email: guardianEmail,
+          studentClass: student.className,
+          studentRoll: student.roll,
+        );
+        final remaining = await svc.getGuardianLinks(guardianEmail);
+        if (remaining == null || remaining.isEmpty) {
+          await svc.removeAllowedUser(guardianEmail);
+        }
+      } catch (e) {
+        AppLogger.e('AddStudent', 'Failed to remove guardian login during rollback', e);
+      }
     }
   }
 
@@ -586,6 +656,12 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               keyboard: TextInputType.phone,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               maxLength: 10,
+              validator: (v) {
+                final s = (v ?? '').trim();
+                if (s.isEmpty) return null; // optional
+                if (s.length != 10) return context.tr('mustBe10Digits');
+                return null;
+              },
             ),
             const SizedBox(height: 14),
             // Blood Group dropdown
@@ -642,10 +718,11 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               onTap: () async {
                 final picked = await showDatePicker(
                   context: context,
-                  initialDate: _dateOfBirth ??
-                      DateTime.now().subtract(const Duration(days: 365 * 10)),
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime.now(),
+                  initialDate: (_dateOfBirth != null && _dateOfBirth!.isBefore(DateTime.now().subtract(const Duration(days: 365 * 2))))
+                      ? _dateOfBirth!
+                      : DateTime.now().subtract(const Duration(days: 365 * 10)),
+                  firstDate: DateTime(1900),
+                  lastDate: DateTime.now().subtract(const Duration(days: 365 * 2)),
                   helpText: context.tr('studentDateOfBirth'),
                 );
                 if (picked != null) setState(() => _dateOfBirth = picked);

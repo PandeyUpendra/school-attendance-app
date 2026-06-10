@@ -451,7 +451,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
                       icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
                       label: Text(context.tr('exportPdf')),
                       style: TextButton.styleFrom(
-                          foregroundColor: Colors.red.shade700),
+                          foregroundColor: AppTheme.danger),
                     ),
                 ]),
                 if (_absentLeave.isNotEmpty) ...[
@@ -467,7 +467,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
                       valueColor: AlwaysStoppedAnimation<Color>(
                           _calledCount == _absentLeave.length
                               ? Colors.green
-                              : Colors.red.shade700),
+                              : AppTheme.danger),
                     ),
                   ),
                 ],
@@ -487,7 +487,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
           else ...[
             if (absent.isNotEmpty) ...[
               _sectionLabel('Absent (${absent.length})',
-                  const Color(0xFFC62828)),
+                  AppTheme.danger),
               ...absent.map((s) => _CallCard(
                     student:    s,
                     status:     'Absent',
@@ -500,7 +500,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
             ],
             if (onLeave.isNotEmpty) ...[
               _sectionLabel('On Leave (${onLeave.length})',
-                  const Color(0xFFF57F17)),
+                  AppTheme.warning),
               ...onLeave.map((s) => _CallCard(
                     student:    s,
                     status:     'Leave',
@@ -578,8 +578,8 @@ class _CallCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = status == 'Absent'
-        ? const Color(0xFFC62828)
-        : const Color(0xFFF57F17);
+        ? AppTheme.danger
+        : AppTheme.warning;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -663,7 +663,7 @@ class _CallCard extends StatelessWidget {
                 child: _ActionButton(
                   icon: FontAwesomeIcons.whatsapp,
                   label: 'WhatsApp',
-                  color: const Color(0xFF25D366),
+                  color: AppTheme.whatsapp,
                   onTap: onWhatsApp,
                 ),
               ),
@@ -834,7 +834,7 @@ class _HistoryTabState extends State<_HistoryTab> {
 
     return RefreshIndicator(
       onRefresh: _load,
-      color: Colors.red.shade700,
+      color: AppTheme.primary,
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(12),
@@ -910,11 +910,11 @@ class _DayCardState extends State<_DayCard> {
               Container(
                 width: 42, height: 42,
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
+                  color: AppTheme.dangerLight,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.event_note_outlined,
-                    color: Colors.red.shade700, size: 20),
+                child: const Icon(Icons.event_note_outlined,
+                    color: AppTheme.danger, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(child: Column(
@@ -949,8 +949,8 @@ class _DayCardState extends State<_DayCard> {
               final reason = reasonsRaw[roll] as String?;
               final wasCalled = calledRaw[roll] == true;
               final color  = status == 'Absent'
-                  ? const Color(0xFFC62828)
-                  : const Color(0xFFF57F17);
+                  ? AppTheme.danger
+                  : AppTheme.warning;
               return Padding(
                 padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
                 child: Row(

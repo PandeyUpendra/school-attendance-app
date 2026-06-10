@@ -102,9 +102,9 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   Color _statusColor(double paid, double total) {
     if (total == 0) return Colors.grey;
     final ratio = paid / total;
-    if (ratio >= 1.0) return Colors.green.shade600;
-    if (ratio >= 0.5) return const Color(0xFFF57F17);
-    return Colors.red.shade400;
+    if (ratio >= 1.0) return AppTheme.success;
+    if (ratio >= 0.5) return AppTheme.warning;
+    return AppTheme.danger;
   }
 
   String _statusLabel(double paid, double total) {
@@ -330,19 +330,19 @@ class _InstallmentLegend extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
         children: [
-          _Dot(Colors.green.shade600),
+          const _Dot(AppTheme.success),
           const SizedBox(width: 3),
           Text(context.tr('paidLabel'),
               style:
                   TextStyle(fontSize: 10, color: Colors.grey.shade500)),
           const SizedBox(width: 8),
-          const _Dot(Color(0xFFF57F17)),
+          const _Dot(AppTheme.warning),
           const SizedBox(width: 3),
           Text(context.tr('partialLabel'),
               style:
                   TextStyle(fontSize: 10, color: Colors.grey.shade500)),
           const SizedBox(width: 8),
-          _Dot(Colors.red.shade400),
+          const _Dot(AppTheme.danger),
           const SizedBox(width: 3),
           Text(context.tr('dueLabel'),
               style:
@@ -383,13 +383,13 @@ class _InstallmentDots extends StatelessWidget {
       children: installments.map((inst) {
         Color dotColor;
         if (remaining >= inst.amount) {
-          dotColor = Colors.green.shade600; // fully paid
+          dotColor = AppTheme.success; // fully paid
           remaining -= inst.amount;
         } else if (remaining > 0) {
-          dotColor = const Color(0xFFF57F17); // partial
+          dotColor = AppTheme.warning; // partial
           remaining = 0;
         } else if (inst.dueDate.isBefore(now)) {
-          dotColor = Colors.red.shade400; // overdue & unpaid
+          dotColor = AppTheme.danger; // overdue & unpaid
         } else {
           dotColor = Colors.grey.shade400; // upcoming
         }
@@ -1150,15 +1150,15 @@ class _InstallmentRow extends StatelessWidget {
     IconData statusIcon;
 
     if (paidAmount >= instalment.amount) {
-      statusColor  = Colors.green.shade600;
+      statusColor  = AppTheme.success;
       statusLabel  = 'Paid';
       statusIcon   = Icons.check_circle_outline;
     } else if (paidAmount > 0) {
-      statusColor  = const Color(0xFFF57F17);
+      statusColor  = AppTheme.warning;
       statusLabel  = 'Partial';
       statusIcon   = Icons.timelapse_outlined;
     } else if (instalment.dueDate.isBefore(now)) {
-      statusColor  = Colors.red.shade400;
+      statusColor  = AppTheme.danger;
       statusLabel  = 'Overdue';
       statusIcon   = Icons.error_outline;
     } else {

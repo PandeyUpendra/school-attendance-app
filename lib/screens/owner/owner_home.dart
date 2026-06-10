@@ -21,6 +21,7 @@ import '../profile_screen.dart';
 import '../../widgets/announcement_composer.dart';
 import '../../widgets/email_text_form_field.dart';
 import '../../utils/role_guard.dart';
+import '../../utils/app_logger.dart';
 import '../onboarding/school_onboarding_screen.dart';
 import '../fee_overview_screen.dart';
 import 'edit_school_settings_screen.dart';
@@ -68,7 +69,9 @@ class _OwnerHomeState extends State<OwnerHome> {
         ));
         return;
       }
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.e('OwnerHome', 'Failed to check onboarding status', e, st);
+    }
 
     if (!mounted) return;
     setState(() {
@@ -382,7 +385,8 @@ class _DashPageState extends State<_DashPage> {
         _weeklyLabels = labels;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(runtimeType.toString(), 'Load failed', e, st);
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -576,7 +580,8 @@ class _StaffPageState extends State<_StaffPage> {
       final leaves = await _svc.getLeaveApplications(status: 'pending');
       if (!mounted) return;
       setState(() { _teachers = staff; _leaves = leaves; _loading = false; });
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(runtimeType.toString(), 'Load failed', e, st);
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -778,7 +783,8 @@ class _AcademicsPageState extends State<_AcademicsPage> {
         ..sort((a, b) => a.examDate.compareTo(b.examDate));
       if (!mounted) return;
       setState(() { _recent = all.take(5).toList(); _upcoming = upcoming; _loading = false; });
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(runtimeType.toString(), 'Load failed', e, st);
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -897,7 +903,8 @@ class _FinancePageState extends State<_FinancePage> {
         _defaulters = defaulters;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(runtimeType.toString(), 'Load failed', e, st);
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -958,7 +965,7 @@ class _FinancePageState extends State<_FinancePage> {
                           icon: const Icon(Icons.chat_outlined),
                           label: const Text('Send WhatsApp Reminder to All Overdue'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF25D366),
+                            backgroundColor: AppTheme.whatsapp,
                             padding: const EdgeInsets.symmetric(vertical: 13),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
@@ -988,7 +995,7 @@ class _FinancePageState extends State<_FinancePage> {
             ])),
             if ((d['phone'] as String).isNotEmpty)
               IconButton(
-                icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF25D366)),
+                icon: const Icon(Icons.chat_bubble_outline, color: AppTheme.whatsapp),
                 onPressed: () {
                   final n = (d['phone'] as String).replaceAll(RegExp(r'\D'), '');
                   final msg = Uri.encodeComponent('Dear Parent of ${d['name']}, your fee of ₹${(d['amount'] as double).toStringAsFixed(0)} is overdue.');
@@ -1419,7 +1426,8 @@ class _AnnouncementsPageState extends State<_AnnouncementsPage> {
             .toList();
         _loading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e(runtimeType.toString(), 'Load failed', e, st);
       if (mounted) setState(() => _loading = false);
     }
   }

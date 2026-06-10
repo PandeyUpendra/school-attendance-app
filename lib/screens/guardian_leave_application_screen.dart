@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../l10n/app_strings.dart';
 import '../theme.dart';
 import '../models/student.dart';
+import '../utils/app_logger.dart';
 import '../services/timetable_service.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
@@ -79,7 +80,9 @@ class _GuardianLeaveApplicationScreenState
           return true;
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.e('GuardianLeaveApplicationScreen', 'Failed checking overlapping leave', e, st);
+    }
     return false;
   }
 
@@ -133,7 +136,7 @@ class _GuardianLeaveApplicationScreenState
           context: context,
           builder: (_) => AlertDialog(
             title: Row(children: [
-              const Icon(Icons.warning_amber_rounded, color: Color(0xFFF57F17)),
+              const Icon(Icons.warning_amber_rounded, color: AppTheme.warning),
               const SizedBox(width: 8),
               Text(context.tr('leaveAlreadyApplied')),
             ]),
@@ -419,18 +422,18 @@ class _GuardianLeaveApplicationScreenState
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF3E0),
+                color: AppTheme.warningLight,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFF57F17)),
+                border: Border.all(color: AppTheme.warning),
               ),
               child: Row(children: [
-                const Icon(Icons.info_outline, color: Color(0xFFF57F17)),
+                const Icon(Icons.info_outline, color: AppTheme.warning),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     context.tr('leaveOverlapWarning'),
-                    style: const TextStyle(
-                        color: Color(0xFFE65100), fontSize: 13),
+                    style: TextStyle(
+                        color: Colors.brown.shade700, fontSize: 13),
                   ),
                 ),
               ]),

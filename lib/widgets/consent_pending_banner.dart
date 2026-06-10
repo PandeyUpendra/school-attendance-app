@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/parental_consent.dart';
+import '../screens/consent/parental_consent_flow.dart';
 import '../services/consent_service.dart';
 import '../theme.dart';
 
@@ -196,7 +197,7 @@ class _GuardianConsentSectionState extends State<GuardianConsentSection> {
       final list = await _svc.getConsents(widget.studentDocId);
       if (mounted) setState(() { _consents = list; _loading = false; });
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+      if (mounted) setState(() { _error = 'Failed to load consents. Please try again later.'; _loading = false; });
     }
   }
 
@@ -222,7 +223,7 @@ class _GuardianConsentSectionState extends State<GuardianConsentSection> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Failed to withdraw consent. Please try again later.'), backgroundColor: Colors.red),
       );
     }
   }
@@ -287,15 +288,41 @@ class _GuardianConsentSectionState extends State<GuardianConsentSection> {
       const SizedBox(height: 12),
 
       if (active.isEmpty && stale.isEmpty && withdrawn.isEmpty) ...[
-        _EmptyConsentCard(studentName: widget.studentName),
+        _EmptyConsentCard(
+          studentDocId: widget.studentDocId,
+          studentName: widget.studentName,
+          guardianName: widget.guardianName,
+          guardianPhone: widget.guardianPhone,
+          guardianEmail: widget.guardianEmail,
+          onConsentCompleted: _load,
+        ),
       ] else ...[
         if (stale.isNotEmpty)
-          const Padding(
-            padding: EdgeInsets.only(bottom: 12),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
             child: ConsentPendingBanner(
               hasConsent:  false,
               isReConsent: true,
-              onTapAction: null, // guardian cannot start OTP flow themselves in current build
+              onTapAction: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ParentalConsentFlow(
+                      studentDocId: widget.studentDocId,
+                      studentName: widget.studentName,
+                      prefillGuardianName: widget.guardianName,
+                      prefillGuardianPhone: widget.guardianPhone,
+                      prefillGuardianEmail: widget.guardianEmail,
+                      isReConsent: true,
+                    ),
+                    fullscreenDialog: true,
+                  ),
+                ).then((res) {
+                  if (res != null) {
+                    _load();
+                  }
+                });
+              },
             ),
           ),
         for (final c in active) _ConsentCard(consent: c, onWithdraw: () => _withdraw(c)),
@@ -317,8 +344,21 @@ class _GuardianConsentSectionState extends State<GuardianConsentSection> {
 }
 
 class _EmptyConsentCard extends StatelessWidget {
+  final String studentDocId;
   final String studentName;
-  const _EmptyConsentCard({required this.studentName});
+  final String guardianName;
+  final String guardianPhone;
+  final String? guardianEmail;
+  final VoidCallback? onConsentCompleted;
+
+  const _EmptyConsentCard({
+    required this.studentDocId,
+    required this.studentName,
+    required this.guardianName,
+    required this.guardianPhone,
+    this.guardianEmail,
+    this.onConsentCompleted,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -340,9 +380,40 @@ class _EmptyConsentCard extends StatelessWidget {
                 fontWeight: FontWeight.w600, color: AppTheme.warning)),
         const SizedBox(height: 4),
         const Text(
-          'Please contact the school coordinator to complete the consent process.',
+          'Please complete the parental consent process to enable data processing.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 12, color: Colors.black54),
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton.icon(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ParentalConsentFlow(
+                  studentDocId: studentDocId,
+                  studentName: studentName,
+                  prefillGuardianName: guardianName,
+                  prefillGuardianPhone: guardianPhone,
+                  prefillGuardianEmail: guardianEmail,
+                ),
+                fullscreenDialog: true,
+              ),
+            ).then((res) {
+              if (res != null) {
+                onConsentCompleted?.call();
+              }
+            });
+          },
+          icon: const Icon(Icons.verified_user_outlined),
+          label: const Text('Provide Consent Now'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.primary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
         ),
       ]),
     );
@@ -422,12 +493,12 @@ class _ConsentCard extends StatelessWidget {
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
         const SizedBox(height: 6),
         Text(
-          'Consented: ${_fmtDate(consent.consentedAt.toDate())}',
+          'Consented: ${_fmtDate(context, consent.consentedAt.toDate())}',
           style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
         ),
         if (consent.withdrawnAt != null)
           Text(
-            'Withdrawn: ${_fmtDate(consent.withdrawnAt!.toDate())} — ${consent.withdrawnReason ?? ''}',
+            'Withdrawn: ${_fmtDate(context, consent.withdrawnAt!.toDate())} — ${consent.withdrawnReason ?? ''}',
             style: const TextStyle(fontSize: 11, color: Colors.red),
           ),
 
@@ -462,7 +533,15 @@ class _ConsentCard extends StatelessWidget {
     );
   }
 
-  String _fmtDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
+  String _fmtDate(BuildContext context, DateTime d) {
+    try {
+      return MaterialLocalizations.of(context).formatCompactDate(d);
+    } catch (_) {
+      final dayStr = d.day.toString().padLeft(2, '0');
+      final monthStr = d.month.toString().padLeft(2, '0');
+      return '$dayStr/$monthStr/${d.year}';
+    }
+  }
 }
 
 class _ScopeChip extends StatelessWidget {
@@ -472,6 +551,8 @@ class _ScopeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = scope.optedIn ? AppTheme.success : Colors.grey;
+    final String rawType = scope.dataType;
+    final label = rawType.replaceAll('_', ' ');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
@@ -487,7 +568,7 @@ class _ScopeChip extends StatelessWidget {
         ),
         const SizedBox(width: 3),
         Text(
-          scope.dataType.replaceAll('_', ' '),
+          label,
           style: TextStyle(
               fontSize: 10, color: color, fontWeight: FontWeight.w500),
         ),
@@ -508,6 +589,12 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
   final _ctrl = TextEditingController();
 
   @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Withdraw Consent'),
@@ -520,6 +607,7 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
         TextField(
           controller: _ctrl,
           maxLines:   3,
+          maxLength: 200,
           decoration: const InputDecoration(
             labelText:   'Reason (optional)',
             border:      OutlineInputBorder(),

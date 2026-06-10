@@ -8,6 +8,7 @@ import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../utils/app_logger.dart';
 import '../utils/phone_utils.dart';
+import '../utils/school_clock.dart';
 import '../utils/secure_password.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
@@ -519,6 +520,7 @@ class TimetableService extends BaseFirestoreService {
     String?       newPassword,
     String?       studentClass,
     int?          studentRoll,
+    String?       studentSection,
     List<String>? assignedClasses,
   }) async {
     final docRef = _allowedUsers.doc(email.toLowerCase().trim());
@@ -527,9 +529,13 @@ class TimetableService extends BaseFirestoreService {
     if (role == 'guardian' && studentClass != null && studentRoll != null) {
       data['studentClass'] = studentClass;
       data['studentRoll']  = studentRoll;
+      if (studentSection != null) {
+        data['studentSection'] = studentSection;
+      }
     } else {
       data['studentClass'] = null;
       data['studentRoll']  = null;
+      data['studentSection'] = null;
     }
     if (role == 'coordinator' || role == 'principal' || role == 'owner') {
       data['assignedClasses'] = assignedClasses ?? [];
@@ -563,6 +569,7 @@ class TimetableService extends BaseFirestoreService {
     String?       schoolId,
     String?       studentClass,
     int?          studentRoll,
+    String?       studentSection,
     String?       studentAdmissionId,
     List<String>? assignedClasses,
     String?       createdByEmail,
@@ -607,6 +614,9 @@ class TimetableService extends BaseFirestoreService {
     if (role == 'guardian' && studentClass != null && studentRoll != null) {
       data['studentClass'] = studentClass;
       data['studentRoll']  = studentRoll;
+      if (studentSection != null) {
+        data['studentSection'] = studentSection;
+      }
       // Stable identity for the #39 'guardian_adm:{admissionId}' rule branch.
       if (studentAdmissionId != null && studentAdmissionId.isNotEmpty) {
         data['studentAdmissionId'] = studentAdmissionId;
@@ -1003,6 +1013,7 @@ class TimetableService extends BaseFirestoreService {
     required String studentClass,
     required int    studentRoll,
     required String studentName,
+    String          studentSection = '',
     String?         studentAdmissionId,
     String?         schoolId,
     String?         phone,   // E.164 format
@@ -1015,6 +1026,7 @@ class TimetableService extends BaseFirestoreService {
       email:        normEmail,
       studentClass: studentClass,
       studentRoll:  studentRoll,
+      studentSection: studentSection,
       studentName:  studentName,
       studentAdmissionId: studentAdmissionId,
       schoolId:     schoolId,
@@ -1284,7 +1296,9 @@ class TimetableService extends BaseFirestoreService {
 
   // ── Substitutions ─────────────────────────────────────────────────────────
 
-  String _dateKeyFor(DateTime d) => '${d.year}-${d.month}-${d.day}';
+  /// Delegates to [SchoolClock.dateKey] so substitution doc keys use the same
+  /// zero-padded `YYYY-MM-DD` format as attendance keys (#109).
+  String _dateKeyFor(DateTime d) => SchoolClock.dateKey(d);
 
   /// Returns map of '${className}_$bell' → teacherId for today's substitutions.
   Future<Map<String, String>> getTodaySubstitutions() =>
@@ -1397,6 +1411,7 @@ class TimetableService extends BaseFirestoreService {
     required String email,
     required String studentClass,
     required int    studentRoll,
+    String          studentSection = '',
     String?         studentName,
     String?         studentAdmissionId,
     String?         schoolId,
@@ -1414,11 +1429,14 @@ class TimetableService extends BaseFirestoreService {
             .toList() ?? []);
 
     final exists = links.any((l) =>
-        l['studentClass'] == studentClass && l['studentRoll'] == studentRoll);
+        l['studentClass'] == studentClass &&
+        l['studentRoll'] == studentRoll &&
+        (l['studentSection'] ?? '') == studentSection);
     if (!exists) {
       links.add({
         'studentClass': studentClass,
         'studentRoll':  studentRoll,
+        'studentSection': studentSection,
         if (studentName != null) 'studentName': studentName,
         if (studentAdmissionId != null && studentAdmissionId.isNotEmpty)
           'studentAdmissionId': studentAdmissionId,
@@ -1431,6 +1449,7 @@ class TimetableService extends BaseFirestoreService {
       'studentLinks': links,
       'studentClass': studentClass,  // legacy compat
       'studentRoll':  studentRoll,   // legacy compat
+      'studentSection': studentSection,
       // Top-level stable id (last-linked child) — the firestore.rules
       // guardian_adm branch reads getUserData().studentAdmissionId (#39).
       if (studentAdmissionId != null && studentAdmissionId.isNotEmpty)
@@ -1445,6 +1464,7 @@ class TimetableService extends BaseFirestoreService {
     required String email,
     required String studentClass,
     required int    studentRoll,
+    String          studentSection = '',
   }) async {
     final docRef = _allowedUsers.doc(email.toLowerCase().trim());
     final doc    = await docRef.get();
@@ -1456,7 +1476,9 @@ class TimetableService extends BaseFirestoreService {
             ?.whereType<Map<String, dynamic>>()
             .toList() ?? []);
     links.removeWhere((l) =>
-        l['studentClass'] == studentClass && l['studentRoll'] == studentRoll);
+        l['studentClass'] == studentClass &&
+        l['studentRoll'] == studentRoll &&
+        (l['studentSection'] ?? '') == studentSection);
 
     await docRef.update({'studentLinks': links});
   }

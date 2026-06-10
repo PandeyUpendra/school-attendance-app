@@ -353,14 +353,7 @@ exports.deleteStudent = onCall(
     const docId = studentDocId(className, section, roll);
     const classKey = String(className).replace(/ /g, "_");
 
-    // 1. Student doc + its subcollections (remarks/consents/providedDetails).
-    try {
-      await db.recursiveDelete(schoolRef.collection("students").doc(docId));
-    } catch (err) {
-      logger.warn(`student doc delete failed for ${docId}`, err && err.message);
-    }
-
-    // 2. Remove the roll from every attendance doc for this class/section.
+    // 1. Remove the roll from every attendance doc for this class/section.
     try {
       const attKey = section ? `${className} ${section}` : className;
       const prefix = `${attKey.replace(/ /g, "_")}_`;
@@ -401,7 +394,7 @@ exports.deleteStudent = onCall(
       logger.warn(`attendance cleanup failed for ${docId}`, err && err.message);
     }
 
-    // 3. Exam results for the student in every exam of this class.
+    // 2. Exam results for the student in every exam of this class.
     try {
       const exams = await schoolRef.collection("exams").where("className", "==", className).get();
       for (let i = 0; i < exams.docs.length; i += 400) {
@@ -415,7 +408,7 @@ exports.deleteStudent = onCall(
       logger.warn(`exam results cleanup failed for ${docId}`, err && err.message);
     }
 
-    // 4. Fee payments node (+ payments subcollection).
+    // 3. Fee payments node (+ payments subcollection).
     try {
       await db.recursiveDelete(
         schoolRef.collection("fee_payments").doc(classKey).collection("students").doc(String(roll)));
@@ -423,7 +416,7 @@ exports.deleteStudent = onCall(
       logger.warn(`fee cleanup failed for ${docId}`, err && err.message);
     }
 
-    // 5. Guardian notifications + the class-teacher leave notice for this roll.
+    // 4. Guardian notifications + the class-teacher leave notice for this roll.
     try {
       const notifs = schoolRef.collection("notifications");
       const guardianNotifs = await notifs.where("audience", "==", `guardian:${className}:${roll}`).get();
@@ -441,7 +434,7 @@ exports.deleteStudent = onCall(
       logger.warn(`notification cleanup failed for ${docId}`, err && err.message);
     }
 
-    // 6. Guardian-filed leave applications for this student.
+    // 5. Guardian-filed leave applications for this student.
     try {
       const leaves = await schoolRef
         .collection("leave_applications")
@@ -459,6 +452,14 @@ exports.deleteStudent = onCall(
       }
     } catch (err) {
       logger.warn(`leave cleanup failed for ${docId}`, err && err.message);
+    }
+
+    // 6. Student doc + its subcollections (remarks/consents/providedDetails).
+    // Delete student doc last to prevent orphaned records in case of failure/timeout (#35)
+    try {
+      await db.recursiveDelete(schoolRef.collection("students").doc(docId));
+    } catch (err) {
+      logger.warn(`student doc delete failed for ${docId}`, err && err.message);
     }
 
     return { ok: true, studentId: docId };
@@ -520,5 +521,122 @@ exports.writeAudit = onCall(
 
     await db.collection("schools").doc(schoolId).collection("audit_logs").add(entry);
     return { ok: true };
+  }
+);
+
+/**
+ * Callable: purgeOldData({ schoolId, daysToKeepNotifications, daysToKeepAuditLogs, daysToKeepTombstones })
+ *
+ * Purges notifications, audit logs, and deleted student tombstones that exceed the
+ * data retention policy period (#18). Restricted to owner and admin roles.
+ */
+const PURGE_ROLES = ["admin", "owner", "ownerPrincipal"];
+
+exports.purgeOldData = onCall(
+  { cors: true, region: "us-central1" },
+  async (request) => {
+    const db = admin.firestore();
+    if (!request.auth || !request.auth.token || !request.auth.token.email) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    const d = request.data || {};
+    const schoolId = String(d.schoolId || "").trim();
+    if (!schoolId) {
+      throw new HttpsError("invalid-argument", "schoolId is required.");
+    }
+
+    const callerEmail = String(request.auth.token.email).toLowerCase();
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerRole = resolveCallerRole(callerEmail, callerSnap);
+    const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
+
+    if (!PURGE_ROLES.includes(callerRole)) {
+      throw new HttpsError("permission-denied", "You are not authorized to purge data.");
+    }
+    if (callerRole !== "admin" && callerSchoolId !== schoolId) {
+      throw new HttpsError("permission-denied", "You can only purge data for your own school.");
+    }
+
+    const schoolRef = db.collection("schools").doc(schoolId);
+
+    // Default retention limits:
+    // - Notifications: 90 days
+    // - Audit logs: 365 days
+    // - Deleted student tombstones: 365 days
+    const daysNotif = Number.parseInt(d.daysToKeepNotifications, 10) || 90;
+    const daysAudit = Number.parseInt(d.daysToKeepAuditLogs, 10) || 365;
+    const daysTombstone = Number.parseInt(d.daysToKeepTombstones, 10) || 365;
+
+    const now = new Date();
+    const notifCutoff = admin.firestore.Timestamp.fromDate(new Date(now.getTime() - daysNotif * 24 * 60 * 60 * 1000));
+    const auditCutoff = admin.firestore.Timestamp.fromDate(new Date(now.getTime() - daysAudit * 24 * 60 * 60 * 1000));
+    const tombstoneCutoff = admin.firestore.Timestamp.fromDate(new Date(now.getTime() - daysTombstone * 24 * 60 * 60 * 1000));
+
+    let notificationsPurged = 0;
+    let auditLogsPurged = 0;
+    let tombstonesPurged = 0;
+
+    // 1. Purge old notifications
+    try {
+      const snap = await schoolRef
+        .collection("notifications")
+        .where("timestamp", "<", notifCutoff)
+        .get();
+      for (let i = 0; i < snap.docs.length; i += 400) {
+        const batch = db.batch();
+        snap.docs.slice(i, i + 400).forEach((doc) => {
+          batch.delete(doc.ref);
+          notificationsPurged++;
+        });
+        await batch.commit();
+      }
+    } catch (err) {
+      logger.warn(`Failed purging notifications for school ${schoolId}`, err && err.message);
+    }
+
+    // 2. Purge old audit logs
+    try {
+      const snap = await schoolRef
+        .collection("audit_logs")
+        .where("timestamp", "<", auditCutoff)
+        .get();
+      for (let i = 0; i < snap.docs.length; i += 400) {
+        const batch = db.batch();
+        snap.docs.slice(i, i + 400).forEach((doc) => {
+          batch.delete(doc.ref);
+          auditLogsPurged++;
+        });
+        await batch.commit();
+      }
+    } catch (err) {
+      logger.warn(`Failed purging audit logs for school ${schoolId}`, err && err.message);
+    }
+
+    // 3. Purge old deleted students tombstones
+    try {
+      const snap = await schoolRef
+        .collection("deleted_students")
+        .where("deletedAt", "<", tombstoneCutoff)
+        .get();
+      for (let i = 0; i < snap.docs.length; i += 400) {
+        const batch = db.batch();
+        snap.docs.slice(i, i + 400).forEach((doc) => {
+          batch.delete(doc.ref);
+          tombstonesPurged++;
+        });
+        await batch.commit();
+      }
+    } catch (err) {
+      logger.warn(`Failed purging deleted students tombstones for school ${schoolId}`, err && err.message);
+    }
+
+    return {
+      success: true,
+      purged: {
+        notifications: notificationsPurged,
+        auditLogs: auditLogsPurged,
+        deletedStudentsTombstones: tombstonesPurged
+      }
+    };
   }
 );

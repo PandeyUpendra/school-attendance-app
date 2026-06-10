@@ -10,7 +10,7 @@ import 'student_service.dart';
 ///   List<Map> where each entry is:
 ///   {
 ///     'className': String,
-///     'dateKey':   'YYYY-M-D',
+///     'dateKey':   'YYYY-MM-DD',
 ///     'rolls':     { '1': 'Present', '2': 'Absent', ... },
 ///     'queuedAt':  millisecondsSinceEpoch,
 ///   }
@@ -177,5 +177,7 @@ class OfflineQueueService {
     await prefs.remove(_queueKey);
   }
 
-  String _dateKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
+  /// Delegates to [SchoolClock.dateKey] so all date keys are ISO 8601
+  /// zero-padded (`YYYY-MM-DD`) and lexicographically sortable (#109).
+  String _dateKey(DateTime d) => SchoolClock.dateKey(d);
 }

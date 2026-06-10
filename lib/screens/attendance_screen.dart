@@ -17,7 +17,9 @@ import '../services/notification_service.dart';
 import '../services/offline_queue_service.dart';
 import '../utils/phone_utils.dart';
 import '../l10n/app_strings.dart';
+import '../services/consent_service.dart';
 import '../utils/consent_gate.dart';
+import '../widgets/consent_pending_banner.dart';
 import '../utils/school_clock.dart';
 import '../utils/app_logger.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -66,6 +68,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool   _isMarking      = false; // user is actively marking attendance
   bool   _noAssignment   = false; // teacher has no assigned class/section
   bool   _saving         = false; // a _save() is in flight (guards double-tap)
+  Set<String> _consentedIds = {};
+  bool _consentLoaded = false;
 
   // Attendance edit-lock (#34): non-management staff may not edit attendance
   // for a date older than this many days, so historical records can't be
@@ -307,6 +311,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       _loading = false;
       _dirty   = saved.isEmpty && students.isNotEmpty;
     });
+    _loadConsent(students);
     _subscribeStudents();
     _loadExtraData();
   }
@@ -368,6 +373,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
+  Future<void> _loadConsent(List<Student> students) async {
+    if (students.isEmpty) {
+      if (mounted) setState(() { _consentedIds = {}; _consentLoaded = true; });
+      return;
+    }
+    final ids = students
+        .map((s) => Student.buildDocId(s.roll, s.className, s.section))
+        .toList();
+    try {
+      final consented = await ConsentService().filterHasActiveConsent(ids);
+      if (mounted) {
+        setState(() { _consentedIds = consented; _consentLoaded = true; });
+      }
+    } catch (_) {/* visibility only — never block the roster */}
+  }
+
   void _subscribeStudents() {
     _studentSub?.cancel();
     bool isFirst = true;
@@ -384,6 +405,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         }
         _students = list;
       });
+      _loadConsent(list);
     });
   }
 
@@ -534,9 +556,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ]),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
             _SummaryRow('Total Students', '$_total', Colors.grey),
-            _SummaryRow('Present', '$_present', const Color(0xFF2E7D32)),
-            _SummaryRow('On Leave', '$_leave', const Color(0xFFF57F17)),
-            _SummaryRow('Absent', '$_absent', const Color(0xFFC62828)),
+            _SummaryRow('Present', '$_present', AppTheme.success),
+            _SummaryRow('On Leave', '$_leave', AppTheme.warning),
+            _SummaryRow('Absent', '$_absent', AppTheme.danger),
           ]),
           actions: [
             if (_absent + _leave > 0 && Provider.of<SchoolSettingsProvider>(context, listen: false).whatsappEnabled)
@@ -809,6 +831,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                             remarks: _remarks[s.roll] ?? [],
                             lastWeek: _lastWeekStats[s.roll],
                             lastMonth: _lastMonthStats[s.roll],
+                            hasConsent: !_consentLoaded ||
+                                _consentedIds.contains(Student.buildDocId(
+                                    s.roll, s.className, s.section)),
                             onStatusChanged: (status) {
                               _setStatus(s.roll, status);
                               _saveQuietly();
@@ -1019,10 +1044,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             ),
             child: Column(children: [
               Row(children: [
-                _StatBubble(_total,   'Total',   const Color(0xFF546E7A)),
-                _StatBubble(_present, 'Present', const Color(0xFF2E7D32)),
-                _StatBubble(_leave,   'Leave',   const Color(0xFFF57F17)),
-                _StatBubble(_absent,  'Absent',  const Color(0xFFC62828)),
+                _StatBubble(_total,   'Total',   AppTheme.textSecondary),
+                _StatBubble(_present, 'Present', AppTheme.success),
+                _StatBubble(_leave,   'Leave',   AppTheme.warning),
+                _StatBubble(_absent,  'Absent',  AppTheme.danger),
               ]),
               const SizedBox(height: 12),
               ClipRRect(
@@ -1103,17 +1128,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               child: OutlinedButton.icon(
                 onPressed: _showWhatsAppSheet,
                 icon: const Icon(FontAwesomeIcons.whatsapp,
-                    size: 20, color: Color(0xFF25D366)),
+                    size: 20, color: AppTheme.whatsapp),
                 label: Text(context.tr('notifyGuardiansWhatsapp'),
                     style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF25D366))),
+                        color: AppTheme.whatsapp)),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF25D366),
+                  foregroundColor: AppTheme.whatsapp,
                   minimumSize: const Size(double.infinity, 48),
                   side: const BorderSide(
-                      color: Color(0xFF25D366), width: 1.5),
+                      color: AppTheme.whatsapp, width: 1.5),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                 ),
@@ -1339,6 +1364,7 @@ class _VerticalStudentCard extends StatelessWidget {
   final String? lastWeek;
   final String? lastMonth;
   final ValueChanged<String> onStatusChanged;
+  final bool hasConsent;
 
   const _VerticalStudentCard({
     required this.student,
@@ -1347,6 +1373,7 @@ class _VerticalStudentCard extends StatelessWidget {
     this.lastWeek,
     this.lastMonth,
     required this.onStatusChanged,
+    required this.hasConsent,
   });
 
   @override
@@ -1421,9 +1448,17 @@ class _VerticalStudentCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Name
-                  Text(student.name, 
-                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5)),
+                  // Name + Consent badge
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      Text(student.name, 
+                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5)),
+                      ConsentMissingBadge(hasConsent: hasConsent),
+                    ],
+                  ),
                   const SizedBox(height: 12),
 
                   // Highlighted Roll
@@ -1638,11 +1673,11 @@ class _VerticalActionButtons extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _CircleAction('P', 'Present', const Color(0xFF2E7D32), status == 'Present', () => onChanged('Present'), isDark: isDark),
+        _CircleAction('P', 'Present', AppTheme.success, status == 'Present', () => onChanged('Present'), isDark: isDark),
         const SizedBox(height: 24),
-        _CircleAction('L', 'Leave', const Color(0xFFF57F17), status == 'Leave', () => onChanged('Leave'), isDark: isDark),
+        _CircleAction('L', 'Leave', AppTheme.warning, status == 'Leave', () => onChanged('Leave'), isDark: isDark),
         const SizedBox(height: 24),
-        _CircleAction('A', 'Absent', const Color(0xFFC62828), status == 'Absent', () => onChanged('Absent'), isDark: isDark),
+        _CircleAction('A', 'Absent', AppTheme.danger, status == 'Absent', () => onChanged('Absent'), isDark: isDark),
       ],
     );
   }
@@ -1789,11 +1824,11 @@ class _WhatsAppNotifySheet extends StatelessWidget {
             Container(
               width: 44, height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFF25D366).withValues(alpha: 0.12),
+                color: AppTheme.whatsapp.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(FontAwesomeIcons.whatsapp,
-                  color: Color(0xFF25D366), size: 22),
+                  color: AppTheme.whatsapp, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(child: Column(
@@ -1819,14 +1854,14 @@ class _WhatsAppNotifySheet extends StatelessWidget {
             shrinkWrap: true,
             children: [
               if (absent.isNotEmpty) ...[
-                _label('Absent', const Color(0xFFC62828)),
+                _label('Absent', AppTheme.danger),
                 ...absent.map((s) => _NotifyRow(
                       student: s, message: _message(s),
                       onSend: () => _openWhatsApp(context, s, _message(s)),
                     )),
               ],
               if (onLeave.isNotEmpty) ...[
-                _label('On Leave', const Color(0xFFF57F17)),
+                _label('On Leave', AppTheme.warning),
                 ...onLeave.map((s) => _NotifyRow(
                       student: s, message: _message(s),
                       onSend: () => _openWhatsApp(context, s, _message(s)),
@@ -1846,7 +1881,7 @@ class _WhatsAppNotifySheet extends StatelessWidget {
           child: ElevatedButton(
             onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF25D366),
+              backgroundColor: AppTheme.whatsapp,
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 48),
               shape: RoundedRectangleBorder(
@@ -1934,7 +1969,7 @@ class _NotifyRow extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF25D366),
+                color: AppTheme.whatsapp,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Row(mainAxisSize: MainAxisSize.min, children: [

@@ -464,8 +464,8 @@ class _CoordMeetingCardState extends State<_CoordMeetingCard> {
                   icon: const Icon(Icons.send_outlined, size: 15),
                   label: Text(context.tr('remind'), style: const TextStyle(fontSize: 12)),
                   style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF25D366),
-                      side: const BorderSide(color: Color(0xFF25D366)),
+                      foregroundColor: AppTheme.whatsapp,
+                      side: const BorderSide(color: AppTheme.whatsapp),
                       padding: const EdgeInsets.symmetric(vertical: 6)),
                   onPressed: widget.onSendReminder,
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 
 enum AttendanceStatus {
   present,
@@ -31,22 +32,22 @@ enum AttendanceStatus {
   Color get color {
     switch (this) {
       case AttendanceStatus.present:
-        return const Color(0xFF2E7D32); // green
+        return AppTheme.success;
       case AttendanceStatus.absent:
-        return const Color(0xFFC62828); // red
+        return AppTheme.danger;
       case AttendanceStatus.leave:
-        return const Color(0xFF1565C0); // blue
+        return AppTheme.warning;
     }
   }
 
   Color get lightColor {
     switch (this) {
       case AttendanceStatus.present:
-        return const Color(0xFFE8F5E9);
+        return AppTheme.successLight;
       case AttendanceStatus.absent:
-        return const Color(0xFFFFEBEE);
+        return AppTheme.dangerLight;
       case AttendanceStatus.leave:
-        return const Color(0xFFE3F2FD);
+        return AppTheme.warningLight;
     }
   }
 

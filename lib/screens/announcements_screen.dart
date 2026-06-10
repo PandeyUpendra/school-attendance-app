@@ -5,6 +5,7 @@ import '../services/announcement_service.dart';
 import '../services/notification_service.dart';
 import '../theme.dart';
 import '../l10n/app_strings.dart';
+import '../utils/app_logger.dart';
 
 /// Announcements / Notice Board.
 /// - Everyone except guardians can post.
@@ -141,7 +142,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
         _myLog = items;
         _logLoading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e('AnnouncementsScreen', 'Failed to load my log', e, st);
       if (!mounted) return;
       setState(() => _logLoading = false);
     }
@@ -741,7 +743,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
 
     if (_canPost) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF5F5F5),
+        backgroundColor: AppTheme.background,
         appBar: appBar,
         floatingActionButton: fab,
         body: TabBarView(
@@ -755,7 +757,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: appBar,
       body: _buildNoticeBoard(),
     );
@@ -798,7 +800,7 @@ String _fmtDateFull(DateTime? d) {
 
 Color _audienceColor(String a) {
   switch (a) {
-    case 'teachers':  return Colors.red;
+    case 'teachers':  return AppTheme.danger;
     case 'guardians': return AppTheme.primaryMid;
     default:          return AppTheme.primary;
   }

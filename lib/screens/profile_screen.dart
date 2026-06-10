@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
+import '../utils/app_logger.dart';
 import '../providers/locale_provider.dart';
 import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
@@ -79,7 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       Map<String, dynamic>? doc;
       try {
         doc = await svc.getAllowedUserDoc(email);
-      } catch (_) {}
+      } catch (e, st) { AppLogger.e('ProfileScreen', 'Best-effort load failed', e, st); }
 
       if (doc != null) {
         _name = (doc['name'] as String?)?.trim().isNotEmpty == true
@@ -111,7 +112,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ];
             return parts.join(' · ');
           }).where((s) => s.isNotEmpty).toList();
-        } catch (_) {}
+        } catch (e, st) { AppLogger.e('ProfileScreen', 'Best-effort load failed', e, st); }
       }
 
       // School name (best-effort).
@@ -121,7 +122,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             .collection('schools').doc(sid)
             .collection('settings').doc('school').get();
         _schoolName = (s.data()?['name'] as String?)?.trim() ?? '';
-      } catch (_) {}
+      } catch (e, st) { AppLogger.e('ProfileScreen', 'Best-effort load failed', e, st); }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

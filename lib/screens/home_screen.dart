@@ -508,7 +508,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const _Divider(),
           _FeatureTile(
             icon: Icons.assignment_return_outlined,
-            color: Colors.teal,
+            color: AppTheme.accent,
             title: context.tr('studentLeaveRequests'),
             subtitle: context.tr('subStudentLeaveDesc'),
             badge: _pendingStudentLeaves > 0

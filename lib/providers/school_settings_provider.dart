@@ -36,14 +36,29 @@ class SchoolSettingsProvider extends ChangeNotifier {
     _bind();
   }
 
+  bool _notifyPending = false;
+
+  void _notifyDebounced() {
+    if (_notifyPending) return;
+    _notifyPending = true;
+    scheduleMicrotask(() {
+      _notifyPending = false;
+      notifyListeners();
+    });
+  }
+
   /// (Re)subscribes the live streams to the currently active school, clearing
   /// any data carried over from a previously bound school.
   void _bind() {
     _boundSchoolId = AuthService.currentSchoolId;
     _schoolSub?.cancel();
+    _schoolSub = null;
     _academicSub?.cancel();
+    _academicSub = null;
     _feesSub?.cancel();
+    _feesSub = null;
     _commSub?.cancel();
+    _commSub = null;
     _school = {};
     _academic = {};
     _fees = {};
@@ -56,20 +71,20 @@ class SchoolSettingsProvider extends ChangeNotifier {
     _schoolSub = _svc.getSchoolSettings().listen((data) {
       _school = data;
       _loaded = true;
-      notifyListeners();
+      _notifyDebounced();
     });
     _academicSub = _svc.getAcademicSettings().listen((data) {
       _academic = data;
       _loaded = true;
-      notifyListeners();
+      _notifyDebounced();
     });
     _feesSub = _svc.getFeeSettings().listen((data) {
       _fees = data;
-      notifyListeners();
+      _notifyDebounced();
     });
     _commSub = _svc.getCommSettings().listen((data) {
       _comm = data;
-      notifyListeners();
+      _notifyDebounced();
     });
   }
 
@@ -113,10 +128,10 @@ class SchoolSettingsProvider extends ChangeNotifier {
       _academic['classesToLabel'] as String? ??
       'Class ${_academic['classesTo'] ?? 10}';
   List<String> get sections =>
-      List<String>.from(_academic['sections'] as List? ?? ['A']);
+      ((_academic['sections'] as List?) ?? ['A']).map((e) => e.toString()).toList();
   List<String> get classList =>
-      List<String>.from(_academic['classList'] as List? ??
-          ['6-A', '7-A', '8-A', '9-A', '10-A']);
+      ((_academic['classList'] as List?) ??
+          ['6-A', '7-A', '8-A', '9-A', '10-A']).map((e) => e.toString()).toList();
   String get academicYearStart =>
       _academic['academicYearStart'] as String? ?? 'April';
   String get workingDays => _academic['workingDays'] as String? ?? 'Mon-Sat';
@@ -132,7 +147,10 @@ class SchoolSettingsProvider extends ChangeNotifier {
   String get feeFrequency => _fees['feeFrequency'] as String? ?? 'Monthly';
   int get feeDueDate => _fees['feeDueDate'] as int? ?? 10;
   bool get lateFeeEnabled => _fees['lateFeeEnabled'] as bool? ?? false;
-  int get lateFeePerDay => _fees['lateFeePerDay'] as int? ?? 0;
+  int get lateFeePerDay {
+    final val = _fees['lateFeePerDay'] as int? ?? 0;
+    return val < 0 ? 0 : val;
+  }
   int get reminderDaysBefore => _fees['reminderDaysBefore'] as int? ?? 7;
 
   // ── Communication ─────────────────────────────────────────────────────────
@@ -155,8 +173,15 @@ class SchoolSettingsProvider extends ChangeNotifier {
       _svc.updateSchoolSettings(data);
   Future<void> updateAcademicSettings(Map<String, dynamic> data) =>
       _svc.updateAcademicSettings(data);
-  Future<void> updateFeeSettings(Map<String, dynamic> data) =>
-      _svc.updateFeeSettings(data);
+  Future<void> updateFeeSettings(Map<String, dynamic> data) {
+    if (data['lateFeePerDay'] != null) {
+      final val = data['lateFeePerDay'] as int;
+      if (val < 0) {
+        throw ArgumentError('lateFeePerDay cannot be negative');
+      }
+    }
+    return _svc.updateFeeSettings(data);
+  }
   Future<void> updateCommSettings(Map<String, dynamic> data) =>
       _svc.updateCommSettings(data);
   Future<void> logChange(String f, String o, String n, String uid) =>

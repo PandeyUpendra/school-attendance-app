@@ -63,7 +63,7 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -288,7 +288,7 @@ class _CoordCheckDetailScreenState extends State<_CoordCheckDetailScreen>
     final date = '${c.checkDate.day}/${c.checkDate.month}/${c.checkDate.year}';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,9 +333,9 @@ class _StatusList extends StatelessWidget {
 
   Color _colorFor(String status) {
     switch (status) {
-      case 'checked':    return Colors.green;
-      case 'incomplete': return Colors.orange;
-      default:           return Colors.red;
+      case 'checked':    return AppTheme.success;
+      case 'incomplete': return AppTheme.warning;
+      default:           return AppTheme.danger;
     }
   }
 

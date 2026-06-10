@@ -266,7 +266,6 @@ class StudentService extends BaseFirestoreService {
                 name: s.name,
                 className: s.className,
                 section: s.section,
-                guardianEmail: s.guardianEmail,
                 teacherId: s.teacherId,
                 deletedAt: null,
               ))
@@ -706,15 +705,12 @@ class StudentService extends BaseFirestoreService {
 
         final batchOps = <Future<void> Function(WriteBatch)>[];
 
-        // 1. Delete student doc
-        batchOps.add((batch) async => batch.delete(_studentsRef.doc(studentDocId)));
-
-        // 2. Remarks
+        // 1. Remarks
         for (final doc in remarksSnap.docs) {
           batchOps.add((batch) async => batch.delete(doc.reference));
         }
 
-        // 3. Attendance updates
+        // 2. Attendance updates
         for (final doc in attendanceSnap.docs) {
           final rolls = Map<String, dynamic>.from((doc.data()['rolls'] as Map?) ?? {});
           if (rolls.containsKey(roll.toString())) {
@@ -722,22 +718,22 @@ class StudentService extends BaseFirestoreService {
           }
         }
 
-        // 4. Notifications
+        // 3. Notifications
         for (final doc in notificationsSnap.docs) {
           batchOps.add((batch) async => batch.delete(doc.reference));
         }
 
-        // 5. Leave notifications
+        // 4. Leave notifications
         for (final doc in leaveNotificationsMatches) {
           batchOps.add((batch) async => batch.delete(doc.reference));
         }
 
-        // 6. Leave applications
+        // 5. Leave applications
         for (final doc in leaveAppsMatches) {
           batchOps.add((batch) async => batch.delete(doc.reference));
         }
 
-        // 7. Exam results
+        // 6. Exam results
         for (final examDoc in examsSnap.docs) {
           final ref = schoolCollection(_schoolId, 'exam_results')
               .doc(examDoc.id)
@@ -746,11 +742,14 @@ class StudentService extends BaseFirestoreService {
           batchOps.add((batch) async => batch.delete(ref));
         }
 
-        // 8. Fee payments
+        // 7. Fee payments
         for (final doc in paymentsSnap.docs) {
           batchOps.add((batch) async => batch.delete(doc.reference));
         }
         batchOps.add((batch) async => batch.delete(studentNode));
+
+        // 8. Delete student doc (last to prevent orphaned records in case of failure, #35)
+        batchOps.add((batch) async => batch.delete(_studentsRef.doc(studentDocId)));
 
         // Commit in chunks of 450
         for (var i = 0; i < batchOps.length; i += 450) {
@@ -867,14 +866,16 @@ class StudentService extends BaseFirestoreService {
     if (data == null) return;
     final list =
         (data['students'] as List?)?.whereType<Map<String, dynamic>>() ?? [];
+    final futures = <Future<void>>[];
     for (final s in list) {
       final roll      = (s['roll']      as num?)?.toInt() ?? 0;
       final className = (s['className'] as String?) ?? '';
       final section   = (s['section']   as String?) ?? '';
       if (roll > 0 && className.isNotEmpty) {
-        await removeStudent(roll, className, section: section);
+        futures.add(removeStudent(roll, className, section: section));
       }
     }
+    await Future.wait(futures);
     await _repo.updateDeletionRequestStatus(requestId, 'approved');
   }
 
@@ -1418,7 +1419,6 @@ class StudentService extends BaseFirestoreService {
         name:          student.name,
         className:     student.className,
         section:       student.section,
-        guardianEmail: student.guardianEmail,
         teacherId:     student.teacherId,
       ).toJson());
     } catch (e) {

@@ -6,6 +6,7 @@ import '../models/substitution_record.dart';
 import '../services/timetable_service.dart';
 import '../services/substitution_history_service.dart';
 import '../theme.dart';
+import '../utils/school_clock.dart';
 import 'substitution_history_screen.dart';
 
 class FreeBellsScreen extends StatefulWidget {
@@ -123,7 +124,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
       final now           = DateTime.now();
       await _histService.logSubstitution(SubstitutionRecord(
         id:                    '',
-        dateKey:               '${now.year}-${now.month}-${now.day}',
+        dateKey:               SchoolClock.dateKey(now),
         date:                  now,
         className:             cls,
         bell:                  bell,
@@ -144,7 +145,7 @@ class _FreeBellsScreenState extends State<FreeBellsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

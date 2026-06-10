@@ -1289,8 +1289,10 @@ service cloud.firestore {
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
 
       match /entries/{entryId} {
-        allow read:  if isSignedIn() && inSchool(sid);
-        allow write: if isSignedIn() && inSchool(sid) && isManagement();
+        allow read:  if isSignedIn() && inSchool(sid) && (docId != 'changeLog' || isManagement());
+        allow create: if isSignedIn() && inSchool(sid) && isManagement()
+          && (docId != 'changeLog' || request.resource.data.changedBy == request.auth.uid);
+        allow update, delete: if isSignedIn() && inSchool(sid) && isManagement() && docId != 'changeLog';
       }
     }
 

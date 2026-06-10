@@ -8,6 +8,7 @@ import 'fee_collection_screen.dart';
 import 'fee_structure_screen.dart';
 import '../widgets/refreshable_data.dart';
 import '../utils/csv_export.dart';
+import '../utils/app_logger.dart';
 
 /// Top-level fee screen shown to principal / owner / coordinator.
 /// Displays school-wide collection stats and one card per class.
@@ -48,9 +49,10 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
         _summaries = summaries;
         _loading   = false;
       });
-    } catch (_) {
+    } catch (e, st) {
       // Don't surface raw Firestore errors here — fall back to the calm empty
       // state below (the "No classes configured yet." view, with a Refresh).
+      AppLogger.e('FeeOverviewScreen', 'Failed to load fee summaries', e, st);
       if (!mounted) return;
       setState(() {
         _loading = false;

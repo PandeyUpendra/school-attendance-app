@@ -31,6 +31,7 @@ import 'student_remarks_screen.dart';
 import 'guardian_student_details_screen.dart';
 import '../widgets/consent_pending_banner.dart';
 import '../services/consent_service.dart';
+import '../utils/privacy_notice.dart';
 
 /// The Guardian Portal — shows a single student's attendance to their parent.
 /// Guardian is linked to {studentClass, studentRoll} in allowed_users.
@@ -373,13 +374,25 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         child: ConsentPendingBanner(
           hasConsent:  false,
           isReConsent: _needsReConsent,
+          onTapAction: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => GuardianConsentScreen(
+                studentDocId: _studentDocId,
+                studentName: _student?.name ?? 'Student',
+                guardianName: _student?.fatherName ?? '',
+                guardianPhone: _student?.parentPhone ?? _student?.phone ?? '',
+                guardianEmail: _student?.guardianEmail,
+              ),
+            ),
+          ).then((_) => _loadAll()),
         ),
       ),
     ],
     const SizedBox(height: 12),
     Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: _TodayBanner(status: _todayStatus),
+      child: _TodayBanner(status: _todayStatus, hasConsent: _hasConsent),
     ),
 
     _SectionHeader(context.tr('secAcademics')),
@@ -425,7 +438,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       title: context.tr('homework'),
       subtitle: context.tr('subViewHomework'),
       badge: _homeworkList.isNotEmpty ? '${_homeworkList.length}' : null,
-      onTap: () => Navigator.push(
+      onTap: () => _runGatedAction(() => Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => GuardianHomeworkScreen(
@@ -433,7 +446,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
             className: _student?.className ?? _activeClass,
           ),
         ),
-      ),
+      )),
     ),
     const _Divider(),
     _FeatureTile(
@@ -441,14 +454,14 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: AppTheme.primary,
       title: context.tr('examResults'),
       subtitle: context.tr('subViewReportCards'),
-      onTap: () => Navigator.push(
+      onTap: () => _runGatedAction(() => Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => GuardianExamResultsScreen(
             examData: _examData,
           ),
         ),
-      ),
+      )),
     ),
 
     _SectionHeader(context.tr('secAttendance')),
@@ -457,7 +470,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: AppTheme.primary,
       title: context.tr('attendanceHistory'),
       subtitle: context.tr('subMonthlyReports'),
-      onTap: () => Navigator.push(
+      onTap: () => _runGatedAction(() => Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => GuardianAttendanceHistoryScreen(
@@ -466,7 +479,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
             studentName: _student?.name ?? 'Student',
           ),
         ),
-      ),
+      )),
     ),
     const _Divider(),
     _FeatureTile(
@@ -474,12 +487,12 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: AppTheme.primary,
       title: context.tr('attendanceCertificate'),
       subtitle: context.tr('subDownloadCertificate'),
-      onTap: () => Navigator.push(
+      onTap: () => _runGatedAction(() => Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => AttendanceCertificateScreen(student: _student!),
         ),
-      ),
+      )),
     ),
     const _Divider(),
     _FeatureTile(
@@ -487,12 +500,12 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: AppTheme.warning,
       title: context.tr('applyForLeave'),
       subtitle: context.tr('subSubmitLeave'),
-      onTap: () => Navigator.push(
+      onTap: () => _runGatedAction(() => Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => GuardianLeaveApplicationScreen(student: _student!),
         ),
-      ).then((_) => _loadAll()),
+      ).then((_) => _loadAll())),
     ),
 
     _SectionHeader(context.tr('secFees')),
@@ -503,7 +516,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       subtitle: _feeStructure != null && _feeStructure!.totalAnnualFee > 0
           ? ((_feeStructure!.totalAnnualFee - _totalPaid) < 1 ? 'Fully Paid' : 'Pending: ₹${(_feeStructure!.totalAnnualFee - _totalPaid).toStringAsFixed(0)}')
           : 'No fee info',
-      onTap: () => Navigator.push(
+      onTap: () => _runGatedAction(() => Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => GuardianFeeStatusScreen(
@@ -511,7 +524,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
             totalPaid: _totalPaid,
           ),
         ),
-      ),
+      )),
     ),
 
     _SectionHeader(context.tr('secLeaveRemarks')),
@@ -520,7 +533,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: AppTheme.primary,
       title: context.tr('studentRemarks'),
       subtitle: context.tr('subViewObservations'),
-      onTap: () => Navigator.push(
+      onTap: () => _runGatedAction(() => Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => StudentRemarksScreen(
@@ -528,7 +541,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
             guardianStudent: _student,
           ),
         ),
-      ),
+      )),
     ),
 
     _SectionHeader(context.tr('secSchoolProfile')),
@@ -537,7 +550,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: AppTheme.primary,
       title: context.tr('studentDetails'),
       subtitle: context.tr('subViewProfile'),
-      onTap: _openChildDetails,
+      onTap: () => _runGatedAction(_openChildDetails),
     ),
     const _Divider(),
     _FeatureTile(
@@ -595,6 +608,53 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
 
     const SizedBox(height: 32),
   ];
+
+  void _showConsentRequiredDialog() {
+    if (_student == null) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.tr('consentRequiredTitle')),
+        content: Text(context.tr('consentRequiredMessage')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => GuardianConsentScreen(
+                    studentDocId: _studentDocId,
+                    studentName: _student!.name,
+                    guardianName: _student!.fatherName,
+                    guardianPhone: _student!.parentPhone ?? _student!.phone,
+                    guardianEmail: _student!.guardianEmail,
+                  ),
+                ),
+              ).then((_) => _loadAll());
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(context.tr('giveConsent')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _runGatedAction(VoidCallback action) {
+    if (_hasConsent) {
+      action();
+    } else {
+      _showConsentRequiredDialog();
+    }
+  }
 
   Future<void> _openChildDetails() async {
     if (_student == null) return;
@@ -752,9 +812,9 @@ class _GuardianHeroCard extends StatelessWidget {
 
   Color _statusColor(String? s) {
     switch (s) {
-      case 'Present': return const Color(0xFF80CBC4);
-      case 'Absent':  return const Color(0xFFEF9A9A);
-      case 'Leave':   return const Color(0xFFFFCC80);
+      case 'Present': return AppTheme.successLight;
+      case 'Absent':  return AppTheme.dangerLight;
+      case 'Leave':   return AppTheme.warningLight;
       default:        return Colors.white54;
     }
   }
@@ -956,7 +1016,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
       case 'A':  return Colors.green;
       case 'B+': return Colors.teal;
       case 'B':  return Colors.blue.shade700;
-      case 'C':  return const Color(0xFFF57F17);
+      case 'C':  return AppTheme.warning;
       default:   return Colors.red;
     }
   }
@@ -1163,7 +1223,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                       ...result.marks.entries.map((me) {
                         final subj    = me.key;
                         final marks   = me.value;
-                        final subPct  = (marks == null || marks == -1.0)
+                        final subPct  = (marks == null || marks == -1.0 || result.maxMarks <= 0)
                             ? null
                             : marks / result.maxMarks * 100;
                         final subCol  = subPct == null
@@ -1171,7 +1231,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                             : subPct >= 75
                                 ? Colors.green
                                 : subPct >= 50
-                                    ? const Color(0xFFF57F17)
+                                    ? AppTheme.warning
                                     : Colors.red;
                         return Padding(
                           padding:
@@ -1420,7 +1480,8 @@ class _SchoolInfoCard extends StatelessWidget {
 
 class _TodayBanner extends StatelessWidget {
   final String? status;
-  const _TodayBanner({required this.status});
+  final bool hasConsent;
+  const _TodayBanner({required this.status, required this.hasConsent});
 
   @override
   Widget build(BuildContext context) {
@@ -1429,30 +1490,37 @@ class _TodayBanner extends StatelessWidget {
     String title;
     String sub;
 
-    switch (status) {
-      case 'Present':
-        color = Colors.green;
-        icon  = Icons.check_circle_outline;
-        title = 'Present Today';
-        sub   = 'Your child attended school today.';
-        break;
-      case 'Absent':
-        color = Colors.red;
-        icon  = Icons.cancel_outlined;
-        title = 'Absent Today';
-        sub   = 'Your child was marked absent today.';
-        break;
-      case 'Leave':
-        color = const Color(0xFFF57F17);
-        icon  = Icons.event_busy_outlined;
-        title = 'On Leave Today';
-        sub   = 'Your child is on approved leave today.';
-        break;
-      default:
-        color = Colors.grey;
-        icon  = Icons.schedule_outlined;
-        title = 'Attendance Not Marked';
-        sub   = "The class teacher hasn't taken attendance yet today.";
+    if (!hasConsent) {
+      color = Colors.orange;
+      icon  = Icons.lock_outline;
+      title = 'Consent Required';
+      sub   = "Today's attendance status is gated on consent.";
+    } else {
+      switch (status) {
+        case 'Present':
+          color = AppTheme.success;
+          icon  = Icons.check_circle_outline;
+          title = 'Present Today';
+          sub   = 'Your child attended school today.';
+          break;
+        case 'Absent':
+          color = AppTheme.danger;
+          icon  = Icons.cancel_outlined;
+          title = 'Absent Today';
+          sub   = 'Your child was marked absent today.';
+          break;
+        case 'Leave':
+          color = AppTheme.warning;
+          icon  = Icons.event_busy_outlined;
+          title = 'On Leave Today';
+          sub   = 'Your child is on approved leave today.';
+          break;
+        default:
+          color = Colors.grey;
+          icon  = Icons.schedule_outlined;
+          title = 'Attendance Not Marked';
+          sub   = "The class teacher hasn't taken attendance yet today.";
+      }
     }
 
     return Container(
@@ -1521,9 +1589,9 @@ class _AttendanceCalendarCard extends StatelessWidget {
 
   Color _circleColor(String status) {
     switch (status) {
-      case 'Present': return const Color(0xFF43A047);
-      case 'Absent':  return const Color(0xFFE53935);
-      case 'Leave':   return const Color(0xFFF57C00);
+      case 'Present': return AppTheme.success;
+      case 'Absent':  return AppTheme.danger;
+      case 'Leave':   return AppTheme.warning;
       default:        return Colors.transparent;
     }
   }
@@ -1532,10 +1600,10 @@ class _AttendanceCalendarCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final monthLabel = '${_monthNames[month.month - 1]} ${month.year}';
     final pctColor = isLow
-        ? Colors.red
+        ? AppTheme.danger
         : pct >= 85
-            ? Colors.green
-            : const Color(0xFFF57F17);
+            ? AppTheme.success
+            : AppTheme.warning;
 
     final daysInMonth  = DateTime(month.year, month.month + 1, 0).day;
     final firstWeekday = DateTime(month.year, month.month, 1).weekday;
@@ -1602,11 +1670,11 @@ class _AttendanceCalendarCard extends StatelessWidget {
                   _StatCell(
                       value: '$absent',
                       label: 'Absent',
-                      color: Colors.red),
+                      color: AppTheme.danger),
                   _StatCell(
                       value: '$leave',
                       label: 'Leave',
-                      color: const Color(0xFFF57F17)),
+                      color: AppTheme.warning),
                 ],
               ),
             ),
@@ -1739,11 +1807,11 @@ class _AttendanceCalendarCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _legendItem(const Color(0xFF43A047), 'Present'),
+                _legendItem(AppTheme.success, 'Present'),
                 const SizedBox(width: 16),
-                _legendItem(const Color(0xFFE53935), 'Absent'),
+                _legendItem(AppTheme.danger, 'Absent'),
                 const SizedBox(width: 16),
-                _legendItem(const Color(0xFFF57C00), 'Leave'),
+                _legendItem(AppTheme.warning, 'Leave'),
               ],
             ),
           ),
@@ -2452,7 +2520,7 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
       case 'A':  return Colors.green;
       case 'B+': return Colors.teal;
       case 'B':  return Colors.blue.shade700;
-      case 'C':  return const Color(0xFFF57F17);
+      case 'C':  return AppTheme.warning;
       default:   return Colors.red;
     }
   }
@@ -2569,13 +2637,13 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
                               ...result.marks.entries.map((me) {
                                 final subj = me.key;
                                 final marks = me.value;
-                                final subPct = (marks == null || marks == -1.0) ? null : marks / result.maxMarks * 100;
+                                final subPct = (marks == null || marks == -1.0 || result.maxMarks <= 0) ? null : marks / result.maxMarks * 100;
                                 final subCol = subPct == null
                                     ? Colors.grey
                                     : subPct >= 75
                                         ? Colors.green
                                         : subPct >= 50
-                                            ? const Color(0xFFF57F17)
+                                            ? AppTheme.warning
                                             : Colors.red;
                                 return Padding(
                                   padding: const EdgeInsets.symmetric(vertical: 4),
@@ -2954,6 +3022,55 @@ class GuardianConsentScreen extends StatelessWidget {
     this.guardianEmail,
   });
 
+  void _showPrivacyNoticeDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        String lang = 'en';
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Expanded(child: Text(context.tr('privacyNotice'))),
+                  Text(context.tr('languageColon'), style: const TextStyle(fontSize: 12)),
+                  const SizedBox(width: 4),
+                  DropdownButton<String>(
+                    value: lang,
+                    underline: const SizedBox.shrink(),
+                    style: const TextStyle(fontSize: 12, color: Colors.black),
+                    items: const [
+                      DropdownMenuItem(value: 'en', child: Text('English')),
+                      DropdownMenuItem(value: 'hi', child: Text('हिंदी')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setState(() => lang = v);
+                    },
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Text(
+                    privacyNoticeBody(lang),
+                    style: const TextStyle(fontSize: 12, height: 1.4),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2963,26 +3080,83 @@ class GuardianConsentScreen extends StatelessWidget {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: GuardianConsentSection(
-            studentDocId: studentDocId,
-            studentName: studentName,
-            guardianName: guardianName,
-            guardianPhone: guardianPhone,
-            guardianEmail: guardianEmail,
-          ),
+              child: GuardianConsentSection(
+                studentDocId: studentDocId,
+                studentName: studentName,
+                guardianName: guardianName,
+                guardianPhone: guardianPhone,
+                guardianEmail: guardianEmail,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.description_outlined, color: AppTheme.primary, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        context.tr('privacyNotice'),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Review the official privacy notice detailing how student data is processed, stored, and protected.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showPrivacyNoticeDialog(context),
+                      icon: const Icon(Icons.info_outline, size: 16),
+                      label: const Text('Read Privacy Policy'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primary,
+                        side: const BorderSide(color: AppTheme.primary),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

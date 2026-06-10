@@ -208,61 +208,71 @@ class _ParentalConsentFlowState extends State<ParentalConsentFlow> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: Text(widget.isReConsent ? context.tr('renewConsent') : context.tr('parentalConsent')),
-        leading: _step == 0
-            ? CloseButton(onPressed: () => Navigator.pop(context, null))
-            : BackButton(onPressed: () => _goTo(_step - 1)),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
-          child: _StepProgress(step: _step, total: 5),
+    return PopScope(
+      canPop: _step == 0 || _step == 4,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _step > 0 && _step < 4) {
+          _goTo(_step - 1);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.background,
+        appBar: AppBar(
+          title: Text(widget.isReConsent ? context.tr('renewConsent') : context.tr('parentalConsent')),
+          leading: _step == 0
+              ? CloseButton(onPressed: () => Navigator.pop(context, null))
+              : _step == 4
+                  ? const SizedBox.shrink()
+                  : BackButton(onPressed: () => _goTo(_step - 1)),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(4),
+            child: _StepProgress(step: _step, total: 5),
+          ),
         ),
-      ),
-      body: PageView(
-        controller:  _pageCtrl,
-        physics:     const NeverScrollableScrollPhysics(),
-        onPageChanged: (i) => setState(() => _step = i),
-        children: [
-          _GuardianDetailsStep(
-            formKey:    _formKey,
-            nameCtrl:   _nameCtrl,
-            phoneCtrl:  _phoneCtrl,
-            emailCtrl:  _emailCtrl,
-            studentName: widget.studentName,
-            onNext: () { if (_validateStep0()) _next(); },
-          ),
-          _PrivacyNoticeStep(
-            lang:   _lang,
-            onLangToggle: (l) => setState(() => _lang = l),
-            onNext: _next,
-          ),
-          _ScopeSelectionStep(
-            scopes:   _scopes,
-            onChange: (updated) => setState(() => _scopes = updated),
-            onNext:   _next,
-          ),
-          _OtpStep(
-            method:           _method,
-            onMethodChanged:  (m) => setState(() => _method = m),
-            phoneNumber:      _phoneCtrl.text.trim(),
-            otpSending:       _otpSending,
-            otpSent:          _otpSent,
-            verifying:        _verifying || _submitting,
-            otpError:         _otpError,
-            otpCtrl:          _otpCtrl,
-            inPersonConfirmed: _inPersonConfirmed,
-            onInPersonToggle: (v) => setState(() => _inPersonConfirmed = v),
-            onSendOtp:        _sendOtp,
-            onVerifyOtp:      _verifyOtp,
-            onInPersonSubmit: _submitInPersonConsent,
-          ),
-          _SuccessStep(
-            consent:  _result,
-            onDone:   () => Navigator.pop(context, _result),
-          ),
-        ],
+        body: PageView(
+          controller:  _pageCtrl,
+          physics:     const NeverScrollableScrollPhysics(),
+          onPageChanged: (i) => setState(() => _step = i),
+          children: [
+            _GuardianDetailsStep(
+              formKey:    _formKey,
+              nameCtrl:   _nameCtrl,
+              phoneCtrl:  _phoneCtrl,
+              emailCtrl:  _emailCtrl,
+              studentName: widget.studentName,
+              onNext: () { if (_validateStep0()) _next(); },
+            ),
+            _PrivacyNoticeStep(
+              lang:   _lang,
+              onLangToggle: (l) => setState(() => _lang = l),
+              onNext: _next,
+            ),
+            _ScopeSelectionStep(
+              scopes:   _scopes,
+              onChange: (updated) => setState(() => _scopes = updated),
+              onNext:   _next,
+            ),
+            _OtpStep(
+              method:           _method,
+              onMethodChanged:  (m) => setState(() => _method = m),
+              phoneNumber:      _phoneCtrl.text.trim(),
+              otpSending:       _otpSending,
+              otpSent:          _otpSent,
+              verifying:        _verifying || _submitting,
+              otpError:         _otpError,
+              otpCtrl:          _otpCtrl,
+              inPersonConfirmed: _inPersonConfirmed,
+              onInPersonToggle: (v) => setState(() => _inPersonConfirmed = v),
+              onSendOtp:        _sendOtp,
+              onVerifyOtp:      _verifyOtp,
+              onInPersonSubmit: _submitInPersonConsent,
+            ),
+            _SuccessStep(
+              consent:  _result,
+              onDone:   () => Navigator.pop(context, _result),
+            ),
+          ],
+        ),
       ),
     );
   }

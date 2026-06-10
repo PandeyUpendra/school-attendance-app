@@ -124,7 +124,7 @@ class _CopyCheckingScreenState extends State<CopyCheckingScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -676,7 +676,7 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
         '${c.checkDate.day}/${c.checkDate.month}/${c.checkDate.year}';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -773,7 +773,7 @@ class _AllStudentsTab extends StatelessWidget {
               _SumChip(
                 count: statuses.where((s) => s.status == 'not_done').length,
                 label: context.tr('copyNotDone'),
-                color: Colors.red,
+                color: AppTheme.danger,
               ),
               const SizedBox(width: 8),
               _SumChip(
@@ -781,26 +781,26 @@ class _AllStudentsTab extends StatelessWidget {
                     .where((s) => s.status == 'incomplete')
                     .length,
                 label: context.tr('copyIncomplete'),
-                color: Colors.orange,
+                color: AppTheme.warning,
               ),
               const SizedBox(width: 8),
               _SumChip(
                 count: statuses.where((s) => s.status == 'checked').length,
                 label: context.tr('copyChecked'),
-                color: Colors.green,
+                color: AppTheme.success,
               ),
               const Spacer(),
               TextButton.icon(
                 onPressed: onCheckAll,
                 icon: const Icon(Icons.check_circle_outline,
-                    size: 16, color: Colors.green),
+                    size: 16, color: AppTheme.success),
                 label: Text(context.tr('allCheck'),
                     style: const TextStyle(
-                        color: Colors.green,
+                        color: AppTheme.success,
                         fontSize: 13,
                         fontWeight: FontWeight.w600)),
                 style: TextButton.styleFrom(
-                  backgroundColor: Colors.green.shade50,
+                  backgroundColor: AppTheme.successLight,
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 6),
                   shape: RoundedRectangleBorder(
@@ -882,9 +882,9 @@ class _StudentStatusTile extends StatelessWidget {
 
   Color get _color {
     switch (status.status) {
-      case 'checked':    return Colors.green;
-      case 'incomplete': return Colors.orange;
-      default:           return Colors.red;
+      case 'checked':    return AppTheme.success;
+      case 'incomplete': return AppTheme.warning;
+      default:           return AppTheme.danger;
     }
   }
 
@@ -935,21 +935,21 @@ class _StudentStatusTile extends StatelessWidget {
               child: Row(children: [
                 _StatusBtn(
                   icon: Icons.cancel_outlined,
-                  color: Colors.red,
+                  color: AppTheme.danger,
                   active: status.status == 'not_done',
                   onTap: () => onStatus('not_done'),
                   tooltip: context.tr('copyNotDone'),
                 ),
                 _StatusBtn(
                   icon: Icons.warning_amber_rounded,
-                  color: Colors.orange,
+                  color: AppTheme.warning,
                   active: status.status == 'incomplete',
                   onTap: () => onStatus('incomplete'),
                   tooltip: context.tr('copyIncomplete'),
                 ),
                 _StatusBtn(
                   icon: Icons.check_circle_outline,
-                  color: Colors.green,
+                  color: AppTheme.success,
                   active: status.status == 'checked',
                   onTap: () => onStatus('checked'),
                   tooltip: context.tr('copyChecked'),
@@ -1027,7 +1027,7 @@ class _PendingTab extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.check_circle_outline,
-                size: 56, color: Colors.green.shade300),
+                size: 56, color: AppTheme.success.withValues(alpha: 0.5)),
             const SizedBox(height: 12),
             Text(context.tr('allCopiesChecked'),
                 style: TextStyle(color: Colors.grey.shade500)),
@@ -1043,7 +1043,7 @@ class _PendingTab extends StatelessWidget {
       itemBuilder: (_, i) {
         final s = pending[i];
         final isNotDone = s.status == 'not_done';
-        final color = isNotDone ? Colors.red : Colors.orange;
+        final color = isNotDone ? AppTheme.danger : AppTheme.warning;
         final label = isNotDone ? context.tr('copyNotDone') : context.tr('copyIncomplete');
 
         return Container(

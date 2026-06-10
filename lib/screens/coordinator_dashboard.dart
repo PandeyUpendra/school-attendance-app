@@ -651,7 +651,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
           if (absent.isNotEmpty) ...[
             Divider(height: 1, color: Colors.grey.shade100),
             _groupLabel('ABSENT  (${absent.length})',
-                const Color(0xFFC62828)),
+                AppTheme.danger),
             for (int i = 0; i < absent.length; i++) ...[
               _StudentRow(
                 note:       absent[i],
@@ -666,7 +666,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
           if (onLeave.isNotEmpty) ...[
             Divider(height: 1, color: Colors.grey.shade100),
             _groupLabel('ON LEAVE  (${onLeave.length})',
-                const Color(0xFFF57F17)),
+                AppTheme.warning),
             for (int i = 0; i < onLeave.length; i++) ...[
               _StudentRow(
                 note:       onLeave[i],
@@ -684,9 +684,9 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
   }
 
   Color _classColor(ClassSummary s) {
-    if (s.absent > 0) return const Color(0xFFC62828);
-    if (s.leave  > 0) return const Color(0xFFF57F17);
-    return const Color(0xFF2E7D32);
+    if (s.absent > 0) return AppTheme.danger;
+    if (s.leave  > 0) return AppTheme.warning;
+    return AppTheme.success;
   }
 
   Widget _groupLabel(String text, Color color) => Padding(
@@ -733,8 +733,8 @@ class _StudentRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final isAbsent   = note.status == 'Absent';
     final statusClr  = isAbsent
-        ? const Color(0xFFC62828)
-        : const Color(0xFFF57F17);
+        ? AppTheme.danger
+        : AppTheme.warning;
     final hasReason  = note.reason != null && note.reason!.isNotEmpty;
 
     return Padding(
@@ -945,7 +945,7 @@ class _CoordHeroCard extends StatelessWidget {
                           ? 'Teacher absent'
                           : 'Teachers absent',
                       alertColor: teachersAbsent > 0
-                          ? const Color(0xFFEF9A9A)
+                          ? AppTheme.dangerLight
                           : Colors.white70,
                     ),
                     const SizedBox(width: 10),
@@ -956,7 +956,7 @@ class _CoordHeroCard extends StatelessWidget {
                           ? 'Bell unassigned'
                           : 'Bells unassigned',
                       alertColor: unassignedBells > 0
-                          ? const Color(0xFFFFCC80)
+                          ? AppTheme.warningLight
                           : Colors.white70,
                     ),
                   ]),

@@ -6,6 +6,7 @@ import '../services/substitution_history_service.dart';
 import '../services/substitution_suggester_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
+import '../utils/school_clock.dart';
 
 /// One-screen plan for covering an absent teacher's bells across their leave.
 ///
@@ -87,7 +88,7 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
       final now = DateTime.now();
       await histSvc.logSubstitution(SubstitutionRecord(
         id:                    '',
-        dateKey:               '${slot.date.year}-${slot.date.month}-${slot.date.day}',
+        dateKey:               SchoolClock.dateKey(slot.date),
         date:                  slot.date,
         className:             slot.className,
         bell:                  slot.bell,
@@ -242,19 +243,12 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
     // Group by date.
     final groups = <String, List<SuggestedSlot>>{};
     for (final s in _slots) {
-      final k = '${s.date.year}-${s.date.month}-${s.date.day}';
+      final k = SchoolClock.dateKey(s.date);
       groups.putIfAbsent(k, () => []).add(s);
     }
-    // Sort by actual date, not lexicographically — the keys are unpadded
-    // 'YYYY-M-D', so a string sort misorders e.g. day 9 vs day 10 and across
-    // months (#97).
-    final dateKeys = groups.keys.toList()
-      ..sort((a, b) {
-        final pa = a.split('-').map(int.parse).toList();
-        final pb = b.split('-').map(int.parse).toList();
-        return DateTime(pa[0], pa[1], pa[2])
-            .compareTo(DateTime(pb[0], pb[1], pb[2]));
-      });
+    // Sort by actual date, now lexicographically correct with zero-padded keys (#109).
+    // With zero-padded ISO 8601 keys, lexicographic string sort is correct.
+    final dateKeys = groups.keys.toList()..sort();
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 16),

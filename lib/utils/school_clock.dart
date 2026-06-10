@@ -1,6 +1,6 @@
 /// Single source of "what day is it" for attendance and other date-keyed data.
 ///
-/// Attendance documents are keyed by calendar date (`<class>_<section>_Y-M-D`).
+/// Attendance documents are keyed by calendar date (`<class>_<section>_YYYY-MM-DD`).
 /// Using the raw device `DateTime.now()` meant the day boundary followed the
 /// phone's timezone: a device set to a different timezone (or one a traveller
 /// carries across the date line) would read/write attendance under the wrong
@@ -25,4 +25,15 @@ abstract class SchoolClock {
     final n = now();
     return DateTime(n.year, n.month, n.day);
   }
+
+  /// ISO 8601 date key for [d]: `'YYYY-MM-DD'` with zero-padded month and day.
+  ///
+  /// All attendance, substitution, and timetable services MUST use this method
+  /// so keys are consistent across the app (#109). Old documents may use the
+  /// non-padded `'YYYY-M-D'` format; new writes always produce the padded form.
+  static String dateKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  /// Convenience: today's date key in IST.
+  static String todayKey() => dateKey(today());
 }

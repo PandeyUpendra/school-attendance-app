@@ -16,6 +16,7 @@ import '../../services/timetable_service.dart';
 import '../../l10n/app_strings.dart';
 import '../../theme.dart';
 import '../../widgets/refreshable_data.dart';
+import '../../utils/app_logger.dart';
 
 class AbsentTeachersScreen extends StatefulWidget {
   const AbsentTeachersScreen({super.key});
@@ -98,7 +99,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
             leaveReasons[tid] = (leave['reason'] as String?) ?? '';
           }
         }
-      } catch (_) {}
+      } catch (e, st) { AppLogger.e('AbsentTeachersScreen', 'Best-effort load failed', e, st); }
     }
 
     // Manually marked absences for today
@@ -138,7 +139,8 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
           .get();
       if (!doc.exists || doc.data() == null) return {};
       return Map<String, dynamic>.from(doc.data()!);
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e('AbsentTeachersScreen', 'Failed to fetch teacher attendance', e, st);
       return {};
     }
   }

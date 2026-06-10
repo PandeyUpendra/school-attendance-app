@@ -460,9 +460,9 @@ class _StudentCard extends StatelessWidget {
   });
 
   Color get _barColor {
-    if (pct >= 85) return Colors.green;
-    if (pct >= 75) return const Color(0xFFF57F17);
-    return Colors.red;
+    if (pct >= 85) return AppTheme.success;
+    if (pct >= 75) return AppTheme.warning;
+    return AppTheme.danger;
   }
 
   @override
@@ -659,9 +659,9 @@ class _StudentCalendarScreenState extends State<_StudentCalendarScreen> {
 
   Color _statusColor(String? status) {
     switch (status) {
-      case 'Present': return Colors.green;
-      case 'Absent':  return Colors.red;
-      case 'Leave':   return const Color(0xFFF57F17);
+      case 'Present': return AppTheme.success;
+      case 'Absent':  return AppTheme.danger;
+      case 'Leave':   return AppTheme.warning;
       default:        return Colors.transparent;
     }
   }
@@ -742,21 +742,21 @@ class _StudentCalendarScreenState extends State<_StudentCalendarScreen> {
                   _CalStat(
                       label: 'Present',
                       value: '$_present',
-                      color: Colors.green),
+                      color: AppTheme.success),
                   _CalStat(
                       label: 'Absent',
                       value: '$_absent',
-                      color: Colors.red),
+                      color: AppTheme.danger),
                   _CalStat(
                       label: 'Leave',
                       value: '$_leave',
-                      color: const Color(0xFFF57F17)),
+                      color: AppTheme.warning),
                   _CalStat(
                       label: 'Attendance',
                       value: _workingDays > 0
                           ? '${_pct.toStringAsFixed(1)}%'
                           : '—',
-                      color: isLow ? Colors.red : AppTheme.primary),
+                      color: isLow ? AppTheme.danger : AppTheme.primary),
                 ],
               ),
             ),
@@ -892,12 +892,12 @@ class _StudentCalendarScreenState extends State<_StudentCalendarScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _Legend(color: Colors.green, label: context.tr('presentLabel')),
+                  _Legend(color: AppTheme.success, label: context.tr('presentLabel')),
                   const SizedBox(width: 18),
-                  _Legend(color: Colors.red, label: context.tr('absentLabel')),
+                  _Legend(color: AppTheme.danger, label: context.tr('absentLabel')),
                   const SizedBox(width: 18),
                   _Legend(
-                      color: const Color(0xFFF57F17), label: context.tr('leaveLabel')),
+                      color: AppTheme.warning, label: context.tr('leaveLabel')),
                   const SizedBox(width: 18),
                   _Legend(
                       color: Colors.grey.shade300, label: context.tr('noSchoolLabel')),

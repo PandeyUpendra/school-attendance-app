@@ -507,7 +507,7 @@ class _EmptyBlock extends StatelessWidget {
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF444444),
+              color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 4),
@@ -646,7 +646,7 @@ class _BirthdayCard extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1A1A1A),
+                              color: AppTheme.textPrimary,
                             ),
                           ),
                           if (_subtitle.isNotEmpty) ...[
@@ -680,7 +680,7 @@ class _BirthdayCard extends StatelessWidget {
                     _ActionBtn(
                       icon: Icons.chat,
                       label: 'WhatsApp',
-                      color: const Color(0xFF25D366),
+                      color: AppTheme.whatsapp,
                       enabled: _hasPhone,
                       onTap: _hasPhone
                           ? () => _showMessageSheet(context)
@@ -1011,7 +1011,7 @@ class _CustomMessageSheetState extends State<_CustomMessageSheet> {
               icon: const Icon(Icons.send_rounded),
               label: Text(context.tr('sendViaWhatsapp')),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF25D366),
+                backgroundColor: AppTheme.whatsapp,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -1182,7 +1182,7 @@ class _MonthlyStatsState extends State<_MonthlyStats> {
                         color: isSelected
                             ? AppTheme.primary
                             : hasBirthday
-                                ? const Color(0xFFF3E5F5)
+                                ? AppTheme.primaryLight.withValues(alpha: 0.2)
                                 : Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(6),
                         border: hasBirthday
@@ -1225,7 +1225,7 @@ class _MonthlyStatsState extends State<_MonthlyStats> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFF3E5F5),
+                color: AppTheme.primaryLight.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                     color: AppTheme.primary.withValues(alpha: 0.3)),
@@ -1385,9 +1385,9 @@ class _BirthdayBannerState extends State<BirthdayBanner> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF3E0),
+                color: AppTheme.warningLight,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFF57F17)),
+                border: Border.all(color: AppTheme.warning),
               ),
               child: Row(children: [
                 const Text('🎂', style: TextStyle(fontSize: 22)),
@@ -1401,7 +1401,7 @@ class _BirthdayBannerState extends State<BirthdayBanner> {
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: Color(0xFFF57F17),
+                          color: AppTheme.warning,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -1421,7 +1421,7 @@ class _BirthdayBannerState extends State<BirthdayBanner> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF57F17),
+                    color: AppTheme.warning,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Text(

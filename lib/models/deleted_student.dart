@@ -14,7 +14,6 @@ class DeletedStudent {
   final String name;
   final String className;
   final String section;
-  final String? guardianEmail;
 
   /// Class teacher who owned the student record — used to scope a class
   /// teacher's view to their own students. May be null on legacy records.
@@ -29,7 +28,6 @@ class DeletedStudent {
     required this.name,
     this.className = '',
     this.section = '',
-    this.guardianEmail,
     this.teacherId,
     this.deletedAt,
   });
@@ -39,8 +37,6 @@ class DeletedStudent {
         'name': name,
         'className': className,
         'section': section,
-        if (guardianEmail != null && guardianEmail!.isNotEmpty)
-          'guardianEmail': guardianEmail,
         if (teacherId != null && teacherId!.isNotEmpty) 'teacherId': teacherId,
         'deletedAt': deletedAt ?? FieldValue.serverTimestamp(),
       };
@@ -52,7 +48,6 @@ class DeletedStudent {
         name: json['name'] as String? ?? 'Unknown',
         className: json['className'] as String? ?? '',
         section: json['section'] as String? ?? '',
-        guardianEmail: json['guardianEmail'] as String?,
         teacherId: json['teacherId'] as String?,
         deletedAt: json['deletedAt'] as Timestamp?,
       );

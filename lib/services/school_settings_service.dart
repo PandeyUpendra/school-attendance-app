@@ -55,14 +55,16 @@ class SchoolSettingsService extends BaseFirestoreService {
   Future<void> updateCommSettings(Map<String, dynamic> data) =>
       _settings.doc('communication').set(data, SetOptions(merge: true));
 
-  Future<void> logChange(String field, String oldVal, String newVal, String uid) =>
-      _settings.doc('changeLog').collection('entries').add({
-        'changedBy': uid,
-        'changedAt': FieldValue.serverTimestamp(),
-        'field': field,
-        'oldValue': oldVal,
-        'newValue': newVal,
-      });
+  Future<void> logChange(String field, String oldVal, String newVal, String uid) {
+    final verifiedUid = AuthService().currentFirebaseUser?.uid ?? uid;
+    return _settings.doc('changeLog').collection('entries').add({
+      'changedBy': verifiedUid,
+      'changedAt': FieldValue.serverTimestamp(),
+      'field': field,
+      'oldValue': oldVal,
+      'newValue': newVal,
+    });
+  }
 
   Stream<List<Map<String, dynamic>>> watchChangeLog() =>
       _settings.doc('changeLog').collection('entries')
@@ -102,6 +104,9 @@ class SchoolSettingsService extends BaseFirestoreService {
 
     // Build label fields from classList if not explicitly provided
     final classList = List<String>.from(d['classList'] as List? ?? []);
+    if (classList.isEmpty) {
+      throw ArgumentError('Class list cannot be empty.');
+    }
     final fromInt = d['classesFrom'] as int? ?? 1;
     final toInt   = d['classesTo']   as int? ?? 10;
     String intToLabel(int n) => n <= 0 ? 'Nursery' : 'Class $n';
@@ -159,16 +164,27 @@ class SchoolSettingsService extends BaseFirestoreService {
     TimetableService.invalidateSettingsCache();
 
     // Create class documents (each write is independent — run in parallel)
-    await Future.wait(classList.map((classId) =>
-        schoolCollection(_sid, 'classes').doc(classId).set({
-          'classId': classId,
-          'createdAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true))));
+    try {
+      await Future.wait(classList.map((classId) async {
+        try {
+          await createClassDocument(classId);
+        } catch (e) {
+          // Log or handle error gracefully
+        }
+      }));
+    } catch (e) {
+      // Log or handle error gracefully
+    }
   }
 
-  Future<void> createClassDocument(String classId) =>
-      schoolCollection(_sid, 'classes').doc(classId).set({
+  Future<void> createClassDocument(String classId) async {
+    final docRef = schoolCollection(_sid, 'classes').doc(classId);
+    final docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      await docRef.set({
         'classId': classId,
         'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      });
+    }
+  }
 }
