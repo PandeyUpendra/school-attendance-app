@@ -17,7 +17,6 @@ import 'attendance_screen.dart';
 import 'student_list_screen.dart';
 import 'deleted_students_screen.dart';
 import 'my_timetable_screen.dart';
-import 'role_selection_screen.dart';
 import 'class_picker_screen.dart';
 import 'leave_application_screen.dart';
 import 'student_leave_requests_screen.dart';
@@ -275,22 +274,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       context,
                       MaterialPageRoute(builder: (_) => const ProfileScreen()),
                     ),
-                  ),
-                  // Logout
-                  IconButton(
-                    icon: const Icon(Icons.logout,
-                        color: Colors.white70, size: 20),
-                    tooltip: 'Logout',
-                    onPressed: () async {
-                      await AuthService().clearSession();
-                      if (!mounted) return;
-                      if (!context.mounted) return;
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                            builder: (_) => const RoleSelectionScreen()),
-                        (route) => false,
-                      );
-                    },
                   ),
                 ]),
 

@@ -23,7 +23,6 @@ import '../../widgets/email_text_form_field.dart';
 import '../../utils/role_guard.dart';
 import '../onboarding/school_onboarding_screen.dart';
 import '../principal_dashboard.dart';
-import '../role_selection_screen.dart';
 import 'staff_directory_helpers.dart';
 import '../../widgets/refreshable_data.dart';
 
@@ -78,32 +77,7 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
     });
   }
 
-  void _confirmSignOut() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Sign Out?'),
-        content: const Text('You will be returned to the login screen.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await AuthService().clearSession();
-              if (!mounted) return;
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-                (_) => false,
-              );
-            },
-            child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -220,11 +194,6 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
                       context,
                       MaterialPageRoute(builder: (_) => const ProfileScreen()),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.logout, color: Colors.white70, size: 20),
-                    tooltip: 'Logout',
-                    onPressed: _confirmSignOut,
                   ),
                 ]),
                 const SizedBox(height: 6),

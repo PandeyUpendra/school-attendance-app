@@ -23,7 +23,6 @@ import '../services/teacher_deletion_service.dart';
 import '../services/base_firestore_service.dart';
 import 'my_timetable_screen.dart';
 import 'student_details_screen.dart';
-import 'role_selection_screen.dart';
 import 'announcements_screen.dart';
 import 'notifications_screen.dart';
 import 'analytics_screen.dart';
@@ -208,14 +207,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     }
   }
 
-  Future<void> _logout() async {
-    await AuthService().clearSession();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-      (route) => false,
-    );
-  }
+
 
   Future<void> _navigate(Widget screen) =>
       Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
@@ -245,7 +237,6 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               await _navigate(const NotificationsScreen(role: 'principal'));
               _refreshLastSeen();
             },
-            onLogout: _logout,
             onTeachersAbsentTap: () => _navigate(
               const LeaveRequestsScreen(viewerRole: 'principal'),
             ),
@@ -704,7 +695,6 @@ class _PrincipalHeroCard extends StatelessWidget {
   final int  unassignedBells;
   final int  unreadNotifCount;
   final VoidCallback onNotifTap;
-  final VoidCallback onLogout;
   final VoidCallback onTeachersAbsentTap;
   final VoidCallback onBellsTap;
 
@@ -714,7 +704,6 @@ class _PrincipalHeroCard extends StatelessWidget {
     required this.unassignedBells,
     required this.unreadNotifCount,
     required this.onNotifTap,
-    required this.onLogout,
     required this.onTeachersAbsentTap,
     required this.onBellsTap,
   });
@@ -794,13 +783,6 @@ class _PrincipalHeroCard extends StatelessWidget {
                       context,
                       MaterialPageRoute(builder: (_) => const ProfileScreen()),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.logout,
-                        color: Colors.white, size: 20),
-                    padding: const EdgeInsets.all(8),
-                    constraints: const BoxConstraints(),
-                    onPressed: onLogout,
                   ),
                   const SizedBox(width: 4),
                 ]),

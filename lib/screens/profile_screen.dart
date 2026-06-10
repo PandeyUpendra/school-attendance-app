@@ -7,6 +7,7 @@ import '../providers/locale_provider.dart';
 import '../services/auth_service.dart';
 import '../services/timetable_service.dart';
 import '../theme.dart';
+import 'role_selection_screen.dart';
 
 /// Profile screen available to every role. Shows the signed-in user's own
 /// account details, read from the session and their `allowed_users` document.
@@ -28,6 +29,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _schoolName = '';
   List<String> _classes = [];
   List<String> _children = []; // guardian: "Name · Class · Roll N"
+
+  Future<void> _logout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(context.tr('logOut')),
+        content: Text(context.tr('logoutConfirm')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              context.tr('logOut'),
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await AuthService().clearSession();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      (route) => false,
+    );
+  }
 
   @override
   void initState() {
@@ -175,6 +207,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _languageRow(context),
 
                 const SizedBox(height: 24),
+
+                // ── Logout Button ─────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade600,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: _logout,
+                    icon: const Icon(Icons.logout),
+                    label: Text(
+                      context.tr('logOut'),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 40),
               ],
             ),
     );

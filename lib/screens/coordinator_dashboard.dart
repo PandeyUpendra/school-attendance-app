@@ -15,7 +15,6 @@ import 'assign_duties_screen.dart';
 import 'student_details_screen.dart';
 import 'promotion_screen.dart';
 import 'my_timetable_screen.dart';
-import 'role_selection_screen.dart';
 import 'free_bells_screen.dart';
 import 'substitution_history_screen.dart';
 import 'leave_requests_screen.dart';
@@ -226,15 +225,6 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               await _navigate(const NotificationsScreen(
                 role: 'coordinator'));
               _refreshLastSeen();
-            },
-            onLogout: () async {
-              await AuthService().clearSession();
-              if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-                  (route) => false,
-                );
-              }
             },
           ),
           Expanded(
@@ -853,7 +843,6 @@ class _CoordHeroCard extends StatelessWidget {
   final int  unassignedBells;
   final int  unreadNotifCount;
   final VoidCallback onNotifTap;
-  final VoidCallback onLogout;
 
   const _CoordHeroCard({
     required this.loading,
@@ -861,7 +850,6 @@ class _CoordHeroCard extends StatelessWidget {
     required this.unassignedBells,
     required this.unreadNotifCount,
     required this.onNotifTap,
-    required this.onLogout,
   });
 
   @override
@@ -936,13 +924,6 @@ class _CoordHeroCard extends StatelessWidget {
                       context,
                       MaterialPageRoute(builder: (_) => const ProfileScreen()),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.logout,
-                        color: Colors.white, size: 20),
-                    padding: const EdgeInsets.all(8),
-                    constraints: const BoxConstraints(),
-                    onPressed: onLogout,
                   ),
                   const SizedBox(width: 4),
                 ]),

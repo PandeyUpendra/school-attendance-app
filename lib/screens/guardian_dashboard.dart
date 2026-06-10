@@ -23,7 +23,6 @@ import '../services/notification_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
 import '../utils/role_guard.dart';
-import 'role_selection_screen.dart';
 import 'announcements_screen.dart';
 import 'guardian_leave_application_screen.dart';
 import 'notifications_screen.dart';
@@ -618,14 +617,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     }
   }
 
-  Future<void> _logout() async {
-    await AuthService().clearSession();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-      (route) => false,
-    );
-  }
+
 
   /// Horizontal chips to switch between this guardian's children. Hidden when
   /// there's only one child linked to the email.
@@ -704,7 +696,6 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
               );
               _refreshLastSeen();
             },
-            onLogout: _logout,
           ),
 
           // ── Child switcher (only when this guardian has >1 child) ───────
@@ -748,7 +739,6 @@ class _GuardianHeroCard extends StatelessWidget {
   final bool    loading;
   final int     unreadNotifCount;
   final VoidCallback onNotifTap;
-  final VoidCallback onLogout;
 
   const _GuardianHeroCard({
     required this.studentName,
@@ -758,7 +748,6 @@ class _GuardianHeroCard extends StatelessWidget {
     required this.loading,
     required this.unreadNotifCount,
     required this.onNotifTap,
-    required this.onLogout,
   });
 
   Color _statusColor(String? s) {
@@ -852,13 +841,6 @@ class _GuardianHeroCard extends StatelessWidget {
                       context,
                       MaterialPageRoute(builder: (_) => const ProfileScreen()),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.logout,
-                        color: Colors.white, size: 20),
-                    padding: const EdgeInsets.all(8),
-                    constraints: const BoxConstraints(),
-                    onPressed: onLogout,
                   ),
                   const SizedBox(width: 4),
                 ]),
