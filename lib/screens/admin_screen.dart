@@ -357,28 +357,6 @@ class _AdminScreenState extends State<AdminScreen> {
           ]),
           const SizedBox(height: 18),
 
-          // Role — fixed to Owner (admin creates owners only), shown read-only.
-          _fieldLabel(context.tr('roleCaps')),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            decoration: BoxDecoration(
-              color: AppTheme.background,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Row(children: [
-              Icon(_roleIcon('owner'), color: _roleColor('owner'), size: 18),
-              const SizedBox(width: 10),
-              Text(context.trRole('owner'),
-                  style:
-                      const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-              const Spacer(),
-              Icon(Icons.lock_outline, size: 14, color: Colors.grey.shade400),
-            ]),
-          ),
-          const SizedBox(height: 14),
-
           // Email
           _fieldLabel(context.tr('emailAddressCaps')),
           const SizedBox(height: 6),

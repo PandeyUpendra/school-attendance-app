@@ -1606,8 +1606,8 @@ class AppStrings {
 /// rebuilds the widget when the language changes.
 extension L10nExtension on BuildContext {
   String tr(String key) =>
-      AppStrings.get(Provider.of<LocaleProvider>(this).code, key);
+      AppStrings.get(Provider.of<LocaleProvider>(this, listen: false).code, key);
 
   String trRole(String roleId) =>
-      AppStrings.role(Provider.of<LocaleProvider>(this).code, roleId);
+      AppStrings.role(Provider.of<LocaleProvider>(this, listen: false).code, roleId);
 }
