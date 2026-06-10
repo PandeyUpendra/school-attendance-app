@@ -381,7 +381,12 @@ class FeeService extends BaseFirestoreService {
   }
 
   /// roll → totalPaid (rupees) for [rolls] in [className], sourced from a
-  /// pre-fetched aggregation when available, else the per-roll query path.
+  /// pre-fetched aggregation when available.
+  ///
+  /// When the aggregation map is null (fetch failed) it falls back to a single
+  /// class-wide summary query via [getClassFeeOverview] — one Firestore read
+  /// per class, not per student (#652). Students not found in either source
+  /// default to 0.0 (no payments on record).
   Future<Map<int, double>> _classPaid(
     String className,
     List<int> rolls,
@@ -389,20 +394,17 @@ class FeeService extends BaseFirestoreService {
   ) async {
     if (agg != null) {
       final m = agg[className] ?? const {};
-      final out = <int, double>{};
-      for (final r in rolls) {
-        if (m.containsKey(r)) {
-          out[r] = paiseToRupees(m[r]!);
-        } else {
-          out[r] = await getTotalPaid(className: className, roll: r);
-        }
-      }
-      return out;
+      return {for (final r in rolls) r: paiseToRupees(m[r] ?? 0)};
     }
     return getClassFeeOverview(className: className, rolls: rolls);
   }
 
-  /// Returns { roll → totalPaid } for every student in a class by querying the class student summary collection.
+  /// Returns { roll → totalPaid } for every student in a class using the
+  /// per-class student summary sub-collection.
+  ///
+  /// Fires a single Firestore read per class. Students absent from the
+  /// summary collection (no payment history yet) default to 0.0 — no
+  /// sequential per-student fallback (#652).
   Future<Map<int, double>> getClassFeeOverview({String? schoolId, required String className, required List<int> rolls}) async {
     if (rolls.isEmpty) return {};
     final snap = await schoolCollection(_sid, 'fee_payments')
@@ -410,7 +412,6 @@ class FeeService extends BaseFirestoreService {
         .collection('students')
         .get();
 
-    final result = <int, double>{};
     final found = <int, int>{};
     for (final doc in snap.docs) {
       final r = int.tryParse(doc.id);
@@ -419,14 +420,8 @@ class FeeService extends BaseFirestoreService {
       }
     }
 
-    for (final roll in rolls) {
-      if (found.containsKey(roll)) {
-        result[roll] = paiseToRupees(found[roll]!);
-      } else {
-        result[roll] = await getTotalPaid(className: className, roll: roll);
-      }
-    }
-    return result;
+    // Default to 0 for rolls without a summary doc (no payments yet).
+    return {for (final roll in rolls) roll: paiseToRupees(found[roll] ?? 0)};
   }
 
   // ── School-wide class summaries (for FeeOverviewScreen) ───────────────────

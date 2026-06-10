@@ -227,7 +227,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     final exams = await _examService.getExams(className: _activeClass);
     if (exams.isEmpty) return [];
     final resultFuts =
-        exams.map((e) => _examService.getResult(e.id, _activeRoll));
+        exams.map((e) => _examService.getResult(e.id, _activeRoll, className: _activeClass));
     final results = await Future.wait(resultFuts);
     return List.generate(exams.length, (i) => MapEntry(exams[i], results[i]));
   }

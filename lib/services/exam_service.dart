@@ -103,6 +103,16 @@ class ExamService extends BaseFirestoreService {
 
   // ── Results ────────────────────────────────────────────────────────────────
 
+  /// Builds a section-scoped Firestore document ID for an exam result.
+  ///
+  /// Using `{className}_{roll}` (e.g. `Class_9-A_1`) prevents roll-number
+  /// collisions when the same exam is created for multiple sections of the same
+  /// grade (e.g. Class 9-A and Class 9-B both have roll 1 — #627).
+  static String _resultDocId(int roll, String className) {
+    final cls = className.replaceAll(' ', '_');
+    return '${cls}_$roll';
+  }
+
   /// Get all results for an exam.
   Future<List<ExamResult>> getResults(
       {String? schoolId, required String examId}) async {
@@ -114,34 +124,49 @@ class ExamService extends BaseFirestoreService {
       ..sort((a, b) => a.roll.compareTo(b.roll));
   }
 
-  /// Get result for a single student in an exam.
-  Future<ExamResult?> getResult(String examId, int roll) async {
+  /// Get result for a single student in an exam, scoped by [className] to
+  /// prevent section collisions (#627). The doc ID is `{className}_{roll}`.
+  ///
+  /// Falls back to the legacy roll-only doc if the section-scoped one is
+  /// absent — this keeps existing data accessible during the transition.
+  Future<ExamResult?> getResult(String examId, int roll, {String className = ''}) async {
+    if (className.isNotEmpty) {
+      final scopedDoc = await _resultsCol(examId).doc(_resultDocId(roll, className)).get();
+      if (scopedDoc.exists && scopedDoc.data() != null) {
+        return ExamResult.fromDoc(
+            Map<String, dynamic>.from(scopedDoc.data() as Map));
+      }
+    }
+    // Legacy fallback: roll-only doc (written before #627 fix).
     final doc = await _resultsCol(examId).doc('$roll').get();
     if (!doc.exists || doc.data() == null) return null;
     return ExamResult.fromDoc(
         Map<String, dynamic>.from(doc.data() as Map));
   }
 
-  /// Save / update marks for a student. Detects create vs update automatically.
+  /// Save / update marks for a student. Uses class-scoped doc ID to prevent
+  /// section collisions (#627). Detects create vs update automatically.
   Future<void> saveResult(
       {String? schoolId,
       required String examId,
       required ExamResult result}) async {
-    final prev   = await _resultsCol(examId).doc('${result.roll}').get();
+    final docId = _resultDocId(result.roll, result.className);
+    final prev  = await _resultsCol(examId).doc(docId).get();
     final before = prev.exists && prev.data() != null
         ? Map<String, dynamic>.from(prev.data()! as Map)
         : null;
-    await _resultsCol(examId).doc('${result.roll}').set(result.toJson());
+    await _resultsCol(examId).doc(docId).set(result.toJson());
     AuditService.emit(
       action:   before == null ? 'create' : 'update',
       entity:   'exam_result',
-      entityId: '${examId}_${result.roll}',
+      entityId: '${examId}_${result.className}_${result.roll}',
       before:   before,
       after:    result.toJson(),
     );
   }
 
   /// Get all results for a student across all exams in a class.
+  /// Passes [className] so each result lookup uses the section-scoped doc ID.
   Future<List<ExamResult>> getStudentResults(
       {String? schoolId,
       required String className,
@@ -149,7 +174,7 @@ class ExamService extends BaseFirestoreService {
     final exams = await getExams(className: className);
     if (exams.isEmpty) return [];
 
-    final futures = exams.map((e) => getResult(e.id, roll)).toList();
+    final futures = exams.map((e) => getResult(e.id, roll, className: className)).toList();
     final results = await Future.wait(futures);
     return results.whereType<ExamResult>().toList();
   }

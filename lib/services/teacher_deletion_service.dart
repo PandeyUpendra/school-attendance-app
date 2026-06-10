@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/teacher.dart';
+import '../utils/app_logger.dart';
 import 'auth_service.dart';
 import 'timetable_service.dart';
 
@@ -132,16 +133,17 @@ class TeacherDeletionService {
 
   // ── Approve / reject / cancel ───────────────────────────────────────────
 
-  /// Approves [requestId] and **actually removes the teacher** — deletes the
-  /// teacher doc, scrubs every timetable slot, and revokes their login.
+  /// Approves [requestId] and **atomically removes the teacher** — updates the
+  /// deletion request status, deletes the teacher doc, and scrubs every
+  /// timetable slot in a single [WriteBatch] (#728). This prevents the
+  /// de-sync where the request is marked 'approved' but the teacher record
+  /// persists when the Firestore deletion fails partway through.
   ///
   /// Caller must be principal/admin/owner per security rules.
   ///
-  /// We update the request FIRST so the rules' "only status+reviewer fields"
-  /// constraint is enforced cleanly. Then we remove the teacher. If the
-  /// removal fails after approval, the request is left in 'approved' state
-  /// but the teacher record remains — re-running with the same request id
-  /// is a no-op on the doc and idempotent on the teacher delete.
+  /// The Firebase Auth account cleanup runs best-effort AFTER the batch
+  /// commits so a transient Auth API failure cannot block the atomic data
+  /// cleanup.
   Future<void> approve({
     required String schoolId,
     required String requestId,
@@ -152,10 +154,51 @@ class TeacherDeletionService {
     final reqRef = _collection(schoolId).doc(requestId);
     final snap = await reqRef.get();
     if (!snap.exists) throw StateError('Request no longer exists.');
-    final teacherId = snap.data()!['teacherId'] as String?;
-    final teacherEmail = snap.data()!['teacherEmail'] as String? ?? '';
+    final data = snap.data()!;
+    final teacherId    = data['teacherId']    as String?;
+    final teacherEmail = (data['teacherEmail'] as String? ?? '').trim().toLowerCase();
 
-    await reqRef.update({
+    if (teacherId == null || teacherId.isEmpty) {
+      // No teacher to delete — just mark the request approved.
+      await reqRef.update({
+        'status':         'approved',
+        'reviewedBy':     reviewerEmail.toLowerCase().trim(),
+        'reviewedByRole': reviewerRole,
+        'reviewedByName': reviewerName ?? '',
+        'reviewedAt':     FieldValue.serverTimestamp(),
+      });
+      return;
+    }
+
+    // ── Build atomic WriteBatch ────────────────────────────────────────────
+    // Note: WriteBatch does NOT support reads, so we read everything we need
+    // before starting the batch.
+
+    // 1. Read the teacher's allowed_users email from the teacher doc (in case
+    //    the request's cached email is stale).
+    String resolvedTeacherEmail = teacherEmail;
+    try {
+      final tDoc = await _db
+          .collection('schools').doc(schoolId)
+          .collection('teachers').doc(teacherId)
+          .get();
+      if (tDoc.exists && tDoc.data() != null) {
+        final te = (tDoc.data()!['email'] as String?)?.trim().toLowerCase() ?? '';
+        if (te.isNotEmpty) resolvedTeacherEmail = te;
+      }
+    } catch (_) {}
+
+    // 2. Read all timetable docs so we can scrub this teacher's slots.
+    final ttSnap = await _db
+        .collection('schools').doc(schoolId)
+        .collection('timetable')
+        .get();
+
+    // ── Commit atomic batch ──────────────────────────────────────────────
+    final batch = _db.batch();
+
+    // a. Update the deletion request status.
+    batch.update(reqRef, {
       'status':         'approved',
       'reviewedBy':     reviewerEmail.toLowerCase().trim(),
       'reviewedByRole': reviewerRole,
@@ -163,17 +206,47 @@ class TeacherDeletionService {
       'reviewedAt':     FieldValue.serverTimestamp(),
     });
 
-    if (teacherId != null && teacherId.isNotEmpty) {
-      await _timetableService.removeTeacher(schoolId, teacherId);
+    // b. Delete the teacher document.
+    batch.delete(
+        _db.collection('schools').doc(schoolId).collection('teachers').doc(teacherId));
+
+    // c. Scrub teacher from every timetable slot.
+    for (final doc in ttSnap.docs) {
+      final raw = Map<String, dynamic>.from(
+          (doc.data()['data'] as Map?) ?? {});
+      var dirty = false;
+      raw.forEach((day, bellsRaw) {
+        final bells = Map<String, dynamic>.from(bellsRaw as Map);
+        bells.forEach((bell, entryRaw) {
+          final e = Map<String, dynamic>.from(entryRaw as Map);
+          if (e['teacherId'] == teacherId) {
+            bells[bell] = {'teacherId': null, 'subject': null};
+            dirty = true;
+          }
+        });
+        raw[day] = bells;
+      });
+      if (dirty) batch.set(doc.reference, {'data': raw});
     }
-    if (teacherEmail.isNotEmpty) {
-      // Revoke login. removeAllowedUser only deletes the Firestore doc;
-      // the Firebase Auth account remains but cannot resolve a role on
-      // next login, so the user falls through to the LoginScreen denial.
+
+    // d. Remove the allowed_users doc to revoke login access.
+    if (resolvedTeacherEmail.isNotEmpty && resolvedTeacherEmail.contains('@')) {
+      batch.delete(_db.collection('allowed_users').doc(resolvedTeacherEmail));
+    }
+
+    await batch.commit();
+
+    // ── Best-effort: revoke Firebase Auth account ────────────────────────
+    // Runs AFTER the batch so a transient Auth API failure cannot rollback
+    // the data cleanup. The teacher is already fully removed from Firestore.
+    if (resolvedTeacherEmail.isNotEmpty && resolvedTeacherEmail.contains('@')) {
       try {
-        await _timetableService.removeAllowedUser(teacherEmail);
-      } catch (_) {
-        // Non-fatal — the teacher record is already gone.
+        await _timetableService.deleteAccountFully(resolvedTeacherEmail);
+      } catch (e) {
+        // Non-fatal — Firestore data is already clean. Auth account will be
+        // unable to resolve a role on next login anyway (allowed_users removed).
+        AppLogger.d('TeacherDeletionService',
+            'Post-approval Auth cleanup failed for $resolvedTeacherEmail: $e');
       }
     }
   }
