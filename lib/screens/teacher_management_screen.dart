@@ -52,6 +52,14 @@ const List<String> _kSubjects = [
   'Other (specify)',
 ];
 
+const List<String> _kTeacherDeletionReasons = [
+  'Resigned / Left the school',
+  'Retired',
+  'Terminated',
+  'Duplicate account / Wrong entry',
+  'Other (specify reason)',
+];
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Teacher Management List
 // ─────────────────────────────────────────────────────────────────────────────
@@ -258,42 +266,90 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     required String message,
   }) async {
     final ctrl = TextEditingController();
+    String? dropReason;
+    bool showCustom = false;
+
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(title),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(message,
-              style: const TextStyle(fontSize: 13, color: Colors.black54)),
-          const SizedBox(height: 10),
-          TextField(
-            controller: ctrl,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: 'e.g. left the school, duplicate account…',
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              contentPadding: const EdgeInsets.all(10),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(title),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(message,
+                  style: const TextStyle(fontSize: 13, color: Colors.black54)),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<String>(
+                value: dropReason,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: 'Reason',
+                  prefixIcon: const Icon(Icons.info_outline, size: 18),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                ),
+                hint: const Text('Select a reason',
+                    style: TextStyle(fontSize: 13)),
+                items: _kTeacherDeletionReasons
+                    .map((r) => DropdownMenuItem(
+                          value: r,
+                          child: Text(r, style: const TextStyle(fontSize: 13)),
+                        ))
+                    .toList(),
+                onChanged: (v) => setLocal(() {
+                  dropReason = v;
+                  showCustom = v == 'Other (specify reason)';
+                  if (!showCustom) ctrl.clear();
+                }),
+              ),
+              if (showCustom) ...[
+                const SizedBox(height: 10),
+                TextField(
+                  controller: ctrl,
+                  maxLines: 2,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Specify reason',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.all(10),
+                  ),
+                  onChanged: (v) => setLocal(() {}),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white),
+              onPressed: (dropReason == null ||
+                      (dropReason == 'Other (specify reason)' &&
+                          ctrl.text.trim().isEmpty))
+                  ? null
+                  : () {
+                      if (!showCustom) ctrl.text = dropReason ?? '';
+                      Navigator.pop(ctx, true);
+                    },
+              child: const Text('Send for Approval'),
             ),
-          ),
-        ]),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Send for Approval'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+
+    Future.delayed(const Duration(milliseconds: 350), ctrl.dispose);
+
     final text = ctrl.text.trim();
-    ctrl.dispose();
     return ok == true ? text : null;
   }
 
