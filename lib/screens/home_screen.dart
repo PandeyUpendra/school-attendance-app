@@ -420,6 +420,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   section: teacher!.section,
                   isClassTeacher: true,
                   teacherId: teacher!.id,
+                  teacherName: teacher!.name,
+                  teacherEmail: teacher!.email,
                 ),
               ),
             ),
@@ -777,6 +779,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           className: pick.className,
                           section:    pick.section,
                           isClassTeacher: false,
+                          teacherId: teacher?.id,
+                          teacherName: teacher?.name ?? '',
+                          teacherEmail: teacher?.email ?? '',
                         )),
               );
             }
