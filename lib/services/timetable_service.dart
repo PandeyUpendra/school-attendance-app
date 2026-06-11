@@ -132,11 +132,37 @@ class TimetableService extends BaseFirestoreService {
   }
 
   Future<void> addTeacher(String schoolId, Teacher teacher) async {
-    await _teachers.doc(teacher.id).set(teacher.toJson());
-
-    // Only provision auth if the teacher has an email.
     final normEmail = teacher.email.trim().toLowerCase();
-    if (normEmail.isEmpty || !normEmail.contains('@')) return;
+    if (normEmail.isEmpty || !normEmail.contains('@')) {
+      await _teachers.doc(teacher.id).set(teacher.toJson());
+      return;
+    }
+
+    // Verify email is not registered in another school or has role conflict
+    DocumentSnapshot<Map<String, dynamic>>? existingDoc;
+    try {
+      existingDoc = await _allowedUsers.doc(normEmail).get();
+    } catch (_) {}
+
+    if (existingDoc != null && existingDoc.exists) {
+      final existingSchoolId = existingDoc.data()?['schoolId'] as String?;
+      final existingRole = existingDoc.data()?['role'] as String?;
+
+      if (existingSchoolId != null && existingSchoolId.isNotEmpty && existingSchoolId != schoolId) {
+        throw Exception(
+          'This email is already in use by another school. An email address can only be associated with one school.'
+        );
+      }
+
+      if (existingRole != null && existingRole.isNotEmpty && existingRole != 'teacher') {
+        throw RoleConflictException(normEmail, existingRole, 'teacher');
+      }
+    }
+
+    // Purge any stale Auth record before creating
+    await _purgeStaleAuthRecord(normEmail);
+
+    await _teachers.doc(teacher.id).set(teacher.toJson());
 
     // Write allowed_users entry so login's role lookup succeeds.
     // classIds is stamped so the firestore.rules class-teacher checks pass
@@ -570,6 +596,30 @@ class TimetableService extends BaseFirestoreService {
   static String get _firebaseApiKey =>
       DefaultFirebaseOptions.currentPlatform.apiKey;
 
+  /// Deletes any orphaned Firebase Auth user (an account that exists in Firebase Auth
+  /// but has no associated document in the Firestore [allowed_users] collection) by
+  /// invoking the [deleteAccount] Cloud Function. This prevents recreated emails from
+  /// logging in using old/stale credentials, enforcing a fresh password setup via email.
+  Future<void> _purgeStaleAuthRecord(String email) async {
+    final normEmail = email.toLowerCase().trim();
+    DocumentSnapshot<Map<String, dynamic>>? existingDoc;
+    try {
+      existingDoc = await _allowedUsers.doc(normEmail).get();
+    } catch (_) {}
+
+    if (existingDoc == null || !existingDoc.exists) {
+      try {
+        await FirebaseFunctions.instance
+            .httpsCallable('deleteAccount')
+            .call(<String, dynamic>{'email': normEmail});
+      } catch (e) {
+        // Safe to ignore: if the user does not exist in Auth, the function might
+        // throw an exception which is fine, we still proceed with creation.
+        AppLogger.d('TimetableService', 'Pre-creation cleanup of stale Auth for $normEmail ignored/skipped: $e');
+      }
+    }
+  }
+
   /// Creates a profile in [allowed_users] and provisions a Firebase Auth account.
   ///
   /// [password] is only used as the temporary Firebase Auth credential for the
@@ -611,11 +661,22 @@ class TimetableService extends BaseFirestoreService {
       existingDoc = null; // unreadable (likely absent) — no provable conflict.
     }
     if (existingDoc != null && existingDoc.exists) {
+      final existingSchoolId = existingDoc.data()?['schoolId'] as String?;
       final existingRole = existingDoc.data()?['role'] as String?;
+
+      if (existingSchoolId != null && existingSchoolId.isNotEmpty && existingSchoolId != schoolId) {
+        throw Exception(
+          'This email is already in use by another school. An email address can only be associated with one school.'
+        );
+      }
+
       if (existingRole != null && existingRole.isNotEmpty && existingRole != role) {
         throw RoleConflictException(normEmail, existingRole, role);
       }
     }
+
+    // Purge any stale Auth record before creating
+    await _purgeStaleAuthRecord(normEmail);
 
     // 1. Write to allowed_users — no password field; credentials live in Firebase Auth.
     final data = <String, dynamic>{
@@ -990,6 +1051,30 @@ class TimetableService extends BaseFirestoreService {
     // teacher's own schoolId only when no session-scoped school is set.
     final effectiveSchoolId = _schoolId.isNotEmpty ? _schoolId : teacher.schoolId;
 
+    // Verify email is not registered in another school or has role conflict
+    DocumentSnapshot<Map<String, dynamic>>? existingDoc;
+    try {
+      existingDoc = await _allowedUsers.doc(normEmail).get();
+    } catch (_) {}
+
+    if (existingDoc != null && existingDoc.exists) {
+      final existingSchoolId = existingDoc.data()?['schoolId'] as String?;
+      final existingRole = existingDoc.data()?['role'] as String?;
+
+      if (existingSchoolId != null && existingSchoolId.isNotEmpty && existingSchoolId != effectiveSchoolId) {
+        throw Exception(
+          'This email is already in use by another school. An email address can only be associated with one school.'
+        );
+      }
+
+      if (existingRole != null && existingRole.isNotEmpty && existingRole != 'teacher') {
+        throw RoleConflictException(normEmail, existingRole, 'teacher');
+      }
+    }
+
+    // Purge any stale Auth record before creating
+    await _purgeStaleAuthRecord(normEmail);
+
     // Ensure allowed_users doc exists with the correct role.
     // classIds is included so the rule-side isClassTeacher(cls) check passes
     // for teachers provisioned through the Send Login Invite path.
@@ -1045,6 +1130,30 @@ class TimetableService extends BaseFirestoreService {
   }) async {
     final normEmail = email.trim().toLowerCase();
     if (!normEmail.contains('@')) return;
+
+    // Verify email is not registered in another school or has role conflict
+    DocumentSnapshot<Map<String, dynamic>>? existingDoc;
+    try {
+      existingDoc = await _allowedUsers.doc(normEmail).get();
+    } catch (_) {}
+
+    if (existingDoc != null && existingDoc.exists) {
+      final existingSchoolId = existingDoc.data()?['schoolId'] as String?;
+      final existingRole = existingDoc.data()?['role'] as String?;
+
+      if (existingSchoolId != null && existingSchoolId.isNotEmpty && existingSchoolId != schoolId) {
+        throw Exception(
+          'This email is already in use by another school. An email address can only be associated with one school.'
+        );
+      }
+
+      if (existingRole != null && existingRole.isNotEmpty && existingRole != 'guardian') {
+        throw RoleConflictException(normEmail, existingRole, 'guardian');
+      }
+    }
+
+    // Purge any stale Auth record before creating
+    await _purgeStaleAuthRecord(normEmail);
 
     // Write/merge allowed_users, preserving existing student links.
     await linkGuardianEmail(

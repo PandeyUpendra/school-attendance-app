@@ -146,16 +146,17 @@ exports.deleteAccount = onCall(
     const targetRole = targetData ? targetData.role : null;
     const targetSchoolId = targetData ? targetData.schoolId : null;
 
-    if (targetRole === "admin") {
+    if (targetRole === "admin" || ROOT_ADMIN_EMAILS.includes(email)) {
       throw new HttpsError("permission-denied", "Admin accounts cannot be deleted here.");
     }
 
-    // Authorization: admins may delete anyone (e.g. owners in other schools);
-    // other management roles may only delete within their own school.
+    // Authorization: admins may delete anyone; other management roles may delete
+    // within their own school, or if the target has no school/allowed_users doc (i.e. is an orphan).
     const isAdmin = callerRole === "admin";
+    const targetHasNoSchool = !targetSnap.exists || !targetSchoolId;
     const sameSchool =
       callerSchoolId && targetSchoolId && callerSchoolId === targetSchoolId;
-    if (!isAdmin && !sameSchool) {
+    if (!isAdmin && !sameSchool && !targetHasNoSchool) {
       throw new HttpsError("permission-denied", "You can only delete accounts in your own school.");
     }
 
