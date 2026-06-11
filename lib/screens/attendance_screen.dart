@@ -136,7 +136,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    routeObserver.subscribe(this, ModalRoute.of(context)!);
+    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute<dynamic>);
   }
 
   @override
