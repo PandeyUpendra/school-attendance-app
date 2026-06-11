@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'guardian_fee_receipts_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -556,6 +557,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
           builder: (_) => GuardianFeeStatusScreen(
             structure: _feeStructure ?? FeeStructure.empty(_activeClass),
             totalPaid: _totalPaid,
+            className: _activeClass,
+            roll: _activeRoll,
           ),
         ),
       )),
@@ -2935,11 +2938,15 @@ class _GuardianAttendanceHistoryScreenState extends State<GuardianAttendanceHist
 class GuardianFeeStatusScreen extends StatelessWidget {
   final FeeStructure structure;
   final double totalPaid;
+  final String className;
+  final int roll;
 
   const GuardianFeeStatusScreen({
     super.key,
     required this.structure,
     required this.totalPaid,
+    required this.className,
+    required this.roll,
   });
 
   @override
@@ -2949,8 +2956,23 @@ class GuardianFeeStatusScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Fee Details'),
-      ),
+          title: const Text('Fee Details'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.receipt_long_outlined),
+              tooltip: 'View Receipts',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => GuardianFeeReceiptsScreen(
+                    className: className,
+                    roll: roll,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
