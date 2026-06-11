@@ -469,7 +469,12 @@ class TimetableService extends BaseFirestoreService {
   // allowed_users stays at the root — see comment at class top.
 
   Future<List<Map<String, dynamic>>> getAllowedUsers() async {
-    final snap = await _allowedUsers.get();
+    final currentUserEmail = FirebaseAuth.instance.currentUser?.email?.toLowerCase().trim();
+    Query<Map<String, dynamic>> query = _allowedUsers;
+    if (currentUserEmail != null && !AuthService.isRootAdminEmail(currentUserEmail)) {
+      query = query.where('schoolId', isEqualTo: AuthService.currentSchoolId);
+    }
+    final snap = await query.get();
     return snap.docs.map((d) {
       final data       = Map<String, dynamic>.from(d.data());
       final rawClasses = data['assignedClasses'];
@@ -682,9 +687,16 @@ class TimetableService extends BaseFirestoreService {
   /// Returns users created by the given creator email.
   Future<List<Map<String, dynamic>>> getUsersCreatedBy(
       String creatorEmail) async {
-    final snap = await _allowedUsers
-        .where('createdByEmail', isEqualTo: creatorEmail.toLowerCase().trim())
-        .get();
+    Query<Map<String, dynamic>> query = _allowedUsers
+        .where('createdByEmail', isEqualTo: creatorEmail.toLowerCase().trim());
+    
+    // Non-root admin users must filter by schoolId to satisfy the Firestore rules'
+    // tenant isolation, otherwise the query gets rejected with permission-denied.
+    if (!AuthService.isRootAdminEmail(creatorEmail)) {
+      query = query.where('schoolId', isEqualTo: AuthService.currentSchoolId);
+    }
+    
+    final snap = await query.get();
     return snap.docs.map((d) {
       final data = Map<String, dynamic>.from(d.data());
       return <String, dynamic>{
