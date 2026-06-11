@@ -265,6 +265,15 @@ class FeeService extends BaseFirestoreService {
       final newTotal = (alreadyPaise + payment.amountPaise).toInt();
       tx.set(studentFeeDocRef, {'totalPaidPaise': newTotal}, SetOptions(merge: true));
 
+      // Update parent class summary document to cache rolls map for O(1) overview reads (#25)
+      final classKey = className.replaceAll(' ', '_');
+      final classDocRef = schoolCollection(_sid, 'fee_payments').doc(classKey);
+      tx.set(classDocRef, {
+        'rolls': {
+          '$roll': newTotal,
+        }
+      }, SetOptions(merge: true));
+
       return rno;
     });
 
@@ -322,6 +331,15 @@ class FeeService extends BaseFirestoreService {
       }
       final newTotal = (totalPaidPaise - amountPaise).clamp(0, double.infinity).toInt();
       tx.set(studentFeeDocRef, {'totalPaidPaise': newTotal}, SetOptions(merge: true));
+
+      // Update parent class summary document rolls map
+      final classKey = className.replaceAll(' ', '_');
+      final classDocRef = schoolCollection(_sid, 'fee_payments').doc(classKey);
+      tx.set(classDocRef, {
+        'rolls': {
+          '$roll': newTotal,
+        }
+      }, SetOptions(merge: true));
     });
 
     final docAfter = await ref.get();
@@ -375,6 +393,34 @@ class FeeService extends BaseFirestoreService {
     return paise.map((k, v) => MapEntry(k, paiseToRupees(v)));
   }
 
+  /// Lazy migration: if the parent document does not contain the 'rolls' map
+  /// (e.g. legacy data created before pre-aggregation), we fetch the sub-collection
+  /// of student documents, construct the map, write it to the parent document,
+  /// and return it.
+  Future<Map<int, int>> _lazyMigrateClassRolls(String classKey) async {
+    final parentRef = schoolCollection(_sid, 'fee_payments').doc(classKey);
+    
+    // Fetch all student fee summary documents in the sub-collection
+    final snap = await parentRef.collection('students').get();
+    
+    final rollsMap = <String, int>{};
+    final classMap = <int, int>{};
+    
+    for (final doc in snap.docs) {
+      final roll = int.tryParse(doc.id);
+      if (roll != null) {
+        final paise = (doc.data()['totalPaidPaise'] as num?)?.toInt() ?? 0;
+        rollsMap[doc.id] = paise;
+        classMap[roll] = paise;
+      }
+    }
+    
+    // Save to parent document to cache it permanently
+    await parentRef.set({'rolls': rollsMap}, SetOptions(merge: true));
+    
+    return classMap;
+  }
+
   // ── Class-wide fee overview ────────────────────────────────────────────────
 
   /// Fetches summaries class-wide class-by-class in parallel, reducing database reads
@@ -385,18 +431,23 @@ class FeeService extends BaseFirestoreService {
       final out = <String, Map<int, int>>{};
       final futures = classes.map((cls) async {
         final classKey = cls.replaceAll(' ', '_');
-        final snap = await schoolCollection(_sid, 'fee_payments')
+        final doc = await schoolCollection(_sid, 'fee_payments')
             .doc(classKey)
-            .collection('students')
             .get();
 
-        final classMap = <int, int>{};
-        for (final doc in snap.docs) {
-          final roll = int.tryParse(doc.id);
-          if (roll != null) {
-            final paise = (doc.data()['totalPaidPaise'] as num?)?.toInt() ?? 0;
-            classMap[roll] = paise;
-          }
+        final data = doc.data();
+        Map<int, int> classMap;
+        if (data == null || !data.containsKey('rolls')) {
+          classMap = await _lazyMigrateClassRolls(classKey);
+        } else {
+          classMap = <int, int>{};
+          final rollsMap = Map<String, dynamic>.from(data['rolls'] as Map? ?? {});
+          rollsMap.forEach((k, v) {
+            final roll = int.tryParse(k);
+            if (roll != null) {
+              classMap[roll] = (v as num).toInt();
+            }
+          });
         }
         return MapEntry(cls, classMap);
       });
@@ -437,21 +488,28 @@ class FeeService extends BaseFirestoreService {
   /// sequential per-student fallback (#652).
   Future<Map<int, double>> getClassFeeOverview({String? schoolId, required String className, required List<int> rolls}) async {
     if (rolls.isEmpty) return {};
-    final snap = await schoolCollection(_sid, 'fee_payments')
-        .doc(className.replaceAll(' ', '_'))
-        .collection('students')
+    final classKey = className.replaceAll(' ', '_');
+    final doc = await schoolCollection(_sid, 'fee_payments')
+        .doc(classKey)
         .get();
 
-    final found = <int, int>{};
-    for (final doc in snap.docs) {
-      final r = int.tryParse(doc.id);
-      if (r != null) {
-        found[r] = (doc.data()['totalPaidPaise'] as num?)?.toInt() ?? 0;
-      }
+    final data = doc.data();
+    Map<int, int> classMap;
+    if (data == null || !data.containsKey('rolls')) {
+      classMap = await _lazyMigrateClassRolls(classKey);
+    } else {
+      classMap = <int, int>{};
+      final rollsMap = Map<String, dynamic>.from(data['rolls'] as Map? ?? {});
+      rollsMap.forEach((k, v) {
+        final roll = int.tryParse(k);
+        if (roll != null) {
+          classMap[roll] = (v as num).toInt();
+        }
+      });
     }
 
     // Default to 0 for rolls without a summary doc (no payments yet).
-    return {for (final roll in rolls) roll: paiseToRupees(found[roll] ?? 0)};
+    return {for (final roll in rolls) roll: paiseToRupees(classMap[roll] ?? 0)};
   }
 
   // ── School-wide class summaries (for FeeOverviewScreen) ───────────────────

@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import '../utils/image_utils.dart';
+import '../shared/utils/image_utils.dart';
 import '../models/school.dart';
 import 'base_firestore_service.dart';
 import 'report_card_template_service.dart';

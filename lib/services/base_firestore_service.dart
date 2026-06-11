@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
-import '../utils/app_logger.dart';
+import '../shared/utils/app_logger.dart';
 
 /// Provides a shared school identifier and common Firestore helpers.
 class BaseFirestoreService {

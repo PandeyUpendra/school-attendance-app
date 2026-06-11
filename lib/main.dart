@@ -13,16 +13,16 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
-import 'providers/locale_provider.dart';
-import 'providers/school_settings_provider.dart';
-import 'screens/login_screen.dart';
-import 'screens/role_selection_screen.dart';
-import 'screens/coordinator_dashboard.dart';
-import 'screens/home_screen.dart';
-import 'screens/principal_dashboard.dart';
-import 'screens/guardian_dashboard.dart';
-import 'screens/owner/owner_home.dart';
-import 'screens/owner/owner_principal_home.dart';
+import './shared/providers/locale_provider.dart';
+import './shared/providers/school_settings_provider.dart';
+import './features/auth/login_screen.dart';
+import './features/auth/role_selection_screen.dart';
+import './features/dashboards/coordinator_dashboard.dart';
+import './features/dashboards/home_screen.dart';
+import './features/dashboards/principal_dashboard.dart';
+import './features/dashboards/guardian_dashboard.dart';
+import './features/owner/owner_home.dart';
+import './features/owner/owner_principal_home.dart';
 import 'services/auth_service.dart';
 import 'services/base_firestore_service.dart';
 import 'services/birthday_service.dart';
@@ -253,8 +253,8 @@ class _SplashGateState extends State<_SplashGate> {
     }
 
     // Restore in-memory schoolId so services read from the correct school
-    // on cold-start with a cached session. Without this, BaseFirestoreService
-    // falls back to 'school_1' which may not match the user's allowed_users doc.
+    // on cold-start with a cached session. Without this, AuthService.currentSchoolId
+    // would throw a StateError on access.
     final schoolId = session['schoolId'] as String?;
     if (schoolId != null && schoolId.isNotEmpty) {
       BaseFirestoreService.currentSchoolId = schoolId;

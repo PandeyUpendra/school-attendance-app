@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/student.dart';
-import '../utils/phone_utils.dart';
+import '../shared/utils/phone_utils.dart';
 import 'auth_service.dart';
 
 /// Describes the current fee reminder state for a student.

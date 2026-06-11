@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/attendance_status.dart';
-import '../utils/school_clock.dart';
+import '../shared/utils/school_clock.dart';
 
 /// Central Firestore service. Firestore offline persistence is enabled in
 /// main.dart, so all methods work offline and auto-sync when reconnected.

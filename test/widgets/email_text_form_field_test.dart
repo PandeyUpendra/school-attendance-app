@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:school_app/widgets/email_text_form_field.dart';
+import 'package:school_app/shared/widgets/email_text_form_field.dart';
 
 void main() {
   testWidgets('EmailTextFormField shows error on blur when invalid', (WidgetTester tester) async {

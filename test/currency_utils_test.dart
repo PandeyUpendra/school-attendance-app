@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:school_app/utils/currency_utils.dart';
+import 'package:school_app/shared/utils/currency_utils.dart';
 
 void main() {
   group('CurrencyUtils.formatValues', () {

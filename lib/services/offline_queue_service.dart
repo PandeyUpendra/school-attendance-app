@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../utils/school_clock.dart';
+import '../shared/utils/school_clock.dart';
 import 'student_service.dart';
 import '../models/exam.dart';
 import '../models/homework.dart';

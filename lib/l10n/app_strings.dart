@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/locale_provider.dart';
+import '../shared/providers/locale_provider.dart';
 
 /// Lightweight, map-based translations. Each key maps to per-language strings.
 /// Hindi (`hi`) uses simple everyday wording. To translate more of the app,

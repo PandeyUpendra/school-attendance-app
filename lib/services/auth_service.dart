@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'base_firestore_service.dart';
-import '../utils/app_logger.dart';
+import '../shared/utils/app_logger.dart';
 
 import 'audit_log_service.dart';
 import 'dropdown_options_service.dart';
@@ -109,16 +109,13 @@ class AuthService {
   }
 
   /// Returns the current school ID set during login.
-  /// Throws a [StateError] if a Firebase user is authenticated but the school ID
-  /// has not been initialized (session restore or login race condition), preventing
-  /// queries from targeting the wrong tenant/test tenant ('school_1') under active sessions.
+  /// Throws a [StateError] if the school ID has not been initialized (session restore
+  /// or login race condition), preventing queries from targeting an uninitialized
+  /// context.
   static String get currentSchoolId {
     final id = BaseFirestoreService.currentSchoolId;
     if (id == null) {
-      if (_auth.currentUser != null) {
-        throw StateError('Firebase user is signed in but currentSchoolId is not initialized.');
-      }
-      return 'school_1';
+      throw StateError('currentSchoolId is not initialized.');
     }
     return id;
   }

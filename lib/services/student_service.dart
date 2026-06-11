@@ -9,9 +9,9 @@ import '../models/student_remark.dart';
 import '../models/guardian_provided_details.dart';
 import '../models/school_provided_details.dart';
 import '../repositories/student_repository.dart';
-import '../utils/app_logger.dart';
-import '../utils/phone_utils.dart';
-import '../utils/school_clock.dart';
+import '../shared/utils/app_logger.dart';
+import '../shared/utils/phone_utils.dart';
+import '../shared/utils/school_clock.dart';
 import 'audit_log_service.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
@@ -744,6 +744,12 @@ class StudentService extends BaseFirestoreService {
               .where('className', isEqualTo: className)
               .get(),
           studentNode.collection('payments').get(),
+          FirebaseFirestore.instance
+              .collection('copy_checks')
+              .where('schoolId', isEqualTo: _schoolId)
+              .where('className', isEqualTo: className)
+              .where('section', isEqualTo: section)
+              .get(),
         ]);
 
         final remarksSnap = results[0];
@@ -753,6 +759,7 @@ class StudentService extends BaseFirestoreService {
         final leaveAppsSnap = results[4];
         final examsSnap = results[5];
         final paymentsSnap = results[6];
+        final copyChecksSnap = results[7];
 
         // Filters client-side
         final leaveNotificationsMatches = teacherNotificationsSnap.docs.where((d) {
@@ -813,7 +820,17 @@ class StudentService extends BaseFirestoreService {
         }
         batchOps.add((batch) async => batch.delete(studentNode));
 
-        // 8. Delete student doc (last to prevent orphaned records in case of failure, #35)
+        // 8. Copy check statuses
+        for (final ccDoc in copyChecksSnap.docs) {
+          final ref = FirebaseFirestore.instance
+              .collection('copy_checks')
+              .doc(ccDoc.id)
+              .collection('statuses')
+              .doc('$roll');
+          batchOps.add((batch) async => batch.delete(ref));
+        }
+
+        // 9. Delete student doc (last to prevent orphaned records in case of failure, #35)
         batchOps.add((batch) async => batch.delete(_studentsRef.doc(studentDocId)));
 
         // Commit in chunks of up to 450 operations each (Firestore limit is 500;

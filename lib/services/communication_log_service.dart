@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../utils/app_logger.dart';
+import '../shared/utils/app_logger.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
 

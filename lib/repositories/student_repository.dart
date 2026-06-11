@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/student.dart';
 import '../models/student_remark.dart';
 import '../services/auth_service.dart';
-import '../utils/app_logger.dart';
+import '../shared/utils/app_logger.dart';
 
 // ── Abstract interface ────────────────────────────────────────────────────────
 

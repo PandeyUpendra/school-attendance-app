@@ -1,0 +1,852 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../l10n/app_strings.dart';
+import '../../theme.dart';
+import '../../models/fee.dart';
+import '../../services/fee_service.dart';
+import '../../services/timetable_service.dart';
+import '../../shared/utils/currency_utils.dart';
+
+/// Coordinator screen: configure annual fee structure per class.
+/// Accessible only to coordinator role.
+class FeeStructureScreen extends StatefulWidget {
+  const FeeStructureScreen({super.key});
+
+  @override
+  State<FeeStructureScreen> createState() => _FeeStructureScreenState();
+}
+
+class _FeeStructureScreenState extends State<FeeStructureScreen> {
+  final _feeService = FeeService();
+
+  bool _loading = true;
+  List<String> _classes = [];
+  String? _selectedClass;
+  FeeStructure? _structure;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadClasses();
+  }
+
+  Future<void> _loadClasses() async {
+    final settings = await TimetableService.instance.getSettings();
+    final classes = List<String>.from(settings['classes'] as List? ?? []);
+    if (!mounted) return;
+    setState(() {
+      _classes = classes;
+      _loading = false;
+    });
+    if (classes.isNotEmpty) _selectClass(classes.first);
+  }
+
+  Future<void> _selectClass(String cls) async {
+    setState(() { _selectedClass = cls; _loading = true; });
+    final structure = await _feeService.getFeeStructure(className: cls);
+    if (!mounted) return;
+    setState(() { _structure = structure; _loading = false; });
+  }
+
+  Future<void> _editStructure() async {
+    if (_selectedClass == null) return;
+    final current = _structure ?? FeeStructure.empty(_selectedClass!);
+
+    // Pre-fill controllers from current structure
+    final annualCtrl = TextEditingController(
+        text: current.totalAnnualFee > 0
+            ? current.totalAnnualFee.toStringAsFixed(0)
+            : '');
+
+    // Components list (editable)
+    final components = List<Map<String, TextEditingController>>.from(
+      current.components.map((c) => {
+        'name':   TextEditingController(text: c.name),
+        'amount': TextEditingController(
+            text: c.amount > 0 ? c.amount.toStringAsFixed(0) : ''),
+      }),
+    );
+
+    // Instalments list (editable)  name | amount | dueDate
+    final instalments = current.installments.map((i) => {
+      'name':   TextEditingController(text: i.name),
+      'amount': TextEditingController(
+          text: i.amount > 0 ? i.amount.toStringAsFixed(0) : ''),
+      'date':   ValueNotifier<DateTime>(i.dueDate),
+    }).toList();
+
+    final formKey = GlobalKey<FormState>();
+    bool saving = false;
+
+    void addComponent(StateSetter setS) {
+      setS(() => components.add({
+            'name':   TextEditingController(),
+            'amount': TextEditingController(),
+          }));
+    }
+
+    void removeComponent(StateSetter setS, int idx) {
+      setS(() => components.removeAt(idx));
+    }
+
+    void addInstalment(StateSetter setS) {
+      setS(() => instalments.add({
+            'name':   TextEditingController(),
+            'amount': TextEditingController(),
+            'date':   ValueNotifier<DateTime>(DateTime.now()),
+          }));
+    }
+
+    void removeInstalment(StateSetter setS, int idx) {
+      setS(() => instalments.removeAt(idx));
+    }
+
+    Future<void> pickDate(StateSetter setS, int idx) async {
+      final notifier = instalments[idx]['date'] as ValueNotifier<DateTime>;
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: notifier.value,
+        firstDate: DateTime(2020),
+        lastDate: DateTime(2030),
+      );
+      if (picked != null) setS(() => notifier.value = picked);
+    }
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => Padding(
+          padding: EdgeInsets.only(
+            left: 18, right: 18, top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 18,
+          ),
+          child: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text('${context.tr('feeStructure')} — $_selectedClass',
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 14),
+
+                // Total annual fee
+                TextFormField(
+                  controller: annualCtrl,
+                  onChanged: (_) => setS(() {}),
+                  keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: context.tr('totalAnnualFeeRs'),
+                    prefixIcon: const Icon(Icons.currency_rupee),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return context.tr('validationRequired');
+                    final n = double.tryParse(v.trim());
+                    if (n == null || n < 1 || n > 9999999) return '1–9,999,999';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Fee components
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(context.tr('feeComponents'),
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                    TextButton.icon(
+                      onPressed: () => addComponent(setS),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: Text(context.tr('addBtn')),
+                      style: TextButton.styleFrom(
+                          foregroundColor: Colors.green.shade700),
+                    ),
+                  ],
+                ),
+                if (components.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      context.tr('noComponentsHint'),
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade500),
+                    ),
+                  ),
+                for (int i = 0; i < components.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(children: [
+                      Expanded(
+                        flex: 5,
+                        child: TextFormField(
+                          controller: components[i]['name'],
+                          maxLength: 40,
+                          maxLengthEnforcement:
+                              MaxLengthEnforcement.enforced,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[a-zA-Z ]')),
+                          ],
+                          decoration: InputDecoration(
+                            labelText: context.tr('componentNameHint'),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 10),
+                            counterText: '',
+                          ),
+                          validator: (v) =>
+                              (v == null || v.trim().isEmpty)
+                                  ? context.tr('validationRequired')
+                                  : null,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 4,
+                        child: TextFormField(
+                          controller: components[i]['amount'],
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[0-9.]')),
+                          ],
+                          decoration: InputDecoration(
+                            labelText: context.tr('amountFieldRs'),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 10),
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return context.tr('validationRequired');
+                            final n = double.tryParse(v.trim());
+                            if (n == null || n <= 0) return '> 0';
+                            return null;
+                          },
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline,
+                            color: Colors.red, size: 20),
+                        onPressed: () => removeComponent(setS, i),
+                        padding: EdgeInsets.zero,
+                      ),
+                    ]),
+                  ),
+
+                // ── Instalments ──────────────────────────────────────
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(context.tr('instalmentsLabel'),
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600)),
+                    TextButton.icon(
+                      onPressed: () => addInstalment(setS),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: Text(context.tr('addBtn')),
+                      style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.primary),
+                    ),
+                  ],
+                ),
+                if (instalments.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      context.tr('noInstalmentsHint'),
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade500),
+                    ),
+                  ),
+                for (int i = 0; i < instalments.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 4,
+                          child: TextFormField(
+                            controller: instalments[i]['name']
+                                as TextEditingController,
+                            maxLength: 30,
+                            maxLengthEnforcement:
+                                MaxLengthEnforcement.enforced,
+                            decoration: InputDecoration(
+                              labelText: context.tr('instalmentNameHint'),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 10),
+                              counterText: '',
+                            ),
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty)
+                                    ? context.tr('validationRequired')
+                                    : null,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          flex: 3,
+                          child: TextFormField(
+                            controller: instalments[i]['amount']
+                                as TextEditingController,
+                            onChanged: (_) => setS(() {}),
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9.]')),
+                            ],
+                            decoration: InputDecoration(
+                              labelText: '₹',
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 10),
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return context.tr('validationRequired');
+                              }
+                              final n = double.tryParse(v.trim());
+                              if (n == null || n <= 0) return '> 0';
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        // Date picker button
+                        ValueListenableBuilder<DateTime>(
+                          valueListenable: instalments[i]['date']
+                              as ValueNotifier<DateTime>,
+                          builder: (_, dt, __) => InkWell(
+                            onTap: () => pickDate(setS, i),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              height: 48,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                    color: Colors.grey.shade400),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    '${dt.day}/${dt.month}/${dt.year}',
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                  Text(context.tr('dueDateSmall'),
+                                      style: TextStyle(
+                                          fontSize: 9,
+                                          color: Colors.grey.shade500)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline,
+                              color: Colors.red, size: 20),
+                          onPressed: () => removeInstalment(setS, i),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Calculate current installments sum and show warning if mismatched
+                Builder(
+                  builder: (context) {
+                    if (instalments.isEmpty) return const SizedBox.shrink();
+                    final annual = double.tryParse(annualCtrl.text.trim()) ?? 0;
+                    double instsSum = 0;
+                    for (final inst in instalments) {
+                      final amtText = (inst['amount'] as TextEditingController).text.trim();
+                      instsSum += double.tryParse(amtText) ?? 0;
+                    }
+                    final diff = (instsSum - annual).abs();
+                    final match = diff < 0.01;
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8, bottom: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: match ? Colors.green.shade50 : Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: match ? Colors.green.shade200 : Colors.orange.shade300,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              match ? Icons.check_circle_outline : Icons.warning_amber_rounded,
+                              color: match ? Colors.green.shade700 : Colors.orange.shade700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                match
+                                    ? 'Installments total matches the annual fee.'
+                                    : 'Installments total (₹${CurrencyUtils.formatValues(instsSum)}) differs from the annual fee (₹${CurrencyUtils.formatValues(annual)}).',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: match ? Colors.green.shade800 : Colors.orange.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 12),
+                Row(children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: Text(context.tr('cancel')),
+                  ),
+                  const Spacer(),
+                  ElevatedButton.icon(
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            if (!formKey.currentState!.validate()) return;
+                            final annual =
+                                double.tryParse(annualCtrl.text.trim()) ?? 0;
+                            final comps = components
+                                .where((c) =>
+                                    c['name']!.text.trim().isNotEmpty)
+                                .map((c) => FeeComponent(
+                                      name: c['name']!.text.trim(),
+                                      amount: double.tryParse(
+                                              c['amount']!.text.trim()) ??
+                                          0,
+                                    ))
+                                .toList();
+                            final insts = instalments
+                                .where((i) =>
+                                    (i['name']! as TextEditingController)
+                                        .text
+                                        .trim()
+                                        .isNotEmpty)
+                                .map((i) => FeeInstallment(
+                                      name:    (i['name']! as TextEditingController).text.trim(),
+                                      amount:  double.tryParse(
+                                              (i['amount']! as TextEditingController).text.trim()) ?? 0,
+                                      dueDate: (i['date']! as ValueNotifier<DateTime>).value,
+                                    ))
+                                .toList();
+
+                            if (insts.isNotEmpty) {
+                              final annualPaise = rupeesToPaise(annual);
+                              final instsSumPaise = insts.map((i) => i.amountPaise).fold(0, (a, b) => a + b);
+                              if (instsSumPaise != annualPaise) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'The sum of installment amounts (₹${CurrencyUtils.formatValues(paiseToRupees(instsSumPaise), showDecimals: true)}) '
+                                      'must equal the total annual fee (₹${CurrencyUtils.formatValues(annual, showDecimals: true)}).',
+                                    ),
+                                    backgroundColor: Colors.red,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                                return;
+                              }
+                            }
+                            try {
+                              setS(() => saving = true);
+                              await FeeService().saveFeeStructure(
+                                structure: FeeStructure(
+                                  className:      _selectedClass!,
+                                  totalAnnualFee: annual,
+                                  components:     comps,
+                                  installments:   insts,
+                                ),
+                              );
+                              if (ctx.mounted) Navigator.pop(ctx, true);
+                            } catch (e) {
+                              setS(() => saving = false);
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(
+                                    content: Text(e.toString()),
+                                    backgroundColor: Colors.red,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                    icon: const Icon(Icons.save_outlined, size: 18),
+                    label: Text(context.tr('save')),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ]),
+              ],
+            ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (saved == true && _selectedClass != null) {
+      _selectClass(_selectedClass!);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.background,
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(context.tr('feeStructure'),
+                style:
+                    const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(context.tr('setAnnualFeesPerClass'),
+                style: const TextStyle(fontSize: 12, color: Colors.white70)),
+          ],
+        ),
+        actions: [
+          if (_selectedClass != null)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: context.tr('editStructure'),
+              onPressed: _editStructure,
+            ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _classes.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.school_outlined,
+                          size: 56, color: Colors.grey.shade400),
+                      const SizedBox(height: 12),
+                      Text(context.tr('noClassesConfigured'),
+                          style: TextStyle(color: Colors.grey.shade500)),
+                    ],
+                  ),
+                )
+              : Column(
+                  children: [
+                    // Class selector
+                    Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: _classes.map((cls) {
+                            final selected = cls == _selectedClass;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(cls),
+                                selected: selected,
+                                selectedColor: Colors.green.shade700,
+                                labelStyle: TextStyle(
+                                  color: selected ? Colors.white : null,
+                                  fontWeight: selected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                                onSelected: (_) => _selectClass(cls),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: _structure == null
+                          ? const Center(child: CircularProgressIndicator())
+                          : _buildStructureView(_structure!),
+                    ),
+                  ],
+                ),
+      floatingActionButton: _selectedClass != null && _classes.isNotEmpty
+          ? FloatingActionButton.extended(
+              onPressed: _editStructure,
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.edit),
+              label: Text(context.tr('edit')),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildStructureView(FeeStructure s) {
+    final isEmpty = s.totalAnnualFee == 0 && s.components.isEmpty;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Annual fee hero
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryDark,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(context.tr('annualFeeCaps'),
+                  style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2)),
+              const SizedBox(height: 8),
+              Text(
+                isEmpty ? context.tr('notConfigured') : '₹${_fmt(s.totalAnnualFee)}',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold),
+              ),
+              if (!isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text('${context.tr('perAcademicYear')}  •  ${s.className}',
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 12)),
+                ),
+            ],
+          ),
+        ),
+
+        if (isEmpty) ...[
+          const SizedBox(height: 40),
+          Icon(Icons.attach_money, size: 56, color: Colors.grey.shade300),
+          const SizedBox(height: 14),
+          Center(
+            child: Text(
+              context.tr('noFeeStructureYet'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
+          ),
+        ] else ...[
+          if (s.components.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text(context.tr('feeBreakdownCaps'),
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey,
+                    letterSpacing: 0.8)),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  for (int i = 0; i < s.components.length; i++) ...[
+                    if (i > 0) const Divider(height: 1, indent: 16),
+                    ListTile(
+                      dense: true,
+                      leading: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.receipt_long_outlined,
+                            size: 18, color: Colors.green.shade700),
+                      ),
+                      title: Text(s.components[i].name,
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w500)),
+                      trailing: Text(
+                        '₹${_fmt(s.components[i].amount)}',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade700),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Total check
+            _TotalCheck(
+              components: s.components,
+              totalAnnual: s.totalAnnualFee,
+            ),
+          ],
+
+          // ── Instalments ──────────────────────────────────────────
+          if (s.installments.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text(context.tr('paymentInstalmentsCaps'),
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey,
+                    letterSpacing: 0.8)),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  for (int i = 0; i < s.installments.length; i++) ...[
+                    if (i > 0) const Divider(height: 1, indent: 16),
+                    ListTile(
+                      dense: true,
+                      leading: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withAlpha(20),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${i + 1}',
+                            style: const TextStyle(
+                                color: AppTheme.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14),
+                          ),
+                        ),
+                      ),
+                      title: Text(s.installments[i].name,
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500)),
+                      subtitle: Text(
+                        '${context.tr('dueColon')} ${s.installments[i].dueDate.day}/${s.installments[i].dueDate.month}/${s.installments[i].dueDate.year}',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade500),
+                      ),
+                      trailing: Text(
+                        '₹${_fmt(s.installments[i].amount)}',
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primary),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  String _fmt(double v) => CurrencyUtils.formatValues(v);
+}
+
+class _TotalCheck extends StatelessWidget {
+  final List<FeeComponent> components;
+  final double totalAnnual;
+
+  const _TotalCheck(
+      {required this.components, required this.totalAnnual});
+
+  @override
+  Widget build(BuildContext context) {
+    final compTotal = components.fold(0.0, (s, c) => s + c.amount);
+    final diff = (compTotal - totalAnnual).abs();
+    final match = diff < 1;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: match ? Colors.green.shade50 : Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: match
+              ? Colors.green.shade200
+              : Colors.orange.shade300,
+        ),
+      ),
+      child: Row(children: [
+        Icon(
+          match ? Icons.check_circle_outline : Icons.warning_amber_rounded,
+          color: match ? Colors.green.shade700 : Colors.orange.shade700,
+          size: 20,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            match
+                ? context.tr('componentsMatchAnnual')
+                : '${context.tr('componentsTotalLabel')} ₹${CurrencyUtils.formatValues(compTotal)} '
+                    '${context.tr('differsFromAnnual')} ₹${CurrencyUtils.formatValues(totalAnnual)}',
+            style: TextStyle(
+              fontSize: 12,
+              color: match
+                  ? Colors.green.shade800
+                  : Colors.orange.shade800,
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
