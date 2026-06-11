@@ -51,20 +51,50 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/allowed_users/$(userEmail())).data;
     }
 
-    /// Caller's role string (e.g. 'teacher', 'coordinator', …).
+    /// SCALE-05: identity from CUSTOM CLAIMS instead of a document read.
+    ///
+    /// `syncUserClaims` (Cloud Function) mirrors {role, schoolId} from each
+    /// allowed_users doc into the caller's Firebase Auth custom claims, and the
+    /// app forces an ID-token refresh at login so they take effect promptly. The
+    /// claim is server-signed and un-forgeable.
+    ///
+    /// Why this matters: EVERY role/tenant check (isRole / hasAnyRole /
+    /// isManagement / isAnyStaff / inSchool) used to re-invoke getUserData() — a
+    /// get() that also burns expression-evaluation budget. Firestore caps each
+    /// request at 1000 expression evaluations (NOT cached), so getUserData()-
+    /// heavy rules sat right at the ceiling and DENIED legitimate reads
+    /// non-deterministically. Reading the claim costs no get() and a handful of
+    /// expressions, so the common path no longer approaches the ceiling.
+    function claimRole() {
+      return isSignedIn() && 'role' in request.auth.token ? request.auth.token.role : null;
+    }
+
+    function claimSchoolId() {
+      return isSignedIn() && 'schoolId' in request.auth.token ? request.auth.token.schoolId : null;
+    }
+
+    /// Caller's role string (e.g. 'teacher', 'coordinator', …). Prefers the
+    /// custom claim; falls back to the allowed_users doc only when the claim has
+    /// not propagated yet (legacy/just-provisioned accounts before their first
+    /// post-claim token refresh).
     function userRole() {
-      return getUserData() != null ? getUserData().role : null;
+      return claimRole() != null
+        ? claimRole()
+        : (getUserData() != null ? getUserData().role : null);
     }
 
     /// Caller's schoolId, or null when absent.
     ///
     /// PHASE 3 (strict multi-tenancy): the old 'school_1' default is GONE — a
     /// missing schoolId now fails closed (returns null → inSchool() false)
-    /// rather than silently granting access to school_1. This REQUIRES the
-    /// Phase 2 backfill (scripts/backfill_school_id.js) to have stamped schoolId
-    /// on every allowed_users doc first, or those accounts are locked out.
+    /// rather than silently granting access to school_1. Prefers the schoolId
+    /// custom claim (SCALE-05), falling back to the allowed_users doc for
+    /// accounts whose claim has not propagated. REQUIRES the Phase 2 backfill
+    /// (scripts/backfill_school_id.js) + claims backfill to have run.
     function userSchoolId() {
-      return getUserData() != null && 'schoolId' in getUserData() ? getUserData().schoolId : null;
+      return claimSchoolId() != null
+        ? claimSchoolId()
+        : (getUserData() != null && 'schoolId' in getUserData() ? getUserData().schoolId : null);
     }
 
     /// Caller's teacherId.
@@ -231,6 +261,27 @@ service cloud.firestore {
            )
           )
         )
+      );
+    }
+
+    /// M1: which notification audiences a TEACHER may author. Binds
+    /// userClassIds() exactly ONCE (let) to stay under the expression ceiling.
+    /// A teacher may post to staff-workflow channels (coordinator / principal /
+    /// teacher:*) and the opaque stable-id student channel (guardian_adm:*), but
+    /// any CLASS- or GUARDIAN-targeted audience must name a class the teacher
+    /// actually teaches. This stops a teacher from blasting a notice/push to a
+    /// parent (or a whole class) OUTSIDE their own classes — previously any
+    /// teacher could target guardian:<anyClass>:<anyRoll> with arbitrary
+    /// title/body, a school-wide impersonation/phishing vector (M1).
+    function teacherMayPostAudience(aud) {
+      let ids = userClassIds();
+      return aud is string && (
+        aud == 'coordinator' || aud == 'principal' ||
+        aud.matches('teacher:.*') ||
+        aud.matches('guardian_adm:.*') ||
+        (aud.matches('class:.*')         && aud.split(':')[1] in ids) ||
+        (aud.matches('class_teacher:.*') && aud.split(':')[1] in ids) ||
+        (aud.matches('guardian:.*:.*')   && aud.split(':')[1] in ids)
       );
     }
 
@@ -1398,13 +1449,14 @@ service cloud.firestore {
       // 'class_teacher:..', resolved-leave to 'teacher:..'.
       allow create: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        // Teachers (trusted staff): any TARGETED audience — never the broadcast
-        // groups. Covers absent alerts, leave-submitted to coordinator/principal,
-        // resolved-leave to a teacher, and class notices.
+        // Teachers: targeted audiences ONLY, and class/guardian audiences must
+        // be for a class they teach (M1 — see teacherMayPostAudience). Covers
+        // absent alerts + resolved-leave for their own class, leave-submitted to
+        // coordinator/principal, and class notices — without letting a teacher
+        // address parents of OTHER classes.
         (isAnyTeacher()
           && 'audience' in request.resource.data
-          && request.resource.data.audience is string
-          && !(request.resource.data.audience in ['all', 'teachers', 'guardians'])) ||
+          && teacherMayPostAudience(request.resource.data.audience)) ||
         // Guardians: ONLY the legitimate student-leave notice addressed to their
         // OWN child's class teacher. Previously a guardian could post to
         // 'coordinator'/'principal' or 'guardian:<otherClass>:<roll>' with an

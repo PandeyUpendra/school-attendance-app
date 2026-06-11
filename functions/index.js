@@ -120,7 +120,7 @@ function resolveCallerRole(callerEmail, snap) {
  *     (Accounts they created are intentionally kept — they belong to the school.)
  */
 exports.deleteAccount = onCall(
-  { cors: true, region: "us-central1", invoker: "public" },
+  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
 
@@ -162,12 +162,19 @@ exports.deleteAccount = onCall(
     }
 
     // Authorization: admins may delete anyone; other management roles may delete
-    // within their own school, or if the target has no school/allowed_users doc (i.e. is an orphan).
+    // within their own school, or clean up a truly orphaned Auth login that has
+    // NO allowed_users doc at all (half-provisioned account).
+    //
+    // L5: previously "orphan" also matched a target that HAD a doc but merely
+    // lacked a schoolId — which let a coordinator/principal of school A delete a
+    // (possibly other-school) account whose schoolId was just unset. Now an
+    // existing doc with no schoolId is NOT treated as a free-for-all orphan: it
+    // requires admin, since we cannot prove it belongs to the caller's school.
     const isAdmin = callerRole === "admin";
-    const targetHasNoSchool = !targetSnap.exists || !targetSchoolId;
+    const targetIsTrueOrphan = !targetSnap.exists;
     const sameSchool =
       callerSchoolId && targetSchoolId && callerSchoolId === targetSchoolId;
-    if (!isAdmin && !sameSchool && !targetHasNoSchool) {
+    if (!isAdmin && !sameSchool && !targetIsTrueOrphan) {
       throw new HttpsError("permission-denied", "You can only delete accounts in your own school.");
     }
 
@@ -531,7 +538,7 @@ async function performStudentDeleteCascade(db, schoolId, className, section, rol
 }
 
 exports.deleteStudent = onCall(
-  { cors: true, region: "us-central1", invoker: "public" },
+  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -565,7 +572,7 @@ exports.deleteStudent = onCall(
 );
 
 exports.approveDeletionRequest = onCall(
-  { cors: true, region: "us-central1", invoker: "public" },
+  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -633,7 +640,7 @@ exports.approveDeletionRequest = onCall(
  * server-verified actor.
  */
 exports.writeAudit = onCall(
-  { cors: true, region: "us-central1", invoker: "public" },
+  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -738,7 +745,7 @@ exports.writeAudit = onCall(
 const PURGE_ROLES = ["admin", "owner", "ownerPrincipal"];
 
 exports.purgeOldData = onCall(
-  { cors: true, region: "us-central1", invoker: "public" },
+  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {

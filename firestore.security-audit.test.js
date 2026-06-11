@@ -247,8 +247,12 @@ let testEnv;
 
 function db(uid) {
   const user = USERS[uid];
+  // Mirror production: syncUserClaims mints {role, schoolId} custom claims, so
+  // rules read identity from the claim (no getUserData() read) — SCALE-05.
   return testEnv.authenticatedContext(uid, {
     email: user.email.toLowerCase(),
+    ...(user.role ? { role: user.role } : {}),
+    ...(user.schoolId ? { schoolId: user.schoolId } : {}),
   }).firestore();
 }
 

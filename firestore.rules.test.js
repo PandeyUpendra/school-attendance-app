@@ -22,8 +22,10 @@ const { readFileSync } = require('fs');
 const path             = require('path');
 const {
   doc,
+  collection,
   getDoc,
   setDoc,
+  addDoc,
   updateDoc,
   deleteDoc,
 }                      = require('firebase/firestore');
@@ -133,11 +135,16 @@ const STUDENT_10B = {
 
 let testEnv; // RulesTestEnvironment
 
-/** Authenticated Firestore client for the given uid. */
+/** Authenticated Firestore client for the given uid.
+ *  Mirrors production: syncUserClaims mints {role, schoolId} custom claims, so
+ *  the test token carries them too (SCALE-05). Rules read identity from the
+ *  claim, not a getUserData() document read. */
 function db(uid) {
   const user = USERS[uid];
   const customClaims = user ? {
     email: user.email.toLowerCase(),
+    ...(user.role ? { role: user.role } : {}),
+    ...(user.schoolId ? { schoolId: user.schoolId } : {}),
   } : {};
   return testEnv.authenticatedContext(uid, customClaims).firestore();
 }
@@ -712,6 +719,50 @@ describe('Firestore Security Rules', () => {
       );
       await assertSucceeds(
         getDoc(doc(db(UID.teacher9A), schoolPath('notifications', 'notif-all'))),
+      );
+    });
+
+    // ── M1: teacher create-audience scoping ──────────────────────────────────
+    // teacher9A.classIds = ['Class 9-A'].
+    test('ALLOW — M1: teacher posts to a guardian in their OWN class', async () => {
+      await assertSucceeds(
+        addDoc(collection(db(UID.teacher9A), `schools/${SCHOOL_ID}/notifications`),
+          { audience: 'guardian:Class 9-A:42', title: 'x', body: 'y' }),
+      );
+    });
+
+    test('DENY — M1: teacher CANNOT post to a guardian in ANOTHER class', async () => {
+      await assertFails(
+        addDoc(collection(db(UID.teacher9A), `schools/${SCHOOL_ID}/notifications`),
+          { audience: 'guardian:Class 10-B:15', title: 'phish', body: 'y' }),
+      );
+    });
+
+    test('DENY — M1: teacher CANNOT broadcast to all guardians', async () => {
+      await assertFails(
+        addDoc(collection(db(UID.teacher9A), `schools/${SCHOOL_ID}/notifications`),
+          { audience: 'guardians', title: 'spam', body: 'y' }),
+      );
+    });
+
+    test('ALLOW — M1: teacher posts a class notice for their OWN class', async () => {
+      await assertSucceeds(
+        addDoc(collection(db(UID.teacher9A), `schools/${SCHOOL_ID}/notifications`),
+          { audience: 'class:Class 9-A', title: 'x', body: 'y' }),
+      );
+    });
+
+    test('DENY — M1: teacher CANNOT post a class notice for ANOTHER class', async () => {
+      await assertFails(
+        addDoc(collection(db(UID.teacher9A), `schools/${SCHOOL_ID}/notifications`),
+          { audience: 'class:Class 10-B', title: 'x', body: 'y' }),
+      );
+    });
+
+    test('ALLOW — M1: teacher posts leave-submitted to coordinator', async () => {
+      await assertSucceeds(
+        addDoc(collection(db(UID.teacher9A), `schools/${SCHOOL_ID}/notifications`),
+          { audience: 'coordinator', title: 'leave', body: 'y' }),
       );
     });
   });
