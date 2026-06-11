@@ -25,11 +25,15 @@ import '../../widgets/announcement_composer.dart';
 import '../../widgets/email_text_form_field.dart';
 import '../../utils/role_guard.dart';
 import '../../utils/app_logger.dart';
+import 'government_report_screen.dart';
 import '../onboarding/school_onboarding_screen.dart';
 import '../fee_overview_screen.dart';
 import 'edit_school_settings_screen.dart';
 import 'staff_directory_helpers.dart';
 import '../../widgets/refreshable_data.dart';
+import 'expense_ledger_screen.dart';
+import 'profit_loss_screen.dart';
+import 'cash_reconciliation_screen.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Owner Home — menu-list entry point
@@ -250,8 +254,43 @@ class _OwnerHomeState extends State<OwnerHome> {
               builder: (_) => const _FinancePage(),
             )),
           ),
+          _FeatureTile(
+            icon: Icons.receipt_long_outlined,
+            color: AppTheme.primary,
+            title: 'Expense Ledger',
+            subtitle: 'Log, filter and track operating outlays',
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const ExpenseLedgerScreen(),
+            )),
+          ),
+          _FeatureTile(
+            icon: Icons.pie_chart_outline,
+            color: AppTheme.primary,
+            title: 'Profit & Loss Statement',
+            subtitle: 'Real-time Income vs Expense reports & trend charts',
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const ProfitLossScreen(),
+            )),
+          ),
+          _FeatureTile(
+            icon: Icons.account_balance_wallet_outlined,
+            color: AppTheme.primary,
+            title: 'Cash Reconciliation',
+            subtitle: 'Verify and deposit cash payments grouped by collector',
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const CashReconciliationScreen(),
+            )),
+          ),
 
           const _SectionHeader('MANAGE'),
+          // ── Government Reports ────────────────────────────────────────
+          _FeatureTile(
+            icon: Icons.bar_chart_outlined,
+            color: AppTheme.primary,
+            title: 'Government Reports (UDISE+)',
+            subtitle: 'Export UDISE+ CSV',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GovernmentReportScreen())),
+          ),
           _FeatureTile(
             icon: Icons.person_add_outlined,
             color: AppTheme.accent,

@@ -12,6 +12,9 @@ import '../services/notification_service.dart';
 import '../services/staff_task_service.dart';
 import '../services/timetable_service.dart';
 import '../utils/role_guard.dart';
+import 'class_diary_screen.dart';
+import 'study_material_upload_screen.dart';
+import 'syllabus_tracker_screen.dart';
 import 'attendance_screen.dart';
 import 'student_list_screen.dart';
 import 'deleted_students_screen.dart';
@@ -35,6 +38,7 @@ import '../services/meeting_service.dart';
 import 'birthdays/birthdays_screen.dart';
 import 'todo_list_screen.dart';
 import 'todo_reminder_banner.dart';
+import 'teacher_morning_summary_card.dart';
 
 class HomeScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -45,6 +49,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final _morningSummaryKey1 = GlobalKey<TeacherMorningSummaryCardState>();
+  final _morningSummaryKey2 = GlobalKey<TeacherMorningSummaryCardState>();
+
   int _unreadNotifCount     = 0;
   int _pendingTaskCount     = 0;
   int _pendingMeetingTasks  = 0;
@@ -148,6 +155,8 @@ class _HomeScreenState extends State<HomeScreen> {
   /// count (and lets any descendant streams re-settle).
   Future<void> _refreshAll() async {
     await _loadNotifCount();
+    _morningSummaryKey1.currentState?.loadData();
+    _morningSummaryKey2.currentState?.loadData();
     if (mounted) setState(() {});
   }
 
@@ -358,9 +367,37 @@ class _HomeScreenState extends State<HomeScreen> {
             userId: teacher?.id ?? teacher?.email ?? '',
             role: 'teacher',
           ),
+          if (teacher != null)
+            TeacherMorningSummaryCard(
+              key: _morningSummaryKey1,
+              teacher: teacher!,
+            ),
           _buildSubDutyCard(),
 
-          _SectionHeader(context.tr('secAcademics')),
+           _SectionHeader(context.tr('secAcademics')),
+           _FeatureTile(
+             icon: Icons.book_outlined,
+             color: AppTheme.primary,
+             title: context.tr('dailyClassDiary'),
+             subtitle: 'Log daily teaching activities',
+             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ClassDiaryScreen(teacher: teacher!))),
+           ),
+           const _Divider(),
+           _FeatureTile(
+             icon: Icons.library_books_outlined,
+             color: AppTheme.primary,
+             title: context.tr('studyMaterials'),
+             subtitle: 'Upload and view classroom resources',
+             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudyMaterialUploadScreen(teacher: teacher!))),
+           ),
+           const _Divider(),
+           _FeatureTile(
+             icon: Icons.list_alt_outlined,
+             color: AppTheme.primary,
+             title: context.tr('syllabusProgress'),
+             subtitle: 'Track syllabus coverage',
+             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SyllabusTrackerScreen())),
+           ),
           _FeatureTile(
             icon: Icons.fact_check_outlined,
             color: AppTheme.primary,
@@ -727,6 +764,11 @@ class _HomeScreenState extends State<HomeScreen> {
           userId: teacher?.id ?? teacher?.email ?? '',
           role: 'teacher',
         ),
+        if (teacher != null)
+          TeacherMorningSummaryCard(
+            key: _morningSummaryKey2,
+            teacher: teacher!,
+          ),
         _buildSubDutyCard(),
 
         _SectionHeader(context.tr('secAcademics')),

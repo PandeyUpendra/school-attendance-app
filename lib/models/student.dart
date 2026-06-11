@@ -122,9 +122,17 @@ class Student {
         'schoolId': schoolId,
       };
 
+  static String _toTitleCase(String text) {
+    if (text.trim().isEmpty) return text;
+    return text.trim().split(RegExp(r'\s+')).map((word) {
+      if (word.isEmpty) return '';
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
   static String buildDocId(int roll, String className, String section) {
-    final base = className.replaceAll(' ', '_');
-    final sec = section.trim().replaceAll(' ', '_');
+    final base = _toTitleCase(className).replaceAll(' ', '_');
+    final sec = section.trim().toUpperCase().replaceAll(' ', '_');
     return sec.isEmpty ? '${base}_$roll' : '${base}_${sec}_$roll';
   }
 

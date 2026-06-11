@@ -138,6 +138,46 @@ service cloud.firestore {
       return isRootAdmin() || userSchoolId() == sid;
     }
 
+    /// Optimized notifications read permission helper.
+    /// Uses let bindings to evaluate getUserData() exactly once, preventing
+    /// the 1000 expression ceiling evaluation limit from being reached.
+    function canReadNotification(sid, audience) {
+      let userData = getUserData();
+      let role = userData != null ? userData.role : null;
+      let schoolId = userData != null && 'schoolId' in userData ? userData.schoolId : null;
+      return isRootAdmin() || (
+        userData != null && schoolId == sid && (
+          // Broadcast is always allowed
+          audience == 'all' ||
+          
+          // Staff path
+          (role in ['teacher', 'subjectTeacher', 'coordinator', 'principal', 'admin', 'owner', 'ownerPrincipal'] && (
+            (audience == 'teachers' && role in ['teacher', 'subjectTeacher']) ||
+            (audience == 'coordinator' && role == 'coordinator') ||
+            (audience == 'principal' && role == 'principal') ||
+            (role in ['teacher', 'subjectTeacher'] && (
+              ('teacherId' in userData && userData.teacherId != null && audience == 'teacher:' + userData.teacherId) ||
+              audience.matches('class:.*') ||
+              (audience.matches('class_teacher:.*') && 'classIds' in userData && audience.split(':')[1] in userData.classIds)
+            ))
+          )) ||
+          
+          // Guardian path
+          (role == 'guardian' && (
+            audience == 'guardians' ||
+            (audience.matches('guardian:.*:.*') &&
+             'studentClass' in userData && audience.split(':')[1] == userData.studentClass &&
+             'studentRoll' in userData && audience.split(':')[2] == string(userData.studentRoll)) ||
+            ('studentAdmissionId' in userData && userData.studentAdmissionId != null &&
+             audience.matches('guardian_adm:.*') &&
+             audience.split(':')[1] == userData.studentAdmissionId) ||
+            (audience.matches('class:.*') &&
+             'studentClass' in userData && audience.split(':')[1] == userData.studentClass)
+          ))
+        )
+      );
+    }
+
     /// True when cls is listed in the caller's classIds array.
     ///
     /// IMPORTANT — keep this cheap (a single field test, no get()/exists()).
@@ -381,17 +421,24 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() && (isManagement() || isAnyTeacher())
         && (isRootAdmin() || resource.data.schoolId == userSchoolId());
 
+      // Phase 3 tenancy: statuses inherit the parent copy_check's schoolId.
+      // The parent read rule already gates on schoolId, and statuses are only
+      // reachable through a parent the caller can read. Explicit school check
+      // added here to block collection-group query bypass.
       match /statuses/{statusId} {
-        allow read:  if isSignedIn() && isAnyStaff();
-        allow write: if isSignedIn() && (isManagement() || isAnyTeacher());
+        allow read:  if isSignedIn() && isAnyStaff()
+          && (isRootAdmin() || get(/databases/$(database)/documents/copy_checks/$(checkId)).data.schoolId == userSchoolId());
+        allow write: if isSignedIn() && (isManagement() || isAnyTeacher())
+          && (isRootAdmin() || get(/databases/$(database)/documents/copy_checks/$(checkId)).data.schoolId == userSchoolId());
       }
     }
-// FEE PAYMENTS (/schools/{sid}/fee_payments/{paymentId})
-match /schools/{sid}/fee_payments/{paymentId} {
-  allow read: if isSignedIn() && (isAnyStaff() || (isRole('guardian') && resource.data.studentId == guardianStudentId())) && resource.data.schoolId == userSchoolId();
-  allow create: if isSignedIn() && (isManagement() || (isRole('guardian') && request.resource.data.studentId == guardianStudentId())) && request.resource.data.schoolId == userSchoolId();
-  allow update, delete: if isSignedIn() && isManagement() && request.resource.data.schoolId == userSchoolId();
-}
+    // NOTE: Duplicate flat fee_payments rule removed (Phase 2 audit).
+    // The canonical fee_payments rules are the hierarchical ones at
+    // /schools/{sid}/fee_payments/{classId}/students/{roll}/payments/{id}
+    // defined below (around line 1017). The duplicate here used a flat
+    // /schools/{sid}/fee_payments/{paymentId} pattern with resource.data.schoolId
+    // checks, which conflicted with the hierarchical structure and could match
+    // unintended paths.
 
 
     // ════════════════════════════════════════════════════════════════
@@ -573,7 +620,7 @@ match /schools/{sid}/fee_payments/{paymentId} {
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/students/{studentId} {
 
-      allow read: if isSignedIn() && (isAnyStaff() || (
+      allow read: if isSignedIn() && ((isAnyStaff() && inSchool(sid)) || (
         inSchool(sid) && isRole('guardian')
         // Own child — matched on real student fields (className/section/roll),
         // since the app does not populate studentIds[] on allowed_users.
@@ -617,7 +664,7 @@ match /schools/{sid}/fee_payments/{paymentId} {
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/students/{studentId}/remarks/{remarkId} {
       allow read, create: if isSignedIn() && (
-        isAnyStaff() ||
+        (isAnyStaff() && inSchool(sid)) ||
         // Own child — studentId is "{class}_{section}_{roll}". Remark docs carry
         // no className/roll fields, so match the parent doc ID instead.
         (inSchool(sid) && isRole('guardian') && studentId == guardianStudentId())
@@ -641,7 +688,7 @@ match /schools/{sid}/fee_payments/{paymentId} {
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/students/{studentId}/consents/{consentId} {
       allow read, create, update: if isSignedIn() && (
-        isAnyStaff() ||
+        (isAnyStaff() && inSchool(sid)) ||
         (inSchool(sid) && isRole('guardian') && studentId == guardianStudentId())
       );
       allow delete: if isSignedIn() && inSchool(sid) && isManagement();
@@ -662,7 +709,7 @@ match /schools/{sid}/fee_payments/{paymentId} {
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/students/{studentId}/guardianProvidedDetails/{detailId} {
       allow read: if isSignedIn() && (
-        isAnyStaff() ||
+        (isAnyStaff() && inSchool(sid)) ||
         (inSchool(sid) && isRole('guardian') && studentId == guardianStudentId())
       );
       allow create: if isSignedIn() && inSchool(sid)
@@ -673,7 +720,7 @@ match /schools/{sid}/fee_payments/{paymentId} {
 
     match /schools/{sid}/students/{studentId}/schoolProvidedDetails/{detailId} {
       allow read: if isSignedIn() && (
-        isAnyStaff() ||
+        (isAnyStaff() && inSchool(sid)) ||
         (inSchool(sid) && isRole('guardian') && studentId == guardianStudentId())
       );
       allow create, update: if isSignedIn() && inSchool(sid)
@@ -1269,58 +1316,7 @@ match /schools/{sid}/fee_payments/{paymentId} {
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/notifications/{notifId} {
 
-      allow read: if isSignedIn() && inSchool(sid) && (
-        // Broadcast
-        resource.data.audience == 'all' ||
-
-        // Group audiences
-        (resource.data.audience == 'teachers'   && isAnyTeacher())      ||
-        (resource.data.audience == 'guardians'  && isRole('guardian'))   ||
-
-        // Role-targeted
-        (resource.data.audience == 'coordinator' && isRole('coordinator')) ||
-        (resource.data.audience == 'principal'   && isRole('principal'))   ||
-
-        // Direct teacher — 'teacher:{teacherId}'
-        // Guard against null: userTeacherId() returns null for non-teacher roles;
-        // concatenating string + null throws an evaluation error in the emulator.
-        (userTeacherId() != null
-          && resource.data.audience == ('teacher:' + userTeacherId())) ||
-
-        // Guardian — 'guardian:{class}:{roll}'
-        // Roll-level enforcement parsed directly from the audience string
-        // (class names contain no ':'). Matching BOTH class and roll prevents
-        // intra-class leaks without depending on a separate field.
-        (isRole('guardian')
-          && resource.data.audience.matches('guardian:.*:.*')
-          && resource.data.audience.split(':')[1] == userStudentClass()
-          && resource.data.audience.split(':')[2] == string(userStudentRoll())) ||
-
-        // Guardian — 'guardian_adm:{admissionId}' (#39): the STABLE-identity
-        // variant. Matches the caller's own child's admissionId only. A null
-        // admissionId (legacy guardian) never equals a string audience id, so
-        // this branch is inert until the guardian doc carries the field.
-        (isRole('guardian')
-          && userStudentAdmissionId() != null
-          && resource.data.audience.matches('guardian_adm:.*')
-          && resource.data.audience.split(':')[1] == userStudentAdmissionId()) ||
-
-        // Class-wide notice — 'class:{className}'
-        // Posted by the class teacher to every guardian in the class. A guardian
-        // may read it only when the named class is their own child's class. Staff
-        // (any teacher) may also read class notices. matches('class:.*') excludes
-        // the longer 'class_teacher:.*' form, which is handled separately below.
-        ((isRole('guardian')
-            && resource.data.audience.matches('class:.*')
-            && resource.data.audience.split(':')[1] == userStudentClass())
-          || (isAnyTeacher()
-            && resource.data.audience.matches('class:.*'))) ||
-
-        // Class teacher — 'class_teacher:{className}'
-        (isAnyTeacher()
-          && resource.data.audience.matches('class_teacher:.*')
-          && isClassTeacher(resource.data.audience.split(':')[1]))
-      );
+      allow read: if isSignedIn() && canReadNotification(sid, resource.data.audience);
 
       // Create: management may post to ANY audience. Other school members
       // (teachers, guardians) may only post TARGETED notices — never the
@@ -1367,7 +1363,7 @@ match /schools/{sid}/fee_payments/{paymentId} {
     // SETTINGS  (/schools/{sid}/settings/{docId})
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/settings/{docId} {
-      allow read:  if isSignedIn() && inSchool(sid);
+      allow read:  if isSignedIn() && inSchool(sid) && (docId != 'smtp' || isManagement());
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
 
       match /entries/{entryId} {
@@ -1437,7 +1433,7 @@ match /schools/{sid}/fee_payments/{paymentId} {
     match /schools/{sid}/audit_logs/{logId} {
 
       allow read: if isSignedIn() && inSchool(sid)
-        && hasAnyRole(['principal', 'admin', 'owner', 'coordinator']);
+        && hasAnyRole(['principal', 'admin', 'owner', 'ownerPrincipal', 'coordinator']);
 
       // Server-side only (#1): audit entries are written by the `writeAudit`
       // Cloud Function via the Admin SDK, which BYPASSES these rules. Direct
@@ -1586,7 +1582,8 @@ match /schools/{sid}/fee_payments/{paymentId} {
     match /substitution_history/{recordId} {
       allow read:  if isSignedIn() && isAnyStaff()
         && (isRootAdmin() || resource.data.schoolId == userSchoolId());
-      allow write: if isSignedIn() && isManagement();
+      allow write: if isSignedIn() && isManagement()
+        && (isRootAdmin() || request.resource.data.schoolId == userSchoolId());
     }
 
     // (school_contacts rule removed — ContactService was deleted as dead code;

@@ -2,27 +2,20 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/school_clock.dart';
 import 'student_service.dart';
+import '../models/exam.dart';
+import '../models/homework.dart';
+import 'exam_service.dart';
+import 'homework_service.dart';
 
-/// Stores pending attendance saves locally when the device is offline.
-/// When connectivity returns, call [syncAll] to flush the queue to Firestore.
-///
-/// Queue format in SharedPreferences key 'attendance_offline_queue':
-///   List<Map> where each entry is:
-///   {
-///     'className': String,
-///     'dateKey':   'YYYY-MM-DD',
-///     'rolls':     { '1': 'Present', '2': 'Absent', ... },
-///     'queuedAt':  millisecondsSinceEpoch,
-///   }
-///
-/// Duplicate check: if an entry for the same className+dateKey already exists
-/// in the queue, it is replaced (last write wins for the same class+day).
+/// Stores pending attendance, marks, and homework saves locally when the device is offline.
+/// When connectivity returns, call [syncAll] to flush the queues to Firestore.
 class OfflineQueueService {
   static const _queueKey = 'attendance_offline_queue';
+  static const _marksQueueKey = 'marks_offline_queue';
+  static const _homeworkQueueKey = 'homework_offline_queue';
 
   /// A queued entry is abandoned once it has failed this many sync attempts or
-  /// is older than [_maxAgeDays] — so a permanently-rejected record (e.g. a
-  /// deleted class) stops re-failing on every connectivity change (#66).
+  /// is older than [_maxAgeDays].
   static const _maxAttempts = 5;
   static const _maxAgeDays  = 21;
 
@@ -30,11 +23,9 @@ class OfflineQueueService {
   factory OfflineQueueService() => _instance;
   OfflineQueueService._();
 
-  // ── Enqueue ────────────────────────────────────────────────────────────────
+  // ── Attendance Enqueue ──────────────────────────────────────────────────────
 
-  /// Queues attendance for [className] on [date] (defaults to today). Passing
-  /// the actual date being edited keeps backdated attendance taken offline from
-  /// being saved under today's date on sync (#63).
+  /// Queues attendance for [className] on [date] (defaults to today).
   Future<void> enqueue({
     required String className,
     required Map<int, String> attendance,
@@ -48,8 +39,6 @@ class OfflineQueueService {
                 Map<String, dynamic>.from(e as Map)))
         : <Map<String, dynamic>>[];
 
-    // Default "today" to the school timezone so an offline mark queues under the
-    // same calendar day the online path would use (#43).
     final dateKey = _dateKey(date ?? SchoolClock.now());
 
     // Replace existing entry for same class+day (last write wins)
@@ -67,13 +56,89 @@ class OfflineQueueService {
     await prefs.setString(_queueKey, jsonEncode(list));
   }
 
-  // ── Queue size ─────────────────────────────────────────────────────────────
+  // ── Exam Results Enqueue ────────────────────────────────────────────────────
 
-  Future<int> pendingCount() async {
+  /// Queues exam results for [examId].
+  Future<void> enqueueExamResult({
+    required String examId,
+    required ExamResult result,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw   = prefs.getString(_marksQueueKey);
+    final list  = raw != null
+        ? List<Map<String, dynamic>>.from(
+            (jsonDecode(raw) as List).map((e) =>
+                Map<String, dynamic>.from(e as Map)))
+        : <Map<String, dynamic>>[];
+
+    // Replace existing entry for same student+exam (last write wins)
+    list.removeWhere((e) =>
+        e['examId'] == examId && e['roll'] == result.roll && e['className'] == result.className);
+
+    list.add({
+      'examId': examId,
+      'roll': result.roll,
+      'className': result.className,
+      'result': result.toJson(),
+      'queuedAt': DateTime.now().millisecondsSinceEpoch,
+      'attempts': 0,
+    });
+
+    await prefs.setString(_marksQueueKey, jsonEncode(list));
+  }
+
+  // ── Homework Enqueue ────────────────────────────────────────────────────────
+
+  /// Queues homework posting.
+  Future<void> enqueueHomework({
+    required String schoolId,
+    required Homework homework,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw   = prefs.getString(_homeworkQueueKey);
+    final list  = raw != null
+        ? List<Map<String, dynamic>>.from(
+            (jsonDecode(raw) as List).map((e) =>
+                Map<String, dynamic>.from(e as Map)))
+        : <Map<String, dynamic>>[];
+
+    list.add({
+      'schoolId': schoolId,
+      'homework': _serializeHomeworkForQueue(homework),
+      'queuedAt': DateTime.now().millisecondsSinceEpoch,
+      'attempts': 0,
+    });
+
+    await prefs.setString(_homeworkQueueKey, jsonEncode(list));
+  }
+
+  // ── Queue sizes ────────────────────────────────────────────────────────────
+
+  Future<int> pendingAttendanceCount() async {
     final prefs = await SharedPreferences.getInstance();
     final raw   = prefs.getString(_queueKey);
     if (raw == null) return 0;
     return (jsonDecode(raw) as List).length;
+  }
+
+  Future<int> pendingMarksCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw   = prefs.getString(_marksQueueKey);
+    if (raw == null) return 0;
+    return (jsonDecode(raw) as List).length;
+  }
+
+  Future<int> pendingHomeworkCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw   = prefs.getString(_homeworkQueueKey);
+    if (raw == null) return 0;
+    return (jsonDecode(raw) as List).length;
+  }
+
+  Future<int> pendingCount() async {
+    return (await pendingAttendanceCount()) +
+        (await pendingMarksCount()) +
+        (await pendingHomeworkCount());
   }
 
   Future<Map<String, int>> pendingCountsByClass() async {
@@ -97,6 +162,14 @@ class OfflineQueueService {
 
   /// Returns the number of records successfully synced.
   Future<int> syncAll() async {
+    int synced = 0;
+    synced += await _syncAttendanceQueue();
+    synced += await _syncMarksQueue();
+    synced += await _syncHomeworkQueue();
+    return synced;
+  }
+
+  Future<int> _syncAttendanceQueue() async {
     final prefs = await SharedPreferences.getInstance();
     final raw   = prefs.getString(_queueKey);
     if (raw == null || raw.isEmpty) return 0;
@@ -122,8 +195,6 @@ class OfflineQueueService {
           }
         });
 
-        // Save to Firestore using the normal service
-        // We temporarily override the today-key by saving on the correct date
         final dateKey = entry['dateKey'] as String;
         final parts   = dateKey.split('-');
         final year    = parts.isNotEmpty ? (int.tryParse(parts[0]) ?? SchoolClock.now().year) : SchoolClock.now().year;
@@ -135,20 +206,15 @@ class OfflineQueueService {
           className: className, attendance: attendance, date: date);
         synced++;
       } catch (_) {
-        // Bump the attempt count and re-queue for retry — UNLESS the entry has
-        // exhausted its attempts or aged out, in which case it is abandoned so
-        // a permanently-rejected record can't re-fail forever (#66).
         final attempts = ((entry['attempts'] as num?)?.toInt() ?? 0) + 1;
         final queuedAt = (entry['queuedAt'] as num?)?.toInt() ?? nowMs;
         final ageDays  = (nowMs - queuedAt) / (24 * 60 * 60 * 1000);
         if (attempts < _maxAttempts && ageDays <= _maxAgeDays) {
           failed.add({...entry, 'attempts': attempts});
         }
-        // else: drop the entry (give up).
       }
     }
 
-    // Update queue: remove synced, keep failed
     if (failed.isEmpty) {
       await prefs.remove(_queueKey);
     } else {
@@ -158,7 +224,87 @@ class OfflineQueueService {
     return synced;
   }
 
-  // ── Load today's cached attendance (if any) ────────────────────────────────
+  Future<int> _syncMarksQueue() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw   = prefs.getString(_marksQueueKey);
+    if (raw == null || raw.isEmpty) return 0;
+
+    final list = List<Map<String, dynamic>>.from(
+        (jsonDecode(raw) as List).map((e) =>
+            Map<String, dynamic>.from(e as Map)));
+
+    int synced = 0;
+    final failed = <Map<String, dynamic>>[];
+    final nowMs  = DateTime.now().millisecondsSinceEpoch;
+
+    for (final entry in list) {
+      try {
+        final examId = entry['examId'] as String;
+        final resultData = Map<String, dynamic>.from(entry['result'] as Map);
+        final result = ExamResult.fromDoc(resultData);
+
+        await ExamService().saveResult(examId: examId, result: result);
+        synced++;
+      } catch (_) {
+        final attempts = ((entry['attempts'] as num?)?.toInt() ?? 0) + 1;
+        final queuedAt = (entry['queuedAt'] as num?)?.toInt() ?? nowMs;
+        final ageDays  = (nowMs - queuedAt) / (24 * 60 * 60 * 1000);
+        if (attempts < _maxAttempts && ageDays <= _maxAgeDays) {
+          failed.add({...entry, 'attempts': attempts});
+        }
+      }
+    }
+
+    if (failed.isEmpty) {
+      await prefs.remove(_marksQueueKey);
+    } else {
+      await prefs.setString(_marksQueueKey, jsonEncode(failed));
+    }
+
+    return synced;
+  }
+
+  Future<int> _syncHomeworkQueue() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw   = prefs.getString(_homeworkQueueKey);
+    if (raw == null || raw.isEmpty) return 0;
+
+    final list = List<Map<String, dynamic>>.from(
+        (jsonDecode(raw) as List).map((e) =>
+            Map<String, dynamic>.from(e as Map)));
+
+    int synced = 0;
+    final failed = <Map<String, dynamic>>[];
+    final nowMs  = DateTime.now().millisecondsSinceEpoch;
+
+    for (final entry in list) {
+      try {
+        final schoolId = entry['schoolId'] as String;
+        final hwData = Map<String, dynamic>.from(entry['homework'] as Map);
+        final homework = _deserializeHomeworkFromQueue(hwData);
+
+        await HomeworkService().postHomework(schoolId, homework);
+        synced++;
+      } catch (_) {
+        final attempts = ((entry['attempts'] as num?)?.toInt() ?? 0) + 1;
+        final queuedAt = (entry['queuedAt'] as num?)?.toInt() ?? nowMs;
+        final ageDays  = (nowMs - queuedAt) / (24 * 60 * 60 * 1000);
+        if (attempts < _maxAttempts && ageDays <= _maxAgeDays) {
+          failed.add({...entry, 'attempts': attempts});
+        }
+      }
+    }
+
+    if (failed.isEmpty) {
+      await prefs.remove(_homeworkQueueKey);
+    } else {
+      await prefs.setString(_homeworkQueueKey, jsonEncode(failed));
+    }
+
+    return synced;
+  }
+
+  // ── Load cached attendance ─────────────────────────────────────────────────
 
   Future<Map<int, String>?> getCachedAttendance(String className,
       {DateTime? date}) async {
@@ -187,14 +333,42 @@ class OfflineQueueService {
     return attendance;
   }
 
-  // ── Clear queue ────────────────────────────────────────────────────────────
+  // ── Clear queues ───────────────────────────────────────────────────────────
 
   Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_queueKey);
+    await prefs.remove(_marksQueueKey);
+    await prefs.remove(_homeworkQueueKey);
   }
 
-  /// Delegates to [SchoolClock.dateKey] so all date keys are ISO 8601
-  /// zero-padded (`YYYY-MM-DD`) and lexicographically sortable (#109).
   String _dateKey(DateTime d) => SchoolClock.dateKey(d);
+
+  // ── Serialization Helpers ──────────────────────────────────────────────────
+
+  Map<String, dynamic> _serializeHomeworkForQueue(Homework hw) => {
+        'id': hw.id,
+        'teacherId': hw.teacherId,
+        'teacherName': hw.teacherName,
+        'className': hw.className,
+        'subject': hw.subject,
+        'title': hw.title,
+        'description': hw.description,
+        'dueDate': hw.dueDate.toIso8601String(),
+        'postedAt': hw.postedAt.toIso8601String(),
+        'isReviewed': hw.isReviewed,
+      };
+
+  Homework _deserializeHomeworkFromQueue(Map<String, dynamic> json) => Homework(
+        id: json['id'] as String? ?? '',
+        teacherId: json['teacherId'] as String? ?? '',
+        teacherName: json['teacherName'] as String? ?? '',
+        className: json['className'] as String? ?? '',
+        subject: json['subject'] as String? ?? '',
+        title: json['title'] as String? ?? '',
+        description: json['description'] as String? ?? '',
+        dueDate: DateTime.parse(json['dueDate'] as String),
+        postedAt: DateTime.parse(json['postedAt'] as String),
+        isReviewed: json['isReviewed'] as bool? ?? false,
+      );
 }

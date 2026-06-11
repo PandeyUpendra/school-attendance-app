@@ -349,10 +349,20 @@ class StudentService extends BaseFirestoreService {
   static const _uuid = Uuid();
   static String _newAdmissionId() => 'STU-${_uuid.v4()}';
 
+  String _toTitleCase(String text) {
+    if (text.trim().isEmpty) return text;
+    return text.trim().split(RegExp(r'\s+')).map((word) {
+      if (word.isEmpty) return '';
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
   /// Returns null on success, error string on duplicate roll.
   Future<String?> addStudent({required Student student}) async {
     // 1. Sanitize fields
     var sanitized = student.copyWith(
+      className: _toTitleCase(student.className),
+      section: student.section.trim().toUpperCase(),
       name: stripHtml(student.name).trim(),
       fatherName: stripHtml(student.fatherName).trim(),
       motherName: student.motherName != null ? stripHtml(student.motherName!).trim() : null,
@@ -400,6 +410,8 @@ class StudentService extends BaseFirestoreService {
   Future<String?> updateStudent({required Student updated}) async {
     // 1. Sanitize fields
     var sanitized = updated.copyWith(
+      className: _toTitleCase(updated.className),
+      section: updated.section.trim().toUpperCase(),
       name: stripHtml(updated.name).trim(),
       fatherName: stripHtml(updated.fatherName).trim(),
       motherName: updated.motherName != null ? stripHtml(updated.motherName!).trim() : null,

@@ -14,6 +14,14 @@ class ExamService extends BaseFirestoreService {
   ExamService._();
   factory ExamService() => _instance;
 
+  static String _toTitleCase(String text) {
+    if (text.trim().isEmpty) return text;
+    return text.trim().split(RegExp(r'\s+')).map((word) {
+      if (word.isEmpty) return '';
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
   String get _sid => AuthService.currentSchoolId;
 
   CollectionReference<Map<String, dynamic>> get _exams =>
@@ -30,7 +38,7 @@ class ExamService extends BaseFirestoreService {
   Future<List<Exam>> getExams({String? schoolId, String? className}) async {
     Query q = _exams;
     if (className != null) {
-      q = q.where('className', isEqualTo: className);
+      q = q.where('className', isEqualTo: _toTitleCase(className));
     }
     final snap = await q.get();
     final list = snap.docs
@@ -52,29 +60,49 @@ class ExamService extends BaseFirestoreService {
 
   Future<String> createExam({String? schoolId, required Exam exam}) async {
     _validateExam(exam);
-    final ref = await _exams.add(exam.toJson());
+    final normalized = Exam(
+      id: exam.id,
+      name: exam.name,
+      className: _toTitleCase(exam.className),
+      subjects: exam.subjects,
+      maxMarks: exam.maxMarks,
+      examDate: exam.examDate,
+      createdBy: exam.createdBy,
+      publishedAt: exam.publishedAt,
+    );
+    final ref = await _exams.add(normalized.toJson());
     AuditService.emit(
       action:   'create',
       entity:   'exam',
       entityId: ref.id,
-      after:    exam.toJson(),
+      after:    normalized.toJson(),
     );
     return ref.id;
   }
 
   Future<void> updateExam({required Exam exam}) async {
     _validateExam(exam);
-    final prev   = await _exams.doc(exam.id).get();
+    final normalized = Exam(
+      id: exam.id,
+      name: exam.name,
+      className: _toTitleCase(exam.className),
+      subjects: exam.subjects,
+      maxMarks: exam.maxMarks,
+      examDate: exam.examDate,
+      createdBy: exam.createdBy,
+      publishedAt: exam.publishedAt,
+    );
+    final prev   = await _exams.doc(normalized.id).get();
     final before = prev.exists && prev.data() != null
         ? Map<String, dynamic>.from(prev.data()!)
         : null;
-    await _exams.doc(exam.id).set(exam.toJson());
+    await _exams.doc(normalized.id).set(normalized.toJson());
     AuditService.emit(
       action:   'update',
       entity:   'exam',
-      entityId: exam.id,
+      entityId: normalized.id,
       before:   before,
-      after:    exam.toJson(),
+      after:    normalized.toJson(),
     );
   }
 
@@ -109,7 +137,7 @@ class ExamService extends BaseFirestoreService {
   /// collisions when the same exam is created for multiple sections of the same
   /// grade (e.g. Class 9-A and Class 9-B both have roll 1 — #627).
   static String _resultDocId(int roll, String className) {
-    final cls = className.replaceAll(' ', '_');
+    final cls = _toTitleCase(className).replaceAll(' ', '_');
     return '${cls}_$roll';
   }
 

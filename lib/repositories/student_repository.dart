@@ -198,9 +198,7 @@ class FirestoreStudentRepository implements StudentRepository {
   /// Format: `{className}_{section}_{roll}` (spaces → underscores).
   /// When section is empty: `{className}_{roll}`.
   String _docId(int roll, String className, [String section = '']) {
-    final base = className.replaceAll(' ', '_');
-    final sec = section.trim().replaceAll(' ', '_');
-    return sec.isEmpty ? '${base}_$roll' : '${base}_${sec}_$roll';
+    return Student.buildDocId(roll, className, section);
   }
 
   /// Converts a Firestore document snapshot into a [Student], always setting
@@ -270,7 +268,7 @@ class FirestoreStudentRepository implements StudentRepository {
     Query<Map<String, dynamic>> q =
         _students.where('className', isEqualTo: normalizedClassName);
     if (section.trim().isNotEmpty) {
-      q = q.where('section', isEqualTo: section.trim());
+      q = q.where('section', isEqualTo: section.trim().toUpperCase());
     }
     if (teacherId != null && teacherId.isNotEmpty) {
       q = q.where('teacherId', isEqualTo: teacherId);
@@ -328,7 +326,7 @@ class FirestoreStudentRepository implements StudentRepository {
     Query<Map<String, dynamic>> q =
         _students.where('className', isEqualTo: normalizedClassName);
     if (section.trim().isNotEmpty) {
-      q = q.where('section', isEqualTo: section.trim());
+      q = q.where('section', isEqualTo: section.trim().toUpperCase());
     }
     if (teacherId != null && teacherId.isNotEmpty) {
       q = q.where('teacherId', isEqualTo: teacherId);
@@ -460,7 +458,7 @@ class FirestoreStudentRepository implements StudentRepository {
     Query<Map<String, dynamic>> q =
         _students.where('className', isEqualTo: normalizedClassName);
     if (section.trim().isNotEmpty) {
-      q = q.where('section', isEqualTo: section.trim());
+      q = q.where('section', isEqualTo: section.trim().toUpperCase());
     }
     if (teacherId != null && teacherId.isNotEmpty) {
       q = q.where('teacherId', isEqualTo: teacherId);

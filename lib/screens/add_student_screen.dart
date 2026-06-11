@@ -146,7 +146,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       existing = await StudentService.instance.getStudentsByClass(
         className: widget.className,
         section:   widget.section,
-        teacherId: widget.teacherId,
+        teacherId: null,
       );
     } catch (e, st) {
       AppLogger.e('AddStudentScreen', 'Failed duplicate student check lookup', e, st);

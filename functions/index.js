@@ -17,6 +17,17 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
+/** Simple HTML escaping utility to prevent HTML injection in emails. */
+function escapeHtml(unsafe) {
+  if (unsafe === null || unsafe === undefined) return "";
+  return String(unsafe)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 /**
  * Firestore trigger: mirror each user's {role, schoolId} into their Firebase
  * Auth CUSTOM CLAIMS whenever their allowed_users doc changes (#3). Storage
@@ -837,8 +848,8 @@ exports.sendReceiptEmail = onDocumentCreated(
       const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
           <div style="text-align: center; margin-bottom: 20px;">
-            ${logoUrl ? `<img src="${logoUrl}" alt="${schoolName}" style="max-height: 80px; margin-bottom: 10px;" />` : ''}
-            <h2 style="color: #333; margin: 0;">${schoolName}</h2>
+            ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(schoolName)}" style="max-height: 80px; margin-bottom: 10px;" />` : ''}
+            <h2 style="color: #333; margin: 0;">${escapeHtml(schoolName)}</h2>
             <p style="color: #666; margin: 5px 0 0 0;">Payment Receipt</p>
           </div>
           
@@ -846,23 +857,23 @@ exports.sendReceiptEmail = onDocumentCreated(
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
                 <td style="padding: 6px 0; color: #666; font-size: 14px;">Receipt No:</td>
-                <td style="padding: 6px 0; font-weight: bold; text-align: right; font-size: 14px;">${receiptNo}</td>
+                <td style="padding: 6px 0; font-weight: bold; text-align: right; font-size: 14px;">${escapeHtml(receiptNo)}</td>
               </tr>
               <tr>
                 <td style="padding: 6px 0; color: #666; font-size: 14px;">Student Name:</td>
-                <td style="padding: 6px 0; text-align: right; font-size: 14px;">${studentName} (Roll: ${roll})</td>
+                <td style="padding: 6px 0; text-align: right; font-size: 14px;">${escapeHtml(studentName)} (Roll: ${escapeHtml(roll)})</td>
               </tr>
               <tr>
                 <td style="padding: 6px 0; color: #666; font-size: 14px;">Class:</td>
-                <td style="padding: 6px 0; text-align: right; font-size: 14px;">${classKeyClean}</td>
+                <td style="padding: 6px 0; text-align: right; font-size: 14px;">${escapeHtml(classKeyClean)}</td>
               </tr>
               <tr>
                 <td style="padding: 6px 0; color: #666; font-size: 14px;">Installment:</td>
-                <td style="padding: 6px 0; text-align: right; font-size: 14px;">${installmentName || 'General'}</td>
+                <td style="padding: 6px 0; text-align: right; font-size: 14px;">${escapeHtml(installmentName || 'General')}</td>
               </tr>
               <tr>
                 <td style="padding: 6px 0; color: #666; font-size: 14px;">Payment Mode:</td>
-                <td style="padding: 6px 0; text-align: right; font-size: 14px;">${mode}</td>
+                <td style="padding: 6px 0; text-align: right; font-size: 14px;">${escapeHtml(mode)}</td>
               </tr>
             </table>
           </div>
@@ -872,7 +883,7 @@ exports.sendReceiptEmail = onDocumentCreated(
             <h1 style="color: #2e7d32; margin: 5px 0 0 0;">₹${amountRupees.toFixed(2)}</h1>
           </div>
           
-          ${note ? `<div style="margin-bottom: 20px; font-size: 13px; color: #555;"><strong>Note:</strong> ${note}</div>` : ''}
+          ${note ? `<div style="margin-bottom: 20px; font-size: 13px; color: #555;"><strong>Note:</strong> ${escapeHtml(note)}</div>` : ''}
           
           <div style="text-align: center; border-top: 1px solid #eeeeee; padding-top: 15px; font-size: 11px; color: #888;">
             This is an electronically generated receipt. No signature is required.
@@ -951,4 +962,99 @@ exports.sendReceiptEmail = onDocumentCreated(
     }
   }
 );
+
+/**
+ * Firestore trigger: publish absence/leave notifications to the guardian's topic channel
+ * when an absence or leave status is recorded, subject to consent validation (DPDP compliance).
+ */
+exports.onAttendanceWritten = onDocumentWritten(
+  { document: "schools/{sid}/attendance/{docId}", region: "us-central1" },
+  async (event) => {
+    const after = event.data && event.data.after;
+    if (!after || !after.exists) return; // deleted
+
+    const sid = event.params.sid;
+    const docId = event.params.docId; // e.g. "Class_6_A_2026-06-11"
+
+    const dataAfter = after.data() || {};
+    const before = event.data && event.data.before;
+    const dataBefore = (before && before.exists) ? (before.data() || {}) : {};
+
+    const rollsAfter = dataAfter.rolls || {};
+    const rollsBefore = dataBefore.rolls || {};
+
+    const db = admin.firestore();
+
+    // The date suffix is always 11 characters: e.g. "_2026-06-11"
+    const dateSfxLen = 11;
+    if (docId.length <= dateSfxLen) return;
+    const classSectionPrefix = docId.substring(0, docId.length - dateSfxLen);
+
+    for (const [rollStr, status] of Object.entries(rollsAfter)) {
+      if (status === "Absent" || status === "Leave") {
+        const prevStatus = rollsBefore[rollStr];
+        if (prevStatus !== status) {
+          // Status newly changed to Absent or Leave!
+          const roll = parseInt(rollStr, 10);
+          const studentDocId = `${classSectionPrefix}_${roll}`;
+
+          try {
+            // Fetch student document
+            const studentSnap = await db.collection("schools").doc(sid)
+              .collection("students").doc(studentDocId).get();
+            
+            if (!studentSnap.exists) {
+              logger.warn(`[onAttendanceWritten] Student document not found: ${studentDocId}`);
+              continue;
+            }
+
+            const studentData = studentSnap.data() || {};
+            const studentName = studentData.name || "Student";
+            const studentClass = studentData.className || "";
+
+            // Check DPDP Consent
+            const consentSnap = await db.collection("schools").doc(sid)
+              .collection("students").doc(studentDocId)
+              .collection("consents")
+              .where("consentVersion", "==", "v1.0")
+              .get();
+
+            let hasConsent = false;
+            for (const doc of consentSnap.docs) {
+              const cData = doc.data() || {};
+              if (!cData.withdrawnAt) {
+                const scopes = cData.scopes || [];
+                // Check if 'communication' or 'attendance' dataType scope is optedIn
+                const targetScope = scopes.find(s => s.dataType === "communication" || s.dataType === "attendance");
+                if (targetScope && targetScope.optedIn) {
+                  hasConsent = true;
+                  break;
+                }
+              }
+            }
+
+            if (!hasConsent) {
+              logger.info(`[onAttendanceWritten] Skip alert for ${studentName} (no active consent for communication/attendance)`);
+              continue;
+            }
+
+            // Write notification
+            await db.collection("schools").doc(sid).collection("notifications").add({
+              type: "attendance_alert",
+              title: "Attendance Alert",
+              body: `${studentName} has been marked ${status} today.`,
+              audience: `guardian:${studentClass}:${roll}`,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            logger.info(`[onAttendanceWritten] Sent attendance alert for ${studentName} (${status})`);
+          } catch (err) {
+            logger.error(`[onAttendanceWritten] Error processing student ${studentDocId}:`, err);
+          }
+        }
+      }
+    }
+  }
+);
+
 

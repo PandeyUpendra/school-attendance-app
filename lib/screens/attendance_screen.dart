@@ -679,9 +679,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
             final status = _attendance[s.roll];
             final wasStatus = _savedStatuses[s.roll];
             if ((status == 'Absent' || status == 'Leave') && status != wasStatus) {
-              // Skip if consent has been loaded but this student's admissionId
-              // is not in the consented set.
-              if (_consentLoaded && !_consentedIds.contains(s.admissionId)) continue;
+              // Skip if consent has been loaded but this student is not in
+              // the consented set.  Use buildDocId (not s.admissionId) to match
+              // the key format used by _loadConsent / ConsentService.
+              if (_consentLoaded && !_consentedIds.contains(
+                  Student.buildDocId(s.roll, s.className, s.section))) continue;
               try {
                 await NotificationService().addAbsenceNotice(
                   className:   _className,

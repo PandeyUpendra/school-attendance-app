@@ -36,11 +36,15 @@ import 'tasks/unified_staff_task_screen.dart';
 import 'coordinator/absent_teachers_screen.dart';
 import '../services/staff_task_service.dart';
 import '../utils/role_guard.dart';
+import 'coordinator/exam_datesheet_screen.dart';
+import 'syllabus_coverage_dashboard_screen.dart';
+import 'coordinator/id_card_generator_screen.dart';
 import 'meeting/coordinator_meeting_records_screen.dart';
 import 'birthdays/birthdays_screen.dart';
 import 'todo_list_screen.dart';
 import 'todo_reminder_banner.dart';
 import 'coordinator/report_card_template_editor.dart';
+import 'coordinator/payment_claims_verification_screen.dart';
 
 const _cPurple    = AppTheme.primary;
 const _cPurpleMid = AppTheme.primaryMid;
@@ -312,6 +316,26 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               subtitle: context.tr('subFeeCollectionDesc'),
               onTap: () => _navigate(const FeeOverviewScreen(role: 'coordinator')),
             ),
+            const _Divider(),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('schools')
+                  .doc(AuthService.currentSchoolId)
+                  .collection('payment_claims')
+                  .where('status', isEqualTo: 'pending')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final pendingCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                return _FeatureTile(
+                  icon: Icons.fact_check_outlined,
+                  color: AppTheme.success,
+                  title: 'Verify UPI Claims',
+                  subtitle: 'Approve or reject parent UPI fee payment claims',
+                  badge: pendingCount > 0 ? '$pendingCount' : null,
+                  onTap: () => _navigate(const PaymentClaimsVerificationScreen()),
+                );
+              },
+            ),
 
             // ── Exams & Marks ──────────────────────────────────────────────
             _SectionHeader(context.tr('secExamsMarks')),
@@ -500,6 +524,30 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               },
             ),
 
+           _SectionHeader(context.tr('secReports')),
+           _FeatureTile(
+             icon: Icons.event_note_outlined,
+             color: _cPurpleMid,
+             title: context.tr('datesheetsHallTickets'),
+             subtitle: 'Create and view exam datesheets and admit cards',
+             onTap: () => _navigate(const ExamDatesheetScreen()),
+           ),
+           const _Divider(),
+           _FeatureTile(
+             icon: Icons.assessment_outlined,
+             color: _cPurpleMid,
+             title: context.tr('syllabusProgressSummary'),
+             subtitle: 'View class-wise syllabus coverage',
+             onTap: () => _navigate(const SyllabusCoverageDashboardScreen()),
+           ),
+           const _Divider(),
+           _FeatureTile(
+             icon: Icons.badge_outlined,
+             color: _cPurpleMid,
+             title: context.tr('idCardGenerator'),
+             subtitle: 'Batch generate student ID cards',
+             onTap: () => _navigate(const IdCardGeneratorScreen()),
+           ),
             // ── Birthdays ──────────────────────────────────────────────────
             _SectionHeader(context.tr('secBirthdays')),
             BirthdayBanner(

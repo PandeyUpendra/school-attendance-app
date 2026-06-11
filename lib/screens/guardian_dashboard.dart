@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'guardian_fee_receipts_screen.dart';
+import 'guardian_holiday_calendar_screen.dart';
+import 'guardian_upi_payment_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -35,6 +37,10 @@ import 'guardian_ptm_screen.dart';
 import '../widgets/consent_pending_banner.dart';
 import '../services/consent_service.dart';
 import '../utils/privacy_notice.dart';
+import 'class_diary_screen.dart';
+import 'study_material_list_screen.dart';
+import 'guardian_datesheet_screen.dart';
+import 'student_performance_charts_screen.dart';
 
 /// The Guardian Portal — shows a single student's attendance to their parent.
 /// Guardian is linked to {studentClass, studentRoll} in allowed_users.
@@ -480,6 +486,56 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     ),
     const _Divider(),
     _FeatureTile(
+      icon: Icons.book_outlined,
+      color: AppTheme.primary,
+      title: 'Daily Class Diary',
+      subtitle: 'Timeline of topics taught & homework logs',
+      isLocked: !_hasConsent,
+      onTap: () => _runGatedAction(() => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ClassDiaryScreen(
+            guardianClass: _student?.className ?? _activeClass,
+            guardianSection: _student?.section ?? _activeSection,
+          ),
+        ),
+      )),
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.folder_open_outlined,
+      color: AppTheme.primary,
+      title: 'Study Materials',
+      subtitle: 'Browse & download shared notes & worksheets',
+      isLocked: !_hasConsent,
+      onTap: () => _runGatedAction(() => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => StudyMaterialListScreen(
+            className: _student!.className,
+            section: _student!.section,
+          ),
+        ),
+      )),
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.calendar_today_outlined,
+      color: AppTheme.primary,
+      title: 'Exam Datesheets & Admit Cards',
+      subtitle: 'View class timetables & print hall tickets',
+      isLocked: !_hasConsent,
+      onTap: () => _runGatedAction(() => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuardianDatesheetScreen(
+            student: _student!,
+          ),
+        ),
+      )),
+    ),
+    const _Divider(),
+    _FeatureTile(
       icon: Icons.quiz_outlined,
       color: AppTheme.primary,
       title: context.tr('examResults'),
@@ -490,6 +546,22 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         MaterialPageRoute(
           builder: (_) => GuardianExamResultsScreen(
             examData: _examData,
+          ),
+        ),
+      )),
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.trending_up_outlined,
+      color: AppTheme.primary,
+      title: 'Performance Trends',
+      subtitle: 'Analyze your child\'s marks over time',
+      isLocked: !_hasConsent,
+      onTap: () => _runGatedAction(() => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => StudentPerformanceChartsScreen(
+            student: _student!,
           ),
         ),
       )),
@@ -555,8 +627,26 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         context,
         MaterialPageRoute(
           builder: (_) => GuardianFeeStatusScreen(
+            student: _student!,
             structure: _feeStructure ?? FeeStructure.empty(_activeClass),
             totalPaid: _totalPaid,
+            className: _activeClass,
+            roll: _activeRoll,
+          ),
+        ),
+      )),
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.receipt_long_outlined,
+      color: Colors.green,
+      title: 'Fee Receipts',
+      subtitle: 'View and download previous fee receipts',
+      isLocked: !_hasConsent,
+      onTap: () => _runGatedAction(() => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuardianFeeReceiptsScreen(
             className: _activeClass,
             roll: _activeRoll,
           ),
@@ -620,6 +710,19 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         context,
         MaterialPageRoute(
           builder: (_) => const GuardianSchoolInfoScreen(),
+        ),
+      ),
+    ),
+    const _Divider(),
+    _FeatureTile(
+      icon: Icons.calendar_today_outlined,
+      color: AppTheme.primary,
+      title: 'School Holidays',
+      subtitle: 'View holiday list & calendar',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const GuardianHolidayCalendarScreen(),
         ),
       ),
     ),
@@ -2936,6 +3039,7 @@ class _GuardianAttendanceHistoryScreenState extends State<GuardianAttendanceHist
 }
 
 class GuardianFeeStatusScreen extends StatelessWidget {
+  final Student student;
   final FeeStructure structure;
   final double totalPaid;
   final String className;
@@ -2943,6 +3047,7 @@ class GuardianFeeStatusScreen extends StatelessWidget {
 
   const GuardianFeeStatusScreen({
     super.key,
+    required this.student,
     required this.structure,
     required this.totalPaid,
     required this.className,
@@ -2952,6 +3057,8 @@ class GuardianFeeStatusScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    final total = structure.totalAnnualFee;
+    final due = (total - totalPaid).clamp(0.0, double.infinity);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -2979,6 +3086,31 @@ class GuardianFeeStatusScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _FeeStatusCard(structure: structure, totalPaid: totalPaid),
+            if (due > 0) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => GuardianUpiPaymentScreen(
+                        student: student,
+                        structure: structure,
+                        outstandingAmount: due,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.flash_on_outlined),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                  ),
+                  label: const Text('Pay Outstanding Fees via UPI', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
             
             if (structure.components.isNotEmpty) ...[
               const SizedBox(height: 24),

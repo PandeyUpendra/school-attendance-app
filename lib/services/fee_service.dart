@@ -251,10 +251,13 @@ class FeeService extends BaseFirestoreService {
 
       final rno  = 'RCP-$prefixYear-${next.toString().padLeft(6, '0')}';
 
+      final currentEmail = AuthService().currentFirebaseUser?.email ?? 'coordinator@schoolapp.org';
       final data = Map<String, dynamic>.from(payment.toJson())
         ..['receiptNo'] = rno
         ..['schoolId'] = _sid
-        ..['note'] = sanitizedNote;
+        ..['note'] = sanitizedNote
+        ..['enteredBy'] = payment.enteredBy ?? currentEmail
+        ..['reconciled'] = payment.reconciled;
       tx.set(_receiptCounter, {'receiptSeq': next}, SetOptions(merge: true));
       tx.set(ref, data);
 
@@ -624,5 +627,26 @@ class FeeService extends BaseFirestoreService {
       }
     }
     return 0;
+  }
+
+  /// Updates reconciliation status of a list of payments in a transaction.
+  Future<void> reconcilePayments(List<DocumentReference> refs, bool reconciled) async {
+    final db = FirebaseFirestore.instance;
+    await db.runTransaction((tx) async {
+      for (final ref in refs) {
+        tx.update(ref, {'reconciled': reconciled});
+      }
+    });
+    
+    // Emit audit log for the reconciliation action
+    AuditService.emit(
+      action: 'update',
+      entity: 'fee_reconciliation',
+      entityId: 'batch',
+      after: {
+        'count': refs.length,
+        'reconciled': reconciled,
+      },
+    );
   }
 }

@@ -172,7 +172,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
       final page = await _service.getStudentsByClassPaginated(
         className: widget.className,
         section: widget.section,
-        teacherId: widget.teacherId,
+        teacherId: null,
         limit: _pageSize,
         startAfter: reset ? null : _cursor,
       );
@@ -477,16 +477,19 @@ class _StudentListScreenState extends State<StudentListScreen> {
     final rows = <List<dynamic>>[
       ['Roll', 'Name', 'Father', 'Mother', 'Phone', 'Guardian Email', 'Section', 'Fee Status'],
       for (final s in students)
-        [
-          s.roll,
-          s.name,
-          s.fatherName,
-          s.motherName ?? '',
-          s.phone,
-          s.guardianEmail ?? '',
-          s.section,
-          s.feeStatus,
-        ],
+        (() {
+          final hasConsent = _consentedIds.contains(Student.buildDocId(s.roll, s.className, s.section));
+          return [
+            s.roll,
+            s.name,
+            hasConsent ? s.fatherName : '[Consent Missing]',
+            hasConsent ? (s.motherName ?? '') : '[Consent Missing]',
+            hasConsent ? s.phone : '[Consent Missing]',
+            hasConsent ? (s.guardianEmail ?? '') : '[Consent Missing]',
+            s.section,
+            hasConsent ? s.feeStatus : '[Consent Missing]',
+          ];
+        }())
     ];
     final cls = widget.className.replaceAll(' ', '_');
     final sec = widget.section.trim().isEmpty ? '' : '_${widget.section.trim()}';
@@ -585,13 +588,14 @@ class _StudentListScreenState extends State<StudentListScreen> {
               ),
               // Rows
               ...students.map((s) {
+                final hasConsent = _consentedIds.contains(Student.buildDocId(s.roll, s.className, s.section));
                 return pw.TableRow(
                   children: [
                     s.roll.toString(),
                     s.name,
-                    s.fatherName,
-                    s.phone,
-                    s.feeStatus,
+                    hasConsent ? s.fatherName : '[Consent Missing]',
+                    hasConsent ? s.phone : '[Consent Missing]',
+                    hasConsent ? s.feeStatus : '[Consent Missing]',
                   ].map((cell) => pw.Padding(
                     padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
                     child: pw.Text(
@@ -699,57 +703,106 @@ class _StudentListScreenState extends State<StudentListScreen> {
     }
 
     // Preview dialog before import
-    final confirm = await showDialog<bool>(
+    final dialogResult = await showDialog<Map<String, dynamic>?>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text('${context.tr('importStudentsTitlePrefix')} ${students.length} ${context.tr('studentsWord')}'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 300,
-          child: ListView.builder(
-            itemCount: students.length,
-            itemBuilder: (_, i) {
-              final s = students[i];
-              return ListTile(
-                dense: true,
-                leading: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                  child: Text('${s.roll}',
-                      style: const TextStyle(
-                          fontSize: 11, color: AppTheme.primary)),
+      builder: (_) {
+        bool assertConsent = false;
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: Text('${context.tr('importStudentsTitlePrefix')} ${students.length} ${context.tr('studentsWord')}'),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 380,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: students.length,
+                        itemBuilder: (_, i) {
+                          final s = students[i];
+                          return ListTile(
+                            dense: true,
+                            leading: CircleAvatar(
+                              radius: 16,
+                              backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                              child: Text('${s.roll}',
+                                  style: const TextStyle(
+                                      fontSize: 11, color: AppTheme.primary)),
+                            ),
+                            title: Text(s.name,
+                                style: const TextStyle(fontSize: 13)),
+                            subtitle: s.fatherName.isNotEmpty
+                                ? Text('${context.tr('fatherColon')} ${s.fatherName}',
+                                    style: const TextStyle(fontSize: 11))
+                                : null,
+                          );
+                        },
+                      ),
+                    ),
+                    const Divider(),
+                    CheckboxListTile(
+                      title: const Text(
+                        'Assert physical parental consent is on record',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: const Text(
+                        'Confirm that signed physical consent forms are collected for these students in compliance with DPDP.',
+                        style: TextStyle(fontSize: 10),
+                      ),
+                      value: assertConsent,
+                      onChanged: (val) {
+                        setStateDialog(() {
+                          assertConsent = val ?? false;
+                        });
+                      },
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ],
                 ),
-                title: Text(s.name,
-                    style: const TextStyle(fontSize: 13)),
-                subtitle: s.fatherName.isNotEmpty
-                    ? Text('${context.tr('fatherColon')} ${s.fatherName}',
-                        style: const TextStyle(fontSize: 11))
-                    : null,
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(_, false),
-              child: Text(context.tr('cancel'))),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(_, true),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white),
-            child: Text(context.tr('importLabel')),
-          ),
-        ],
-      ),
+              ),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(_, null),
+                    child: Text(context.tr('cancel'))),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(_, {'import': true, 'assertConsent': assertConsent}),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white),
+                  child: Text(context.tr('importLabel')),
+                ),
+              ],
+            );
+          }
+        );
+      }
     );
-    if (confirm != true || !mounted) return;
+    if (dialogResult == null || dialogResult['import'] != true || !mounted) return;
+    final bool assertConsent = dialogResult['assertConsent'] ?? false;
 
     int added = 0, skipped = 0;
     for (final s in students) {
       final err = await _service.addStudent(student: s);
       if (err == null) {
         added++;
+        if (assertConsent) {
+          try {
+            final docId = Student.buildDocId(s.roll, s.className, s.section);
+            await ConsentService().createConsent(
+              studentDocId: docId,
+              guardianName: s.fatherName.isNotEmpty ? s.fatherName : 'Parent',
+              guardianPhone: s.phone.isNotEmpty ? s.phone : '0000000000',
+              guardianEmail: s.guardianEmail,
+              method: ConsentMethod.inPersonSigned,
+              scopes: ParentalConsent.defaultScopes(),
+            );
+          } catch (e) {
+            AppLogger.e('CSV Import', 'Failed to create bulk consent for ${s.name}: $e', e);
+          }
+        }
       } else {
         skipped++;
       }

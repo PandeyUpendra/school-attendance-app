@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../l10n/app_strings.dart';
 import '../models/exam.dart';
 import '../models/student.dart';
 import '../services/auth_service.dart';
 import '../services/exam_service.dart';
 import '../services/student_service.dart';
+import '../services/offline_queue_service.dart';
 import '../theme.dart';
 import '../utils/app_logger.dart';
 
@@ -106,6 +108,12 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     }
     setState(() => _saving = true);
 
+    bool isOnline = true;
+    try {
+      final results = await Connectivity().checkConnectivity();
+      isOnline = results.any((r) => r != ConnectivityResult.none);
+    } catch (_) {}
+
     final futures = <Future>[];
     for (final s in _students) {
       final ctrls = _controllers[s.roll]!;
@@ -128,15 +136,19 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
         maxMarks:    exam.maxMarks,
         enteredBy:   _enteredBy,
       );
-      futures.add(_examService.saveResult(examId: exam.id, result: result));
+      if (isOnline) {
+        futures.add(_examService.saveResult(examId: exam.id, result: result));
+      } else {
+        futures.add(OfflineQueueService().enqueueExamResult(examId: exam.id, result: result));
+      }
     }
     await Future.wait(futures);
     if (!mounted) return;
     setState(() => _saving = false);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(context.tr('marksSavedSuccess')),
-        backgroundColor: Colors.green,
+        content: Text(isOnline ? context.tr('marksSavedSuccess') : 'Saved offline! Marks will sync automatically when network returns.'),
+        backgroundColor: isOnline ? Colors.green : Colors.orange,
       ),
     );
   }

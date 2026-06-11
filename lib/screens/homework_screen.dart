@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../l10n/app_strings.dart';
 import '../models/homework.dart';
 import '../models/teacher.dart';
 import '../services/homework_service.dart';
 import '../services/copy_check_service.dart'; // for getClassesForTeacher
 import '../services/base_firestore_service.dart';
+import '../services/offline_queue_service.dart';
 import '../theme.dart';
 import '../widgets/refreshable_data.dart';
 
@@ -542,8 +544,27 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
       dueDate:     _dueDate,
       postedAt:    DateTime.now(),
     );
-    await _service.postHomework(BaseFirestoreService.currentSchoolId ?? 'default_school', hw);
+
+    bool isOnline = true;
+    try {
+      final results = await Connectivity().checkConnectivity();
+      isOnline = results.any((r) => r != ConnectivityResult.none);
+    } catch (_) {}
+
+    final schoolId = BaseFirestoreService.currentSchoolId ?? 'default_school';
+    if (isOnline) {
+      await _service.postHomework(schoolId, hw);
+    } else {
+      await OfflineQueueService().enqueueHomework(schoolId: schoolId, homework: hw);
+    }
+
     if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(isOnline ? 'Homework posted successfully!' : 'Posted offline! Homework will sync automatically when network returns.'),
+        backgroundColor: isOnline ? Colors.green : Colors.orange,
+      ),
+    );
     Navigator.pop(context);
     widget.onPosted();
   }

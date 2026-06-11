@@ -167,7 +167,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
       final list = await _studentService.getStudentsByClass(
         className: widget.teacherClassName!,
         section:   widget.teacherSection ?? '',
-        teacherId: widget.teacherId,
+        teacherId: null,
       );
       if (!mounted) return;
       setState(() { _classStudents = list; _loadingStudents = false; });

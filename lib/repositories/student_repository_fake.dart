@@ -35,9 +35,15 @@ class FakeStudentRepository implements StudentRepository {
   /// Computes the opaque document ID from student fields — mirrors the
   /// production [FirestoreStudentRepository._docId] logic exactly.
   String docId(int roll, String className, [String section = '']) {
-    final base = className.replaceAll(' ', '_');
-    final sec  = section.trim().replaceAll(' ', '_');
-    return sec.isEmpty ? '${base}_$roll' : '${base}_${sec}_$roll';
+    return Student.buildDocId(roll, className, section);
+  }
+
+  String _toTitleCase(String text) {
+    if (text.trim().isEmpty) return text;
+    return text.trim().split(RegExp(r'\s+')).map((word) {
+      if (word.isEmpty) return '';
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
   }
 
   /// Pre-populate the in-memory store with a list of students.
@@ -66,10 +72,12 @@ class FakeStudentRepository implements StudentRepository {
     String section, {
     String? teacherId,
   }) async {
+    final normalizedClassName = _toTitleCase(className);
+    final normalizedSection = section.trim().toUpperCase();
     return _students.values.where((s) {
-      if (s.className != className) return false;
-      if (section.trim().isNotEmpty &&
-          s.section.trim() != section.trim()) { return false; }
+      if (_toTitleCase(s.className) != normalizedClassName) return false;
+      if (normalizedSection.isNotEmpty &&
+          s.section.trim().toUpperCase() != normalizedSection) { return false; }
       if (teacherId != null &&
           teacherId.isNotEmpty &&
           s.teacherId != teacherId) { return false; }

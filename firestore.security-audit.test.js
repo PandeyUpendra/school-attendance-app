@@ -72,22 +72,19 @@ const USERS = {
   [UID.guardianA]: {
     role: 'guardian', schoolId: SCHOOL_ID,
     name: 'Parent Alice', email: 'parent.alice@school.test',
-    classIds:   ['Class 9-A'],
-    studentIds: ['Class_9-A_A_42'],
+    studentClass: 'Class 9-A', studentSection: 'A', studentRoll: 42,
     status: 'active',
   },
   [UID.guardianB]: {
     role: 'guardian', schoolId: SCHOOL_ID,
     name: 'Parent Bob', email: 'parent.bob@school.test',
-    classIds:   ['Class 9-A'],
-    studentIds: ['Class_9-A_A_7'],
+    studentClass: 'Class 9-A', studentSection: 'A', studentRoll: 7,
     status: 'active',
   },
   [UID.guardianC]: {
     role: 'guardian', schoolId: SCHOOL_ID,
     name: 'Parent Carol', email: 'parent.carol@school.test',
-    classIds:   ['Class 10-B'],
-    studentIds: ['Class_10-B_B_15'],
+    studentClass: 'Class 10-B', studentSection: 'B', studentRoll: 15,
     status: 'active',
   },
   [UID.teacher9A]: {
@@ -286,10 +283,10 @@ beforeEach(async () => {
     }
 
     // Seed exam results
-    await setDoc(doc(adb, sch('exam_results', 'result-alice')),            RESULT_ALICE);
-    await setDoc(doc(adb, sch('exam_results', 'result-bob')),              RESULT_BOB);
-    await setDoc(doc(adb, sch('exam_results', 'result-carol')),            RESULT_CAROL);
-    await setDoc(doc(adb, sch('exam_results', 'result-legacy-no-sid')),    RESULT_LEGACY_NO_STUDENT_ID);
+    await setDoc(doc(adb, `schools/${SCHOOL_ID}/exam_results/${EXAM_ID}/students/42`), RESULT_ALICE);
+    await setDoc(doc(adb, `schools/${SCHOOL_ID}/exam_results/${EXAM_ID}/students/7`),  RESULT_BOB);
+    await setDoc(doc(adb, `schools/${SCHOOL_ID}/exam_results/${EXAM_ID}/students/15`), RESULT_CAROL);
+    await setDoc(doc(adb, `schools/${SCHOOL_ID}/exam_results/${EXAM_ID}/students/99`), RESULT_LEGACY_NO_STUDENT_ID);
 
     // Seed notifications
     await setDoc(doc(adb, sch('notifications', 'notif-alice')),            NOTIF_ALICE);
@@ -329,28 +326,28 @@ describe('Leak 1 — exam_results guardian isolation', () => {
     // guardian_A (Alice, Class 9-A roll 42) must not read Bob's result
     // (Class 9-A roll 7).  OLD rule: allowed (isSignedIn && inSchool).
     await assertFails(
-      getDoc(doc(db(UID.guardianA), sch('exam_results', 'result-bob'))),
+      getDoc(doc(db(UID.guardianA), `schools/${SCHOOL_ID}/exam_results/${EXAM_ID}/students/7`)),
     );
   });
 
   test('[FIXED] DENY — guardian cannot read another student\'s result (different class)', async () => {
     // guardian_A must not read Carol's result (Class 10-B roll 15).
     await assertFails(
-      getDoc(doc(db(UID.guardianA), sch('exam_results', 'result-carol'))),
+      getDoc(doc(db(UID.guardianA), `schools/${SCHOOL_ID}/exam_results/${EXAM_ID}/students/15`)),
     );
   });
 
   test('[FIXED] DENY — guardian cannot read legacy result without studentId field', async () => {
     // Pre-migration documents that lack studentId must be denied to guardians.
     await assertFails(
-      getDoc(doc(db(UID.guardianA), sch('exam_results', 'result-legacy-no-sid'))),
+      getDoc(doc(db(UID.guardianA), `schools/${SCHOOL_ID}/exam_results/${EXAM_ID}/students/99`)),
     );
   });
 
   test('[FIXED] DENY — guardian_B cannot read guardian_A\'s child\'s result', async () => {
     // Even within the same class, cross-child reads must be blocked.
     await assertFails(
-      getDoc(doc(db(UID.guardianB), sch('exam_results', 'result-alice'))),
+      getDoc(doc(db(UID.guardianB), `schools/${SCHOOL_ID}/exam_results/${EXAM_ID}/students/42`)),
     );
   });
 
@@ -359,25 +356,25 @@ describe('Leak 1 — exam_results guardian isolation', () => {
   test('[REGRESSION] ALLOW — guardian can read their own child\'s result', async () => {
     // guardian_A reads Alice's result — studentId 'Class_9-A_A_42' ∈ studentIds[].
     await assertSucceeds(
-      getDoc(doc(db(UID.guardianA), sch('exam_results', 'result-alice'))),
+      getDoc(doc(db(UID.guardianA), `schools/${SCHOOL_ID}/exam_results/${EXAM_ID}/students/42`)),
     );
   });
 
   test('[REGRESSION] ALLOW — teacher can read any exam result in their school', async () => {
     await assertSucceeds(
-      getDoc(doc(db(UID.teacher9A), sch('exam_results', 'result-carol'))),
+      getDoc(doc(db(UID.teacher9A), `schools/${SCHOOL_ID}/exam_results/${EXAM_ID}/students/15`)),
     );
   });
 
   test('[REGRESSION] ALLOW — coordinator can read any exam result', async () => {
     await assertSucceeds(
-      getDoc(doc(db(UID.coordinator), sch('exam_results', 'result-bob'))),
+      getDoc(doc(db(UID.coordinator), `schools/${SCHOOL_ID}/exam_results/${EXAM_ID}/students/7`)),
     );
   });
 
   test('[REGRESSION] ALLOW — principal can read any exam result', async () => {
     await assertSucceeds(
-      getDoc(doc(db(UID.principal), sch('exam_results', 'result-carol'))),
+      getDoc(doc(db(UID.principal), `schools/${SCHOOL_ID}/exam_results/${EXAM_ID}/students/15`)),
     );
   });
 });

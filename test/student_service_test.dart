@@ -464,5 +464,18 @@ void main() {
     expect(newEve?.name, 'Eve Updated');
     expect(newEve?.admissionId, 'ADM-004');
   });
+
+  // ── 19. Student.buildDocId normalisation ───────────────────────────────────
+
+  test('Student.buildDocId normalizes className and section case and spacing', () {
+    final docId1 = Student.buildDocId(12, 'class 6', 'a');
+    expect(docId1, 'Class_6_A_12');
+
+    final docId2 = Student.buildDocId(5, '   cLaSs    9-b ', '  c  ');
+    expect(docId2, 'Class_9-b_C_5');
+
+    final docId3 = Student.buildDocId(20, 'Class 10', '');
+    expect(docId3, 'Class_10_20');
+  });
 }
 

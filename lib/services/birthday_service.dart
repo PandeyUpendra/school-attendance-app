@@ -469,6 +469,14 @@ class BirthdayService extends BaseFirestoreService {
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
+  static String _toTitleCase(String text) {
+    if (text.trim().isEmpty) return text;
+    return text.trim().split(RegExp(r'\s+')).map((word) {
+      if (word.isEmpty) return '';
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
   Query<Map<String, dynamic>> _buildStudentQuery({
     String? className,
     String? section,
@@ -477,17 +485,18 @@ class BirthdayService extends BaseFirestoreService {
     // If classNames list provided (subject teacher), filter server-side using whereIn
     // if size <= 30 (Firestore limit). Otherwise fallback to client-side.
     if (classNames != null && classNames.isNotEmpty) {
-      if (classNames.length <= 30) {
-        return _students.where('className', whereIn: classNames);
+      final normalizedClassNames = classNames.map((c) => _toTitleCase(c)).toList();
+      if (normalizedClassNames.length <= 30) {
+        return _students.where('className', whereIn: normalizedClassNames);
       }
       return _students;
     }
     Query<Map<String, dynamic>> q = _students;
     if (className != null && className.isNotEmpty) {
-      q = q.where('className', isEqualTo: className);
+      q = q.where('className', isEqualTo: _toTitleCase(className));
     }
     if (section != null && section.isNotEmpty) {
-      q = q.where('section', isEqualTo: section);
+      q = q.where('section', isEqualTo: section.trim().toUpperCase());
     }
     return q;
   }

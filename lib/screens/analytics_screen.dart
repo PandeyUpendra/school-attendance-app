@@ -7,6 +7,9 @@ import '../services/timetable_service.dart';
 import '../services/fee_service.dart';
 import '../theme.dart';
 import '../widgets/refreshable_data.dart';
+import '../services/exam_service.dart';
+import '../models/exam.dart';
+import '../utils/app_logger.dart';
 
 /// Analytics Dashboard — coordinator / principal only.
 /// Tabs: Overview · Attendance · Absences · Fee
@@ -27,7 +30,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 4, vsync: this);
+    _tab = TabController(length: 5, vsync: this);
     _loadClasses();
   }
 
@@ -66,6 +69,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             Tab(text: context.tr('attendanceLabel')),
             Tab(text: context.tr('absencesTab')),
             Tab(text: context.tr('feesTab')),
+            const Tab(text: 'Exam Results'),
           ],
         ),
       ),
@@ -82,6 +86,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                     _AttendanceTrendTab(classes: _classes),
                     _AbsenceLeaderboardTab(classes: _classes),
                     _FeeTab(classes: _classes),
+                    _ExamAnalyticsTab(classes: _classes),
                   ],
                 ),
     );
@@ -1280,3 +1285,376 @@ class _EmptyState extends StatelessWidget {
         ),
       );
 }
+
+// ── Tab 5: Exam Results Analytics ─────────────────────────────────────────────
+
+class _ExamAnalyticsTab extends StatefulWidget {
+  final List<String> classes;
+  const _ExamAnalyticsTab({required this.classes});
+
+  @override
+  State<_ExamAnalyticsTab> createState() => _ExamAnalyticsTabState();
+}
+
+class _ExamAnalyticsTabState extends State<_ExamAnalyticsTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  String? _selectedClass;
+  List<Exam> _exams = [];
+  Exam? _selectedExam;
+  
+  bool _loadingExams = false;
+  bool _loadingResults = false;
+  List<ExamResult> _results = [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.classes.isNotEmpty) {
+      _selectedClass = widget.classes.first;
+      _loadExams();
+    }
+  }
+
+  Future<void> _loadExams() async {
+    if (_selectedClass == null) return;
+    setState(() {
+      _loadingExams = true;
+      _exams = [];
+      _selectedExam = null;
+      _results = [];
+    });
+
+    try {
+      final list = await ExamService().getExams(className: _selectedClass);
+      if (!mounted) return;
+      setState(() {
+        _exams = list;
+        _loadingExams = false;
+        if (list.isNotEmpty) {
+          _selectedExam = list.first;
+        }
+      });
+      if (_selectedExam != null) {
+        _loadResults();
+      }
+    } catch (e) {
+      AppLogger.e('ExamAnalyticsTab', 'Load exams failed: $e');
+      if (mounted) setState(() => _loadingExams = false);
+    }
+  }
+
+  Future<void> _loadResults() async {
+    if (_selectedExam == null) return;
+    setState(() {
+      _loadingResults = true;
+      _results = [];
+    });
+
+    try {
+      final list = await ExamService().getResults(examId: _selectedExam!.id);
+      if (!mounted) return;
+      setState(() {
+        _results = list;
+        _loadingResults = false;
+      });
+    } catch (e) {
+      AppLogger.e('ExamAnalyticsTab', 'Load results failed: $e');
+      if (mounted) setState(() => _loadingResults = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    
+    return Column(
+      children: [
+        _buildSelectors(),
+        Expanded(
+          child: _loadingExams || _loadingResults
+              ? const Center(child: CircularProgressIndicator())
+              : _selectedExam == null
+                  ? const _EmptyState(icon: Icons.assignment_outlined, message: 'No exams found for this class')
+                  : _results.isEmpty
+                      ? const _EmptyState(icon: Icons.quiz_outlined, message: 'No marks logged for this exam yet')
+                      : _buildDashboard(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSelectors() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              value: _selectedClass,
+              decoration: const InputDecoration(
+                labelText: 'Class',
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              items: widget.classes.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              onChanged: (v) {
+                if (v != null) {
+                  setState(() {
+                    _selectedClass = v;
+                  });
+                  _loadExams();
+                }
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButtonFormField<Exam>(
+              value: _selectedExam,
+              decoration: const InputDecoration(
+                labelText: 'Exam',
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              items: _exams.map((e) => DropdownMenuItem(value: e, child: Text(e.name))).toList(),
+              onChanged: (v) {
+                if (v != null) {
+                  setState(() {
+                    _selectedExam = v;
+                  });
+                  _loadResults();
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDashboard() {
+    final totalStudents = _results.length;
+    final passedStudents = _results.where((r) => r.isPassed).length;
+    final passPct = totalStudents > 0 ? (passedStudents / totalStudents * 100) : 0.0;
+
+    final atRisk = _results.where((r) => r.percentage < 40.0).toList();
+    
+    // Subject averages calculation
+    final subjects = _selectedExam!.subjects;
+    final Map<String, double> subjectAverages = {};
+    for (final sub in subjects) {
+      double sum = 0;
+      int count = 0;
+      for (final res in _results) {
+        final mark = res.marks[sub];
+        if (mark != null && mark >= 0) {
+          sum += mark;
+          count++;
+        }
+      }
+      subjectAverages[sub] = count > 0 ? (sum / count) : 0.0;
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Top overview stats
+        Row(
+          children: [
+            Expanded(
+              child: _StatCard(
+                label: 'CLASS PASS RATE',
+                value: '${passPct.toStringAsFixed(1)}%',
+                color: passPct >= 60 ? AppTheme.success : AppTheme.danger,
+                icon: Icons.check_circle_outline,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatCard(
+                label: 'AT-RISK STUDENTS (<40%)',
+                value: '${atRisk.length}',
+                color: atRisk.isEmpty ? AppTheme.success : AppTheme.danger,
+                icon: Icons.warning_amber_outlined,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        
+        // fl_chart bar chart
+        _buildAveragesChart(subjects, subjectAverages, _selectedExam!.maxMarks),
+        
+        const SizedBox(height: 16),
+        
+        // At risk listing
+        if (atRisk.isNotEmpty) _buildAtRiskList(atRisk),
+      ],
+    );
+  }
+
+  Widget _buildAveragesChart(List<String> subjects, Map<String, double> averages, int maxMarks) {
+    final yInterval = (maxMarks / 4).ceilToDouble().clamp(10.0, 100.0);
+    
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AppTheme.border),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Subject Averages',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primary),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 200,
+              child: BarChart(
+                BarChartData(
+                  maxY: maxMarks.toDouble() * 1.1,
+                  barTouchData: BarTouchData(
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (_) => Colors.grey.shade800,
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        return BarTooltipItem(
+                          '${rod.toY.toStringAsFixed(1)} / $maxMarks',
+                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        );
+                      },
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (val, meta) {
+                          final idx = val.toInt();
+                          if (idx >= 0 && idx < subjects.length) {
+                            final sub = subjects[idx];
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                sub.length > 5 ? '${sub.substring(0, 4)}.' : sub,
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                              ),
+                            );
+                          }
+                          return const SizedBox();
+                        },
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 28,
+                        getTitlesWidget: (val, meta) {
+                          return Text(
+                            val.toStringAsFixed(0),
+                            style: const TextStyle(fontSize: 9),
+                          );
+                        },
+                      ),
+                    ),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: yInterval,
+                    getDrawingHorizontalLine: (value) => FlLine(color: Colors.grey.shade200, strokeWidth: 1),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  barGroups: List.generate(subjects.length, (index) {
+                    final sub = subjects[index];
+                    final avg = averages[sub] ?? 0.0;
+                    return BarChartGroupData(
+                      x: index,
+                      barRods: [
+                        BarChartRodData(
+                          toY: avg,
+                          color: AppTheme.primaryMid,
+                          width: 14,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(4),
+                            topRight: Radius.circular(4),
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAtRiskList(List<ExamResult> students) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AppTheme.border),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: const [
+                Icon(Icons.warning_amber_rounded, color: AppTheme.danger, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'At-Risk Students (<40% Overall)',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.danger),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: students.length,
+              itemBuilder: (context, index) {
+                final student = students[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Roll ${student.roll} · ${student.studentName}',
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                      Text(
+                        '${student.percentage.toStringAsFixed(1)}%',
+                        style: const TextStyle(color: AppTheme.danger, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
