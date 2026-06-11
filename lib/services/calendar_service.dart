@@ -1,15 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/calendar_event.dart';
+import 'auth_service.dart';
 
 class CalendarService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  late final CollectionReference _eventsRef;
-  late final DocumentReference _settingsRef;
 
-  CalendarService() {
-    _eventsRef = _db.collection('calendar_events');
-    _settingsRef = _db.collection('settings').doc('calendar');
-  }
+  String? get _schoolId => AuthService.currentSchoolId;
+
+  CollectionReference get _eventsRef =>
+      _db.collection('schools').doc(_schoolId ?? 'unknown').collection('calendar_events');
+
+  DocumentReference get _settingsRef =>
+      _db.collection('schools').doc(_schoolId ?? 'unknown').collection('settings').doc('calendar');
+
+  CalendarService();
 
   // Get calendar settings (including state and overrides)
   Stream<Map<String, dynamic>> getCalendarSettings() {

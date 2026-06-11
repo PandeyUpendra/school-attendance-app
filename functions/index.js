@@ -349,20 +349,6 @@ async function performStudentDeleteCascade(db, schoolId, className, section, rol
   const guardianEmail = (studentData.guardianEmail || "").trim().toLowerCase();
   const teacherId = studentData.teacherId || "";
 
-  // B. Write tombstone to deleted_students
-  try {
-    await schoolRef.collection("deleted_students").add({
-      roll: roll,
-      name: studentName,
-      className: className,
-      section: section,
-      teacherId: teacherId,
-      deletedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  } catch (err) {
-    logger.warn(`tombstone write failed for ${docId}`, err && err.message);
-  }
-
   // C. Revoke guardian login record
   if (guardianEmail) {
     try {
@@ -499,6 +485,20 @@ async function performStudentDeleteCascade(db, schoolId, className, section, rol
     await db.recursiveDelete(schoolRef.collection("students").doc(docId));
   } catch (err) {
     logger.warn(`student doc delete failed for ${docId}`, err && err.message);
+  }
+
+  // 7. Write tombstone to deleted_students (Issue 29 alignment: write after successful cascade)
+  try {
+    await schoolRef.collection("deleted_students").add({
+      roll: roll,
+      name: studentName,
+      className: className,
+      section: section,
+      teacherId: teacherId,
+      deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    logger.warn(`tombstone write failed for ${docId}`, err && err.message);
   }
 }
 

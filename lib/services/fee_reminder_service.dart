@@ -149,7 +149,13 @@ class FeeReminderService {
   /// Saves a reminder event to Firestore feeReminders collection.
   Future<void> logReminderSent(
       String studentId, String type, String channel) async {
-    await _db.collection('feeReminders').add({
+    final schoolId = AuthService.currentSchoolId;
+    if (schoolId == null) return;
+    await _db
+        .collection('schools')
+        .doc(schoolId)
+        .collection('feeReminders')
+        .add({
       'studentId': studentId,
       'type': type,
       'channel': channel,
@@ -163,8 +169,13 @@ class FeeReminderService {
   Future<List<Student>> getDefaulters(List<String> classNames) async {
     if (classNames.isEmpty) return [];
 
+    final schoolId = AuthService.currentSchoolId;
+    if (schoolId == null) return [];
+
     final futures = classNames.map((cls) async {
       final snap = await _db
+          .collection('schools')
+          .doc(schoolId)
           .collection('students')
           .where('className', isEqualTo: cls)
           .get();

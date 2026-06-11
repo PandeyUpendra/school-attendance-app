@@ -390,16 +390,17 @@ class _HomeScreenState extends State<HomeScreen> {
              subtitle: 'Upload and view classroom resources',
              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudyMaterialUploadScreen(teacher: teacher!))),
            ),
-           const _Divider(),
-           _FeatureTile(
-             icon: Icons.list_alt_outlined,
-             color: AppTheme.primary,
-             title: context.tr('syllabusProgress'),
-             subtitle: 'Track syllabus coverage',
-             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SyllabusTrackerScreen())),
-           ),
-          _FeatureTile(
-            icon: Icons.fact_check_outlined,
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.list_alt_outlined,
+              color: AppTheme.primary,
+              title: context.tr('syllabusProgress'),
+              subtitle: 'Track syllabus coverage',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SyllabusTrackerScreen(teacher: teacher!))),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.fact_check_outlined,
             color: AppTheme.primary,
             title: context.tr('takeAttendance'),
             subtitle: 'Mark attendance for ${teacher!.classTeacherOf}',
@@ -772,6 +773,30 @@ class _HomeScreenState extends State<HomeScreen> {
         _buildSubDutyCard(),
 
         _SectionHeader(context.tr('secAcademics')),
+        _FeatureTile(
+          icon: Icons.book_outlined,
+          color: AppTheme.primary,
+          title: context.tr('dailyClassDiary'),
+          subtitle: 'Log daily teaching activities',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ClassDiaryScreen(teacher: teacher!))),
+        ),
+        const _Divider(),
+        _FeatureTile(
+          icon: Icons.library_books_outlined,
+          color: AppTheme.primary,
+          title: context.tr('studyMaterials'),
+          subtitle: 'Upload and view classroom resources',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudyMaterialUploadScreen(teacher: teacher!))),
+        ),
+        const _Divider(),
+        _FeatureTile(
+          icon: Icons.list_alt_outlined,
+          color: AppTheme.primary,
+          title: context.tr('syllabusProgress'),
+          subtitle: 'Track syllabus coverage',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SyllabusTrackerScreen(teacher: teacher!))),
+        ),
+        const _Divider(),
         _FeatureTile(
           icon: Icons.calendar_month_outlined,
           color: AppTheme.primary,

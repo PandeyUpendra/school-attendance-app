@@ -167,13 +167,45 @@ service cloud.firestore {
             audience == 'guardians' ||
             (audience.matches('guardian:.*:.*') &&
              'studentClass' in userData && audience.split(':')[1] == userData.studentClass &&
-             'studentRoll' in userData && audience.split(':')[2] == string(userData.studentRoll)) ||
+             'studentRoll' in userData && audience.split(':')[2] == string(userData.studentRoll) &&
+             resource != null && 'targetStudentId' in resource.data &&
+             resource.data.targetStudentId == (
+               !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
+                 ? userData.studentClass.replace(' ', '_') + '_' + string(userData.studentRoll)
+                 : userData.studentClass.replace(' ', '_') + '_' + userData.studentSection.replace(' ', '_') + '_' + string(userData.studentRoll)
+             )) ||
             ('studentAdmissionId' in userData && userData.studentAdmissionId != null &&
              audience.matches('guardian_adm:.*') &&
              audience.split(':')[1] == userData.studentAdmissionId) ||
             (audience.matches('class:.*') &&
              'studentClass' in userData && audience.split(':')[1] == userData.studentClass)
           ))
+        )
+      );
+    }
+
+    /// Optimized exam results read permission helper.
+    /// Uses let bindings to evaluate getUserData() exactly once, preventing
+    /// the 1000 expression ceiling evaluation limit from being reached.
+    function canReadExamResult(sid, roll, targetStudentId) {
+      let userData = getUserData();
+      let role = userData != null ? userData.role : null;
+      let schoolId = userData != null && 'schoolId' in userData ? userData.schoolId : null;
+      return isRootAdmin() || (
+        userData != null && schoolId == sid && (
+          // Staff can read all exam results
+          role in ['teacher', 'subjectTeacher', 'coordinator', 'principal', 'admin', 'owner', 'ownerPrincipal'] ||
+          
+          // Guardian: only their own child's result
+          (role == 'guardian' &&
+           'studentRoll' in userData && roll == string(userData.studentRoll) &&
+           targetStudentId != null &&
+           targetStudentId == (
+             !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
+               ? userData.studentClass.replace(' ', '_') + '_' + string(userData.studentRoll)
+               : userData.studentClass.replace(' ', '_') + '_' + userData.studentSection.replace(' ', '_') + '_' + string(userData.studentRoll)
+           )
+          )
         )
       );
     }
@@ -1154,19 +1186,7 @@ service cloud.firestore {
       );
 
       match /students/{roll} {
-        allow read: if isSignedIn() && inSchool(sid) && (
-          isAnyStaff() ||
-          // Guardian: only their own child's result. Requires BOTH the {roll}
-          // path node AND the studentId field to match the guardian's child.
-          // Previously a missing studentId (legacy docs) bypassed the studentId
-          // check, so any guardian whose child shared a roll number in another
-          // class could read those results (review #15). Legacy docs without
-          // studentId now fail closed for guardians.
-          (isRole('guardian')
-            && roll == string(userStudentRoll())
-            && 'studentId' in resource.data
-            && resource.data.studentId == guardianStudentId())
-        );
+        allow read: if isSignedIn() && canReadExamResult(sid, roll, resource != null && 'studentId' in resource.data ? resource.data.studentId : null);
 
         allow write: if isSignedIn() && inSchool(sid) && (
           isManagement() ||
@@ -1375,17 +1395,7 @@ service cloud.firestore {
     }
 
 
-    // ════════════════════════════════════════════════════════════════
-    // LEGACY SETTINGS  (/settings/{docId})
-    //
-    // Global (un-scoped) settings incl. settings/calendar holiday overrides.
-    // Writes restricted to management — previously ANY staff member could
-    // overwrite global settings / the holiday calendar (review #17, #242).
-    // ════════════════════════════════════════════════════════════════
-    match /settings/{docId} {
-      allow read:  if isSignedIn();
-      allow write: if isSignedIn() && isManagement();
-    }
+    // (Legacy un-scoped settings rule removed; migrated to scoped settings collection.)
 
 
     // ════════════════════════════════════════════════════════════════
@@ -1553,6 +1563,24 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
+    // CALENDAR EVENTS  (/schools/{sid}/calendar_events/{eventId})
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/calendar_events/{eventId} {
+      allow read:  if isSignedIn() && inSchool(sid);
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // FEE REMINDERS  (/schools/{sid}/feeReminders/{reminderId})
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/feeReminders/{reminderId} {
+      allow read:  if isSignedIn() && inSchool(sid) && isManagement();
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
     // ROOT COLLECTIONS used by legacy/util services.
     //
     // These are NOT school-scoped by path (cross-school) — a known tenancy
@@ -1567,14 +1595,7 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && request.auth.uid == uid;
     }
 
-    // Custom calendar events (CalendarService) — global calendar today.
-    // (settings/calendar overrides are covered by the legacy /settings rule.)
-    // Writes restricted to management — previously ANY staff member of ANY
-    // school could mutate the shared calendar (review #8).
-    match /calendar_events/{eventId} {
-      allow read:  if isSignedIn();
-      allow write: if isSignedIn() && isManagement();
-    }
+    // (Legacy un-scoped calendar_events rule removed; migrated to scoped calendar_events collection.)
 
     // Substitution history (SubstitutionHistoryService).
     // Phase 3 tenancy: reads confined to the caller's school (schoolId stamped
@@ -1589,11 +1610,7 @@ service cloud.firestore {
     // (school_contacts rule removed — ContactService was deleted as dead code;
     // default-deny covers any residual docs.)
 
-    // Fee-reminder audit events (FeeReminderService).
-    match /feeReminders/{reminderId} {
-      allow read:  if isSignedIn() && isManagement();
-      allow write: if isSignedIn() && isManagement();
-    }
+    // (Legacy un-scoped feeReminders rule removed; migrated to scoped feeReminders collection.)
 
 
     // ════════════════════════════════════════════════════════════════
