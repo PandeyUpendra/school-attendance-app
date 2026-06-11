@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/student.dart';
 import '../models/student_remark.dart';
 import '../services/auth_service.dart';
+import '../utils/app_logger.dart';
 
 // ── Abstract interface ────────────────────────────────────────────────────────
 
@@ -221,13 +222,42 @@ class FirestoreStudentRepository implements StudentRepository {
 
   // ── Students ────────────────────────────────────────────────────────────────
 
+  /// Page size used when sweeping the whole students collection.
+  static const int _fetchAllPageSize = 500;
+
+  /// Soft ceiling: above this many students a single client-side full sweep is
+  /// a scale smell (dashboards should read aggregates/rollups instead of every
+  /// student doc — see SCALABILITY_REVIEW SCALE-02/04). We still return every
+  /// student (no silent truncation), but log so the cost is visible.
+  static const int _fetchAllWarnThreshold = 5000;
+
   @override
   Future<List<Student>> fetchAll() async {
-    final snap = await _students.limit(500).get();
-    return snap.docs
-        .map(_fromDoc)
-        .toList()
-      ..sort((a, b) => a.roll.compareTo(b.roll));
+    // Cursor-paginate the entire collection rather than truncating at a fixed
+    // limit. The previous `.limit(500)` silently dropped every student beyond
+    // the first 500, so any school larger than that showed wrong rosters and
+    // dashboard totals with no error (SCALE-01).
+    final all = <Student>[];
+    DocumentSnapshot<Map<String, dynamic>>? cursor;
+    while (true) {
+      Query<Map<String, dynamic>> q = _students
+          .orderBy(FieldPath.documentId)
+          .limit(_fetchAllPageSize);
+      if (cursor != null) q = q.startAfterDocument(cursor);
+      final snap = await q.get();
+      if (snap.docs.isEmpty) break;
+      all.addAll(snap.docs.map(_fromDoc));
+      if (snap.docs.length < _fetchAllPageSize) break;
+      cursor = snap.docs.last;
+    }
+    if (all.length > _fetchAllWarnThreshold) {
+      AppLogger.w('StudentRepository',
+          'fetchAll() returned ${all.length} students for school $_schoolId — '
+          'this whole-school sweep does not scale; migrate the caller to '
+          'aggregate/rollup reads (SCALE-02/04).');
+    }
+    all.sort((a, b) => a.roll.compareTo(b.roll));
+    return all;
   }
 
   @override
@@ -427,12 +457,22 @@ class FirestoreStudentRepository implements StudentRepository {
         .toList());
   }
 
+  /// Deterministic upper bound on the live whole-school student stream.
+  ///
+  /// A real-time listener over the entire students collection does not scale
+  /// (SCALE-03): it re-bills documents on every change and grows with the
+  /// school. This bound keeps the stream affordable; dashboards that need
+  /// school-wide figures should migrate to aggregate/rollup reads rather than
+  /// raising this number. Ordered by roll so the bounded window is stable.
+  static const int _watchAllCap = 500;
+
   @override
   Stream<List<Student>> watchAll() {
-    return _students.limit(500).snapshots().map((snap) => snap.docs
-        .map(_fromDoc)
-        .toList()
-      ..sort((a, b) => a.roll.compareTo(b.roll)));
+    return _students
+        .orderBy('roll')
+        .limit(_watchAllCap)
+        .snapshots()
+        .map((snap) => snap.docs.map(_fromDoc).toList());
   }
 
   // ── Remarks ─────────────────────────────────────────────────────────────────
