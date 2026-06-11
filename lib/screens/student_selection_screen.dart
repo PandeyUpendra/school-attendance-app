@@ -69,7 +69,7 @@ class StudentSelectionScreen extends StatelessWidget {
                         MaterialPageRoute(
                           builder: (_) => GuardianDashboard(
                             studentClass: sClass,
-                            studentRoll: int.parse(sRoll),
+                            studentRoll: int.tryParse(sRoll) ?? 0,
                           ),
                         ),
                       );

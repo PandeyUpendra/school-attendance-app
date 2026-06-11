@@ -98,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Mark account active on first successful login.
       if (status == 'pending') {
-        TimetableService.instance.markUserActive(email);
+        await TimetableService.instance.markUserActive(email);
       }
 
       if (schoolId.isNotEmpty) {

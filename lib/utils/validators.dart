@@ -39,7 +39,7 @@ abstract class Validators {
       v = v.substring(1);
     }
     final d = v.replaceAll(RegExp(r'\D'), '');
-    return d.length >= 7 && d.length <= 15;
+    return d.length >= 10 && d.length <= 15;
   }
 
   /// `TextFormField.validator` for required phone fields.

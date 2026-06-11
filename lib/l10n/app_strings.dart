@@ -978,6 +978,7 @@ class AppStrings {
     'mustBe1to999':          {'en': 'Must be 1–999',      'hi': '1–999 के बीच होना चाहिए'},
     'mustBe10Digits':        {'en': 'Must be exactly 10 digits', 'hi': 'ठीक 10 अंक होने चाहिए'},
     'enterValidEmail':       {'en': 'Enter a valid email address', 'hi': 'मान्य ईमेल पता दर्ज करें'},
+    'enterValidPhone':       {'en': 'Enter a valid phone number (10-15 digits)', 'hi': 'मान्य फ़ोन नंबर (10-15 अंक) दर्ज करें'},
 
     // ── Student selection (guardian) ─────────────────────────────────────
     'selectStudent':         {'en': 'Select Student',     'hi': 'छात्र चुनें'},

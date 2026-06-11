@@ -173,4 +173,18 @@ void main() {
       }
     });
   });
+
+  group('FeeService.deletePayment Validation', () {
+    test('throws ArgumentError when reason is empty', () {
+      expect(
+        () => FeeService().deletePayment(
+          className: 'Class 6',
+          roll: 1,
+          paymentId: 'PAY-1',
+          reason: '   ',
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
 }

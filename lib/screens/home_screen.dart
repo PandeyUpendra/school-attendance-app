@@ -12,7 +12,6 @@ import '../services/notification_service.dart';
 import '../services/staff_task_service.dart';
 import '../services/timetable_service.dart';
 import '../utils/role_guard.dart';
-import '../widgets/index_building_notice.dart';
 import 'attendance_screen.dart';
 import 'student_list_screen.dart';
 import 'deleted_students_screen.dart';
@@ -1022,9 +1021,9 @@ class _HomeScreenState extends State<HomeScreen> {
           .doc(todayKey)
           .snapshots(),
       builder: (context, snap) {
-        // Optional inline banner — single-doc read, so an index error cannot
-        // occur here; stay hidden on any error rather than intruding.
-        if (snap.hasError && isIndexBuildingError(snap.error)) {
+        // Optional inline banner — single-doc read, stay hidden on any error
+        // rather than intruding.
+        if (snap.hasError) {
           return const SizedBox.shrink();
         }
         if (!snap.hasData || !snap.data!.exists) return const SizedBox.shrink();

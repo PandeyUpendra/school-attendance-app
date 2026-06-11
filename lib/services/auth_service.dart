@@ -408,10 +408,14 @@ class AuthService {
       case 'wrong-password':
       case 'invalid-credential':
         return 'Invalid email or password.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
       case 'user-disabled':
         return 'This account has been disabled. Contact your administrator.';
       case 'too-many-requests':
         return 'Too many failed attempts. Please try again later.';
+      case 'operation-not-allowed':
+        return 'Sign-in method is not enabled. Contact your administrator.';
       case 'network-request-failed':
         return 'No internet connection. Please check your network.';
       case 'email-already-in-use':

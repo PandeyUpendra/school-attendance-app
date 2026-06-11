@@ -413,6 +413,18 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               StreamBuilder<int>(
                 stream: StudentService.instance.streamPendingDeletionCount(),
                 builder: (context, snap) {
+                  if (snap.hasError) {
+                    return _FeatureTile(
+                      icon: Icons.person_remove_outlined,
+                      color: AppTheme.danger,
+                      title: context.tr('studentDeletionRequests'),
+                      subtitle:
+                          'Review & approve teacher requests to remove student records',
+                      badge: '!',
+                      onTap: () =>
+                          _navigate(const StudentDeletionRequestsScreen()),
+                    );
+                  }
                   final n = snap.data ?? 0;
                   return _FeatureTile(
                     icon: Icons.person_remove_outlined,
@@ -603,8 +615,11 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     return StreamBuilder<List<Task>>(
       stream: TaskService().getAllTasks(),
       builder: (context, snapshot) {
-        if (snapshot.hasError && isIndexBuildingError(snapshot.error)) {
-          return IndexBuildingNotice(onRetry: () => setState(() {}));
+        if (snapshot.hasError) {
+          if (isIndexBuildingError(snapshot.error)) {
+            return IndexBuildingNotice(onRetry: () => setState(() {}));
+          }
+          return _errorInfo('Failed to load tasks: ${snapshot.error}');
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return _emptyInfo('No active tasks');
@@ -675,6 +690,21 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
           const SizedBox(width: 10),
           Text(msg,
               style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+        ]),
+      );
+
+  Widget _errorInfo(String msg) => Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(12)),
+        child: Row(children: [
+          const Icon(Icons.error_outline, color: AppTheme.danger, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(msg,
+                style: const TextStyle(fontSize: 13, color: AppTheme.danger)),
+          ),
         ]),
       );
 }

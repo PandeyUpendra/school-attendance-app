@@ -220,7 +220,7 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
           MaterialPageRoute(
             builder: (_) => GuardianDashboard(
               studentClass: parts[0],
-              studentRoll:  int.parse(parts[1]),
+              studentRoll:  int.tryParse(parts[1]) ?? 0,
             ),
           ),
         );

@@ -18,6 +18,7 @@ import '../widgets/managed_dropdown.dart';
 import 'consent/parental_consent_flow.dart';
 import '../models/parental_consent.dart';
 import '../utils/image_utils.dart';
+import '../utils/validators.dart';
 
 class AddStudentScreen extends StatefulWidget {
   final String className;
@@ -554,11 +555,11 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               label: context.tr('primaryContactPhone'),
               icon: Icons.phone_outlined,
               keyboard: TextInputType.phone,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              maxLength: 10,
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+]'))],
+              maxLength: 16,
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return context.tr('validationRequired');
-                if (v.trim().length != 10) return context.tr('mustBe10Digits');
+                if (!Validators.isValidPhone(v)) return context.tr('enterValidPhone');
                 return null;
               },
             ),
@@ -568,12 +569,12 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               label: context.tr('secondaryContactOpt'),
               icon: Icons.phone_android_outlined,
               keyboard: TextInputType.phone,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              maxLength: 10,
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+]'))],
+              maxLength: 16,
               validator: (v) {
                 final s = (v ?? '').trim();
                 if (s.isEmpty) return null; // optional
-                if (s.length != 10) return context.tr('mustBe10Digits');
+                if (!Validators.isValidPhone(s)) return context.tr('enterValidPhone');
                 return null;
               },
             ),
@@ -631,12 +632,12 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               label: context.tr('emergencyContactOpt'),
               icon: Icons.contact_emergency_outlined,
               keyboard: TextInputType.phone,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              maxLength: 10,
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+]'))],
+              maxLength: 16,
               validator: (v) {
                 final s = (v ?? '').trim();
                 if (s.isEmpty) return null; // optional
-                if (s.length != 10) return context.tr('mustBe10Digits');
+                if (!Validators.isValidPhone(s)) return context.tr('enterValidPhone');
                 return null;
               },
             ),

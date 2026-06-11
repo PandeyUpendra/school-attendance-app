@@ -3,7 +3,7 @@ import '../models/announcement.dart';
 import 'auth_service.dart';
 
 class AnnouncementService {
-  final _db = FirebaseFirestore.instance;
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
 
   /// School-scoped announcements collection: schools/{sid}/announcements.
   /// schoolId is read lazily so it always reflects the active session.
@@ -68,6 +68,9 @@ class AnnouncementService {
   }
 
   Future<String> postAnnouncement(Announcement ann) async {
+    if (ann.body.trim().length > 1000) {
+      throw ArgumentError('Announcement body cannot exceed 1000 characters.');
+    }
     final ref = await _coll.add(ann.toJson());
     return ref.id;
   }

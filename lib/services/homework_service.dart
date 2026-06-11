@@ -6,12 +6,15 @@ class HomeworkService {
   factory HomeworkService() => _instance;
   HomeworkService._internal();
 
-  final _db = FirebaseFirestore.instance;
+  FirebaseFirestore get _db => FirebaseFirestore.instance;
 
   CollectionReference get _col => _db.collection('homework');
 
   // ── Teacher: post new homework ────────────────────────────────────────────
   Future<void> postHomework(String schoolId, Homework hw) async {
+    if (hw.description.trim().length > 1000) {
+      throw ArgumentError('Homework description cannot exceed 1000 characters.');
+    }
     // Stamp schoolId so this cross-school root collection can be tenant-filtered
     // (Phase 1 of multi-tenancy: previously the param was ignored and no
     // schoolId was written, review #258/#259). Read-side filtering is added in a
