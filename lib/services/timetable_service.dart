@@ -52,8 +52,10 @@ class TimetableService extends BaseFirestoreService {
 
   // ── School-scoped collection helpers ────────────────────────────────────────
   // Everything except allowed_users lives under schools/{schoolId}/.
-  // _schoolId reads the value set at login time; falls back to 'school_1'
-  // so existing deployments keep working before migration.
+  // _schoolId reads the value set at login time. AuthService.currentSchoolId
+  // throws a StateError when a user is signed in but the school id is not yet
+  // resolved — there is deliberately no silent 'school_1' fallback under an
+  // active session (SCALE-06).
 
   String get _schoolId => AuthService.currentSchoolId;
 

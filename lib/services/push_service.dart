@@ -70,7 +70,12 @@ class PushService {
     try {
       final sid = (schoolId != null && schoolId.isNotEmpty)
           ? schoolId
-          : (BaseFirestoreService.currentSchoolId ?? 'school_1');
+          : BaseFirestoreService.currentSchoolId;
+      // No 'school_1' fallback: subscribing with a guessed tenant id would
+      // deliver another school's push notifications to this device
+      // (SCALE-06). Sync is best-effort — skip now; the next login / session
+      // restore retries with a resolved school id.
+      if (sid == null || sid.isEmpty) return;
 
       // Persist the token too (makes the previously-dead saveFcmToken live and
       // enables future direct-to-device sends).

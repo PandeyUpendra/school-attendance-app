@@ -72,7 +72,13 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         return;
       }
 
-      // Admin operates at the root level, not inside any one school.
+      // Admin operates at the root level, not inside any one school, but
+      // school-scoped code paths require a non-null currentSchoolId once a
+      // Firebase user is signed in (AuthService.currentSchoolId throws
+      // otherwise). This DELIBERATE assignment pins the root admin to the
+      // school_1 tenant as a working context; rules let the root admin cross
+      // schools regardless. Revisit if the admin panel ever gains a school
+      // switcher (SCALE-06).
       BaseFirestoreService.currentSchoolId = 'school_1';
 
       // Persist a session so RoleGuard on the admin screen passes, then open it.

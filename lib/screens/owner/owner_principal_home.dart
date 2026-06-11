@@ -10,7 +10,6 @@ import '../../models/student.dart';
 import '../../providers/school_settings_provider.dart';
 import '../../services/announcement_service.dart';
 import '../../services/auth_service.dart';
-import '../../services/base_firestore_service.dart';
 import '../../services/exam_service.dart';
 import '../../services/role_permission_service.dart';
 import '../../services/school_settings_service.dart';
@@ -286,7 +285,10 @@ class _OPDashPageState extends State<_OPDashPage> {
       final db = FirebaseFirestore.instance;
       final days = List.generate(7, (i) => DateTime.now().subtract(Duration(days: 6 - i)));
       final futures = <Future<DocumentSnapshot<Map<String, dynamic>>>>[];
-      final sid = BaseFirestoreService.currentSchoolId ?? 'school_1';
+      // Fail loud instead of defaulting to 'school_1': an owner session always
+      // has a resolved school, and a silent fallback would read/write another
+      // tenant's data (SCALE-06).
+      final sid = AuthService.currentSchoolId;
       for (final day in days) {
         for (final cls in classes) {
           futures.add(db.collection('schools').doc(sid).collection('attendance').doc('${cls.replaceAll(' ', '_')}_${day.year}-${day.month}-${day.day}').get());
@@ -656,7 +658,10 @@ class _OPFinancePageState extends State<_OPFinancePage> {
   Future<void> _load() async {
     if (mounted) setState(() => _loading = true);
     try {
-      final sid = BaseFirestoreService.currentSchoolId ?? 'school_1';
+      // Fail loud instead of defaulting to 'school_1': an owner session always
+      // has a resolved school, and a silent fallback would read/write another
+      // tenant's data (SCALE-06).
+      final sid = AuthService.currentSchoolId;
       final snap = await FirebaseFirestore.instance.collection('schools').doc(sid).collection('students').get();
       final students = snap.docs.map((d) => Student.fromJson(Map<String, dynamic>.from(d.data()))).toList();
       double col = 0, pen = 0, ov = 0;
@@ -819,7 +824,10 @@ class _OPManagePageState extends State<_OPManagePage> {
   Future<void> _loadSchoolSettings() async {
     if (_settingsLoaded) return;
     try {
-      final sid = BaseFirestoreService.currentSchoolId ?? 'school_1';
+      // Fail loud instead of defaulting to 'school_1': an owner session always
+      // has a resolved school, and a silent fallback would read/write another
+      // tenant's data (SCALE-06).
+      final sid = AuthService.currentSchoolId;
       final doc = await FirebaseFirestore.instance.collection('schools').doc(sid).collection('settings').doc('school').get();
       if (doc.exists && doc.data() != null) {
         final d = doc.data()!;
@@ -843,7 +851,10 @@ class _OPManagePageState extends State<_OPManagePage> {
     }
     setState(() => _settingsSaving = true);
     try {
-      final sid = BaseFirestoreService.currentSchoolId ?? 'school_1';
+      // Fail loud instead of defaulting to 'school_1': an owner session always
+      // has a resolved school, and a silent fallback would read/write another
+      // tenant's data (SCALE-06).
+      final sid = AuthService.currentSchoolId;
       await FirebaseFirestore.instance.collection('schools').doc(sid).collection('settings').doc('school').set({
         'name': _schoolNameCtrl.text.trim(), 'phone': _schoolPhoneCtrl.text.trim(),
         'address': _schoolAddressCtrl.text.trim(), 'academicYear': _academicYearCtrl.text.trim(),

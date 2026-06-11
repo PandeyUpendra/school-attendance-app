@@ -576,10 +576,14 @@ class StudentService extends BaseFirestoreService {
     String?         admissionId,
   }) async {
     final svc = TimetableService.instance;
+    // No 'school_1' fallback: this WRITES the guardian's allowed_users doc, so
+    // a wrong tenant id here permanently provisions the guardian into the
+    // wrong school. AuthService.currentSchoolId fails loud (StateError) when
+    // the session's school isn't resolved yet (SCALE-06).
     final effectiveSchoolId =
         (schoolId != null && schoolId.isNotEmpty)
             ? schoolId
-            : (BaseFirestoreService.currentSchoolId ?? 'school_1');
+            : AuthService.currentSchoolId;
     // Empty password ⇒ addAllowedUser mints a strong random temp credential.
     await svc.addAllowedUser(
       email, '', 'guardian',

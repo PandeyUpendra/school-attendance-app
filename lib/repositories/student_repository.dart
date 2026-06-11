@@ -297,10 +297,23 @@ class FirestoreStudentRepository implements StudentRepository {
     List<int> rolls,
   ) async {
     if (rolls.isEmpty) return [];
-    final results = await Future.wait(
-      rolls.map((r) => fetchByRoll(className, section, r)),
-    );
-    return results.whereType<Student>().toList();
+    // Doc IDs are deterministic ({class}_{section}_{roll}), so batch the
+    // lookups with whereIn on documentId — ceil(N/30) queries instead of one
+    // get() per roll (SCALE-10). 30 is Firestore's whereIn limit.
+    final ids = rolls.map((r) => _docId(r, className, section)).toList();
+    const chunk = 30;
+    final futures = <Future<QuerySnapshot<Map<String, dynamic>>>>[];
+    for (var i = 0; i < ids.length; i += chunk) {
+      final slice = ids.sublist(
+          i, i + chunk > ids.length ? ids.length : i + chunk);
+      futures.add(
+          _students.where(FieldPath.documentId, whereIn: slice).get());
+    }
+    final snaps = await Future.wait(futures);
+    return [
+      for (final snap in snaps)
+        for (final doc in snap.docs) _fromDoc(doc),
+    ];
   }
 
   @override
