@@ -70,7 +70,7 @@ class _SubstitutionPlanScreenState extends State<SubstitutionPlanScreen> {
     if (_assignableCount == 0) return;
     setState(() => _saving = true);
 
-    final svc        = TimetableService();
+    final svc        = TimetableService.instance;
     final histSvc    = SubstitutionHistoryService();
     final notifSvc   = NotificationService();
     final teacherMap = {for (final t in await svc.getTeachers()) t.id: t};

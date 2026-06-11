@@ -41,8 +41,8 @@ class _ClassPickerScreenState extends State<ClassPickerScreen> {
   }
 
   Future<void> _load() async {
-    final settingsFuture = TimetableService().getSettings();
-    final teachersFuture = TimetableService().getTeachers();
+    final settingsFuture = TimetableService.instance.getSettings();
+    final teachersFuture = TimetableService.instance.getTeachers();
     final settings = await settingsFuture;
     final teachers = await teachersFuture;
 

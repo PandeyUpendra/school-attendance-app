@@ -43,7 +43,7 @@ class TimetableSettingsScreen extends StatefulWidget {
 
 class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     with SingleTickerProviderStateMixin {
-  final _service = TimetableService();
+  final _service = TimetableService.instance;
   late final TabController _tabCtrl;
   final _classCtrl = TextEditingController();
 

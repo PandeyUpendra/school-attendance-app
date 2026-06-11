@@ -45,7 +45,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
   }
 
   Future<void> _loadClasses() async {
-    final settings = await TimetableService().getSettings();
+    final settings = await TimetableService.instance.getSettings();
     final all = List<String>.from(settings['classes'] as List? ?? []);
     final classes = widget.allowedClasses.isEmpty
         ? all

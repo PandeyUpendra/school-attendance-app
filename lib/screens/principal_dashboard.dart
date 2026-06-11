@@ -14,7 +14,6 @@ import '../utils/app_logger.dart';
 import '../widgets/index_building_notice.dart';
 import 'attendance_history_screen.dart';
 import 'class_picker_screen.dart';
-import 'free_bells_screen.dart';
 import 'leave_requests_screen.dart';
 import 'teacher_deletion_requests_screen.dart';
 import 'student_deletion_requests_screen.dart';
@@ -41,6 +40,7 @@ import 'todo_list_screen.dart';
 import 'todo_reminder_banner.dart';
 import 'fee_overview_screen.dart';
 import 'admin/audit_log_screen.dart';
+import 'coordinator/absent_teachers_screen.dart';
 
 /// The Principal Portal — school-wide overview dashboard.
 class PrincipalDashboard extends StatefulWidget {
@@ -60,6 +60,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   int  _unassignedBells         = 0;
   int  _unreadNotifCount        = 0;
   String _principalEmail        = '';
+  String _principalName         = '';
   String _sessionRole           = 'principal';
 
   // Real-time badge streams
@@ -81,7 +82,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     _loadAll();
     _initBadgeStreams();
     // Re-run summaries whenever the student roster changes (add/delete).
-    _studentSub = StudentService().watchStudents().listen(
+    _studentSub = StudentService.instance.watchStudents().listen(
       (students) {
         final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
         if (_knownStudentIds.isNotEmpty && ids != _knownStudentIds) {
@@ -118,7 +119,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
           onError: (e) => AppLogger.e('PrincipalDashboard', 'notif stream error: $e', e),
         );
 
-    _leaveSub = TimetableService()
+    _leaveSub = TimetableService.instance
         .streamPendingLeaveCount()
         .listen(
           (n) {
@@ -164,8 +165,24 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       final session = await AuthService().getSession();
       final email   = (session?['email'] as String?) ?? '';
       final role    = (session?['role']  as String?) ?? 'principal';
+      final name    = (session?['name'] as String?) ?? '';
 
-      final settings   = await TimetableService().getSettings();
+      String principalName = name;
+      if (principalName.isEmpty && email.isNotEmpty) {
+        final doc = await TimetableService.instance.getAllowedUserDoc(email);
+        if (doc != null) {
+          principalName = (doc['name'] as String?) ?? '';
+          if (principalName.isNotEmpty) {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('auth_name', principalName);
+          }
+        }
+      }
+      if (principalName.isEmpty) {
+        principalName = email;
+      }
+
+      final settings   = await TimetableService.instance.getSettings();
       final allClasses = List<String>.from(settings['classes'] as List);
 
       // Filter to assigned classes; fall back to all.
@@ -175,8 +192,8 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
           : allClasses;
 
       // Fire attendance-related reads in parallel (badges handled by streams).
-      final summariesFuture  = StudentService().loadTodayFullSummary(classes: classes);
-      final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo();
+      final summariesFuture  = StudentService.instance.loadTodayFullSummary(classes: classes);
+      final absentInfoFuture = TimetableService.instance.getTodayAbsentTeachersInfo();
 
       final summaries  = await summariesFuture;
       final absentInfo = await absentInfoFuture;
@@ -184,6 +201,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       if (!mounted) return;
       setState(() {
         _principalEmail  = email;
+        _principalName   = principalName;
         _sessionRole     = role;
         _summaries       = summaries;
         _teachersAbsent  = absentInfo['absentCount']    ?? 0;
@@ -241,7 +259,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               const LeaveRequestsScreen(viewerRole: 'principal'),
             ),
             onBellsTap: () =>
-                _navigate(const FreeBellsScreen(canAssign: false)),
+                _navigate(const AbsentTeachersScreen()),
           ),
           Expanded(
             child: RefreshIndicator(
@@ -316,7 +334,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 subtitle: context.tr('subMeetingRecordsPrincipalDesc'),
                 onTap: () => _navigate(PrincipalMeetingRecordsScreen(
                   principalEmail: _principalEmail,
-                  principalName:  _principalEmail,
+                  principalName:  _principalName,
                 )),
               ),
               const Divider(height: 1, indent: 72),
@@ -336,7 +354,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 onTap: () => _navigate(UnifiedStaffTaskScreen(
                   role: 'principal',
                   userEmail: _principalEmail,
-                  userName: _principalEmail,
+                  userName: _principalName,
                 )),
               ),
               const Divider(height: 1, indent: 72),
@@ -348,7 +366,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 onTap: () => _navigate(StaffRemarksScreen(
                   role: _sessionRole,
                   userEmail: _principalEmail,
-                  userName: _principalEmail,
+                  userName: _principalName,
                 )),
               ),
               const Divider(height: 1, indent: 72),
@@ -393,7 +411,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               ),
               const Divider(height: 1, indent: 72),
               StreamBuilder<int>(
-                stream: StudentService().streamPendingDeletionCount(),
+                stream: StudentService.instance.streamPendingDeletionCount(),
                 builder: (context, snap) {
                   final n = snap.data ?? 0;
                   return _FeatureTile(
@@ -563,10 +581,10 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               Divider(height: 1, color: Colors.grey.shade100),
               const SizedBox(height: 12),
               Row(children: [
-                _AttendanceStat('${s.total}',   'Total',    const Color(0xFF546E7A)),
-                _AttendanceStat('${s.present}', 'Present',  const Color(0xFF2E7D32)),
-                _AttendanceStat('${s.absent}',  'Absent',   const Color(0xFFC62828)),
-                _AttendanceStat('${s.leave}',   'On Leave', const Color(0xFFF57F17)),
+                _AttendanceStat('${s.total}',   'Total',    AppTheme.textSecondary),
+                _AttendanceStat('${s.present}', 'Present',  AppTheme.success),
+                _AttendanceStat('${s.absent}',  'Absent',   AppTheme.danger),
+                _AttendanceStat('${s.leave}',   'On Leave', AppTheme.warning),
               ]),
             ],
           ],
@@ -576,9 +594,9 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   }
 
   Color _classColor(ClassSummary s) {
-    if (s.absent > 0) return const Color(0xFFC62828);
-    if (s.leave  > 0) return const Color(0xFFF57F17);
-    return const Color(0xFF2E7D32);
+    if (s.absent > 0) return AppTheme.danger;
+    if (s.leave  > 0) return AppTheme.warning;
+    return AppTheme.success;
   }
 
   Widget _buildTasksSection() {
@@ -805,7 +823,7 @@ class _PrincipalHeroCard extends StatelessWidget {
                           ? 'Teacher absent'
                           : 'Teachers absent',
                       alertColor: teachersAbsent > 0
-                          ? const Color(0xFFEF9A9A)
+                          ? AppTheme.dangerLight
                           : Colors.white70,
                       onTap: onTeachersAbsentTap,
                     ),
@@ -817,7 +835,7 @@ class _PrincipalHeroCard extends StatelessWidget {
                           ? 'Bell unassigned'
                           : 'Bells unassigned',
                       alertColor: unassignedBells > 0
-                          ? const Color(0xFFFFCC80)
+                          ? AppTheme.warningLight
                           : Colors.white70,
                       onTap: onBellsTap,
                     ),

@@ -31,7 +31,7 @@ class DailyCallsScreen extends StatefulWidget {
 
 class _DailyCallsScreenState extends State<DailyCallsScreen>
     with SingleTickerProviderStateMixin {
-  final _service = StudentService();
+  final _service = StudentService.instance;
   late final TabController _tabCtrl;
 
   String get _className => widget.teacher.classTeacherOf ?? '';
@@ -151,14 +151,38 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
   // ── Call + reason ─────────────────────────────────────────────────────────
   Future<void> _callStudent(Student s) async {
     if (s.phone.isEmpty) return;
+    final cleanPhone = s.phone.replaceAll(RegExp(r'[\s\-()]'), '');
+    final phoneRegex = RegExp(r'^\+?[0-9]{10,15}$');
+    if (!phoneRegex.hasMatch(cleanPhone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Invalid phone number format: ${s.phone}')),
+      );
+      return;
+    }
     final uri = Uri(scheme: 'tel', path: s.phone);
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not dial number: ${s.phone}')),
+      );
+      return;
+    }
     if (!mounted) return;
     await _recordCall(s);
   }
 
   Future<void> _openWhatsApp(Student s) async {
     if (s.phone.isEmpty) return;
+    final cleanPhone = s.phone.replaceAll(RegExp(r'[\s\-()]'), '');
+    final phoneRegex = RegExp(r'^\+?[0-9]{10,15}$');
+    if (!phoneRegex.hasMatch(cleanPhone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Invalid phone number format: ${s.phone}')),
+      );
+      return;
+    }
     // Consent gate (#108): WhatsApp sends the child's data to a third party.
     if (!await ConsentGate.allowsThirdPartyShare(context,
         roll: s.roll, className: s.className, section: s.section)) {
@@ -166,12 +190,15 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
     }
     if (!mounted) return;
     final msg = _waMessage(s);
-    final digits = PhoneUtils.whatsAppNumber(s.phone);
-    if (digits.isEmpty) return;
-    final url = Uri.parse(
-        'https://wa.me/$digits?text=${Uri.encodeComponent(msg)}');
+    final url = PhoneUtils.whatsAppUri(s.phone, text: msg);
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open WhatsApp for: ${s.phone}')),
+      );
+      return;
     }
     if (!mounted) return;
     await _recordCall(s);

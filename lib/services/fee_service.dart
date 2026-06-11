@@ -61,6 +61,14 @@ class FeeService extends BaseFirestoreService {
   }
 
   Future<void> saveFeeStructure({String? schoolId, required FeeStructure structure}) async {
+    if (structure.installments.isNotEmpty) {
+      final sum = structure.installments.map((i) => i.amountPaise).fold(0, (a, b) => a + b);
+      if (sum != structure.totalAnnualFeePaise) {
+        throw ArgumentError(
+            'The sum of installment amounts (₹${paiseToRupees(sum).toStringAsFixed(2)}) '
+            'must equal the total annual fee (₹${structure.totalAnnualFee.toStringAsFixed(2)}).');
+      }
+    }
     final docId = structure.className.replaceAll(' ', '_');
     final prev  = await _feeStructures.doc(docId).get();
     final before = prev.exists && prev.data() != null
@@ -206,8 +214,7 @@ class FeeService extends BaseFirestoreService {
       // Enforce cap check inside transaction (#651)
       if (enforceCap && !payment.reversed) {
         if (capPaise > 0) {
-          // ₹1 (100 paise) tolerance for rounding.
-          if (alreadyPaise + payment.amountPaise > capPaise + 100) {
+          if (alreadyPaise + payment.amountPaise > capPaise) {
             final remaining = paiseToRupees(
                 (capPaise - alreadyPaise).clamp(0, capPaise));
             throw FeeOverpaymentException(
@@ -223,7 +230,26 @@ class FeeService extends BaseFirestoreService {
           ? ((counterSnap.data()?['receiptSeq']) as num?)?.toInt() ?? 0
           : 0;
       final next = current + 1;
-      final rno  = 'RCP-${DateTime.now().year}-${next.toString().padLeft(6, '0')}';
+
+      // Determine academic year prefix dynamically (#32)
+      var prefixYear = DateTime.now().year;
+      try {
+        final academicSnap = await tx.get(schoolCollection(_sid, 'settings').doc('academic'));
+        if (academicSnap.exists && academicSnap.data() != null) {
+          final academicYearStart = (academicSnap.data()?['academicYearStart'] as String?) ?? 'April';
+          const months = {
+            'January': 1, 'February': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
+            'July': 7, 'August': 8, 'September': 9, 'October': 10, 'November': 11, 'December': 12
+          };
+          final startMonth = months[academicYearStart] ?? 4;
+          final now = DateTime.now();
+          if (now.month < startMonth) {
+            prefixYear = now.year - 1;
+          }
+        }
+      } catch (_) {}
+
+      final rno  = 'RCP-$prefixYear-${next.toString().padLeft(6, '0')}';
 
       final data = Map<String, dynamic>.from(payment.toJson())
         ..['receiptNo'] = rno

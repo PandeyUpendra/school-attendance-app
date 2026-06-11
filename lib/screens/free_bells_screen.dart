@@ -22,7 +22,7 @@ class FreeBellsScreen extends StatefulWidget {
 }
 
 class _FreeBellsScreenState extends State<FreeBellsScreen> {
-  final _service      = TimetableService();
+  final _service      = TimetableService.instance;
   final _histService  = SubstitutionHistoryService();
 
   List<String>  _classes   = [];

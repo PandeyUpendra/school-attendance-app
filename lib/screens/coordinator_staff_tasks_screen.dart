@@ -167,8 +167,8 @@ class _AssignTabState extends State<_AssignTab> {
 
   Future<void> _loadData() async {
     final results = await Future.wait([
-      TimetableService().getTeachers(),
-      TimetableService().getSettings(),
+      TimetableService.instance.getTeachers(),
+      TimetableService.instance.getSettings(),
     ]);
     final teachers = results[0] as List<Teacher>;
     final settings = results[1] as Map<String, dynamic>;

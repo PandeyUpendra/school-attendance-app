@@ -35,7 +35,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   void dispose() { _tab.dispose(); super.dispose(); }
 
   Future<void> _loadClasses() async {
-    final settings = await TimetableService().getSettings();
+    final settings = await TimetableService.instance.getSettings();
     final cls = List<String>.from(settings['classes'] as List? ?? []);
     if (!mounted) return;
     setState(() { _classes = cls; _classesLoading = false; });
@@ -102,7 +102,7 @@ class _OverviewTabState extends State<_OverviewTab>
     with AutomaticKeepAliveClientMixin {
   @override bool get wantKeepAlive => true;
 
-  final _service = StudentService();
+  final _service = StudentService.instance;
   bool _loading  = true;
   List<ClassSummary> _summaries = [];
 
@@ -349,7 +349,7 @@ class _AttendanceTrendTabState extends State<_AttendanceTrendTab>
     with AutomaticKeepAliveClientMixin {
   @override bool get wantKeepAlive => true;
 
-  final _service = StudentService();
+  final _service = StudentService.instance;
   String? _selectedClass;
   bool    _loading = false;
 
@@ -648,7 +648,7 @@ class _AbsenceLeaderboardTabState extends State<_AbsenceLeaderboardTab>
     with AutomaticKeepAliveClientMixin {
   @override bool get wantKeepAlive => true;
 
-  final _service = StudentService();
+  final _service = StudentService.instance;
   String? _selectedClass;
   bool    _loading = false;
 
@@ -856,7 +856,7 @@ class _FeeTabState extends State<_FeeTab>
     with AutomaticKeepAliveClientMixin {
   @override bool get wantKeepAlive => true;
 
-  final _studentService = StudentService();
+  final _studentService = StudentService.instance;
   final _feeService     = FeeService();
 
   bool _loading = true;

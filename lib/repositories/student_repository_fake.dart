@@ -79,6 +79,28 @@ class FakeStudentRepository implements StudentRepository {
   }
 
   @override
+  Future<({List<Student> entries, dynamic cursor})> fetchByClassPaginated(
+    String className,
+    String section, {
+    String? teacherId,
+    required int limit,
+    dynamic startAfter,
+  }) async {
+    final all = await fetchByClass(className, section, teacherId: teacherId);
+    int startIndex = 0;
+    if (startAfter != null) {
+      final lastId = startAfter as String;
+      final idx = all.indexWhere((s) => s.id == lastId);
+      if (idx != -1) {
+        startIndex = idx + 1;
+      }
+    }
+    final page = all.skip(startIndex).take(limit).toList();
+    final cursor = page.isNotEmpty ? page.last.id : null;
+    return (entries: page, cursor: cursor);
+  }
+
+  @override
   Future<Student?> fetchByRoll(
           String className, String section, int roll) async =>
       _students[docId(roll, className, section)];

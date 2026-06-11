@@ -3,7 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/teacher.dart';
+import '../models/student.dart';
 import '../services/notification_service.dart';
+import '../services/student_service.dart';
 import '../theme.dart';
 import '../l10n/app_strings.dart';
 import 'announcements_screen.dart';
@@ -12,12 +14,15 @@ import 'leave_requests_screen.dart';
 import 'staff_tasks_screen.dart';
 import 'substitution_history_screen.dart';
 import 'meeting/teacher_meeting_tasks_screen.dart';
+import 'guardian_leave_application_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final String   role;
   final String?  teacherId;
   final String?  studentClass;
   final int?     studentRoll;
+  final String?  studentAdmissionId;
+  final Student? student;
   final Teacher? teacher;
 
   const NotificationsScreen({
@@ -26,6 +31,8 @@ class NotificationsScreen extends StatefulWidget {
     this.teacherId,
     this.studentClass,
     this.studentRoll,
+    this.studentAdmissionId,
+    this.student,
     this.teacher,
   });
 
@@ -62,10 +69,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     _sub = _service
         .streamFor(
-          role:         widget.role,
-          teacherId:    widget.teacherId,
-          studentClass: widget.studentClass,
-          studentRoll:  widget.studentRoll,
+          role:               widget.role,
+          teacherId:          widget.teacherId,
+          studentClass:       widget.studentClass,
+          studentRoll:        widget.studentRoll,
+          studentAdmissionId: widget.studentAdmissionId,
         )
         .listen((items) {
       if (!mounted) return;
@@ -215,6 +223,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'substitution_assigned':
       case 'meeting_task':
         return widget.role == 'teacher';
+      case 'absent':
+        return widget.role == 'guardian';
       default:
         return false;
     }
@@ -278,6 +288,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               teacherName: widget.teacher?.name ?? '',
             ),
           ));
+        }
+        break;
+
+      case 'absent':
+        if (widget.role == 'guardian') {
+          var s = widget.student;
+          if (s == null && widget.studentClass != null && widget.studentRoll != null) {
+            s = await StudentService.instance.getStudentByRoll(
+              widget.studentClass!,
+              widget.studentRoll!,
+            );
+          }
+          if (s != null && mounted) {
+            await Navigator.push(context, MaterialPageRoute(
+              builder: (_) => GuardianLeaveApplicationScreen(student: s!),
+            ));
+          }
         }
         break;
     }

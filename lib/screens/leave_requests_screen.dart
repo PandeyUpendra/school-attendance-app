@@ -24,11 +24,14 @@ class LeaveRequestsScreen extends StatefulWidget {
 
 class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
     with SingleTickerProviderStateMixin {
-  final _service = TimetableService();
+  final _service = TimetableService.instance;
   late final TabController _tabCtrl;
   List<Map<String, dynamic>> _pending  = [];
   List<Map<String, dynamic>> _resolved = [];
   bool _loading = true;
+
+  bool _bulkMode = false;
+  final Set<String> _selectedIds = {};
 
   /// Assigning a substitute is a coordinator-only action. The principal can
   /// review and resolve leave, but substitution planning belongs to the
@@ -39,6 +42,14 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl.addListener(() {
+      if (_tabCtrl.indexIsChanging || _tabCtrl.index != 0) {
+        setState(() {
+          _bulkMode = false;
+          _selectedIds.clear();
+        });
+      }
+    });
     _load();
   }
 
@@ -72,7 +83,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
     });
   }
 
-  Future<void> _act(Map<String, dynamic> app, String status) async {
+  Future<void> _act(Map<String, dynamic> app, String status, {bool reload = true}) async {
     final id          = app['id']          as String;
     final teacherId   = app['teacherId']   as String? ?? '';
     final teacherName = app['teacherName'] as String? ?? '';
@@ -85,32 +96,50 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
         status:      status,
       );
     }
-    _load();
-    if (!mounted) return;
-    if (status == 'approved') {
-      // Do NOT jump straight into substitution — approving and assigning a
-      // substitute are separate steps. Offer it as an option instead (the
-      // approved card also carries an "Assign Substitution" button), but only
-      // to the coordinator — the principal does not assign substitutions.
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(context.tr('leaveApprovedCheck')),
-        backgroundColor: Colors.green.shade700,
-        duration: const Duration(seconds: 5),
-        action: _canAssignSubstitution
-            ? SnackBarAction(
-                label: context.tr('assignSubstitution'),
-                textColor: Colors.white,
-                onPressed: () => _openSubstitution(app),
-              )
-            : null,
-      ));
-    } else if (status == 'forwarded_to_principal') {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(context.tr('leaveForwardedToPrincipal')),
-        backgroundColor: AppTheme.primary,
-        duration: const Duration(seconds: 3),
-      ));
+    if (reload) {
+      _load();
+      if (!mounted) return;
+      if (status == 'approved') {
+        // Do NOT jump straight into substitution — approving and assigning a
+        // substitute are separate steps. Offer it as an option instead (the
+        // approved card also carries an "Assign Substitution" button), but only
+        // to the coordinator — the principal does not assign substitutions.
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.tr('leaveApprovedCheck')),
+          backgroundColor: Colors.green.shade700,
+          duration: const Duration(seconds: 5),
+          action: _canAssignSubstitution
+              ? SnackBarAction(
+                  label: context.tr('assignSubstitution'),
+                  textColor: Colors.white,
+                  onPressed: () => _openSubstitution(app),
+                )
+              : null,
+        ));
+      } else if (status == 'forwarded_to_principal') {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.tr('leaveForwardedToPrincipal')),
+          backgroundColor: AppTheme.primary,
+          duration: const Duration(seconds: 3),
+        ));
+      }
     }
+  }
+
+  Future<void> _bulkAct(String status) async {
+    setState(() => _loading = true);
+    final ids = _selectedIds.toList();
+    for (final id in ids) {
+      final app = _pending.firstWhere((a) => a['id'] == id, orElse: () => {});
+      if (app.isNotEmpty) {
+        await _act(app, status, reload: false);
+      }
+    }
+    setState(() {
+      _selectedIds.clear();
+      _bulkMode = false;
+    });
+    await _load();
   }
 
   /// Opens the smart substitution plan for a leave (or Free Bells as a
@@ -207,12 +236,54 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
           ],
         ),
         actions: [
+          if (_tabCtrl.index == 0 && _pending.isNotEmpty)
+            IconButton(
+              icon: Icon(_bulkMode ? Icons.check_box : Icons.check_box_outline_blank),
+              onPressed: () {
+                setState(() {
+                  _bulkMode = !_bulkMode;
+                  if (!_bulkMode) _selectedIds.clear();
+                });
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _load,
           ),
         ],
       ),
+      bottomNavigationBar: _bulkMode && _selectedIds.isNotEmpty
+          ? Container(
+              padding: const EdgeInsets.all(12),
+              color: Colors.white,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _bulkAct('rejected'),
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      label: Text('Reject (${_selectedIds.length})', style: const TextStyle(color: Colors.red)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _bulkAct('approved'),
+                      icon: const Icon(Icons.check, color: Colors.white),
+                      label: Text('Approve (${_selectedIds.length})'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : null,
       body: _loading
           ? const LoadingState()
           : TabBarView(
@@ -245,23 +316,48 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
       child: ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: apps.length,
-        itemBuilder: (_, i) => _LeaveCard(
-          app: apps[i],
-          statusLabel: _fmtStatus(context, apps[i]['status'] as String? ?? 'pending', widget.viewerRole),
-          onTap: () => _showDetail(apps[i]),
-          onAccept: showActions ? () => _act(apps[i], 'approved')  : null,
-          onReject: showActions ? () => _act(apps[i], 'rejected')  : null,
-          onForward: showActions && widget.viewerRole == 'coordinator'
-              ? () => _act(apps[i], 'forwarded_to_principal')
-              : null,
-          // Substitution is an explicit follow-up action, available on any
-          // approved leave (not triggered automatically on approval) — and only
-          // to the coordinator; the principal does not assign substitutions.
-          onAssignSubstitution:
-              _canAssignSubstitution && apps[i]['status'] == 'approved'
-                  ? () => _openSubstitution(apps[i])
-                  : null,
-        ),
+        itemBuilder: (_, i) {
+          final app = apps[i];
+          final id = app['id'] as String;
+          return _LeaveCard(
+            app: app,
+            statusLabel: _fmtStatus(context, app['status'] as String? ?? 'pending', widget.viewerRole),
+            bulkMode: _bulkMode,
+            isSelected: _selectedIds.contains(id),
+            onSelectedChanged: (val) {
+              setState(() {
+                if (val == true) {
+                  _selectedIds.add(id);
+                } else {
+                  _selectedIds.remove(id);
+                }
+              });
+            },
+            onTap: _bulkMode
+                ? () {
+                    setState(() {
+                      if (_selectedIds.contains(id)) {
+                        _selectedIds.remove(id);
+                      } else {
+                        _selectedIds.add(id);
+                      }
+                    });
+                  }
+                : () => _showDetail(app),
+            onAccept: showActions && !_bulkMode ? () => _act(app, 'approved')  : null,
+            onReject: showActions && !_bulkMode ? () => _act(app, 'rejected')  : null,
+            onForward: showActions && !_bulkMode && widget.viewerRole == 'coordinator'
+                ? () => _act(app, 'forwarded_to_principal')
+                : null,
+            // Substitution is an explicit follow-up action, available on any
+            // approved leave (not triggered automatically on approval) — and only
+            // to the coordinator; the principal does not assign substitutions.
+            onAssignSubstitution:
+                _canAssignSubstitution && app['status'] == 'approved' && !_bulkMode
+                    ? () => _openSubstitution(app)
+                    : null,
+          );
+        },
       ),
     );
   }
@@ -277,6 +373,9 @@ class _LeaveCard extends StatelessWidget {
   final VoidCallback? onReject;
   final VoidCallback? onForward;
   final VoidCallback? onAssignSubstitution;
+  final bool          bulkMode;
+  final bool          isSelected;
+  final ValueChanged<bool?>? onSelectedChanged;
 
   const _LeaveCard({
     required this.app,
@@ -286,6 +385,9 @@ class _LeaveCard extends StatelessWidget {
     this.onReject,
     this.onForward,
     this.onAssignSubstitution,
+    this.bulkMode = false,
+    this.isSelected = false,
+    this.onSelectedChanged,
   });
 
   @override
@@ -310,6 +412,14 @@ class _LeaveCard extends StatelessWidget {
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
+            if (bulkMode) ...[
+              Checkbox(
+                value: isSelected,
+                onChanged: onSelectedChanged,
+                activeColor: AppTheme.primary,
+              ),
+              const SizedBox(width: 4),
+            ],
             CircleAvatar(
               radius: 20,
               backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
@@ -367,7 +477,7 @@ class _LeaveCard extends StatelessWidget {
           Text('${context.tr('reasonColon')} ${app['reason'] ?? '—'}',
               style: TextStyle(
                   fontSize: 12, color: Colors.grey.shade600)),
-          if (onAccept != null || onReject != null || onForward != null) ...[
+          if ((onAccept != null || onReject != null || onForward != null) && !bulkMode) ...[
             const SizedBox(height: 12),
             const Divider(height: 1),
             const SizedBox(height: 10),

@@ -33,7 +33,7 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
   }
 
   Future<void> _loadClasses() async {
-    final settings = await TimetableService().getSettings();
+    final settings = await TimetableService.instance.getSettings();
     final classes  = List<String>.from(settings['classes'] as List? ?? []);
     if (!mounted) return;
     setState(() { _classes = classes; });
@@ -226,7 +226,7 @@ class _CoordCheckDetailScreen extends StatefulWidget {
 class _CoordCheckDetailScreenState extends State<_CoordCheckDetailScreen>
     with SingleTickerProviderStateMixin {
   final _service        = CopyCheckService();
-  final _studentService = StudentService();
+  final _studentService = StudentService.instance;
   late TabController _tab;
   bool _loading = true;
   List<CopyStatus> _all     = [];

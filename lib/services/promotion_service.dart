@@ -36,19 +36,19 @@ class PromotionService {
   }) {
     if (studentService != null || timetableService != null) {
       return PromotionService._(
-        studentService ?? StudentService(),
-        timetableService ?? TimetableService(),
+        studentService ?? StudentService.instance,
+        timetableService ?? TimetableService.instance,
       );
     }
     return _instance ??= PromotionService._(
-      StudentService(),
-      TimetableService(),
+      StudentService.instance,
+      TimetableService.instance,
     );
   }
 
   PromotionService._(this._students, this._timetable);
 
-  Future<PromotionResult> promoteStudents({
+  Future<PromotionAnalysis> analyzePromotion({
     required List<Student> students,
     required String targetClass,
     required String targetSection,
@@ -83,8 +83,9 @@ class PromotionService {
       );
     } catch (e) {
       // If fetching target students fails, we cannot proceed safely with checks.
-      return PromotionResult(
-        0,
+      return PromotionAnalysis(
+        [],
+        [],
         students
             .map((s) =>
                 '${s.name} (roll ${s.roll}): failed to query target class: $e')
@@ -166,10 +167,33 @@ class PromotionService {
       toPromoteOld.add(s);
     }
 
-    if (toPromoteNew.isNotEmpty) {
-      await _students.promoteStudents(toPromoteNew, toPromoteOld);
+    return PromotionAnalysis(toPromoteNew, toPromoteOld, skipped);
+  }
+
+  Future<PromotionResult> promoteStudents({
+    required List<Student> students,
+    required String targetClass,
+    required String targetSection,
+  }) async {
+    final analysis = await analyzePromotion(
+      students: students,
+      targetClass: targetClass,
+      targetSection: targetSection,
+    );
+
+    if (analysis.toPromoteNew.isNotEmpty) {
+      await _students.promoteStudents(analysis.toPromoteNew, analysis.toPromoteOld);
     }
 
-    return PromotionResult(toPromoteNew.length, skipped);
+    return PromotionResult(analysis.toPromoteNew.length, analysis.skipped);
   }
 }
+
+/// Analysis of a class-promotion run before committing database writes.
+class PromotionAnalysis {
+  final List<Student> toPromoteNew;
+  final List<Student> toPromoteOld;
+  final List<String> skipped;
+  const PromotionAnalysis(this.toPromoteNew, this.toPromoteOld, this.skipped);
+}
+

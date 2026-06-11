@@ -35,7 +35,7 @@ class ReportCardScreen extends StatefulWidget {
 
 class _ReportCardScreenState extends State<ReportCardScreen> {
   final _examSvc      = ExamService();
-  final _studentSvc   = StudentService();
+  final _studentSvc   = StudentService.instance;
   final _templateSvc  = ReportCardTemplateService();
   final _schoolSvc    = SchoolService();
 

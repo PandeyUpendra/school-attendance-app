@@ -25,7 +25,7 @@ class GuardianLeaveApplicationScreen extends StatefulWidget {
 
 class _GuardianLeaveApplicationScreenState
     extends State<GuardianLeaveApplicationScreen> {
-  final _service = TimetableService();
+  final _service = TimetableService.instance;
 
   DateTime _startDate    = DateTime.now().add(const Duration(days: 1));
   int      _numberOfDays = 1;
@@ -183,22 +183,33 @@ class _GuardianLeaveApplicationScreenState
       );
 
       if (!mounted) return;
-      // Stay on the screen so the new request shows up in the history below;
-      // reset the form for a possible next request.
       setState(() {
-        _submitting   = false;
-        _reason       = _reasonOptions.first;
-        _numberOfDays = 1;
-        _startDate    = DateTime.now().add(const Duration(days: 1));
-        _overlapping  = false;
+        _submitting = false;
       });
-      _customReasonCtrl.clear();
-
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(context.tr('leaveSubmittedToTeacher')),
-        backgroundColor: Colors.green.shade700,
-        duration: const Duration(seconds: 3),
-      ));
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle_outline, color: Colors.green),
+              SizedBox(width: 8),
+              Text('Success'),
+            ],
+          ),
+          content: Text(context.tr('leaveSubmittedToTeacher')),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext); // pop dialog
+                Navigator.pop(context); // pop screen back to dashboard
+              },
+              child: Text(context.tr('ok'),
+                  style: const TextStyle(color: AppTheme.primary)),
+            ),
+          ],
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
@@ -400,7 +411,7 @@ class _GuardianLeaveApplicationScreenState
                   controller: _customReasonCtrl,
                   maxLines: 4,
                   keyboardType: TextInputType.multiline,
-                  maxLength: 300,
+                  maxLength: 500,
                   maxLengthEnforcement: MaxLengthEnforcement.enforced,
                   decoration: InputDecoration(
                     hintText: context.tr('describeReasonHint'),

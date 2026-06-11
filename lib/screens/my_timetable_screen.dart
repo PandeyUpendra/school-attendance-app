@@ -20,7 +20,7 @@ class MyTimetableScreen extends StatefulWidget {
 }
 
 class _MyTimetableScreenState extends State<MyTimetableScreen> {
-  final _service = TimetableService();
+  final _service = TimetableService.instance;
   List<String>  _classes  = [];
   int           _bellCount = 8;
   List<Map<String, dynamic>> _bells = [];
@@ -249,7 +249,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _classes.isEmpty
+          : (_classes.isEmpty || _timetable.isEmpty)
               ? _emptyState(context)
               : _isPersonal
                   ? _buildPersonalView()

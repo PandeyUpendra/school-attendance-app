@@ -92,9 +92,9 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
   }
 
   Future<void> _loadData() async {
-    final teachers = await TimetableService().getTeachers(schoolId: widget.schoolId);
-    final coordinators = await TimetableService().getCoordinators(widget.schoolId);
-    final settings = await TimetableService().getSettings(schoolId: widget.schoolId);
+    final teachers = await TimetableService.instance.getTeachers(schoolId: widget.schoolId);
+    final coordinators = await TimetableService.instance.getCoordinators(widget.schoolId);
+    final settings = await TimetableService.instance.getSettings(schoolId: widget.schoolId);
     final classes = List<String>.from(settings['classes'] as List);
 
     if (mounted) {

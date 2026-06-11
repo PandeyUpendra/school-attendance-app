@@ -51,27 +51,26 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       return;
     }
 
-    // Admin identity is hardcoded to the single permanent system admin. Reject
-    // every other address up-front — before even touching Firebase Auth — so no
-    // other account can ever reach the admin panel.
-    if (!AuthService.isRootAdminEmail(email)) {
-      setState(() {
-        _loading = false;
-        _error = 'This is not the system admin account. Admin access is '
-            'restricted to a single fixed email.';
-        _resetMsg = null;
-      });
-      return;
-    }
-
     setState(() { _loading = true; _error = null; _resetMsg = null; });
     try {
-      // Firebase Auth sign-in. The hardcoded email above IS the authorization —
-      // no allowed_users/role lookup is needed (and it would fail anyway when
-      // the database is empty, which is exactly when the admin must bootstrap
-      // the system). The security rules trust the same hardcoded email via
-      // isRootAdmin(), so admin writes succeed without an identity document.
+      // Firebase Auth sign-in.
       await AuthService().signInWithEmail(email, pass);
+
+      // Verify admin status dynamically by fetching/caching system/root_config from Firestore.
+      // (This read will fail with permission-denied if they are not defined as root admin).
+      try {
+        final adminEmails = await AuthService().fetchAndCacheAdminEmails();
+        if (!adminEmails.contains(email)) {
+          throw Exception('User is not listed in root admins.');
+        }
+      } catch (e) {
+        await AuthService().signOut();
+        setState(() {
+          _loading = false;
+          _error = 'This account is not permitted admin access.';
+        });
+        return;
+      }
 
       // Admin operates at the root level, not inside any one school.
       BaseFirestoreService.currentSchoolId = 'school_1';

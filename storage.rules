@@ -34,7 +34,7 @@ service firebase.storage {
 
     function isRootAdmin() {
       return isSignedIn()
-        && request.auth.token.email == 'mandvishal@gmail.com';
+        && (request.auth.token.email == 'mandvishal@gmail.com' || request.auth.token.email == 'admin@schoolapp.org');
     }
 
     // Image-only, ≤ 15 MB. resource is null on create, so guard both.

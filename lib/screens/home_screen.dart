@@ -70,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // pass for this teacher's own class (fixes student/attendance/homework
     // permission-denied for teachers provisioned before classIds stamping).
     if (widget.teacher != null) {
-      TimetableService().syncTeacherClassIds(widget.teacher!);
+      TimetableService.instance.syncTeacherClassIds(widget.teacher!);
     }
   }
 
@@ -116,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Student leave badge — only if this teacher is a class teacher
     final cls = widget.teacher?.classTeacherOf;
     if (cls != null && cls.isNotEmpty) {
-      _studentLeaveSub = TimetableService()
+      _studentLeaveSub = TimetableService.instance
           .streamPendingStudentLeaveCount(
             studentClass: cls,
             studentSection: widget.teacher?.section ?? '',

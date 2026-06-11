@@ -19,7 +19,7 @@ class LeaveApplicationScreen extends StatefulWidget {
 }
 
 class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
-  final _service = TimetableService();
+  final _service = TimetableService.instance;
 
   String _toRole = 'coordinator';
   DateTime _startDate = DateTime.now().add(const Duration(days: 1));

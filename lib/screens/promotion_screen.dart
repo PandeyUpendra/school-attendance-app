@@ -20,7 +20,7 @@ class PromotionScreen extends StatefulWidget {
 }
 
 class _PromotionScreenState extends State<PromotionScreen> {
-  final _studentSvc = StudentService();
+  final _studentSvc = StudentService.instance;
 
   List<String> _classes = [];
   bool _loadingClasses = true;
@@ -49,7 +49,7 @@ class _PromotionScreenState extends State<PromotionScreen> {
 
   Future<void> _loadClasses() async {
     try {
-      final settings = await TimetableService().getSettings();
+      final settings = await TimetableService.instance.getSettings();
       final classes =
           (settings['classes'] as List?)?.map((e) => e.toString()).toList() ??
               [];
@@ -86,30 +86,20 @@ class _PromotionScreenState extends State<PromotionScreen> {
   Future<void> _promote() async {
     final to = _toClass;
     if (to == null || _loaded.isEmpty) return;
+
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(context.tr('confirmPromotion')),
-        content: Text(
-          '${context.tr('promoteWord')} ${_loaded.length} ${context.tr('studentsFromLabel')} '
-          '$_fromClass${_fromSection.text.trim().isEmpty ? '' : ' ${_fromSection.text.trim()}'} '
-          '${context.tr('toLowerWord')} $to${_toSection.text.trim().isEmpty ? '' : ' ${_toSection.text.trim()}'}?\n\n'
-          '${context.tr('promoteArchiveNote')}',
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(_, false),
-              child: Text(context.tr('cancel'))),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(_, true),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white),
-            child: Text(context.tr('promoteWord')),
-          ),
-        ],
+      builder: (_) => PromotionDryRunDialog(
+        students: _loaded,
+        targetClass: to,
+        targetSection: _toSection.text.trim(),
+        fromClassSection:
+            '$_fromClass${_fromSection.text.trim().isEmpty ? '' : ' ${_fromSection.text.trim()}'}',
+        toClassSection:
+            '$to${_toSection.text.trim().isEmpty ? '' : ' ${_toSection.text.trim()}'}',
       ),
     );
+
     if (confirm != true || !mounted) return;
 
     setState(() => _promoting = true);
@@ -272,3 +262,180 @@ class _PromotionScreenState extends State<PromotionScreen> {
     );
   }
 }
+
+class PromotionDryRunDialog extends StatefulWidget {
+  final List<Student> students;
+  final String targetClass;
+  final String targetSection;
+  final String fromClassSection;
+  final String toClassSection;
+
+  const PromotionDryRunDialog({
+    super.key,
+    required this.students,
+    required this.targetClass,
+    required this.targetSection,
+    required this.fromClassSection,
+    required this.toClassSection,
+  });
+
+  @override
+  State<PromotionDryRunDialog> createState() => _PromotionDryRunDialogState();
+}
+
+class _PromotionDryRunDialogState extends State<PromotionDryRunDialog> with SingleTickerProviderStateMixin {
+  late TabController _tabCtrl;
+  bool _analyzing = true;
+  String? _error;
+  late PromotionAnalysis _analysis;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabCtrl = TabController(length: 2, vsync: this);
+    _runAnalysis();
+  }
+
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runAnalysis() async {
+    try {
+      final res = await PromotionService().analyzePromotion(
+        students: widget.students,
+        targetClass: widget.targetClass,
+        targetSection: widget.targetSection,
+      );
+      if (!mounted) return;
+      setState(() {
+        _analysis = res;
+        _analyzing = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _analyzing = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_analyzing) {
+      return AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: AppTheme.primary),
+            const SizedBox(height: 16),
+            Text(context.tr('loadingEllipsis')),
+          ],
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return AlertDialog(
+        title: const Text("Dry-run Failed"),
+        content: Text("Error: $_error"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(context.tr('ok')),
+          ),
+        ],
+      );
+    }
+
+    final toPromote = _analysis.toPromoteNew;
+    final skipped = _analysis.skipped;
+
+    return AlertDialog(
+      title: const Text("Promotion Dry-Run Preview"),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Promoting: ${widget.fromClassSection} ➔ ${widget.toClassSection}",
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "${toPromote.length} students ready to promote, ${skipped.length} skipped.",
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 12),
+            TabBar(
+              controller: _tabCtrl,
+              labelColor: AppTheme.primary,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: AppTheme.primary,
+              tabs: [
+                Tab(text: "To Promote (${toPromote.length})"),
+                Tab(text: "Skipped / Collisions (${skipped.length})"),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabCtrl,
+                children: [
+                  toPromote.isEmpty
+                      ? const Center(child: Text("No students to promote"))
+                      : ListView.builder(
+                          itemCount: toPromote.length,
+                          itemBuilder: (context, idx) {
+                            final s = toPromote[idx];
+                            return ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.check_circle_outline, color: Colors.green),
+                              title: Text(s.name),
+                              subtitle: Text("Roll: ${s.roll} | Admission ID: ${s.admissionId}"),
+                            );
+                          },
+                        ),
+                  skipped.isEmpty
+                      ? const Center(child: Text("No skipped/colliding records"))
+                      : ListView.builder(
+                          itemCount: skipped.length,
+                          itemBuilder: (context, idx) {
+                            final reason = skipped[idx];
+                            return ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                              title: Text(reason),
+                            );
+                          },
+                        ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(context.tr('cancel')),
+        ),
+        ElevatedButton(
+          onPressed: toPromote.isEmpty
+              ? null
+              : () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.primary,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text("Proceed"),
+        ),
+      ],
+    );
+  }
+}
+

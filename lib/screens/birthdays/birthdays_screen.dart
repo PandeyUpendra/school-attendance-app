@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../l10n/app_strings.dart';
 import '../../services/birthday_service.dart';
 import '../../theme.dart';
+import '../../utils/phone_utils.dart';
 
 /// Localised label for a birthday filter index (display only; logic uses the
 /// integer index, so stored/compared values are unaffected).
@@ -108,14 +109,14 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
   }
 
   Future<void> _call(String phone) async {
-    final uri = Uri.parse('tel:$phone');
+    final uri = Uri(scheme: 'tel', path: phone);
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
   Future<void> _openWhatsApp(Map<String, dynamic> entry, String message) async {
     final phone = _phone(entry);
     if (phone == null || phone.isEmpty) return;
-    final uri = Uri.parse('https://wa.me/91$phone?text=${Uri.encodeComponent(message)}');
+    final uri = PhoneUtils.whatsAppUri(phone, text: message);
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 

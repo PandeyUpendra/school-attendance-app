@@ -44,5 +44,15 @@ abstract class PhoneUtils {
     }
     return phone.trim();
   }
+
+  /// Builds a safe `https://wa.me/...` URL with optional text.
+  /// Uses [Uri.https] to guarantee correct parameter encoding and prevent injection (#14).
+  static Uri whatsAppUri(String phone, {String? text}) {
+    final digits = whatsAppNumber(phone);
+    if (text != null && text.isNotEmpty) {
+      return Uri.https('wa.me', '/$digits', {'text': text});
+    }
+    return Uri.https('wa.me', '/$digits');
+  }
 }
 

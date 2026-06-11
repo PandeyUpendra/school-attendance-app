@@ -76,7 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _role = session?['role'] as String? ?? '';
       _name = session?['name'] as String? ?? '';
 
-      final svc = TimetableService();
+      final svc = TimetableService.instance;
       Map<String, dynamic>? doc;
       try {
         doc = await svc.getAllowedUserDoc(email);

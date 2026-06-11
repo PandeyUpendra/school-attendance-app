@@ -50,6 +50,7 @@ exports.syncUserClaims = onDocumentWritten(
   }
 );
 
+// Keep this in sync with Validators._emailRe in lib/utils/validators.dart to prevent drift risk (#12).
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 // Roles permitted to delete accounts.
@@ -77,18 +78,18 @@ function rankOf(role) {
   return Object.prototype.hasOwnProperty.call(ROLE_RANK, role) ? ROLE_RANK[role] : 0;
 }
 
-// The single permanent system administrator. Mirrors AuthService.rootAdminEmail
-// in the app and isRootAdmin() in the Firestore rules. The root admin signs in
-// but deliberately has NO allowed_users document, so its role cannot be read
+// The permanent system administrators. Mirrors AuthService.rootAdminEmails
+// in the app and isRootAdmin() in the Firestore rules. The root admins sign in
+// but deliberately have NO allowed_users document, so their role cannot be read
 // from Firestore — it must be resolved from the email. Without this, deleteAccount
 // rejects the admin as a roleless caller (the UNAUTHENTICATED/permission-denied
 // failure when the admin tries to delete an owner).
-const ROOT_ADMIN_EMAIL = "mandvishal@gmail.com";
+const ROOT_ADMIN_EMAILS = ["mandvishal@gmail.com", "admin@schoolapp.org"];
 
 // Resolves a caller's effective role. The root admin is authoritative by email
 // (it has no allowed_users doc); every other caller's role comes from their doc.
 function resolveCallerRole(callerEmail, snap) {
-  if (callerEmail === ROOT_ADMIN_EMAIL) return "admin";
+  if (ROOT_ADMIN_EMAILS.includes(callerEmail)) return "admin";
   return snap.exists ? snap.get("role") : null;
 }
 
@@ -321,6 +322,174 @@ function studentDocId(className, section, roll) {
   return sec ? `${base}_${sec}_${roll}` : `${base}_${roll}`;
 }
 
+async function performStudentDeleteCascade(db, schoolId, className, section, roll) {
+  const schoolRef = db.collection("schools").doc(schoolId);
+  const docId = studentDocId(className, section, roll);
+  const classKey = className.replace(/ /g, "_");
+
+  // A. Fetch student first to get name & guardianEmail for tombstone & guardian revoke
+  const studentSnap = await schoolRef.collection("students").doc(docId).get();
+  if (!studentSnap.exists) {
+    return; // Already deleted
+  }
+  const studentData = studentSnap.data() || {};
+  const studentName = studentData.name || "";
+  const guardianEmail = (studentData.guardianEmail || "").trim().toLowerCase();
+  const teacherId = studentData.teacherId || "";
+
+  // B. Write tombstone to deleted_students
+  try {
+    await schoolRef.collection("deleted_students").add({
+      roll: roll,
+      name: studentName,
+      className: className,
+      section: section,
+      teacherId: teacherId,
+      deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    logger.warn(`tombstone write failed for ${docId}`, err && err.message);
+  }
+
+  // C. Revoke guardian login record
+  if (guardianEmail) {
+    try {
+      const guardianRef = db.collection("allowed_users").doc(guardianEmail);
+      const guardianSnap = await guardianRef.get();
+      if (guardianSnap.exists) {
+        const data = guardianSnap.data() || {};
+        let links = data.studentLinks || [];
+        links = links.filter((l) => !(l.studentClass === className && l.studentRoll === roll && (l.studentSection || '') === section));
+        if (links.length === 0) {
+          // No remaining students linked to this guardian, remove allowed_users + Auth
+          await guardianRef.delete();
+          // Delete Auth account
+          try {
+            const u = await admin.auth().getUserByEmail(guardianEmail);
+            await admin.auth().deleteUser(u.uid);
+          } catch (authErr) {
+            if (!authErr || authErr.code !== "auth/user-not-found") {
+              logger.warn(`deleteAuth failed for guardian ${guardianEmail}`, authErr && authErr.code);
+            }
+          }
+        } else {
+          // Update links
+          await guardianRef.update({ studentLinks: links });
+        }
+      }
+    } catch (err) {
+      logger.warn(`guardian revoke failed for ${docId}`, err && err.message);
+    }
+  }
+
+  // 1. Remove the roll from every attendance doc for this class/section.
+  try {
+    const attKey = section ? `${className} ${section}` : className;
+    const prefix = `${attKey.replace(/ /g, "_")}_`;
+    const snap = await schoolRef
+      .collection("attendance")
+      .where(admin.firestore.FieldPath.documentId(), ">=", prefix)
+      .where(admin.firestore.FieldPath.documentId(), "<", `${prefix}\uf8ff`)
+      .get();
+    const FV = admin.firestore.FieldValue;
+
+    const expectedPrefix = section
+      ? `${classKey}_${section.replace(/ /g, "_")}_`
+      : `${classKey}_`;
+
+    const matchedDocs = snap.docs.filter((doc) => {
+      const id = doc.id;
+      if (!id.startsWith(expectedPrefix)) return false;
+      if (!section) {
+        const suffix = id.substring(expectedPrefix.length);
+        if (suffix.includes("_")) return false; // Contains section part (e.g. Class_9_A_2026...)
+      }
+      return true;
+    });
+
+    for (let i = 0; i < matchedDocs.length; i += 400) {
+      const batch = db.batch();
+      matchedDocs.slice(i, i + 400).forEach((doc) => {
+        batch.set(doc.ref, {
+          rolls: { [roll]: FV.delete() },
+          reasons: { [roll]: FV.delete() },
+          called: { [roll]: FV.delete() },
+        }, { merge: true });
+      });
+      await batch.commit();
+    }
+  } catch (err) {
+    logger.warn(`attendance cleanup failed for ${docId}`, err && err.message);
+  }
+
+  // 2. Exam results for the student in every exam of this class.
+  try {
+    const exams = await schoolRef.collection("exams").where("className", "==", className).get();
+    for (let i = 0; i < exams.docs.length; i += 400) {
+      const batch = db.batch();
+      exams.docs.slice(i, i + 400).forEach((ex) => {
+        batch.delete(schoolRef.collection("exam_results").doc(ex.id).collection("students").doc(String(roll)));
+      });
+      await batch.commit();
+    }
+  } catch (err) {
+    logger.warn(`exam results cleanup failed for ${docId}`, err && err.message);
+  }
+
+  // 3. Fee payments node (+ payments subcollection).
+  try {
+    await db.recursiveDelete(
+      schoolRef.collection("fee_payments").doc(classKey).collection("students").doc(String(roll)));
+  } catch (err) {
+    logger.warn(`fee cleanup failed for ${docId}`, err && err.message);
+  }
+
+  // 4. Guardian notifications + the class-teacher leave notice for this roll.
+  try {
+    const notifs = schoolRef.collection("notifications");
+    const guardianNotifs = await notifs.where("audience", "==", `guardian:${className}:${roll}`).get();
+    const leaveNotifs = await notifs.where("audience", "==", `class_teacher:${className}`).get();
+    const toDelete = [
+      ...guardianNotifs.docs,
+      ...leaveNotifs.docs.filter((n) => n.get("studentRoll") === roll),
+    ];
+    for (let i = 0; i < toDelete.length; i += 400) {
+      const batch = db.batch();
+      toDelete.slice(i, i + 400).forEach((n) => batch.delete(n.ref));
+      await batch.commit();
+    }
+  } catch (err) {
+    logger.warn(`notification cleanup failed for ${docId}`, err && err.message);
+  }
+
+  // 5. Guardian-filed leave applications for this student.
+  try {
+    const leaves = await schoolRef
+      .collection("leave_applications")
+      .where("applicantType", "==", "guardian")
+      .where("studentClass", "==", className)
+      .where("studentRoll", "==", roll)
+      .get();
+    const matched = section
+      ? leaves.docs.filter((l) => String(l.get("studentSection") || "").trim() === section)
+      : leaves.docs;
+    for (let i = 0; i < matched.length; i += 400) {
+      const batch = db.batch();
+      matched.slice(i, i + 400).forEach((l) => batch.delete(l.ref));
+      await batch.commit();
+    }
+  } catch (err) {
+    logger.warn(`leave cleanup failed for ${docId}`, err && err.message);
+  }
+
+  // 6. Student doc + its subcollections (remarks/consents/providedDetails).
+  try {
+    await db.recursiveDelete(schoolRef.collection("students").doc(docId));
+  } catch (err) {
+    logger.warn(`student doc delete failed for ${docId}`, err && err.message);
+  }
+}
+
 exports.deleteStudent = onCall(
   { cors: true, region: "us-central1" },
   async (request) => {
@@ -349,120 +518,65 @@ exports.deleteStudent = onCall(
       throw new HttpsError("permission-denied", "You can only delete students in your own school.");
     }
 
-    const schoolRef = db.collection("schools").doc(schoolId);
-    const docId = studentDocId(className, section, roll);
-    const classKey = String(className).replace(/ /g, "_");
+    await performStudentDeleteCascade(db, schoolId, className, section, roll);
 
-    // 1. Remove the roll from every attendance doc for this class/section.
-    try {
-      const attKey = section ? `${className} ${section}` : className;
-      const prefix = `${attKey.replace(/ /g, "_")}_`;
-      const snap = await schoolRef
-        .collection("attendance")
-        .where(admin.firestore.FieldPath.documentId(), ">=", prefix)
-        .where(admin.firestore.FieldPath.documentId(), "<", `${prefix}\uf8ff`)
-        .get();
-      const FV = admin.firestore.FieldValue;
+    return { ok: true, studentId: studentDocId(className, section, roll) };
+  }
+);
 
-      const classKey = className.replace(/ /g, "_");
-      const expectedPrefix = section
-        ? `${classKey}_${section.replace(/ /g, "_")}_`
-        : `${classKey}_`;
+exports.approveDeletionRequest = onCall(
+  { cors: true, region: "us-central1" },
+  async (request) => {
+    const db = admin.firestore();
+    if (!request.auth || !request.auth.token || !request.auth.token.email) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    const d = request.data || {};
+    const schoolId = String(d.schoolId || "").trim();
+    const requestId = String(d.requestId || "").trim();
+    if (!schoolId || !requestId) {
+      throw new HttpsError("invalid-argument", "schoolId and requestId are required.");
+    }
 
-      const matchedDocs = snap.docs.filter((doc) => {
-        const id = doc.id;
-        if (!id.startsWith(expectedPrefix)) return false;
-        if (!section) {
-          const suffix = id.substring(expectedPrefix.length);
-          if (suffix.includes("_")) return false; // Contains section part (e.g. Class_9_A_2026...)
-        }
-        return true;
-      });
+    // Authorization: management of the SAME school (admins may cross schools).
+    const callerEmail = String(request.auth.token.email).toLowerCase();
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerRole = resolveCallerRole(callerEmail, callerSnap);
+    const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
+    if (!STUDENT_DELETE_ROLES.includes(callerRole)) {
+      throw new HttpsError("permission-denied", "You are not allowed to approve deletion requests.");
+    }
+    if (callerRole !== "admin" && callerSchoolId !== schoolId) {
+      throw new HttpsError("permission-denied", "You can only resolve deletion requests in your own school.");
+    }
 
-      for (let i = 0; i < matchedDocs.length; i += 400) {
-        const batch = db.batch();
-        matchedDocs.slice(i, i + 400).forEach((doc) => {
-          batch.set(doc.ref, {
-            rolls: { [roll]: FV.delete() },
-            reasons: { [roll]: FV.delete() },
-            called: { [roll]: FV.delete() },
-          }, { merge: true });
-        });
-        await batch.commit();
+    const reqRef = db.collection("schools").doc(schoolId).collection("student_deletion_requests").doc(requestId);
+    const reqSnap = await reqRef.get();
+    if (!reqSnap.exists) {
+      throw new HttpsError("not-found", "Deletion request not found.");
+    }
+    const reqData = reqSnap.data() || {};
+    if (reqData.status !== "pending") {
+      return { ok: true, status: reqData.status }; // already approved / rejected
+    }
+
+    const students = reqData.students || [];
+    for (const student of students) {
+      const roll = Number.parseInt(student.roll, 10);
+      const className = String(student.className || "").trim();
+      const section = String(student.section || "").trim();
+      if (className && Number.isInteger(roll) && roll > 0) {
+        await performStudentDeleteCascade(db, schoolId, className, section, roll);
       }
-    } catch (err) {
-      logger.warn(`attendance cleanup failed for ${docId}`, err && err.message);
     }
 
-    // 2. Exam results for the student in every exam of this class.
-    try {
-      const exams = await schoolRef.collection("exams").where("className", "==", className).get();
-      for (let i = 0; i < exams.docs.length; i += 400) {
-        const batch = db.batch();
-        exams.docs.slice(i, i + 400).forEach((ex) => {
-          batch.delete(schoolRef.collection("exam_results").doc(ex.id).collection("students").doc(String(roll)));
-        });
-        await batch.commit();
-      }
-    } catch (err) {
-      logger.warn(`exam results cleanup failed for ${docId}`, err && err.message);
-    }
+    await reqRef.update({
+      status: "approved",
+      resolvedAt: admin.firestore.FieldValue.serverTimestamp(),
+      resolvedBy: callerEmail,
+    });
 
-    // 3. Fee payments node (+ payments subcollection).
-    try {
-      await db.recursiveDelete(
-        schoolRef.collection("fee_payments").doc(classKey).collection("students").doc(String(roll)));
-    } catch (err) {
-      logger.warn(`fee cleanup failed for ${docId}`, err && err.message);
-    }
-
-    // 4. Guardian notifications + the class-teacher leave notice for this roll.
-    try {
-      const notifs = schoolRef.collection("notifications");
-      const guardianNotifs = await notifs.where("audience", "==", `guardian:${className}:${roll}`).get();
-      const leaveNotifs = await notifs.where("audience", "==", `class_teacher:${className}`).get();
-      const toDelete = [
-        ...guardianNotifs.docs,
-        ...leaveNotifs.docs.filter((n) => n.get("studentRoll") === roll),
-      ];
-      for (let i = 0; i < toDelete.length; i += 400) {
-        const batch = db.batch();
-        toDelete.slice(i, i + 400).forEach((n) => batch.delete(n.ref));
-        await batch.commit();
-      }
-    } catch (err) {
-      logger.warn(`notification cleanup failed for ${docId}`, err && err.message);
-    }
-
-    // 5. Guardian-filed leave applications for this student.
-    try {
-      const leaves = await schoolRef
-        .collection("leave_applications")
-        .where("applicantType", "==", "guardian")
-        .where("studentClass", "==", className)
-        .where("studentRoll", "==", roll)
-        .get();
-      const matched = section
-        ? leaves.docs.filter((l) => String(l.get("studentSection") || "").trim() === section)
-        : leaves.docs;
-      for (let i = 0; i < matched.length; i += 400) {
-        const batch = db.batch();
-        matched.slice(i, i + 400).forEach((l) => batch.delete(l.ref));
-        await batch.commit();
-      }
-    } catch (err) {
-      logger.warn(`leave cleanup failed for ${docId}`, err && err.message);
-    }
-
-    // 6. Student doc + its subcollections (remarks/consents/providedDetails).
-    // Delete student doc last to prevent orphaned records in case of failure/timeout (#35)
-    try {
-      await db.recursiveDelete(schoolRef.collection("students").doc(docId));
-    } catch (err) {
-      logger.warn(`student doc delete failed for ${docId}`, err && err.message);
-    }
-
-    return { ok: true, studentId: docId };
+    return { ok: true };
   }
 );
 
@@ -640,3 +754,200 @@ exports.purgeOldData = onCall(
     };
   }
 );
+
+/**
+ * Firestore trigger: send payment receipt email automatically.
+ * Scopes to the subcollection path:
+ * schools/{sid}/fee_payments/{classKey}/students/{roll}/payments/{paymentId}
+ */
+exports.sendReceiptEmail = onDocumentCreated(
+  {
+    document: "schools/{sid}/fee_payments/{classKey}/students/{roll}/payments/{paymentId}",
+    region: "us-central1"
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const payment = snap.data() || {};
+    // Skip if payment is reversed
+    if (payment.reversed) return;
+
+    const receiptNo = payment.receiptNo || "—";
+    const amountPaise = payment.amountPaise || 0;
+    const amountRupees = amountPaise / 100;
+    const mode = payment.mode || "—";
+    const note = payment.note || "";
+    const installmentName = payment.installmentName || "";
+
+    const sid = event.params.sid;
+    const classKey = event.params.classKey;
+    const roll = event.params.roll;
+
+    const db = admin.firestore();
+
+    try {
+      // 1. Fetch student details to get guardian email
+      const classKeyClean = classKey.replace(/_/g, " ");
+      const studentSnap = await db.collection("schools").doc(sid)
+        .collection("students")
+        .where("roll", "==", parseInt(roll, 10))
+        .get();
+
+      const studentDoc = studentSnap.docs.find(d => {
+        const cName = d.get("className") || "";
+        return cName.replace(/ /g, "_") === classKey;
+      });
+
+      if (!studentDoc) {
+        logger.warn(`[sendReceiptEmail] Student not found for roll ${roll} and classKey ${classKey}`);
+        return;
+      }
+
+      const studentData = studentDoc.data() || {};
+      const studentName = studentData.name || "Student";
+      const guardianEmail = (studentData.guardianEmail || "").trim();
+
+      if (!guardianEmail) {
+        logger.info(`[sendReceiptEmail] Student ${studentName} has no guardian email. Logging failure.`);
+        await db.collection("communication_logs").doc(sid).collection("logs").add({
+          targetUid: `guardian:${classKeyClean}:${roll}`,
+          type: "payment_receipt_email",
+          payload: {
+            receiptNo,
+            amountRupees,
+            studentName,
+            error: "No guardian email set for student",
+          },
+          success: false,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return;
+      }
+
+      // 2. Fetch school settings for branding
+      const schoolSettingsSnap = await db.collection("schools").doc(sid)
+        .collection("settings").doc("school").get();
+      const schoolSettings = schoolSettingsSnap.data() || {};
+      const schoolName = schoolSettings.schoolName || "School App";
+      const logoUrl = schoolSettings.logoUrl || "";
+
+      // 3. Construct receipt HTML body
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            ${logoUrl ? `<img src="${logoUrl}" alt="${schoolName}" style="max-height: 80px; margin-bottom: 10px;" />` : ''}
+            <h2 style="color: #333; margin: 0;">${schoolName}</h2>
+            <p style="color: #666; margin: 5px 0 0 0;">Payment Receipt</p>
+          </div>
+          
+          <div style="background-color: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 6px 0; color: #666; font-size: 14px;">Receipt No:</td>
+                <td style="padding: 6px 0; font-weight: bold; text-align: right; font-size: 14px;">${receiptNo}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #666; font-size: 14px;">Student Name:</td>
+                <td style="padding: 6px 0; text-align: right; font-size: 14px;">${studentName} (Roll: ${roll})</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #666; font-size: 14px;">Class:</td>
+                <td style="padding: 6px 0; text-align: right; font-size: 14px;">${classKeyClean}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #666; font-size: 14px;">Installment:</td>
+                <td style="padding: 6px 0; text-align: right; font-size: 14px;">${installmentName || 'General'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #666; font-size: 14px;">Payment Mode:</td>
+                <td style="padding: 6px 0; text-align: right; font-size: 14px;">${mode}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="text-align: center; margin-bottom: 30px;">
+            <span style="font-size: 12px; color: #666;">Amount Paid</span>
+            <h1 style="color: #2e7d32; margin: 5px 0 0 0;">₹${amountRupees.toFixed(2)}</h1>
+          </div>
+          
+          ${note ? `<div style="margin-bottom: 20px; font-size: 13px; color: #555;"><strong>Note:</strong> ${note}</div>` : ''}
+          
+          <div style="text-align: center; border-top: 1px solid #eeeeee; padding-top: 15px; font-size: 11px; color: #888;">
+            This is an electronically generated receipt. No signature is required.
+            <br />
+            Thank you for your payment.
+          </div>
+        </div>
+      `;
+
+      // 4. Configure nodemailer transporter
+      const nodemailer = require("nodemailer");
+      const smtpSnap = await db.collection("schools").doc(sid)
+        .collection("settings").doc("smtp").get();
+      let transporter;
+
+      if (smtpSnap.exists && smtpSnap.data()) {
+        const smtp = smtpSnap.data();
+        transporter = nodemailer.createTransport({
+          host: smtp.host,
+          port: parseInt(smtp.port, 10) || 587,
+          secure: smtp.secure || false,
+          auth: {
+            user: smtp.username,
+            pass: smtp.password,
+          },
+        });
+      } else {
+        transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST || "smtp.gmail.com",
+          port: parseInt(process.env.SMTP_PORT, 10) || 587,
+          secure: process.env.SMTP_SECURE === "true",
+          auth: {
+            user: process.env.SMTP_USER || "noreply@yourschooldomain.com",
+            pass: process.env.SMTP_PASS || "",
+          },
+        });
+      }
+
+      const mailFrom = process.env.MAIL_FROM || "noreply@yourschooldomain.com";
+      const mailFromName = process.env.MAIL_FROM_NAME || schoolName;
+
+      const mailOptions = {
+        from: `"${mailFromName}" <${mailFrom}>`,
+        to: guardianEmail,
+        subject: `Fee Payment Receipt - ${receiptNo}`,
+        html: htmlContent,
+      };
+
+      let success = false;
+      let errorMsg = "";
+      try {
+        await transporter.sendMail(mailOptions);
+        success = true;
+      } catch (err) {
+        logger.error("Failed to send receipt email via nodemailer", err);
+        errorMsg = err.message;
+      }
+
+      // 5. Log to communication logs
+      await db.collection("communication_logs").doc(sid).collection("logs").add({
+        targetUid: `guardian:${classKeyClean}:${roll}`,
+        type: "payment_receipt_email",
+        payload: {
+          receiptNo,
+          amountRupees,
+          studentName,
+          guardianEmail,
+          ...(errorMsg ? { error: errorMsg } : {}),
+        },
+        success,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    } catch (globalErr) {
+      logger.error("Global error in sendReceiptEmail trigger", globalErr);
+    }
+  }
+);
+

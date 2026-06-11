@@ -65,8 +65,51 @@ Future<Uint8List> buildReportCardPdf({
       : 0.0;
 
   doc.addPage(pw.Page(
-    pageFormat: fmt,
-    margin: const pw.EdgeInsets.all(_kMargin),
+    pageTheme: pw.PageTheme(
+      pageFormat: fmt,
+      margin: const pw.EdgeInsets.all(_kMargin),
+      buildBackground: (ctx) => pw.FullPage(
+        ignoreMargins: true,
+        child: pw.Container(
+          alignment: pw.Alignment.center,
+          child: pw.Opacity(
+            opacity: 0.05,
+            child: pw.Container(
+              width: 300,
+              height: 300,
+              decoration: pw.BoxDecoration(
+                shape: pw.BoxShape.circle,
+                border: pw.Border.all(color: PdfColors.grey, width: 3),
+              ),
+              alignment: pw.Alignment.center,
+              child: pw.Column(
+                mainAxisAlignment: pw.MainAxisAlignment.center,
+                children: [
+                  pw.Text(
+                    template.headerText.toUpperCase(),
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      fontSize: 20,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.grey,
+                    ),
+                  ),
+                  pw.SizedBox(height: 10),
+                  pw.Text(
+                    'OFFICIAL REPORT CARD',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
     build: (ctx) => pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
@@ -134,8 +177,51 @@ Future<Uint8List> buildClassReportCardPdf({
   final resultMap = { for (final r in results) r.roll: r };
 
   doc.addPage(pw.MultiPage(
-    pageFormat: fmt,
-    margin: const pw.EdgeInsets.all(_kMargin),
+    pageTheme: pw.PageTheme(
+      pageFormat: fmt,
+      margin: const pw.EdgeInsets.all(_kMargin),
+      buildBackground: (ctx) => pw.FullPage(
+        ignoreMargins: true,
+        child: pw.Container(
+          alignment: pw.Alignment.center,
+          child: pw.Opacity(
+            opacity: 0.05,
+            child: pw.Container(
+              width: 300,
+              height: 300,
+              decoration: pw.BoxDecoration(
+                shape: pw.BoxShape.circle,
+                border: pw.Border.all(color: PdfColors.grey, width: 3),
+              ),
+              alignment: pw.Alignment.center,
+              child: pw.Column(
+                mainAxisAlignment: pw.MainAxisAlignment.center,
+                children: [
+                  pw.Text(
+                    template.headerText.toUpperCase(),
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      fontSize: 20,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.grey,
+                    ),
+                  ),
+                  pw.SizedBox(height: 10),
+                  pw.Text(
+                    'OFFICIAL REPORT CARD',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
     header: (ctx) => _buildHeader(template, exam),
     footer: (ctx) => _buildFooter(template),
     build: (ctx) => [
@@ -500,18 +586,66 @@ pw.Widget _buildCoCurricularTable() {
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
 pw.Widget _buildFooter(ReportCardTemplate template) {
+  final now = DateTime.now();
+  final timestampStr = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} '
+      '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
   return pw.Column(
     crossAxisAlignment: pw.CrossAxisAlignment.stretch,
     children: [
+      pw.SizedBox(height: 15),
+      // Signature lines
+      pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Container(
+                width: 120,
+                decoration: const pw.BoxDecoration(
+                  border: pw.Border(bottom: pw.BorderSide(color: _kGrey400, width: 0.5)),
+                ),
+              ),
+              pw.SizedBox(height: 3),
+              pw.Text('Class Teacher Signature', style: const pw.TextStyle(fontSize: 8, color: _kTextLight)),
+            ],
+          ),
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Container(
+                width: 120,
+                decoration: const pw.BoxDecoration(
+                  border: pw.Border(bottom: pw.BorderSide(color: _kGrey400, width: 0.5)),
+                ),
+              ),
+              pw.SizedBox(height: 3),
+              pw.Text('Principal Signature', style: const pw.TextStyle(fontSize: 8, color: _kTextLight)),
+            ],
+          ),
+        ],
+      ),
+      pw.SizedBox(height: 10),
       pw.Divider(color: _kGrey400, thickness: 0.5),
       pw.SizedBox(height: 4),
       pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
           pw.Expanded(
-            child: pw.Text(
-              template.footerText,
-              style: const pw.TextStyle(fontSize: 8, color: _kTextLight),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  template.footerText.isNotEmpty ? template.footerText : 'Disclaimer: This report card contains confidential student information.',
+                  style: const pw.TextStyle(fontSize: 8, color: _kTextLight),
+                ),
+                pw.SizedBox(height: 2),
+                pw.Text(
+                  'Generated on: $timestampStr  •  This is a computer generated document. No signature required.',
+                  style: const pw.TextStyle(fontSize: 7, color: _kTextLight),
+                ),
+              ],
             ),
           ),
           pw.Text(

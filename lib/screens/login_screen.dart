@@ -63,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       // Fetch role + extra data from allowed_users.
-      final userData = await TimetableService().getAllowedUserDoc(email);
+      final userData = await TimetableService.instance.getAllowedUserDoc(email);
       if (!mounted) return;
 
       if (userData == null) {
@@ -98,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Mark account active on first successful login.
       if (status == 'pending') {
-        TimetableService().markUserActive(email);
+        TimetableService.instance.markUserActive(email);
       }
 
       if (schoolId.isNotEmpty) {
@@ -108,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Role-specific data.
       List<String>? assignedClasses;
       if (role == 'coordinator' || role == 'principal' || role == 'owner') {
-        final loginData = await TimetableService().getAssignedClasses(email);
+        final loginData = await TimetableService.instance.getAssignedClasses(email);
         assignedClasses = loginData.assignedClasses;
       }
 
@@ -124,7 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (!mounted) return;
-      _routeToDashboard(role, email, teacherId);
+      await _routeToDashboard(role, email, teacherId);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -143,14 +143,19 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _routeToDashboard(String role, String email, [String? teacherId]) {
+  Future<void> _routeToDashboard(String role, String email, [String? teacherId]) async {
     Widget destination;
     switch (role) {
       case 'admin':
-        // Admin is hardcoded to a single email — no other account may ever
-        // resolve to the admin panel, even if a stray allowed_users doc claims
-        // the admin role. The admin signs in through the dedicated screen.
-        if (!AuthService.isRootAdminEmail(email)) {
+        // Admin status is verified by fetching system/root_config from Firestore.
+        // This read will fail with permission-denied for non-admins.
+        try {
+          final adminEmails = await AuthService().fetchAndCacheAdminEmails();
+          if (!adminEmails.contains(email)) {
+            throw Exception('User is not in the system root admins list.');
+          }
+        } catch (_) {
+          await AuthService().signOut();
           setState(() {
             _loading = false;
             _error   = 'This account is not permitted admin access.';
@@ -183,6 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
         });
         return;
     }
+    if (!mounted) return;
     Navigator.pushReplacement(
         context, MaterialPageRoute(builder: (_) => destination));
   }
@@ -195,10 +201,10 @@ class _LoginScreenState extends State<LoginScreen> {
       // was already saved with teacherId in _login(), so no re-save here (#149).
       Teacher? teacher;
       if (teacherId != null && teacherId.isNotEmpty) {
-        teacher = await TimetableService().getTeacherById(id: teacherId);
+        teacher = await TimetableService.instance.getTeacherById(id: teacherId);
       }
       if (teacher == null) {
-        final teachers = await TimetableService().getTeachers();
+        final teachers = await TimetableService.instance.getTeachers();
         teacher = teachers.firstWhere(
           (t) => t.email.toLowerCase() == email,
           orElse: () => throw Exception('Teacher profile not found'),

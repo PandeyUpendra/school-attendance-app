@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
+import 'communication_log_service.dart';
 
 /// Firestore-backed notification / real-time alert system.
 ///
@@ -33,6 +34,29 @@ class NotificationService extends BaseFirestoreService {
   CollectionReference<Map<String, dynamic>> get _coll =>
       schoolCollection(_sid, 'notifications');
 
+  // Helper method to add a notification to Firestore and log it to CommunicationLogService.
+  Future<void> _addAndLog(Map<String, dynamic> data) async {
+    final audience = data['audience'] as String? ?? 'all';
+    final type = data['type'] as String? ?? 'unknown';
+    try {
+      await _coll.add(data);
+      await CommunicationLogService().logSend(
+        targetUid: audience,
+        type: type,
+        payload: data,
+        success: true,
+      );
+    } catch (e) {
+      await CommunicationLogService().logSend(
+        targetUid: audience,
+        type: type,
+        payload: data,
+        success: false,
+      );
+      rethrow;
+    }
+  }
+
   // ── Writers ────────────────────────────────────────────────────────────────
 
   /// Builds the guardian audience for a notice. Prefers the STABLE
@@ -55,7 +79,7 @@ class NotificationService extends BaseFirestoreService {
     required String status, // 'Absent' | 'Leave'
     String? admissionId,
   }) async {
-    await _coll.add({
+    await _addAndLog({
       'type':      'absent',
       'title':     '$studentName marked $status today',
       'body':      'Your child has been marked $status today in $className. '
@@ -73,7 +97,7 @@ class NotificationService extends BaseFirestoreService {
     required int    days,
     required String startDate,
   }) async {
-    await _coll.add({
+    await _addAndLog({
       'type':      'leave_submitted',
       'title':     'New leave application from $teacherName',
       'body':      '$teacherName has applied for $days day(s) '
@@ -89,7 +113,7 @@ class NotificationService extends BaseFirestoreService {
     required String teacherName,
     required String status, // 'approved' | 'rejected'
   }) async {
-    await _coll.add({
+    await _addAndLog({
       'type':      'leave_resolved',
       'status':    status,
       'title':     'Leave $status',
@@ -104,7 +128,7 @@ class NotificationService extends BaseFirestoreService {
     required String className,
     required String studentName,
   }) async {
-    await _coll.add({
+    await _addAndLog({
       'type':      'guardian_correction',
       'title':     'Profile Correction: $studentName',
       'body':      'Guardian has submitted profile corrections for $studentName ($className).',
@@ -127,7 +151,7 @@ class NotificationService extends BaseFirestoreService {
     ];
     final dateStr = '${date.day} ${months[date.month]}';
     final subjBit = subject.isEmpty ? '' : ' ($subject)';
-    await _coll.add({
+    await _addAndLog({
       'type':      'substitution_assigned',
       'title':     'Substitution: $className · Bell $bell',
       'body':      'You\'ve been assigned to cover$subjBit in $className, '
@@ -143,7 +167,7 @@ class NotificationService extends BaseFirestoreService {
     required String body,
     required String audience, // 'all' | 'teachers' | 'guardians'
   }) async {
-    await _coll.add({
+    await _addAndLog({
       'type':      'announcement',
       'title':     'New announcement: $title',
       'body':      body.length > 120 ? '${body.substring(0, 117)}…' : body,
@@ -169,7 +193,7 @@ class NotificationService extends BaseFirestoreService {
     if (priority != null && priority.isNotEmpty) {
       parts.add('Priority: $priority');
     }
-    await _coll.add({
+    await _addAndLog({
       'type':      'staff_task',
       'title':     'New Task Assigned',
       'body':      '${parts.join(' · ')} — by $assignedByName',
@@ -187,7 +211,7 @@ class NotificationService extends BaseFirestoreService {
     final body = pointText.length > 100
         ? '${pointText.substring(0, 97)}…'
         : pointText;
-    await _coll.add({
+    await _addAndLog({
       'type':      'meeting_task',
       'title':     'New Meeting Task: $meetingTitle',
       'body':      body,
@@ -209,7 +233,7 @@ class NotificationService extends BaseFirestoreService {
     required int    days,
     required String startDate,
   }) async {
-    await _coll.add({
+    await _addAndLog({
       'type':         'student_leave_submitted',
       'title':        'Leave request: $studentName',
       'body':         'Guardian applied $days day(s) leave for $studentName '
@@ -229,7 +253,7 @@ class NotificationService extends BaseFirestoreService {
     required String status,
     String? admissionId,
   }) async {
-    await _coll.add({
+    await _addAndLog({
       'type':      'student_leave_resolved',
       'status':    status,
       'title':     'Leave $status for $studentName',

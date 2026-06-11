@@ -15,8 +15,10 @@ import '../../services/fee_service.dart';
 import '../../services/role_permission_service.dart';
 import '../../services/school_settings_service.dart';
 import '../../services/student_service.dart';
+import '../../services/base_firestore_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
+import '../../utils/phone_utils.dart';
 import '../profile_screen.dart';
 import '../../widgets/announcement_composer.dart';
 import '../../widgets/email_text_form_field.dart';
@@ -43,6 +45,9 @@ class _OwnerHomeState extends State<OwnerHome> {
   String _myEmail = '';
   String _myRole = 'owner';
   bool _loaded = false;
+  List<String> _schoolIds = [];
+  Map<String, String> _schoolsMap = {};
+  bool _switchingSchool = false;
 
   @override
   void initState() {
@@ -73,15 +78,99 @@ class _OwnerHomeState extends State<OwnerHome> {
       AppLogger.e('OwnerHome', 'Failed to check onboarding status', e, st);
     }
 
+    // Load available schools for multi-school switcher
+    List<String> schoolIds = [];
+    Map<String, String> schoolsMap = {};
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('allowed_users')
+          .doc(email)
+          .get();
+      if (userDoc.exists && userDoc.data() != null) {
+        final data = userDoc.data()!;
+        schoolIds = List<String>.from(data['schoolIds'] ?? [AuthService.currentSchoolId]);
+        final rawMap = data['schoolsMap'] as Map?;
+        if (rawMap != null) {
+          schoolsMap = Map<String, String>.from(rawMap);
+        }
+      }
+    } catch (e) {
+      AppLogger.e('OwnerHome', 'Failed to load school switcher options', e);
+    }
+
+    if (schoolIds.isEmpty) {
+      schoolIds = [AuthService.currentSchoolId];
+    }
+    if (!schoolsMap.containsKey(AuthService.currentSchoolId)) {
+      schoolsMap[AuthService.currentSchoolId] = 'Current School';
+    }
+
     if (!mounted) return;
     setState(() {
       _myEmail = email;
       _myRole = role;
+      _schoolIds = schoolIds;
+      _schoolsMap = schoolsMap;
       _loaded = true;
     });
   }
 
+  Future<void> _switchSchool(String targetSchoolId) async {
+    if (targetSchoolId == AuthService.currentSchoolId) return;
+    setState(() => _switchingSchool = true);
 
+    try {
+      // 1. Update schoolId in allowed_users
+      await FirebaseFirestore.instance
+          .collection('allowed_users')
+          .doc(_myEmail)
+          .update({'schoolId': targetSchoolId});
+
+      // 2. Update local state / notifier
+      BaseFirestoreService.currentSchoolId = targetSchoolId;
+
+      // 3. Update saved session
+      final session = await AuthService().getSession() ?? {};
+      await AuthService().saveSession(
+        email: _myEmail,
+        role: _myRole,
+        name: session['name'] as String?,
+        schoolId: targetSchoolId,
+        assignedClasses: session['assignedClasses'] != null
+            ? List<String>.from(session['assignedClasses'] as List)
+            : null,
+        teacherId: session['teacherId'] as String?,
+      );
+
+      // 4. Invalidate settings cache
+      TimetableService.invalidateSettingsCache();
+
+      // 5. Reload settings provider & onboarding check
+      if (!mounted) return;
+      final schoolName = _schoolsMap[targetSchoolId] ?? targetSchoolId;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Switched school to $schoolName'),
+          backgroundColor: AppTheme.success,
+        ),
+      );
+
+      // Trigger full dashboard reload
+      _init();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to switch school: $e'),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _switchingSchool = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -261,12 +350,39 @@ class _OwnerHomeState extends State<OwnerHome> {
                     const SizedBox(width: 10),
                   ],
                   Expanded(
-                    child: Text(
-                      displayName,
-                      style: const TextStyle(
-                          color: Colors.white, fontSize: 22,
-                          fontWeight: FontWeight.bold, height: 1.1),
-                    ),
+                    child: _schoolIds.length > 1
+                        ? DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: AuthService.currentSchoolId,
+                              dropdownColor: AppTheme.primaryDark,
+                              icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold),
+                              onChanged: _switchingSchool
+                                  ? null
+                                  : (val) {
+                                      if (val != null) _switchSchool(val);
+                                    },
+                              items: _schoolIds.map((sid) {
+                                final sname = _schoolsMap[sid] ?? sid;
+                                return DropdownMenuItem(
+                                  value: sid,
+                                  child: Text(
+                                    sname,
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          )
+                        : Text(
+                            displayName,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 22,
+                                fontWeight: FontWeight.bold, height: 1.1),
+                          ),
                   ),
                 ]),
                 const SizedBox(height: 3),
@@ -280,6 +396,7 @@ class _OwnerHomeState extends State<OwnerHome> {
     );
   }
 }
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Sub-page: Dashboard
@@ -305,7 +422,7 @@ class _DashPageState extends State<_DashPage> {
   List<FlSpot> _weeklyTrend = [];
   List<String> _weeklyLabels = [];
 
-  final _svc = TimetableService();
+  final _svc = TimetableService.instance;
 
   @override
   void initState() {
@@ -318,7 +435,7 @@ class _DashPageState extends State<_DashPage> {
     try {
       final settings = await _svc.getSettings();
       final classes = List<String>.from(settings['classes'] as List? ?? []);
-      final summaries = await StudentService().loadTodayFullSummary(classes: classes);
+      final summaries = await StudentService.instance.loadTodayFullSummary(classes: classes);
 
       int total = 0, present = 0, absent = 0;
       final classAtt = <Map<String, dynamic>>[];
@@ -555,7 +672,7 @@ class _StaffPageState extends State<_StaffPage> {
   List<Map<String, dynamic>> _leaves = [];
   String _search = '';
 
-  final _svc = TimetableService();
+  final _svc = TimetableService.instance;
 
   @override
   void initState() {
@@ -921,10 +1038,11 @@ class _FinancePageState extends State<_FinancePage> {
     ));
     if (ok != true) return;
     for (final d in _defaulters) {
-      final phone = (d['phone'] as String).replaceAll(RegExp(r'\D'), '');
-      if (phone.isEmpty) continue;
-      final msg = Uri.encodeComponent('Dear Parent of ${d['name']}, your fee of ₹${(d['amount'] as double).toStringAsFixed(0)} is overdue. Please pay at the earliest.');
-      await launchUrl(Uri.parse('https://wa.me/91$phone?text=$msg'), mode: LaunchMode.externalApplication);
+      final phone = d['phone'] as String;
+      if (phone.replaceAll(RegExp(r'\D'), '').isEmpty) continue;
+      final msg = 'Dear Parent of ${d['name']}, your fee of ₹${(d['amount'] as double).toStringAsFixed(0)} is overdue. Please pay at the earliest.';
+      final url = PhoneUtils.whatsAppUri(phone, text: msg);
+      await launchUrl(url, mode: LaunchMode.externalApplication);
       await Future.delayed(const Duration(milliseconds: 800));
     }
   }
@@ -997,9 +1115,10 @@ class _FinancePageState extends State<_FinancePage> {
               IconButton(
                 icon: const Icon(Icons.chat_bubble_outline, color: AppTheme.whatsapp),
                 onPressed: () {
-                  final n = (d['phone'] as String).replaceAll(RegExp(r'\D'), '');
-                  final msg = Uri.encodeComponent('Dear Parent of ${d['name']}, your fee of ₹${(d['amount'] as double).toStringAsFixed(0)} is overdue.');
-                  launchUrl(Uri.parse('https://wa.me/91$n?text=$msg'), mode: LaunchMode.externalApplication);
+                  final phone = d['phone'] as String;
+                  final msg = 'Dear Parent of ${d['name']}, your fee of ₹${(d['amount'] as double).toStringAsFixed(0)} is overdue.';
+                  final url = PhoneUtils.whatsAppUri(phone, text: msg);
+                  launchUrl(url, mode: LaunchMode.externalApplication);
                 },
               ),
           ]),
@@ -1024,7 +1143,7 @@ class _CreateAccountsPage extends StatefulWidget {
 
 class _CreateAccountsPageState extends State<_CreateAccountsPage> {
   static const _primary = AppTheme.primary;
-  final _svc  = TimetableService();
+  final _svc  = TimetableService.instance;
   final _perm = RolePermissionService();
 
   final _nameCtrl  = TextEditingController();

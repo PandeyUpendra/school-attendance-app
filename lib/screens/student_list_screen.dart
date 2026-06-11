@@ -33,6 +33,8 @@ import '../widgets/email_text_form_field.dart';
 import 'add_student_screen.dart';
 import 'attendance_certificate_screen.dart';
 import '../widgets/refreshable_data.dart';
+import 'consent/parental_consent_flow.dart';
+import '../models/parental_consent.dart';
 
 /// Pre-defined reasons shown in the deletion-request dropdown.
 const _kDeletionReasons = [
@@ -101,11 +103,17 @@ class StudentListScreen extends StatefulWidget {
 }
 
 class _StudentListScreenState extends State<StudentListScreen> {
-  final _service = StudentService();
-  StreamSubscription<List<Student>>? _studentSub;
+  final _service = StudentService.instance;
+  final _scrollController = ScrollController();
   List<Student> _students = [];
   bool _loading = true;
   bool _isPrincipal = false;
+
+  // Pagination state
+  static const _pageSize = 30;
+  dynamic _cursor;
+  bool _hasMore = true;
+  bool _loadingMore = false;
 
   Future<void> _loadUserRole() async {
     final session = await AuthService().getSession();
@@ -119,12 +127,12 @@ class _StudentListScreenState extends State<StudentListScreen> {
   // Consent visibility (#17): which students have active parental consent, so
   // staff can see at a glance who is missing it. Loaded once per roster refresh
   // via the batch API; until loaded, no badge is shown (avoids a flash).
-  Set<String> _consentedIds = {};
+  final Set<String> _consentedIds = {};
   bool _consentLoaded = false;
 
   Future<void> _loadConsent(List<Student> students) async {
     if (students.isEmpty) {
-      if (mounted) setState(() { _consentedIds = {}; _consentLoaded = true; });
+      if (mounted) setState(() { _consentLoaded = true; });
       return;
     }
     final ids = students
@@ -133,7 +141,10 @@ class _StudentListScreenState extends State<StudentListScreen> {
     try {
       final consented = await ConsentService().filterHasActiveConsent(ids);
       if (mounted) {
-        setState(() { _consentedIds = consented; _consentLoaded = true; });
+        setState(() {
+          _consentedIds.addAll(consented);
+          _consentLoaded = true;
+        });
       }
     } catch (_) {/* visibility only — never block the roster */}
   }
@@ -146,31 +157,76 @@ class _StudentListScreenState extends State<StudentListScreen> {
     return '${widget.className} — ${context.tr('sectionWord')} ${widget.section}';
   }
 
+  Future<void> _fetchPage({bool reset = false}) async {
+    if (_loadingMore || (!reset && !_hasMore)) return;
+    if (mounted) {
+      setState(() {
+        _loadingMore = true;
+        if (reset) {
+          _loading = true;
+        }
+      });
+    }
+
+    try {
+      final page = await _service.getStudentsByClassPaginated(
+        className: widget.className,
+        section: widget.section,
+        teacherId: widget.teacherId,
+        limit: _pageSize,
+        startAfter: reset ? null : _cursor,
+      );
+      if (!mounted) return;
+      setState(() {
+        if (reset) {
+          _students = page.entries;
+          _consentedIds.clear();
+        } else {
+          _students.addAll(page.entries);
+        }
+        _cursor = page.cursor;
+        _hasMore = page.entries.length >= _pageSize;
+        _loading = false;
+        _loadingMore = false;
+      });
+      _loadConsent(page.entries);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _loadingMore = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${context.tr('loadErrorPrefix')} $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      _fetchPage();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _loadUserRole();
-    _studentSub = _service
-        .watchAllStudentsByClass(className: widget.className,
-            section: widget.section, teacherId: widget.teacherId)
-        .listen((list) {
-      if (!mounted) return;
-      setState(() {
-        _students = list;
-        _loading  = false;
-      });
-      _loadConsent(list); // consent visibility (#17)
-    });
+    _scrollController.addListener(_onScroll);
+    _fetchPage(reset: true);
   }
 
   @override
   void dispose() {
-    _studentSub?.cancel();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
   }
 
-  // Pull-to-refresh is a no-op: the live stream already keeps data current.
-  Future<void> _refresh() async {}
+  Future<void> _refresh() async {
+    await _fetchPage(reset: true);
+  }
 
   /// Students that can still be selected for deletion (not already pending).
   List<Student> get _selectableStudents =>
@@ -366,7 +422,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
             })
         .toList();
 
-    await StudentService().submitDeletionRequest(
+    await StudentService.instance.submitDeletionRequest(
       teacherId:    widget.teacherId ?? '',
       teacherName:  widget.teacherName,
       teacherEmail: widget.teacherEmail,
@@ -375,7 +431,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
     );
     // Flag the records as deactivated until the principal acts. The live stream
     // re-renders them greyed-out.
-    await StudentService().markStudentsDeletionPending(studentMaps, true);
+    await StudentService.instance.markStudentsDeletionPending(studentMaps, true);
 
     if (!mounted) return;
     setState(() { _selectMode = false; _selectedRolls = {}; });
@@ -846,12 +902,24 @@ class _StudentListScreenState extends State<StudentListScreen> {
                   onRefresh: _refresh,
                   color: AppTheme.primary,
                   child: ListView.separated(
+                    controller: _scrollController,
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
-                    itemCount: _students.length,
+                    itemCount: _students.length + (_loadingMore ? 1 : 0),
                     separatorBuilder: (_, __) =>
                         const Divider(height: 1, indent: 80),
                     itemBuilder: (_, i) {
+                      if (i == _students.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                            child: SizedBox(
+                              width: 24, height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                            ),
+                          ),
+                        );
+                      }
                       final s = _students[i];
                       return _StudentCard(
                         student: s,
@@ -919,7 +987,7 @@ class _StudentCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: pendingDeletion ? const Color(0xFFF1EEF4) : Colors.white,
+        color: pendingDeletion ? AppTheme.dangerLight : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: pendingDeletion
             ? Border.all(color: AppTheme.warning.withValues(alpha: 0.4))
@@ -1083,11 +1151,30 @@ class StudentDetailPage extends StatefulWidget {
 
 class _StudentDetailPageState extends State<StudentDetailPage> {
   late Student _student;
+  bool _hasConsent = true;
+  bool _isReConsent = false;
 
   @override
   void initState() {
     super.initState();
     _student = widget.student;
+    _checkConsent();
+  }
+
+  Future<void> _checkConsent() async {
+    try {
+      final consentSvc = ConsentService();
+      final hasActive = await consentSvc.hasActiveConsent(_student.id);
+      final isRe = await consentSvc.needsReConsent(_student.id);
+      if (mounted) {
+        setState(() {
+          _hasConsent = hasActive;
+          _isReConsent = isRe;
+        });
+      }
+    } catch (e, st) {
+      AppLogger.e('StudentDetailPage', 'Failed to load consent status', e, st);
+    }
   }
 
   // ── Actions ─────────────────────────────────────────────────────────────────
@@ -1102,7 +1189,10 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             existing: _student),
       ),
     );
-    if (updated != null) setState(() => _student = updated);
+    if (updated != null) {
+      setState(() => _student = updated);
+      _checkConsent();
+    }
   }
 
   /// Submits a principal-approval request instead of deleting immediately.
@@ -1212,14 +1302,14 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
       }
     ];
 
-    await StudentService().submitDeletionRequest(
+    await StudentService.instance.submitDeletionRequest(
       teacherId:    widget.teacherId ?? '',
       teacherName:  widget.teacherName,
       teacherEmail: widget.teacherEmail,
       students:     studentMaps,
       reason:       reason,
     );
-    await StudentService().markStudentsDeletionPending(studentMaps, true);
+    await StudentService.instance.markStudentsDeletionPending(studentMaps, true);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1250,7 +1340,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     }
     final digits = PhoneUtils.whatsAppNumber(_student.phone);
     if (digits.isEmpty) return;
-    final uri = Uri.parse('https://wa.me/$digits');
+    final uri = PhoneUtils.whatsAppUri(_student.phone);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
@@ -1313,7 +1403,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 setS(() => emailErr = null);
                 // Persist the email on the student record + provision the
                 // guardian's allowed_users / Firebase Auth account.
-                await StudentService().setGuardianEmail(
+                await StudentService.instance.setGuardianEmail(
                   _student.className, _student.roll, email,
                   section: _student.section,
                   studentName: _student.name,
@@ -1322,7 +1412,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                 // Actually send the password-setup / invite email and capture
                 // the real result — do NOT assume success.
                 try {
-                  await TimetableService().resendInvitationEmail(email);
+                  await TimetableService.instance.resendInvitationEmail(email);
                   inviteSent = true;
                 } catch (e) {
                   inviteError = e;
@@ -1369,7 +1459,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     final email = _student.guardianEmail ?? '';
     if (email.isEmpty) return;
     try {
-      await TimetableService().resendInvitationEmail(email);
+      await TimetableService.instance.resendInvitationEmail(email);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('${context.tr('inviteEmailResentTo')} $email'),
@@ -1397,12 +1487,11 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
 
   Future<void> _shareGuardianAppInfo() async {
     final email = _student.guardianEmail ?? '';
-    final msg   = Uri.encodeComponent(
+    final msg =
       'Hello! Your child ${_student.name}\'s school portal is ready.\n'
       'Login email: $email\n'
-      'Please check your email for a link to set up your password, then open the School App and sign in.',
-    );
-    final uri = Uri.parse('https://wa.me/?text=$msg');
+      'Please check your email for a link to set up your password, then open the School App and sign in.';
+    final uri = PhoneUtils.whatsAppUri(_student.phone, text: msg);
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
@@ -1475,8 +1564,8 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             : null,
       );
 
-      await StudentService().updateStudent(updated: updatedStudent);
-      await StudentService().updateGuardianProvidedDetailsStatus(_student.id, details.id, 'accepted');
+      await StudentService.instance.updateStudent(updated: updatedStudent);
+      await StudentService.instance.updateGuardianProvidedDetailsStatus(_student.id, details.id, 'accepted');
 
       setState(() {
         _student = updatedStudent;
@@ -1523,7 +1612,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
 
     if (result != null && result.isNotEmpty) {
       try {
-        await StudentService().updateGuardianProvidedDetailsStatus(
+        await StudentService.instance.updateGuardianProvidedDetailsStatus(
           _student.id,
           details.id,
           'clarification_requested',
@@ -1680,7 +1769,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
         ],
       ),
       body: StreamBuilder<List<GuardianProvidedDetails>>(
-        stream: StudentService().watchGuardianProvidedDetails(_student.id),
+        stream: StudentService.instance.watchGuardianProvidedDetails(_student.id),
         builder: (context, snapshot) {
           final list = snapshot.data ?? [];
           final pendingGuardianDetails = list.firstWhere(
@@ -1692,6 +1781,34 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                ConsentPendingBanner(
+                  hasConsent: _hasConsent,
+                  isReConsent: _isReConsent,
+                  onTapAction: () async {
+                    final res = await Navigator.push<ParentalConsent?>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ParentalConsentFlow(
+                          studentDocId: _student.id,
+                          studentName: _student.name,
+                          prefillGuardianName: _student.fatherName.isNotEmpty
+                              ? _student.fatherName
+                              : null,
+                          prefillGuardianPhone: (_student.parentPhone?.isNotEmpty == true)
+                              ? _student.parentPhone
+                              : (_student.phone.isNotEmpty
+                                  ? _student.phone
+                                  : null),
+                          isReConsent: _isReConsent,
+                        ),
+                        fullscreenDialog: true,
+                      ),
+                    );
+                    if (res != null) {
+                      _checkConsent();
+                    }
+                  },
+                ),
                 // ── Header ──────────────────────────────────────────────────────
             Container(
               decoration: const BoxDecoration(
@@ -1791,11 +1908,11 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                       child: _ActionBtn(
                         iconWidget: const FaIcon(
                           FontAwesomeIcons.whatsapp,
-                          color: Color(0xFF25D366),
+                          color: AppTheme.whatsapp,
                           size: 24,
                         ),
                         label: 'WhatsApp',
-                        color: const Color(0xFF25D366),
+                        color: AppTheme.whatsapp,
                         onTap: _whatsapp,
                       ),
                     ),
@@ -1963,13 +2080,13 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                           Expanded(
                             child: ElevatedButton.icon(
                               icon: const FaIcon(FontAwesomeIcons.whatsapp,
-                                  size: 15, color: Color(0xFF25D366)),
+                                  size: 15, color: AppTheme.whatsapp),
                               label: const Text('WhatsApp', style: TextStyle(fontSize: 13)),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.1),
-                                foregroundColor: const Color(0xFF128C7E),
+                                backgroundColor: AppTheme.whatsapp.withValues(alpha: 0.1),
+                                foregroundColor: AppTheme.primary,
                                 elevation: 0,
-                                side: const BorderSide(color: Color(0xFF25D366)),
+                                side: const BorderSide(color: AppTheme.whatsapp),
                                 padding: const EdgeInsets.symmetric(vertical: 9),
                                 shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8)),

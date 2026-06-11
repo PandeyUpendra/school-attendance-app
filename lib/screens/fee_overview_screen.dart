@@ -40,7 +40,7 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
     if (!mounted) return;
     setState(() => _loading = true);
     try {
-      final settings = await TimetableService().getSettings();
+      final settings = await TimetableService.instance.getSettings();
       final classes  = List<String>.from(settings['classes'] as List? ?? []);
       final summaries = await _feeService.getClassSummaries(classes: classes);
       if (!mounted) return;

@@ -13,6 +13,8 @@ import '../services/timetable_service.dart';
 import '../services/teacher_deletion_service.dart';
 import '../services/base_firestore_service.dart';
 import '../utils/app_logger.dart';
+import '../utils/image_utils.dart';
+import '../utils/validators.dart';
 import '../theme.dart';
 import '../widgets/email_text_form_field.dart';
 import '../widgets/refreshable_data.dart';
@@ -73,7 +75,7 @@ class TeacherManagementScreen extends StatefulWidget {
 }
 
 class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
-  final _service          = TimetableService();
+  final _service          = TimetableService.instance;
   final _deletionService  = TeacherDeletionService();
   List<Teacher> _teachers = [];
   bool _loading = true;
@@ -464,10 +466,12 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     if (existing == null) {
       await _service.addTeacher(schoolId, teacher);
       // Create login credentials and send invite email to the new teacher.
+      // Pass '' as password so addAllowedUser auto-generates a cryptographically
+      // secure temp password via generateSecurePassword() — never hardcoded.
       if (teacher.email.isNotEmpty) {
         await _service.addAllowedUser(
           teacher.email,
-          'TmpSchool@2024!',
+          '', // auto-generates a secure temp password
           'teacher',
           name:     teacher.name,
           schoolId: schoolId,
@@ -490,9 +494,10 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
           await _service.removeAllowedUser(oldEmail);
         }
         // Create Firebase Auth account + allowed_users doc + send invite.
+        // Pass '' so a new secure random temp password is generated.
         await _service.addAllowedUser(
           newEmail,
-          'TmpSchool@2024!',
+          '', // auto-generates a secure temp password
           'teacher',
           name:     teacher.name,
           schoolId: schoolId,
@@ -732,14 +737,58 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     );
     if (confirm != true || !mounted) return;
 
+    final sid = BaseFirestoreService.currentSchoolId ?? 'default_school';
+    int imported = 0;
+    int skipped  = 0;
     for (final t in teachers) {
-      await _service.addTeacher(BaseFirestoreService.currentSchoolId ?? 'default_school', t);
+      // Validate email format before inserting (Issue 9).
+      if (t.email.isNotEmpty && !Validators.isValidEmail(t.email)) {
+        AppLogger.w('TeacherManagement',
+            'CSV import skipped "${t.name}" — invalid email: ${t.email}');
+        skipped++;
+        continue;
+      }
+      // Duplicate-check: skip if email already registered in allowed_users.
+      if (t.email.isNotEmpty) {
+        try {
+          final existing = await _service.getAllowedUserDoc(t.email);
+          if (existing != null) {
+            AppLogger.w('TeacherManagement',
+                'CSV import skipped "${t.name}" — email already registered: ${t.email}');
+            skipped++;
+            continue;
+          }
+        } catch (e) {
+          // If we can't read, proceed and let the write rules be the authority.
+          AppLogger.w('TeacherManagement', 'Duplicate check read failed for ${t.email}: $e');
+        }
+      }
+      await _service.addTeacher(sid, t);
+      // Create Auth account with secure auto-generated temp password.
+      if (t.email.isNotEmpty) {
+        try {
+          await _service.addAllowedUser(
+            t.email,
+            '', // auto-generates a secure temp password
+            'teacher',
+            name:     t.name,
+            schoolId: sid,
+          );
+        } catch (e) {
+          AppLogger.e('TeacherManagement',
+              'addAllowedUser failed for ${t.email} during CSV import: $e', e);
+        }
+      }
+      imported++;
     }
     await _load();
     if (!mounted) return;
+    final msg = skipped > 0
+        ? 'Imported $imported teachers ($skipped skipped — invalid/duplicate email)'
+        : 'Imported $imported teachers';
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Imported ${teachers.length} teachers'),
-      backgroundColor: Colors.green,
+      content: Text(msg),
+      backgroundColor: imported > 0 ? Colors.green : Colors.orange,
     ));
   }
 
@@ -1023,7 +1072,7 @@ class TeacherDetailScreen extends StatefulWidget {
 }
 
 class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
-  final _service = TimetableService();
+  final _service = TimetableService.instance;
 
   List<String>  _classes   = [];
   int           _bellCount = 8;
@@ -1537,7 +1586,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
   }
 
   Future<void> _loadClasses() async {
-    final settings = await TimetableService().getSettings();
+    final settings = await TimetableService.instance.getSettings();
     if (!mounted) return;
     final classes = List<String>.from(settings['classes'] as List);
     setState(() {
@@ -1558,13 +1607,13 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
           .showSnackBar(const SnackBar(content: Text('Class already exists')));
       return;
     }
-    final settings = await TimetableService().getSettings();
+    final settings = await TimetableService.instance.getSettings();
     final classes =
         List<String>.from(settings['classes'] as List)..add(name);
     settings['classes']        = classes;
     settings['numberOfBells']  =
         (settings['bells'] as List? ?? []).length;
-    await TimetableService().saveSettings(BaseFirestoreService.currentSchoolId ?? 'default_school', settings);
+    await TimetableService.instance.saveSettings(BaseFirestoreService.currentSchoolId ?? 'default_school', settings);
     if (!mounted) return;
     setState(() {
       _classes        = classes;
@@ -1648,7 +1697,8 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
     final schoolId = BaseFirestoreService.currentSchoolId ?? 'default_school';
     final ref = FirebaseStorage.instance
         .ref('schools/$schoolId/teachers/$teacherId.jpg');
-    await ref.putFile(File(_photoPath!));
+    final bytes = await ImageUtils.compressAndStripExif(File(_photoPath!), quality: 70);
+    await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
     return await ref.getDownloadURL();
   }
 

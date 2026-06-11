@@ -51,6 +51,9 @@ class Student {
   /// history stays intact) but hidden from active rosters.
   final bool promoted;
 
+  /// The tenant school ID (Issue 30).
+  final String schoolId;
+
   const Student({
     this.id = '',
     this.admissionId = '',
@@ -82,6 +85,7 @@ class Student {
     this.transportMode,
     this.deletionPending = false,
     this.promoted = false,
+    this.schoolId = '',
   });
 
   Map<String, dynamic> toJson() => {
@@ -115,6 +119,7 @@ class Student {
         if (transportMode != null) 'transportMode': transportMode,
         if (deletionPending) 'deletionPending': true,
         if (promoted) 'promoted': true,
+        'schoolId': schoolId,
       };
 
   static String buildDocId(int roll, String className, String section) {
@@ -171,6 +176,7 @@ class Student {
         transportMode: json['transportMode']?.toString(),
         deletionPending: json['deletionPending'] == true,
         promoted: json['promoted'] == true,
+        schoolId: json['schoolId']?.toString() ?? '',
       );
     } catch (e) {
       // Return a minimal fallback student to prevent roster crashes
@@ -216,6 +222,7 @@ class Student {
     String? transportMode,
     bool? deletionPending,
     bool? promoted,
+    String? schoolId,
   }) =>
       Student(
         id: id ?? this.id,
@@ -248,5 +255,6 @@ class Student {
         transportMode: transportMode ?? this.transportMode,
         deletionPending: deletionPending ?? this.deletionPending,
         promoted: promoted ?? this.promoted,
+        schoolId: schoolId ?? this.schoolId,
       );
 }

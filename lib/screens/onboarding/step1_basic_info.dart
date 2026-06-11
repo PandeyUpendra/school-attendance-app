@@ -7,6 +7,7 @@ import '../../l10n/app_strings.dart';
 import '../../models/school_onboarding.dart';
 import '../../services/auth_service.dart';
 import '../../theme.dart';
+import '../../utils/image_utils.dart';
 import '../../widgets/email_text_form_field.dart';
 
 class Step1BasicInfo extends StatefulWidget {
@@ -87,7 +88,8 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
     try {
       final ref = FirebaseStorage.instance
           .ref('schools/${AuthService.currentSchoolId}/logo.jpg');
-      await ref.putFile(File(file.path));
+      final bytes = await ImageUtils.compressAndStripExif(File(file.path), quality: 70);
+      await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
       final url = await ref.getDownloadURL();
       setState(() {
         _logoUrl = url;

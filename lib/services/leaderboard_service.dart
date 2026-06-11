@@ -111,7 +111,7 @@ class LeaderboardService extends BaseFirestoreService {
 
     if (totalDays.isEmpty) return [];
 
-    final students = await StudentService().getStudentsByClass(
+    final students = await StudentService.instance.getStudentsByClass(
         schoolId: sId, className: classId);
     final nameByRoll = {for (final s in students) s.roll: s.name};
 
@@ -134,7 +134,7 @@ class LeaderboardService extends BaseFirestoreService {
     String? schoolId,
   }) async {
     final sId = schoolId ?? BaseFirestoreService.currentSchoolId ?? 'default_school';
-    final students = await StudentService()
+    final students = await StudentService.instance
         .getStudentsByClass(schoolId: sId, className: classId);
     if (students.isEmpty) return [];
 

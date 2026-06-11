@@ -5,6 +5,7 @@ import '../theme.dart';
 import '../models/fee.dart';
 import '../services/fee_service.dart';
 import '../services/timetable_service.dart';
+import '../utils/currency_utils.dart';
 
 /// Coordinator screen: configure annual fee structure per class.
 /// Accessible only to coordinator role.
@@ -30,7 +31,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
   }
 
   Future<void> _loadClasses() async {
-    final settings = await TimetableService().getSettings();
+    final settings = await TimetableService.instance.getSettings();
     final classes = List<String>.from(settings['classes'] as List? ?? []);
     if (!mounted) return;
     setState(() {
@@ -147,6 +148,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                 // Total annual fee
                 TextFormField(
                   controller: annualCtrl,
+                  onChanged: (_) => setS(() {}),
                   keyboardType: const TextInputType.numberWithOptions(
                       decimal: true),
                   inputFormatters: [
@@ -316,6 +318,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                           child: TextFormField(
                             controller: instalments[i]['amount']
                                 as TextEditingController,
+                            onChanged: (_) => setS(() {}),
                             keyboardType:
                                 const TextInputType.numberWithOptions(
                                     decimal: true),
@@ -383,6 +386,55 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                     ),
                   ),
 
+                // Calculate current installments sum and show warning if mismatched
+                Builder(
+                  builder: (context) {
+                    if (instalments.isEmpty) return const SizedBox.shrink();
+                    final annual = double.tryParse(annualCtrl.text.trim()) ?? 0;
+                    double instsSum = 0;
+                    for (final inst in instalments) {
+                      final amtText = (inst['amount'] as TextEditingController).text.trim();
+                      instsSum += double.tryParse(amtText) ?? 0;
+                    }
+                    final diff = (instsSum - annual).abs();
+                    final match = diff < 0.01;
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8, bottom: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: match ? Colors.green.shade50 : Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: match ? Colors.green.shade200 : Colors.orange.shade300,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              match ? Icons.check_circle_outline : Icons.warning_amber_rounded,
+                              color: match ? Colors.green.shade700 : Colors.orange.shade700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                match
+                                    ? 'Installments total matches the annual fee.'
+                                    : 'Installments total (₹${CurrencyUtils.formatValues(instsSum)}) differs from the annual fee (₹${CurrencyUtils.formatValues(annual)}).',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: match ? Colors.green.shade800 : Colors.orange.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
                 const SizedBox(height: 12),
                 Row(children: [
                   TextButton(
@@ -420,16 +472,47 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
                                       dueDate: (i['date']! as ValueNotifier<DateTime>).value,
                                     ))
                                 .toList();
-                            setS(() => saving = true);
-                            await FeeService().saveFeeStructure(
-                              structure: FeeStructure(
-                                className:      _selectedClass!,
-                                totalAnnualFee: annual,
-                                components:     comps,
-                                installments:   insts,
-                              ),
-                            );
-                            if (ctx.mounted) Navigator.pop(ctx, true);
+
+                            if (insts.isNotEmpty) {
+                              final annualPaise = rupeesToPaise(annual);
+                              final instsSumPaise = insts.map((i) => i.amountPaise).fold(0, (a, b) => a + b);
+                              if (instsSumPaise != annualPaise) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'The sum of installment amounts (₹${CurrencyUtils.formatValues(paiseToRupees(instsSumPaise), showDecimals: true)}) '
+                                      'must equal the total annual fee (₹${CurrencyUtils.formatValues(annual, showDecimals: true)}).',
+                                    ),
+                                    backgroundColor: Colors.red,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                                return;
+                              }
+                            }
+                            try {
+                              setS(() => saving = true);
+                              await FeeService().saveFeeStructure(
+                                structure: FeeStructure(
+                                  className:      _selectedClass!,
+                                  totalAnnualFee: annual,
+                                  components:     comps,
+                                  installments:   insts,
+                                ),
+                              );
+                              if (ctx.mounted) Navigator.pop(ctx, true);
+                            } catch (e) {
+                              setS(() => saving = false);
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(
+                                    content: Text(e.toString()),
+                                    backgroundColor: Colors.red,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            }
                           },
                     icon: const Icon(Icons.save_outlined, size: 18),
                     label: Text(context.tr('save')),
@@ -715,10 +798,7 @@ class _FeeStructureScreenState extends State<FeeStructureScreen> {
     );
   }
 
-  String _fmt(double v) {
-    if (v == v.truncateToDouble()) return v.toStringAsFixed(0);
-    return v.toStringAsFixed(2);
-  }
+  String _fmt(double v) => CurrencyUtils.formatValues(v);
 }
 
 class _TotalCheck extends StatelessWidget {
@@ -756,8 +836,8 @@ class _TotalCheck extends StatelessWidget {
           child: Text(
             match
                 ? context.tr('componentsMatchAnnual')
-                : '${context.tr('componentsTotalLabel')} ₹${compTotal.toStringAsFixed(0)} '
-                    '${context.tr('differsFromAnnual')} ₹${totalAnnual.toStringAsFixed(0)}',
+                : '${context.tr('componentsTotalLabel')} ₹${CurrencyUtils.formatValues(compTotal)} '
+                    '${context.tr('differsFromAnnual')} ₹${CurrencyUtils.formatValues(totalAnnual)}',
             style: TextStyle(
               fontSize: 12,
               color: match

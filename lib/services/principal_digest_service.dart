@@ -23,7 +23,7 @@ class PrincipalDigestService {
     final now           = DateTime.now();
     final dayStart      = DateTime(now.year, now.month, now.day);
 
-    final settings      = await TimetableService().getSettings();
+    final settings      = await TimetableService.instance.getSettings();
     final classes       = List<String>.from(settings['classes'] as List);
     final schoolName    = (settings['schoolName'] as String?) ?? 'School';
 
@@ -31,10 +31,10 @@ class PrincipalDigestService {
     final sid           = AuthService.currentSchoolId;
 
     // Fan out everything in parallel.
-    final summariesF    = StudentService().loadTodayFullSummary(classes: classes);
-    final teachersF     = TimetableService().getTeachers();
-    final allLeavesF    = TimetableService().getLeaveApplications();
-    final pendingLeavesF= TimetableService().getLeaveApplications(status: 'pending');
+    final summariesF    = StudentService.instance.loadTodayFullSummary(classes: classes);
+    final teachersF     = TimetableService.instance.getTeachers();
+    final allLeavesF    = TimetableService.instance.getLeaveApplications();
+    final pendingLeavesF= TimetableService.instance.getLeaveApplications(status: 'pending');
     final remarksTodayF = _fetchTodayRemarks(sid, dayStart);
     final paymentsTodayF= _fetchTodayPayments(sid, dayStart);
     final copyChecksF   = CopyCheckService().getAllChecks();

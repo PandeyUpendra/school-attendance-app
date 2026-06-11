@@ -13,6 +13,8 @@ import '../models/school_provided_details.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
 import '../utils/validators.dart';
+import '../utils/image_utils.dart';
+import 'guardian_email_request_screen.dart';
 
 /// Localised label for a gender value (stored value stays English).
 String _localizedGender(BuildContext c, String g) => switch (g) {
@@ -33,7 +35,7 @@ class GuardianStudentDetailsScreen extends StatefulWidget {
 
 class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _service = StudentService();
+  final _service = StudentService.instance;
 
   // Student Profile
   late TextEditingController _nameController;
@@ -110,7 +112,8 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
     if (picked != null) {
-      setState(() => _imageFile = File(picked.path));
+      final compressed = await ImageUtils.compressIfNeeded(File(picked.path));
+      setState(() => _imageFile = compressed);
     }
   }
 
@@ -478,6 +481,30 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
 
               const SizedBox(height: 24),
 
+              // ── PORTAL ACCESS ──
+              _buildSectionTitle(context.tr('secGuardianPortal')),
+              _buildReadOnlyField(context.tr('guardianEmailPortal'), widget.student.guardianEmail ?? ''),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.edit_outlined, size: 18, color: AppTheme.primary),
+                  label: Text(
+                    context.tr('emailChangeRequest'),
+                    style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => GuardianEmailRequestScreen(student: widget.student),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
               // ── ACADEMIC INFO ──
               _buildSectionTitle(context.tr('academicInfoSection')),
               _buildTextField(_previousSchoolController, context.tr('previousSchoolIfAny'), Icons.school),
@@ -488,7 +515,11 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
               _buildSectionTitle(context.tr('medicalInfoSection')),
               _buildTextField(_bloodGroupController, context.tr('bloodGroupLabel'), Icons.bloodtype),
               _buildTextField(_emergencyNameController, context.tr('emergencyContactName'), Icons.contact_phone),
-              _buildTextField(_emergencyPhoneController, context.tr('emergencyContactPhone'), Icons.phone_callback, keyboardType: TextInputType.phone),
+              _buildTextField(_emergencyPhoneController, context.tr('emergencyContactPhone'), Icons.phone_callback,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLength: 10,
+                  validator: Validators.optionalPhone),
               _buildTextField(_allergiesController, context.tr('allergiesMedical'), Icons.medical_services, maxLines: 2),
 
               const SizedBox(height: 24),

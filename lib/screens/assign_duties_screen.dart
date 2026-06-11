@@ -28,7 +28,7 @@ class AssignDutiesScreen extends StatefulWidget {
 }
 
 class _AssignDutiesScreenState extends State<AssignDutiesScreen> {
-  final _service = TimetableService();
+  final _service = TimetableService.instance;
 
   List<Teacher>       _teachers = [];
   Map<String, String> _duties   = {}; // teacherId → duty

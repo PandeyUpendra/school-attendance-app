@@ -4,6 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../l10n/app_strings.dart';
 import '../utils/pdf_theme.dart';
+import '../utils/csv_export.dart';
 import '../models/student.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
@@ -64,7 +65,7 @@ class AttendanceHistoryScreen extends StatefulWidget {
 }
 
 class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
-  final _service = StudentService();
+  final _service = StudentService.instance;
 
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   bool _loading = true;
@@ -275,6 +276,44 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     );
   }
 
+  Future<void> _exportCsv() async {
+    final students = [..._students]..sort((a, b) => a.roll.compareTo(b.roll));
+    if (students.isEmpty) return;
+    final rows = <List<dynamic>>[
+      ['Roll', 'Name', 'Present', 'Absent', 'Leave', 'Percentage', 'Status'],
+      for (final s in students) ...[
+        (() {
+          final st = _statsMap[s.roll] ?? const _Stats(present: 0, absent: 0, leave: 0);
+          final pct = st.pct(_workingDays);
+          final low = _workingDays > 0 && pct < 75;
+          return [
+            s.roll,
+            s.name,
+            st.present,
+            st.absent,
+            st.leave,
+            '${pct.toStringAsFixed(1)}%',
+            low ? 'Low Attendance' : 'OK',
+          ];
+        })()
+      ]
+    ];
+    final cls = widget.className.replaceAll(' ', '_');
+    final monthStr = '${_month.year}_${_month.month}';
+    try {
+      await CsvExport.share(
+        filename: 'attendance_${cls}_$monthStr.csv',
+        rows: rows,
+        shareText: 'Attendance history for ${widget.className} - ${_monthLabel(_month)}',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${context.tr('exportFailed')} $e')),
+      );
+    }
+  }
+
   // ── Build ────────────────────────────────────────────────────────────────────
 
   @override
@@ -299,6 +338,12 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
             tooltip: context.tr('exportPdf'),
             onPressed:
                 _loading || _workingDays == 0 ? null : _exportPdf,
+          ),
+          IconButton(
+            icon: const Icon(Icons.description_outlined),
+            tooltip: context.tr('exportToCsv'),
+            onPressed:
+                _loading || _workingDays == 0 ? null : _exportCsv,
           ),
         ],
       ),
@@ -631,7 +676,7 @@ class _StudentCalendarScreenState extends State<_StudentCalendarScreen> {
     final attKey = widget.student.section.trim().isEmpty
         ? widget.student.className
         : '${widget.student.className} ${widget.student.section.trim()}';
-    final data = await StudentService().loadMonthAttendance(
+    final data = await StudentService.instance.loadMonthAttendance(
         className: attKey, year: newMonth.year, month: newMonth.month);
     if (!mounted) return;
     setState(() { _monthData = data; _loading = false; });

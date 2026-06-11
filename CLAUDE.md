@@ -78,7 +78,7 @@ All services are singletons wrapping Firestore collections directly — no repos
 
 ### Notifications
 
-No push notification server. `NotificationService` writes documents to the `notifications` collection when events occur (absent mark, leave submitted/resolved, announcement). Clients filter by `audience` field (`guardian:{class}:{roll}`, `coordinator`, `teacher:{teacherId}`, etc.). Unread state is tracked locally via a SharedPreferences timestamp.
+Push notifications are fully integrated using FCM topics. Devices subscribe to topics corresponding to their permitted audiences (via `PushService.syncForSession()`). A Cloud Function (`pushOnNotificationCreate` in `functions/index.js`) listens for writes to the `notifications` collection and publishes pushes to the matching topic (e.g. `s_{schoolId}_{audience}`). Unread state is tracked locally via a SharedPreferences timestamp.
 
 ### Data models (`lib/models/`)
 

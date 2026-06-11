@@ -111,8 +111,8 @@ class StudentRemarksScreen extends StatefulWidget {
 }
 
 class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
-  final _studentService = StudentService();
-  final _ttService      = TimetableService();
+  final _studentService = StudentService.instance;
+  final _ttService      = TimetableService.instance;
   final _consentSvc     = ConsentService();
   final _customCtrl     = TextEditingController();
 
@@ -271,8 +271,7 @@ class _StudentRemarksScreenState extends State<StudentRemarksScreen> {
       _snack(context.tr('noPhoneSaved'), color: Colors.orange);
       return;
     }
-    final encoded = Uri.encodeComponent(message);
-    final uri = Uri.parse('https://wa.me/$phone?text=$encoded');
+    final uri = PhoneUtils.whatsAppUri(rawPhone, text: message);
     // launchUrl can throw (e.g. WhatsApp not installed) even when canLaunchUrl
     // is true, so guard the launch itself rather than only the precheck (#108).
     try {
@@ -618,7 +617,7 @@ class _AddRemarkPanel extends StatelessWidget {
                 label: Text(context.tr('saveAndSendWhatsApp'),
                     style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF25D366),
+                  backgroundColor: AppTheme.whatsapp,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -714,9 +713,9 @@ class _RemarkCard extends StatelessWidget {
   Color _roleColor(String role) {
     switch (role) {
       case 'principal':   return AppTheme.primary;
-      case 'coordinator': return const Color(0xFF1565C0);
-      case 'guardian':    return const Color(0xFF2E7D32);
-      default:            return const Color(0xFF37474F);
+      case 'coordinator': return AppTheme.accent;
+      case 'guardian':    return AppTheme.success;
+      default:            return AppTheme.textSecondary;
     }
   }
 
@@ -812,7 +811,7 @@ class _RemarkCard extends StatelessWidget {
             if (remark.whatsappSent)
               Tooltip(
                 message: context.tr('sentViaWhatsapp'),
-                child: const Icon(Icons.send_rounded, size: 13, color: Color(0xFF25D366)),
+                child: const Icon(Icons.send_rounded, size: 13, color: AppTheme.whatsapp),
               ),
             const SizedBox(width: 6),
             Text(_fmtTime(remark.timestamp),

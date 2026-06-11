@@ -483,10 +483,10 @@ class _HeaderCard extends StatelessWidget {
               Text('${pct.toStringAsFixed(1)}%',
                   style: TextStyle(
                       color: color == AppTheme.success
-                          ? const Color(0xFFA5D6A7)
+                          ? AppTheme.successLight
                           : color == AppTheme.warning
-                              ? const Color(0xFFFFCC80)
-                              : const Color(0xFFEF9A9A),
+                              ? AppTheme.warningLight
+                              : AppTheme.dangerLight,
                       fontSize: 38,
                       fontWeight: FontWeight.bold,
                       height: 1.0)),

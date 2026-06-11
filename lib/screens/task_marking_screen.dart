@@ -35,7 +35,7 @@ class _TaskMarkingScreenState extends State<TaskMarkingScreen> {
   }
 
   Future<void> _loadData() async {
-    final students = await StudentService().getStudentsByClass(
+    final students = await StudentService.instance.getStudentsByClass(
       className: widget.className,
       section: widget.section,
     );

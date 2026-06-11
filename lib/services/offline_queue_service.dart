@@ -76,6 +76,23 @@ class OfflineQueueService {
     return (jsonDecode(raw) as List).length;
   }
 
+  Future<Map<String, int>> pendingCountsByClass() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw   = prefs.getString(_queueKey);
+    if (raw == null) return {};
+    final list = List<Map<String, dynamic>>.from(
+        (jsonDecode(raw) as List).map((e) =>
+            Map<String, dynamic>.from(e as Map)));
+    final counts = <String, int>{};
+    for (final entry in list) {
+      final className = entry['className'] as String? ?? '';
+      if (className.isNotEmpty) {
+        counts[className] = (counts[className] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }
+
   // ── Sync all pending entries to Firestore ──────────────────────────────────
 
   /// Returns the number of records successfully synced.
@@ -114,7 +131,7 @@ class OfflineQueueService {
         final day     = parts.length > 2 ? (int.tryParse(parts[2]) ?? SchoolClock.now().day) : SchoolClock.now().day;
         final date    = DateTime(year, month, day);
 
-        await StudentService().saveAttendanceForDate(
+        await StudentService.instance.saveAttendanceForDate(
           className: className, attendance: attendance, date: date);
         synced++;
       } catch (_) {

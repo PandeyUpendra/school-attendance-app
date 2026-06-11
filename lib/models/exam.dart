@@ -9,6 +9,9 @@ class Exam {
   final int      maxMarks;     // per subject
   final DateTime examDate;
   final String   createdBy;   // coordinator email/name
+  /// When the coordinator publishes the results. Null means unpublished (draft).
+  /// Guardians should only see exams where [isPublished] is true.
+  final DateTime? publishedAt;
 
   const Exam({
     required this.id,
@@ -18,7 +21,16 @@ class Exam {
     required this.maxMarks,
     required this.examDate,
     required this.createdBy,
+    this.publishedAt,
   });
+
+  /// An exam is visible to guardians when its results have been published
+  /// (publishedAt is non-null and not in the future). Exams without
+  /// publishedAt (legacy data) are treated as published for backwards compat.
+  bool get isPublished {
+    if (publishedAt == null) return true; // legacy exams — no gate
+    return !publishedAt!.isAfter(DateTime.now());
+  }
 
   Map<String, dynamic> toJson() => {
         'name':      name,
@@ -27,18 +39,22 @@ class Exam {
         'maxMarks':  maxMarks,
         'examDate':  Timestamp.fromDate(examDate),
         'createdBy': createdBy,
+        if (publishedAt != null)
+          'publishedAt': Timestamp.fromDate(publishedAt!),
       };
 
   factory Exam.fromDoc(String id, Map<String, dynamic> data) {
     final ts = data['examDate'];
+    final pubTs = data['publishedAt'];
     return Exam(
-      id:        id,
-      name:      (data['name']      as String?) ?? '',
-      className: (data['className'] as String?) ?? '',
-      subjects:  List<String>.from((data['subjects'] as List?) ?? const []),
-      maxMarks:  (data['maxMarks']  as num?)?.toInt() ?? 100,
-      examDate:  ts is Timestamp ? ts.toDate() : DateTime.now(),
-      createdBy: (data['createdBy'] as String?) ?? '',
+      id:          id,
+      name:        (data['name']      as String?) ?? '',
+      className:   (data['className'] as String?) ?? '',
+      subjects:    List<String>.from((data['subjects'] as List?) ?? const []),
+      maxMarks:    (data['maxMarks']  as num?)?.toInt() ?? 100,
+      examDate:    ts is Timestamp ? ts.toDate() : DateTime.now(),
+      createdBy:   (data['createdBy'] as String?) ?? '',
+      publishedAt: pubTs is Timestamp ? pubTs.toDate() : null,
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:school_app/models/student.dart';
 import 'package:school_app/models/teacher.dart';
 import 'package:school_app/repositories/student_repository_fake.dart';
+import 'package:school_app/services/base_firestore_service.dart';
 import 'package:school_app/services/student_service.dart';
 import 'package:school_app/services/promotion_service.dart';
 import 'package:school_app/services/timetable_service.dart';
@@ -24,12 +25,14 @@ void main() {
   late StudentService studentService;
 
   setUp(() {
+    BaseFirestoreService.currentSchoolId = 'test_school';
     studentRepo = FakeStudentRepository();
     studentService = StudentService(studentRepo);
   });
 
   tearDown(() {
     studentRepo.clear();
+    BaseFirestoreService.currentSchoolId = null;
   });
 
   test('successfully promotes a batch of students and updates repository state', () async {

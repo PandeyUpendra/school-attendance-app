@@ -85,7 +85,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
     _loadAll();
     _initBadgeStreams();
     // Re-run summaries whenever the student roster changes (add/delete).
-    _studentSub = StudentService().watchStudents().listen((students) {
+    _studentSub = StudentService.instance.watchStudents().listen((students) {
       final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
       if (_knownStudentIds.isNotEmpty && ids != _knownStudentIds) {
         _loadAll();
@@ -116,7 +116,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
       _recomputeUnread();
     });
 
-    _leaveSub = TimetableService()
+    _leaveSub = TimetableService.instance
         .streamPendingLeaveCount()
         .listen((n) {
       if (!mounted) return;
@@ -154,7 +154,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
     final session = await AuthService().getSession();
     final email   = (session?['email'] as String?) ?? '';
 
-    final settings = await TimetableService().getSettings();
+    final settings = await TimetableService.instance.getSettings();
     final allClasses = List<String>.from(settings['classes'] as List);
 
     // Filter to assigned classes; fall back to all if none assigned.
@@ -164,15 +164,15 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
         : allClasses;
 
     // Fire attendance-related reads in parallel (badges handled by streams).
-    final summariesFuture  = StudentService().loadTodayFullSummary(classes: classes);
-    final absentInfoFuture = TimetableService().getTodayAbsentTeachersInfo();
+    final summariesFuture  = StudentService.instance.loadTodayFullSummary(classes: classes);
+    final absentInfoFuture = TimetableService.instance.getTodayAbsentTeachersInfo();
 
     final summaries  = await summariesFuture;
     final absentInfo = await absentInfoFuture;
 
     // Load consecutive absence streaks for all classes in parallel.
     final streaksList = await Future.wait(
-      classes.map((cls) => StudentService().loadConsecutiveAbsenceDays(cls)),
+      classes.map((cls) => StudentService.instance.loadConsecutiveAbsenceDays(cls)),
     );
     final streaks = <String, Map<int, int>>{};
     for (var i = 0; i < classes.length; i++) {
@@ -195,6 +195,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
     _navigating = true;
     try {
       await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+      if (mounted) await _loadAll();
     } finally {
       _navigating = false;
     }

@@ -21,7 +21,7 @@ class _StudentDeletionRequestsScreenState
     extends State<StudentDeletionRequestsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
-  final _svc = StudentService();
+  final _svc = StudentService.instance;
 
   @override
   void initState() {

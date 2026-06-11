@@ -8,10 +8,12 @@ import 'package:printing/printing.dart';
 import '../utils/pdf_theme.dart';
 import '../models/fee.dart';
 import '../models/student.dart';
+import '../services/auth_service.dart';
 import '../services/fee_service.dart';
 import '../services/student_service.dart';
 import '../services/timetable_service.dart';
 import '../widgets/refreshable_data.dart';
+import '../utils/currency_utils.dart';
 
 /// Class-level fee collection screen.
 /// Pass [initialClass] to pre-select a class (from FeeOverviewScreen).
@@ -26,7 +28,7 @@ class FeeCollectionScreen extends StatefulWidget {
 
 class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   final _feeService     = FeeService();
-  final _studentService = StudentService();
+  final _studentService = StudentService.instance;
 
   bool _loading = true;
   List<String>     _classes   = [];
@@ -34,6 +36,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   List<Student>    _students  = [];
   FeeStructure?    _structure;
   Map<int, double> _paid      = {};   // roll → total paid
+  String           _selectedSection = 'All';
 
   @override
   void initState() {
@@ -42,7 +45,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   }
 
   Future<void> _loadClasses() async {
-    final settings = await TimetableService().getSettings();
+    final settings = await TimetableService.instance.getSettings();
     final classes  = List<String>.from(settings['classes'] as List? ?? []);
     if (!mounted) return;
     setState(() { _classes = classes; });
@@ -57,7 +60,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   }
 
   Future<void> _selectClass(String cls) async {
-    setState(() { _selectedClass = cls; _loading = true; });
+    setState(() { _selectedClass = cls; _loading = true; _selectedSection = 'All'; });
     final results = await Future.wait([
       _studentService.getStudentsByClass(className: cls),
       _feeService.getFeeStructure(className: cls),
@@ -100,7 +103,8 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   }
 
   Color _statusColor(double paid, double total) {
-    if (total == 0) return Colors.grey;
+    if (_structure != null && !_structure!.isConfigured) return Colors.grey;
+    if (total == 0) return AppTheme.success;
     final ratio = paid / total;
     if (ratio >= 1.0) return AppTheme.success;
     if (ratio >= 0.5) return AppTheme.warning;
@@ -108,10 +112,16 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
   }
 
   String _statusLabel(double paid, double total) {
-    if (total == 0) return 'No fee set';
+    if (_structure != null && !_structure!.isConfigured) return 'No fee set';
+    if (total == 0) return 'Free';
     if (paid >= total) return 'Paid';
     if (paid > 0) return 'Partial';
     return 'Pending';
+  }
+
+  List<Student> get _filteredStudents {
+    if (_selectedSection == 'All') return _students;
+    return _students.where((s) => s.section == _selectedSection).toList();
   }
 
   @override
@@ -176,12 +186,66 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                     ),
                     const Divider(height: 1),
 
+                    // ── Section chip selector ──────────────────────────
+                    if (_selectedClass != null && _students.isNotEmpty) ...[
+                      Builder(
+                        builder: (context) {
+                          final sections = _students
+                              .map((s) => s.section)
+                              .where((sec) => sec.isNotEmpty)
+                              .toSet()
+                              .toList()
+                            ..sort();
+                          if (sections.length <= 1) return const SizedBox.shrink();
+                          return Container(
+                            color: Colors.white,
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  ChoiceChip(
+                                    label: const Text('All Sections'),
+                                    selected: _selectedSection == 'All',
+                                    selectedColor: AppTheme.primary,
+                                    labelStyle: TextStyle(
+                                      color: _selectedSection == 'All' ? Colors.white : null,
+                                      fontWeight: _selectedSection == 'All' ? FontWeight.bold : FontWeight.normal,
+                                    ),
+                                    onSelected: (_) => setState(() => _selectedSection = 'All'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ...sections.map((sec) {
+                                    final selected = sec == _selectedSection;
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: ChoiceChip(
+                                        label: Text('Sec $sec'),
+                                        selected: selected,
+                                        selectedColor: AppTheme.primary,
+                                        labelStyle: TextStyle(
+                                          color: selected ? Colors.white : null,
+                                          fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                                        ),
+                                        onSelected: (_) => setState(() => _selectedSection = sec),
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(height: 1),
+                    ],
+
                     // ── Class summary banner ───────────────────────────
                     if (_structure != null &&
                         _structure!.totalAnnualFee > 0 &&
-                        _students.isNotEmpty)
+                        _filteredStudents.isNotEmpty)
                       _ClassFeeSummary(
-                        students:  _students,
+                        students:  _filteredStudents,
                         structure: _structure!,
                         paid:      _paid,
                       ),
@@ -211,7 +275,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
 
                     // ── Student list ───────────────────────────────────
                     Expanded(
-                      child: _students.isEmpty
+                      child: _filteredStudents.isEmpty
                           ? Center(
                               child: Text(context.tr('noStudentsInClass'),
                                   style: TextStyle(
@@ -226,11 +290,11 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                                     const AlwaysScrollableScrollPhysics(),
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 8),
-                                itemCount: _students.length,
+                                itemCount: _filteredStudents.length,
                                 separatorBuilder: (_, __) =>
                                     const Divider(height: 1, indent: 72),
                                 itemBuilder: (_, i) {
-                                  final s     = _students[i];
+                                  final s     = _filteredStudents[i];
                                   final total = _structure?.totalAnnualFee ?? 0;
                                   final p     = _paid[s.roll] ?? 0;
                                   final due   = (total - p).clamp(0.0, double.infinity);
@@ -318,10 +382,7 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
     );
   }
 
-  String _fmt(double v) =>
-      v == v.truncateToDouble()
-          ? v.toStringAsFixed(0)
-          : v.toStringAsFixed(2);
+  String _fmt(double v) => CurrencyUtils.formatValues(v);
 }
 
 // ─── Instalment dots legend ───────────────────────────────────────────────────
@@ -584,12 +645,12 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Text('Record Payment — ${widget.student.name}',
+                  Text('${context.tr('recordPayment')} — ${widget.student.name}',
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text(
-                    'Outstanding Due: ₹${_due.toStringAsFixed(0)}',
+                    '${context.tr('outstandingDue')}: ₹${CurrencyUtils.formatValues(_due)}',
                     style: TextStyle(
                         fontSize: 13, color: Colors.red.shade700),
                   ),
@@ -602,28 +663,27 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                         decimal: true),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
-                          RegExp(r'[0-9.]')),
+                          RegExp(r'^\d*\.?\d{0,2}')),
                     ],
                     autofocus: true,
                     decoration: InputDecoration(
-                      labelText: 'Amount (₹)',
+                      labelText: context.tr('amountRupees'),
                       prefixIcon: const Icon(Icons.currency_rupee),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),
                     ),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Required';
+                      if (v == null || v.trim().isEmpty) return context.tr('errEnterAmount');
                       final n = double.tryParse(v.trim());
                       if (n == null || n <= 0) {
-                        return 'Must be greater than 0';
+                        return context.tr('errInvalidAmount');
                       }
                       // Overpayment guard: when a positive annual fee is
                       // configured, a single payment can't exceed the
                       // outstanding due — previously any amount was accepted,
-                      // corrupting collected totals (#47). (₹1 tolerance for
-                      // rounding.)
-                      if (_annualFee > 0 && n > _due + 1) {
-                        return 'Cannot exceed outstanding due of ₹${_due.toStringAsFixed(0)}';
+                      // corrupting collected totals (#47).
+                      if (_annualFee > 0 && n > _due) {
+                        return 'Cannot exceed outstanding due of ₹${CurrencyUtils.formatValues(_due)}';
                       }
                       return null;
                     },
@@ -655,7 +715,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                           return DropdownMenuItem(
                             value: inst.name,
                             child: Text(
-                                '${inst.name} — ₹${inst.amount.toStringAsFixed(0)}$status'),
+                                '${inst.name} — ₹${CurrencyUtils.formatValues(inst.amount)}$status'),
                           );
                         }),
                       ],
@@ -797,7 +857,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
 
   // ── Print receipt ────────────────────────────────────────────────────────
 
-  Future<void> _printReceipt(Payment p) async {
+  pw.Document _buildReceiptPdf(Payment p) {
     final doc = pw.Document();
     final s   = widget.student;
     final st  = widget.structure;
@@ -863,7 +923,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
             children: [
               pw.Text('Amount Paid',
                   style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text('₹${p.amount.toStringAsFixed(0)}',
+              pw.Text('₹${CurrencyUtils.formatValues(p.amount)}',
                   style: pw.TextStyle(
                       fontSize: 18, fontWeight: pw.FontWeight.bold,
                       color: PdfTheme.accent)),
@@ -890,10 +950,44 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
         ],
       ),
     ));
+    return doc;
+  }
 
+  /// Asserts the caller has a management role before allowing PDF generation.
+  /// Returns true if allowed, false if blocked (with a SnackBar shown).
+  Future<bool> _assertPdfRole() async {
+    const allowed = {'coordinator', 'principal', 'owner', 'ownerPrincipal', 'admin'};
+    final role = (await AuthService().getSession())?['role'] as String? ?? '';
+    if (!allowed.contains(role)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Access denied: insufficient role to generate receipts.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _printReceipt(Payment p) async {
+    if (!await _assertPdfRole()) return;
+    final doc = _buildReceiptPdf(p);
     await Printing.layoutPdf(
       onLayout: (_) => doc.save(),
       name: 'receipt_${p.receiptNo}',
+    );
+  }
+
+  Future<void> _shareReceipt(Payment p) async {
+    if (!await _assertPdfRole()) return;
+    final doc = _buildReceiptPdf(p);
+    final bytes = await doc.save();
+    await Printing.sharePdf(
+      bytes: bytes,
+      filename: 'receipt_${p.receiptNo}.pdf',
     );
   }
 
@@ -916,7 +1010,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
             Text(s.name,
                 style: const TextStyle(
                     fontSize: 16, fontWeight: FontWeight.bold)),
-            Text('Roll ${s.roll}  •  ${s.className}',
+            Text('${context.tr('roll')} ${s.roll}  •  ${s.className}',
                 style: const TextStyle(
                     fontSize: 12, color: Colors.white70)),
           ],
@@ -1054,8 +1148,8 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                             const Divider(height: 1, indent: 16),
                           _PaymentTile(
                             payment: _payments[i],
-                            onPrint: () =>
-                                _printReceipt(_payments[i]),
+                            onPrint: () => _printReceipt(_payments[i]),
+                            onShare: () => _shareReceipt(_payments[i]),
                           ),
                         ],
                       ],
@@ -1107,8 +1201,8 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
                             _PaymentTile(
                               payment: _reversedPayments[i],
                               reversed: true,
-                              onPrint: () =>
-                                  _printReceipt(_reversedPayments[i]),
+                              onPrint: () => _printReceipt(_reversedPayments[i]),
+                              onShare: () => _shareReceipt(_reversedPayments[i]),
                             ),
                           ],
                         ],
@@ -1121,10 +1215,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
     );
   }
 
-  String _fmt(double v) =>
-      v == v.truncateToDouble()
-          ? v.toStringAsFixed(0)
-          : v.toStringAsFixed(2);
+  String _fmt(double v) => CurrencyUtils.formatValues(v);
 }
 
 // ─── Instalment row ───────────────────────────────────────────────────────────
@@ -1188,8 +1279,8 @@ class _InstallmentRow extends StatelessWidget {
               style: const TextStyle(
                   fontSize: 14, fontWeight: FontWeight.w600)),
           subtitle: Text(
-            'Due by $dueDateStr  •  ₹${instalment.amount.toStringAsFixed(0)}'
-            '${paidAmount > 0 ? '  •  Paid ₹${paidAmount.toStringAsFixed(0)}' : ''}',
+            'Due by $dueDateStr  •  ₹${CurrencyUtils.formatValues(instalment.amount)}'
+            '${paidAmount > 0 ? '  •  Paid ₹${CurrencyUtils.formatValues(paidAmount)}' : ''}',
             style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
           ),
           trailing: Column(
@@ -1212,7 +1303,7 @@ class _InstallmentRow extends StatelessWidget {
               if (due > 0 && paidAmount > 0)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
-                  child: Text('Due ₹${due.toStringAsFixed(0)}',
+                  child: Text('${context.tr('dueLabel')} ₹${CurrencyUtils.formatValues(due)}',
                       style: TextStyle(
                           fontSize: 10, color: Colors.grey.shade500)),
                 ),
@@ -1252,8 +1343,9 @@ class _HeroStat extends StatelessWidget {
 class _PaymentTile extends StatelessWidget {
   final Payment      payment;
   final VoidCallback onPrint;
+  final VoidCallback onShare;
   final bool         reversed;
-  const _PaymentTile({required this.payment, required this.onPrint, this.reversed = false});
+  const _PaymentTile({required this.payment, required this.onPrint, required this.onShare, this.reversed = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1272,7 +1364,7 @@ class _PaymentTile extends StatelessWidget {
             color: reversed ? Colors.grey.shade500 : AppTheme.primary, size: 20),
       ),
       title: Text(
-        '₹${p.amount.toStringAsFixed(0)}  •  ${p.mode}'
+        '₹${CurrencyUtils.formatValues(p.amount)}  •  ${p.mode}'
         '${p.installmentName != null ? '  •  ${p.installmentName}' : ''}',
         style: TextStyle(
             fontSize: 14,
@@ -1299,11 +1391,22 @@ class _PaymentTile extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       color: AppTheme.danger)),
             )
-          : IconButton(
-              icon: const Icon(Icons.print_outlined,
-                  color: AppTheme.primary, size: 20),
-              tooltip: context.tr('printReceipt'),
-              onPressed: onPrint,
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.print_outlined,
+                      color: AppTheme.primary, size: 20),
+                  tooltip: context.tr('printReceipt'),
+                  onPressed: onPrint,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.share_outlined,
+                      color: AppTheme.primary, size: 20),
+                  tooltip: context.tr('sharePdf'),
+                  onPressed: onShare,
+                ),
+              ],
             ),
     );
   }

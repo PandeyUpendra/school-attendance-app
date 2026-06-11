@@ -12,6 +12,7 @@ import '../../services/auth_service.dart';
 import '../../services/school_settings_service.dart';
 import '../../l10n/app_strings.dart';
 import '../../theme.dart';
+import '../../utils/image_utils.dart';
 import '../../utils/validators.dart';
 import '../../widgets/email_text_form_field.dart';
 import '../../widgets/index_building_notice.dart';
@@ -195,7 +196,8 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
     try {
       final ref = FirebaseStorage.instance
           .ref('schools/${AuthService.currentSchoolId}/logo.jpg');
-      await ref.putFile(File(file.path));
+      final bytes = await ImageUtils.compressAndStripExif(File(file.path), quality: 70);
+      await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
       final url = await ref.getDownloadURL();
       setState(() { _logoUrl = url; _uploadingLogo = false; });
     } catch (e) {
@@ -897,6 +899,17 @@ class _CommunicationTabState extends State<_CommunicationTab>
   void dispose() { _waCtrl.dispose(); super.dispose(); }
 
   Future<void> _save() async {
+    if (_whatsapp) {
+      final wa = _waCtrl.text.trim();
+      if (wa.isEmpty) {
+        _snack('WhatsApp number is required.');
+        return;
+      }
+      if (wa.length != 10 || int.tryParse(wa) == null) {
+        _snack(context.tr('mustBe10Digits'));
+        return;
+      }
+    }
     setState(() => _saving = true);
     try {
       final p = context.read<SchoolSettingsProvider>();

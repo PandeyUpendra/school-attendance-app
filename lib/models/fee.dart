@@ -28,6 +28,7 @@ class FeeStructure {
   final int totalAnnualFeePaise;
   final List<FeeComponent>   components;
   final List<FeeInstallment> installments;
+  final bool isConfigured;
 
   /// Rupee view of the annual fee (display/compat).
   double get totalAnnualFee => paiseToRupees(totalAnnualFeePaise);
@@ -38,6 +39,7 @@ class FeeStructure {
     required double totalAnnualFee,
     required this.components,
     this.installments = const [],
+    this.isConfigured = true,
   }) : totalAnnualFeePaise = rupeesToPaise(totalAnnualFee);
 
   const FeeStructure._paise({
@@ -45,6 +47,7 @@ class FeeStructure {
     required this.totalAnnualFeePaise,
     required this.components,
     this.installments = const [],
+    required this.isConfigured,
   });
 
   Map<String, dynamic> toJson() => {
@@ -67,6 +70,7 @@ class FeeStructure {
             .map((i) => FeeInstallment.fromJson(
                 Map<String, dynamic>.from(i as Map)))
             .toList(),
+        isConfigured:        true,
       );
 
   /// Default structure if none has been configured yet.
@@ -75,6 +79,7 @@ class FeeStructure {
         totalAnnualFeePaise: 0,
         components:          const [],
         installments:        const [],
+        isConfigured:        false,
       );
 }
 

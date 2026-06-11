@@ -113,130 +113,150 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
     }
   }
 
+  Widget _buildHomeworkList({required bool current}) {
+    final list = _filteredList.where((h) => current ? !h.isReviewed : h.isReviewed).toList();
+    if (_loading) {
+      return const LoadingState();
+    }
+    if (list.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.assignment_outlined,
+                size: 56, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text(
+              current ? context.tr('noHomeworkPosted') : 'No completed homework',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadHomework,
+      color: Colors.red,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(12),
+        itemCount: list.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (_, i) => _HomeworkCard(
+          hw: list[i],
+          onMarkReviewed: () => _markReviewed(list[i]),
+          onDelete: () => _delete(list[i]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final classes = _classSubjectMap.keys.toList();
 
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(context.tr('homework'),
-                style: const TextStyle(
-                    fontSize: 17, fontWeight: FontWeight.bold)),
-            Text(context.tr('postManageAssignments'),
-                style: const TextStyle(fontSize: 12, color: Colors.white70)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadHomework,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppTheme.background,
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(context.tr('homework'),
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.bold)),
+              Text(context.tr('postManageAssignments'),
+                  style: const TextStyle(fontSize: 12, color: Colors.white70)),
+            ],
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppTheme.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: Text(context.tr('postHomework')),
-        onPressed: _showPostDialog,
-      ),
-      body: Column(
-        children: [
-          // Class filter chips
-          if (classes.isNotEmpty)
-            Container(
-              color: Colors.white,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    // "All" chip
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(context.tr('allCount')),
-                        selected: _selectedClass == null,
-                        selectedColor: Colors.red,
-                        labelStyle: TextStyle(
-                          color: _selectedClass == null
-                              ? Colors.white
-                              : null,
-                          fontWeight: _selectedClass == null
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                        onSelected: (_) =>
-                            setState(() => _selectedClass = null),
-                      ),
-                    ),
-                    ...classes.map((cls) {
-                      final sel = cls == _selectedClass;
-                      return Padding(
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadHomework,
+            ),
+          ],
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Current'),
+              Tab(text: 'Completed'),
+            ],
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+          ),
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          backgroundColor: AppTheme.primary,
+          foregroundColor: Colors.white,
+          icon: const Icon(Icons.add),
+          label: Text(context.tr('postHomework')),
+          onPressed: _showPostDialog,
+        ),
+        body: Column(
+          children: [
+            // Class filter chips
+            if (classes.isNotEmpty)
+              Container(
+                color: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      // "All" chip
+                      Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
-                          label: Text(cls),
-                          selected: sel,
+                          label: Text(context.tr('allCount')),
+                          selected: _selectedClass == null,
                           selectedColor: Colors.red,
                           labelStyle: TextStyle(
-                            color: sel ? Colors.white : null,
-                            fontWeight:
-                                sel ? FontWeight.bold : FontWeight.normal,
+                            color: _selectedClass == null
+                                ? Colors.white
+                                : null,
+                            fontWeight: _selectedClass == null
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
                           onSelected: (_) =>
-                              setState(() => _selectedClass = cls),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-              ),
-            ),
-          const Divider(height: 1),
-          Expanded(
-            child: _loading
-                ? const LoadingState()
-                : _filteredList.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.assignment_outlined,
-                                size: 56, color: Colors.grey.shade300),
-                            const SizedBox(height: 12),
-                            Text(
-                              context.tr('noHomeworkPosted'),
-                              textAlign: TextAlign.center,
-                              style:
-                                  TextStyle(color: Colors.grey.shade500),
-                            ),
-                          ],
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _loadHomework,
-                        color: Colors.red,
-                        child: ListView.separated(
-                          padding: const EdgeInsets.all(12),
-                          itemCount: _filteredList.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 8),
-                          itemBuilder: (_, i) =>
-                              _HomeworkCard(
-                            hw: _filteredList[i],
-                            onMarkReviewed: () =>
-                                _markReviewed(_filteredList[i]),
-                            onDelete: () => _delete(_filteredList[i]),
-                          ),
+                              setState(() => _selectedClass = null),
                         ),
                       ),
-          ),
-        ],
+                      ...classes.map((cls) {
+                        final sel = cls == _selectedClass;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(cls),
+                            selected: sel,
+                            selectedColor: Colors.red,
+                            labelStyle: TextStyle(
+                              color: sel ? Colors.white : null,
+                              fontWeight:
+                                  sel ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            onSelected: (_) =>
+                                setState(() => _selectedClass = cls),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            const Divider(height: 1),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildHomeworkList(current: true),
+                  _buildHomeworkList(current: false),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

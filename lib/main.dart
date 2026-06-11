@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -70,6 +71,9 @@ void main() async {
     sound: true,
   );
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  
+  // Load cached root admin emails
+  await AuthService().loadCachedAdminEmails();
 
   // Restore the saved app language before the first frame to avoid a flash.
   final languageCode = await LocaleProvider.savedCode();
@@ -79,9 +83,13 @@ void main() async {
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Guard against [core/duplicate-app] if Firebase is already initialized
+  // (Issue 17: background isolate may share the same Firebase instance).
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
 }
 
 /// Navigator key for the root MaterialApp — lets non-widget code (e.g. the
@@ -157,30 +165,33 @@ class _SchoolAppState extends State<SchoolApp> with WidgetsBindingObserver {
           systemNavigationBarContrastEnforced: false,
         ),
         child: Consumer<LocaleProvider>(
-          builder: (context, localeProvider, _) => MaterialApp(
-            navigatorKey: rootNavigatorKey,
-            debugShowCheckedModeBanner: false,
-            title: 'School App',
-            theme: AppTheme.light,
-            locale: localeProvider.locale,
-            supportedLocales: LocaleProvider.supported.keys.map(Locale.new),
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            builder: (context, child) {
-              return MediaQuery(
-                data: MediaQuery.of(context).copyWith(
-                  textScaler: TextScaler.linear(
-                    MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.2),
+          builder: (context, localeProvider, _) {
+            final settings = Provider.of<SchoolSettingsProvider>(context);
+            return MaterialApp(
+              navigatorKey: rootNavigatorKey,
+              debugShowCheckedModeBanner: false,
+              title: settings.schoolName == 'My School' ? 'School App' : settings.schoolName,
+              theme: AppTheme.light,
+              locale: localeProvider.locale,
+              supportedLocales: LocaleProvider.supported.keys.map(Locale.new),
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              builder: (context, child) {
+                return MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    textScaler: TextScaler.linear(
+                      MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.2),
+                    ),
                   ),
-                ),
-                child: child!,
-              );
-            },
-            home: const _SplashGate(),
-          ),
+                  child: child!,
+                );
+              },
+              home: const _SplashGate(),
+            );
+          },
         ),
       ),
     );
@@ -255,9 +266,39 @@ class _SplashGateState extends State<_SplashGate> {
     // previous/different account is still the signed-in Firebase Auth user while
     // the session says "owner", the app routes to the owner dashboard but every
     // read/write is denied (the app thinks you're the owner; the server doesn't).
-    // Force re-login on any mismatch so the two can't diverge. Phone-OTP
-    // guardians have no token email, so they are exempt from this check.
-    if (role != 'guardian') {
+    // Force re-login on any mismatch so the two can't diverge.
+    //
+    // Phone-OTP guardians have no token email. Instead we verify by checking
+    // that their phone number still has a linked student in allowed_users.
+    // (Issue 5: previously phone-OTP guardians bypassed the identity guard entirely.)
+    if (role == 'guardian') {
+      final authPhone = firebaseUser.phoneNumber;
+      if (authPhone != null && authPhone.isNotEmpty) {
+        // Phone-OTP guardian: validate that the phone still maps to an active
+        // guardian account. If no allowed_users doc is found for this phone,
+        // clear the session and go to login.
+        bool phoneValid = false;
+        try {
+          final docs = await FirebaseFirestore.instance
+              .collection('allowed_users')
+              .where('phone', isEqualTo: authPhone)
+              .where('role', isEqualTo: 'guardian')
+              .limit(1)
+              .get();
+          phoneValid = docs.docs.isNotEmpty;
+        } catch (_) {
+          // On network error, allow cached routing (offline tolerance).
+          phoneValid = true;
+        }
+        if (!phoneValid) {
+          await AuthService().clearSession();
+          if (!mounted) return;
+          _go(const LoginScreen());
+          return;
+        }
+      }
+      // Email-based guardians fall through to the standard re-validation below.
+    } else {
       final authEmail    = firebaseUser.email?.toLowerCase().trim();
       final sessionEmail = (session['email'] as String?)?.toLowerCase().trim();
       if (authEmail == null || authEmail.isEmpty ||
@@ -289,9 +330,24 @@ class _SplashGateState extends State<_SplashGate> {
       bool readFailed = false;
       Map<String, dynamic>? live;
       try {
-        live = await TimetableService().getAllowedUserDoc(email);
+        live = await TimetableService.instance.getAllowedUserDoc(email);
+      } on FirebaseException catch (e) {
+        // permission-denied means the server explicitly rejected this session
+        // (e.g. user was suspended/deleted). Do NOT fall through — force re-login.
+        // (Issue 6: previously ALL exceptions fell through to cached routing,
+        // which kept suspended users active if they could trigger a rules error.)
+        if (e.code == 'permission-denied') {
+          await AuthService().clearSession();
+          if (!mounted) return;
+          _go(const LoginScreen());
+          return;
+        }
+        // Other FirebaseExceptions (network, quota) = transient — keep cached routing.
+        readFailed = true;
       } catch (_) {
-        readFailed = true; // network/transient — fall through to cached routing.
+        // Non-Firebase exceptions (SocketException, TimeoutException, etc.) are
+        // network-class errors — keep cached routing for offline tolerance.
+        readFailed = true;
       }
       if (!mounted) return;
       if (!readFailed) {
@@ -352,7 +408,7 @@ class _SplashGateState extends State<_SplashGate> {
         final teacherId = session['teacherId'] as String?;
         if (teacherId != null) {
           final teacher =
-              await TimetableService().getTeacherById(id: teacherId);
+              await TimetableService.instance.getTeacherById(id: teacherId);
           if (!mounted) return;
           if (teacher != null) {
             _go(HomeScreen(teacher: teacher));
@@ -375,19 +431,46 @@ class _SplashGateState extends State<_SplashGate> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = Provider.of<SchoolSettingsProvider>(context);
+    final logo = settings.schoolLogo;
+    final name = settings.schoolName == 'My School' ? 'School App' : settings.schoolName;
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
         decoration: const BoxDecoration(
           color: AppTheme.primaryDark,
         ),
-        child: const Center(
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.school, size: 56, color: Colors.white),
-              SizedBox(height: 20),
-              CircularProgressIndicator(color: Colors.white),
+              if (logo.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(
+                    logo,
+                    height: 80,
+                    width: 80,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.school, size: 56, color: Colors.white),
+                  ),
+                )
+              else
+                const Icon(Icons.school, size: 56, color: Colors.white),
+              const SizedBox(height: 20),
+              Text(
+                name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const CircularProgressIndicator(color: Colors.white),
             ],
           ),
         ),

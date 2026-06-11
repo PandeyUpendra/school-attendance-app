@@ -53,7 +53,7 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
       await AuthService().signInWithEmail(email, password);
       if (!mounted) return;
 
-      final userData = await TimetableService().getAllowedUserDoc(email);
+      final userData = await TimetableService.instance.getAllowedUserDoc(email);
       if (!mounted) return;
 
       if (userData == null || userData['role'] != 'guardian') {
@@ -66,7 +66,7 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
         return;
       }
 
-      final links = await TimetableService().getGuardianLinks(email);
+      final links = await TimetableService.instance.getGuardianLinks(email);
       if (!mounted) return;
 
       if (links == null || links.isEmpty) {

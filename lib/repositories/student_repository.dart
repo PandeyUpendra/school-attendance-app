@@ -40,6 +40,15 @@ abstract class StudentRepository {
     List<int> rolls,
   );
 
+  /// Fetch students in [className]/[section] paginated.
+  Future<({List<Student> entries, dynamic cursor})> fetchByClassPaginated(
+    String className,
+    String section, {
+    String? teacherId,
+    required int limit,
+    dynamic startAfter,
+  });
+
   /// Returns `true` if a student with this roll already exists in the class.
   Future<bool> existsByRoll(String className, String section, int roll);
 
@@ -265,6 +274,33 @@ class FirestoreStudentRepository implements StudentRepository {
   }
 
   @override
+  Future<({List<Student> entries, dynamic cursor})> fetchByClassPaginated(
+    String className,
+    String section, {
+    String? teacherId,
+    required int limit,
+    dynamic startAfter,
+  }) async {
+    final normalizedClassName = _toTitleCase(className);
+    Query<Map<String, dynamic>> q =
+        _students.where('className', isEqualTo: normalizedClassName);
+    if (section.trim().isNotEmpty) {
+      q = q.where('section', isEqualTo: section.trim());
+    }
+    if (teacherId != null && teacherId.isNotEmpty) {
+      q = q.where('teacherId', isEqualTo: teacherId);
+    }
+    q = q.orderBy('roll').limit(limit);
+    if (startAfter != null) {
+      q = q.startAfterDocument(startAfter as DocumentSnapshot);
+    }
+    final snap = await q.get();
+    final list = snap.docs.map(_fromDoc).toList();
+    final cursor = snap.docs.isNotEmpty ? snap.docs.last : null;
+    return (entries: list, cursor: cursor);
+  }
+
+  @override
   Future<bool> existsByRoll(
       String className, String section, int roll) async {
     final doc =
@@ -345,7 +381,8 @@ class FirestoreStudentRepository implements StudentRepository {
         final os = oldChunk[j];
 
         final nextId = _docId(ns.roll, ns.className, ns.section);
-        batch.set(_students.doc(nextId), ns.toJson());
+        final nsWithSchool = ns.copyWith(schoolId: _schoolId);
+        batch.set(_students.doc(nextId), nsWithSchool.toJson());
 
         final oldId = os.id.isNotEmpty
             ? os.id

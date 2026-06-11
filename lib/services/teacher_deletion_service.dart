@@ -33,7 +33,7 @@ class TeacherDeletionService {
   factory TeacherDeletionService() => _instance;
 
   static final _db = FirebaseFirestore.instance;
-  final _timetableService = TimetableService();
+  final _timetableService = TimetableService.instance;
 
   CollectionReference<Map<String, dynamic>> _collection(String schoolId) =>
       _db.collection('schools').doc(schoolId).collection('teacher_deletion_requests');

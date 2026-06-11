@@ -63,7 +63,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
     if (!mounted) return;
     _coordEmail = (session?['email'] as String?) ?? '';
 
-    final svc = TimetableService();
+    final svc = TimetableService.instance;
     final results = await Future.wait([
       svc.getTeachers(),
       svc.getTimetable(),
@@ -188,7 +188,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
     required int bell,
     required String subject,
   }) async {
-    await TimetableService().setSubstitution(className, bell, substitute.id);
+    await TimetableService.instance.setSubstitution(className, bell, substitute.id);
 
     final now = DateTime.now();
     await SubstitutionHistoryService().logSubstitution(SubstitutionRecord(
@@ -241,7 +241,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    await TimetableService().setSubstitution(className, bell, null);
+    await TimetableService.instance.setSubstitution(className, bell, null);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(context.tr('substituteRemoved')),
@@ -545,7 +545,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
   Future<void> _exportPdf() async {
     final now     = DateTime.now();
     final dateStr = '${now.day} ${_months[now.month]} ${now.year}';
-    final subs    = await TimetableService().getTodaySubstitutions();
+    final subs    = await TimetableService.instance.getTodaySubstitutions();
 
     final pdf = pw.Document();
 
@@ -776,7 +776,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: const BoxDecoration(
-              color: Color(0xFFFFEBEE),
+              color: AppTheme.dangerLight,
               borderRadius:
                   BorderRadius.vertical(top: Radius.circular(14)),
             ),
@@ -900,8 +900,8 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
           : null,
       child: Container(
         color: isCovered
-            ? const Color(0xFFE8F5E9)
-            : const Color(0xFFFFF8E1),
+            ? AppTheme.successLight
+            : AppTheme.warningLight,
         padding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(children: [

@@ -26,6 +26,7 @@ import '../principal_dashboard.dart';
 import 'staff_directory_helpers.dart';
 import '../../widgets/refreshable_data.dart';
 import '../../utils/app_logger.dart';
+import '../../utils/phone_utils.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Owner-Principal Home — menu-list entry point
@@ -252,7 +253,7 @@ class _OPDashPageState extends State<_OPDashPage> {
   List<FlSpot> _trend = [];
   List<String> _trendLabels = [];
 
-  final _svc = TimetableService();
+  final _svc = TimetableService.instance;
 
   @override
   void initState() { super.initState(); _load(); }
@@ -262,7 +263,7 @@ class _OPDashPageState extends State<_OPDashPage> {
     try {
       final settings = await _svc.getSettings();
       final classes = List<String>.from(settings['classes'] as List? ?? []);
-      final summaries = await StudentService().loadTodayFullSummary(classes: classes);
+      final summaries = await StudentService.instance.loadTodayFullSummary(classes: classes);
       int tot = 0, pre = 0, abs = 0;
       final classAtt = <Map<String, dynamic>>[];
       for (final s in summaries) {
@@ -417,7 +418,7 @@ class _OPStaffPageState extends State<_OPStaffPage> {
   List<Map<String, dynamic>> _teachers = [], _leaves = [];
   String _search = '';
 
-  final _svc = TimetableService();
+  final _svc = TimetableService.instance;
 
   @override
   void initState() { super.initState(); _load(); }
@@ -688,10 +689,11 @@ class _OPFinancePageState extends State<_OPFinancePage> {
     ));
     if (ok != true) return;
     for (final d in _defaulters) {
-      final phone = (d['phone'] as String).replaceAll(RegExp(r'\D'), '');
-      if (phone.isEmpty) continue;
-      final msg = Uri.encodeComponent('Dear Parent of ${d['name']}, your fee of ₹${(d['amount'] as double).toStringAsFixed(0)} is overdue.');
-      await launchUrl(Uri.parse('https://wa.me/91$phone?text=$msg'), mode: LaunchMode.externalApplication);
+      final phone = d['phone'] as String;
+      if (phone.replaceAll(RegExp(r'\D'), '').isEmpty) continue;
+      final msg = 'Dear Parent of ${d['name']}, your fee of ₹${(d['amount'] as double).toStringAsFixed(0)} is overdue.';
+      final url = PhoneUtils.whatsAppUri(phone, text: msg);
+      await launchUrl(url, mode: LaunchMode.externalApplication);
       await Future.delayed(const Duration(milliseconds: 800));
     }
   }
@@ -721,10 +723,12 @@ class _OPFinancePageState extends State<_OPFinancePage> {
                 Text('${d['daysOverdue']} days overdue', style: const TextStyle(color: AppTheme.danger, fontSize: 11)),
               ])),
               if ((d['phone'] as String).isNotEmpty) IconButton(
-                icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF25D366)),
+                icon: const Icon(Icons.chat_bubble_outline, color: AppTheme.whatsapp),
                 onPressed: () {
-                  final n = (d['phone'] as String).replaceAll(RegExp(r'\D'), '');
-                  launchUrl(Uri.parse('https://wa.me/91$n?text=${Uri.encodeComponent('Dear Parent of ${d['name']}, your fee is overdue.')}'), mode: LaunchMode.externalApplication);
+                  final phone = d['phone'] as String;
+                  final msg = 'Dear Parent of ${d['name']}, your fee is overdue.';
+                  final url = PhoneUtils.whatsAppUri(phone, text: msg);
+                  launchUrl(url, mode: LaunchMode.externalApplication);
                 },
               ),
             ]))).toList(),
@@ -733,7 +737,7 @@ class _OPFinancePageState extends State<_OPFinancePage> {
             SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), child: ElevatedButton.icon(
               icon: const Icon(Icons.chat_outlined),
               label: const Text('Send WhatsApp Reminder to All Overdue'),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25D366), padding: const EdgeInsets.symmetric(vertical: 13), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.whatsapp, padding: const EdgeInsets.symmetric(vertical: 13), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
               onPressed: _sendReminders,
             ))),
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
@@ -760,7 +764,7 @@ class _OPManagePage extends StatefulWidget {
 class _OPManagePageState extends State<_OPManagePage> {
   static const _primary = AppTheme.primary;
 
-  final _svc = TimetableService();
+  final _svc = TimetableService.instance;
   final _perm = RolePermissionService();
 
   List<Map<String, dynamic>> _users = [];
@@ -828,6 +832,14 @@ class _OPManagePageState extends State<_OPManagePage> {
   }
 
   Future<void> _saveSchoolSettings() async {
+    final phone = _schoolPhoneCtrl.text.trim();
+    if (phone.isNotEmpty) {
+      final digits = phone.replaceAll(RegExp(r'\D'), '');
+      if (digits.length != 10) {
+        _snack('Phone number must be exactly 10 digits.');
+        return;
+      }
+    }
     setState(() => _settingsSaving = true);
     try {
       final sid = BaseFirestoreService.currentSchoolId ?? 'school_1';

@@ -95,7 +95,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   }
 
   Future<void> _loadTeachers() async {
-    final teachers = await TimetableService().getTeachers();
+    final teachers = await TimetableService.instance.getTeachers();
     if (!mounted) return;
     setState(() => _teachers = teachers..sort((a, b) => a.name.compareTo(b.name)));
   }

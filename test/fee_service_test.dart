@@ -117,4 +117,60 @@ void main() {
       expect(days, 10);
     });
   });
+
+  group('FeeService.saveFeeStructure Validation', () {
+    test('throws ArgumentError when sum of installments does not match total annual fee', () {
+      final t1 = FeeInstallment(
+        name: 'Term 1',
+        amount: 1000.0,
+        dueDate: DateTime(2026, 4, 1),
+      );
+      final t2 = FeeInstallment(
+        name: 'Term 2',
+        amount: 1500.0, // Total = 2500, but totalAnnualFee is 3000
+        dueDate: DateTime(2026, 8, 1),
+      );
+
+      final structure = FeeStructure(
+        className: 'Class 6',
+        totalAnnualFee: 3000.0,
+        components: [],
+        installments: [t1, t2],
+      );
+
+      expect(
+        () => FeeService().saveFeeStructure(structure: structure),
+        throwsArgumentError,
+      );
+    });
+
+    test('does not throw ArgumentError when sum of installments matches total annual fee (fails on Firebase init instead)', () async {
+      final t1 = FeeInstallment(
+        name: 'Term 1',
+        amount: 1000.0,
+        dueDate: DateTime(2026, 4, 1),
+      );
+      final t2 = FeeInstallment(
+        name: 'Term 2',
+        amount: 2000.0, // Total = 3000, matches totalAnnualFee
+        dueDate: DateTime(2026, 8, 1),
+      );
+
+      final structure = FeeStructure(
+        className: 'Class 6',
+        totalAnnualFee: 3000.0,
+        components: [],
+        installments: [t1, t2],
+      );
+
+      // It passes the validation check, but then fails because Firebase is not initialized.
+      // So it should NOT throw an ArgumentError.
+      try {
+        await FeeService().saveFeeStructure(structure: structure);
+        fail('Should have failed with a Firebase exception since Firebase is not initialized.');
+      } catch (e) {
+        expect(e, isNot(isA<ArgumentError>()));
+      }
+    });
+  });
 }

@@ -33,7 +33,7 @@ class _HomeworkOverviewScreenState extends State<HomeworkOverviewScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final settings = await TimetableService().getSettings();
+    final settings = await TimetableService.instance.getSettings();
     final classes  = List<String>.from(settings['classes'] as List? ?? []);
     final all      = await _service.getAllHomework(BaseFirestoreService.currentSchoolId ?? 'default_school');
     if (!mounted) return;
@@ -76,166 +76,183 @@ class _HomeworkOverviewScreenState extends State<HomeworkOverviewScreen> {
       await _service.deleteHomework(BaseFirestoreService.currentSchoolId ?? 'default_school', hw.id);
       _load();
     }
+  }  Widget _buildHomeworkList({required bool current}) {
+    final list = _filtered.where((h) => current ? !h.isReviewed : h.isReviewed).toList();
+    if (list.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.assignment_outlined,
+                size: 56, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text(
+              current ? 'No current homework assignments' : 'No completed homework',
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: AppTheme.primary,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(12),
+        itemCount: list.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (_, i) {
+          final hw = list[i];
+          return _CoordHomeworkCard(
+            hw: hw,
+            onDelete: () => _delete(hw),
+          );
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(context.tr('homeworkOverview'),
-                style: const TextStyle(
-                    fontSize: 17, fontWeight: FontWeight.bold)),
-            Text(context.tr('subHomeworkOverviewAll'),
-                style: const TextStyle(fontSize: 12, color: Colors.white70)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _load,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppTheme.background,
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(context.tr('homeworkOverview'),
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.bold)),
+              Text(context.tr('subHomeworkOverviewAll'),
+                  style: const TextStyle(fontSize: 12, color: Colors.white70)),
+            ],
           ),
-        ],
-      ),
-      body: _loading
-          ? const LoadingState()
-          : Column(
-              children: [
-                // Class filter chips
-                if (_classes.isNotEmpty)
-                  Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ChoiceChip(
-                              label: const Text('All'),
-                              selected: _selectedClass == null,
-                              selectedColor: AppTheme.primary,
-                              labelStyle: TextStyle(
-                                color: _selectedClass == null
-                                    ? Colors.white
-                                    : null,
-                                fontWeight: _selectedClass == null
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
-                              onSelected: (_) => _filterClass(null),
-                            ),
-                          ),
-                          ..._classes.map((cls) {
-                            final sel = cls == _selectedClass;
-                            return Padding(
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _load,
+            ),
+          ],
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Current'),
+              Tab(text: 'Completed'),
+            ],
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+          ),
+        ),
+        body: _loading
+            ? const LoadingState()
+            : Column(
+                children: [
+                  // Class filter chips
+                  if (_classes.isNotEmpty)
+                    Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: ChoiceChip(
-                                label: Text(cls),
-                                selected: sel,
+                                label: const Text('All'),
+                                selected: _selectedClass == null,
                                 selectedColor: AppTheme.primary,
                                 labelStyle: TextStyle(
-                                  color: sel ? Colors.white : null,
-                                  fontWeight: sel
+                                  color: _selectedClass == null
+                                      ? Colors.white
+                                      : null,
+                                  fontWeight: _selectedClass == null
                                       ? FontWeight.bold
                                       : FontWeight.normal,
                                 ),
-                                onSelected: (_) => _filterClass(cls),
+                                onSelected: (_) => _filterClass(null),
                               ),
-                            );
-                          }),
+                            ),
+                            ..._classes.map((cls) {
+                              final sel = cls == _selectedClass;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ChoiceChip(
+                                  label: Text(cls),
+                                  selected: sel,
+                                  selectedColor: AppTheme.primary,
+                                  labelStyle: TextStyle(
+                                    color: sel ? Colors.white : null,
+                                    fontWeight: sel
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                  onSelected: (_) => _filterClass(cls),
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                    ),
+                  const Divider(height: 1),
+  
+                  // Summary bar
+                  if (_filtered.isNotEmpty)
+                    Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Row(
+                        children: [
+                          _StatBadge(
+                            label: 'Total',
+                            count: _filtered.length,
+                            color: AppTheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          _StatBadge(
+                            label: 'Reviewed',
+                            count: _filtered
+                                .where((h) => h.isReviewed)
+                                .length,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 8),
+                          _StatBadge(
+                            label: 'Pending',
+                            count: _filtered
+                                .where((h) => !h.isReviewed)
+                                .length,
+                            color: Colors.orange,
+                          ),
+                          const SizedBox(width: 8),
+                          _StatBadge(
+                            label: 'Overdue',
+                            count: _filtered
+                                .where((h) => h.isOverdue)
+                                .length,
+                            color: Colors.red,
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                const Divider(height: 1),
-
-                // Summary bar
-                if (_filtered.isNotEmpty)
-                  Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    child: Row(
+  
+                  Expanded(
+                    child: TabBarView(
                       children: [
-                        _StatBadge(
-                          label: 'Total',
-                          count: _filtered.length,
-                          color: AppTheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        _StatBadge(
-                          label: 'Reviewed',
-                          count: _filtered
-                              .where((h) => h.isReviewed)
-                              .length,
-                          color: Colors.green,
-                        ),
-                        const SizedBox(width: 8),
-                        _StatBadge(
-                          label: 'Pending',
-                          count: _filtered
-                              .where((h) => !h.isReviewed)
-                              .length,
-                          color: Colors.orange,
-                        ),
-                        const SizedBox(width: 8),
-                        _StatBadge(
-                          label: 'Overdue',
-                          count: _filtered
-                              .where((h) => h.isOverdue)
-                              .length,
-                          color: Colors.red,
-                        ),
+                        _buildHomeworkList(current: true),
+                        _buildHomeworkList(current: false),
                       ],
                     ),
                   ),
-
-                Expanded(
-                  child: _filtered.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.assignment_outlined,
-                                  size: 56,
-                                  color: Colors.grey.shade300),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No homework found.',
-                                style: TextStyle(
-                                    color: Colors.grey.shade500),
-                              ),
-                            ],
-                          ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: _load,
-                          color: AppTheme.primary,
-                          child: ListView.separated(
-                            physics:
-                                const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(12),
-                            itemCount: _filtered.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 8),
-                            itemBuilder: (_, i) {
-                              final hw = _filtered[i];
-                              return _CoordHomeworkCard(
-                                hw: hw,
-                                onDelete: () => _delete(hw),
-                              );
-                            },
-                          ),
-                        ),
-                ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 }

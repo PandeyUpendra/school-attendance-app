@@ -17,7 +17,7 @@ import '../widgets/email_text_form_field.dart';
 import '../widgets/managed_dropdown.dart';
 import 'consent/parental_consent_flow.dart';
 import '../models/parental_consent.dart';
-import '../services/audit_log_service.dart';
+import '../utils/image_utils.dart';
 
 class AddStudentScreen extends StatefulWidget {
   final String className;
@@ -123,7 +123,10 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     if (source == null) return;
     final picked =
         await ImagePicker().pickImage(source: source, imageQuality: 70);
-    if (picked != null) setState(() => _photoPath = picked.path);
+    if (picked != null) {
+      final compressed = await ImageUtils.compressIfNeeded(File(picked.path));
+      setState(() => _photoPath = compressed.path);
+    }
   }
 
   /// Looks for an existing student in the same class/section whose identifying
@@ -139,7 +142,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
 
     List<Student> existing;
     try {
-      existing = await StudentService().getStudentsByClass(
+      existing = await StudentService.instance.getStudentsByClass(
         className: widget.className,
         section:   widget.section,
         teacherId: widget.teacherId,
@@ -187,6 +190,32 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final service = StudentService.instance;
+
+    // Early duplicate check on add path
+    if (!_isEdit) {
+      setState(() => _saving = true);
+      final roll = int.tryParse(_rollCtrl.text.trim()) ?? 0;
+      try {
+        final existingStudent = await service.getStudentByRoll(widget.className, roll, section: widget.section);
+        if (existingStudent != null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(context.tr('rollNumberAlreadyExists')),
+                backgroundColor: Colors.red,
+              ),
+            );
+            setState(() => _saving = false);
+          }
+          return;
+        }
+      } catch (e) {
+        AppLogger.e('AddStudent', 'Failed to check duplicate roll: $e', e);
+      }
+      setState(() => _saving = false);
+    }
 
     // Warn before adding what looks like a record that already exists. Only on
     // the add path — editing an existing student is expected to "match".
@@ -236,7 +265,6 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         'roll=${student.roll} · guardian=${student.guardianEmail ?? "—"}');
 
     String? failedStep;
-    final service = StudentService();
     try {
       if (_isEdit) {
         final dobStr = _dateOfBirth != null
@@ -273,6 +301,44 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
           Navigator.pop(context, widget.existing);
         }
       } else {
+        // ── Parental consent flow ─────────────────────────────────────────
+        // Build the canonical student doc ID that StudentService uses.
+        final studentDocId = Student.buildDocId(student.roll, widget.className, widget.section);
+
+        if (!mounted) return;
+        failedStep = 'open parental consent';
+        final consentResult = await Navigator.push<ParentalConsent?>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ParentalConsentFlow(
+              studentDocId:        studentDocId,
+              studentName:         student.name,
+              prefillGuardianName: student.fatherName.isNotEmpty
+                                       ? student.fatherName
+                                       : null,
+              prefillGuardianPhone: (student.parentPhone?.isNotEmpty == true)
+                                        ? student.parentPhone
+                                        : (student.phone.isNotEmpty
+                                              ? student.phone
+                                              : null),
+            ),
+            fullscreenDialog: true,
+          ),
+        );
+
+        if (consentResult == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(context.tr('enrollmentCancelledConsentMandatory')),
+                backgroundColor: AppTheme.danger,
+              ),
+            );
+            setState(() => _saving = false);
+          }
+          return;
+        }
+
         failedStep = 'create student record';
         final error = await service.addStudent(student: student);
         if (!mounted) return;
@@ -295,7 +361,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         final guardianEmail = student.guardianEmail?.trim().toLowerCase() ?? '';
         if (guardianEmail.isNotEmpty) {
           try {
-            await TimetableService().provisionGuardianLoginAccess(
+            await TimetableService.instance.provisionGuardianLoginAccess(
               email:        guardianEmail,
               studentClass: student.className,
               studentRoll:  student.roll,
@@ -326,45 +392,6 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
           }
         }
 
-        // ── Parental consent flow ─────────────────────────────────────────
-        // Build the canonical student doc ID that StudentService uses.
-        final studentDocId = Student.buildDocId(student.roll, widget.className, widget.section);
-
-        if (!mounted) return;
-        failedStep = 'open parental consent';
-        final consentResult = await Navigator.push<ParentalConsent?>(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ParentalConsentFlow(
-              studentDocId:        studentDocId,
-              studentName:         student.name,
-              prefillGuardianName: student.fatherName.isNotEmpty
-                                       ? student.fatherName
-                                       : null,
-              prefillGuardianPhone: (student.parentPhone?.isNotEmpty == true)
-                                        ? student.parentPhone
-                                        : (student.phone.isNotEmpty
-                                              ? student.phone
-                                              : null),
-            ),
-            fullscreenDialog: true,
-          ),
-        );
-
-        if (consentResult == null) {
-          await _rollbackStudentCreation(student);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(context.tr('enrollmentCancelledConsentMandatory')),
-                backgroundColor: AppTheme.danger,
-              ),
-            );
-            setState(() => _saving = false);
-          }
-          return;
-        }
-
         if (mounted) Navigator.pop(context, student);
       }
     } catch (e) {
@@ -381,7 +408,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       try {
         final email = session?['email'] as String?;
         if (email != null) {
-          final doc = await TimetableService().getAllowedUserDoc(email);
+          final doc = await TimetableService.instance.getAllowedUserDoc(email);
           classIds = (doc?['classIds'] as List?) ?? const [];
         }
       } catch (e, st) {
@@ -398,56 +425,6 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         duration: const Duration(seconds: 12),
       ));
       setState(() => _saving = false);
-    }
-  }
-
-  Future<void> _rollbackStudentCreation(Student student) async {
-    final studentDocId = Student.buildDocId(student.roll, student.className, student.section);
-    final sid = BaseFirestoreService.currentSchoolId ?? 'school_1';
-
-    AppLogger.d('AddStudent', 'rolling back student creation because consent was skipped or cancelled: $studentDocId');
-
-    // 1. Delete student doc directly (not via removeStudent to avoid creating deleted_students tombstone)
-    try {
-      await FirebaseFirestore.instance
-          .collection('schools')
-          .doc(sid)
-          .collection('students')
-          .doc(studentDocId)
-          .delete();
-    } catch (e) {
-      AppLogger.e('AddStudent', 'Failed to delete student doc during rollback', e);
-    }
-
-    // 2. Emit audit log for rollback/deletion
-    try {
-      AuditService.emit(
-        action: 'delete',
-        entity: 'student',
-        entityId: studentDocId,
-        reason: 'consent_refused_or_cancelled',
-      );
-    } catch (e) {
-      AppLogger.e('AddStudent', 'Failed to emit audit log during rollback', e);
-    }
-
-    // 3. Revoke guardian login/links
-    final guardianEmail = student.guardianEmail;
-    if (guardianEmail != null && guardianEmail.trim().isNotEmpty) {
-      try {
-        final svc = TimetableService();
-        await svc.removeGuardianLink(
-          email: guardianEmail,
-          studentClass: student.className,
-          studentRoll: student.roll,
-        );
-        final remaining = await svc.getGuardianLinks(guardianEmail);
-        if (remaining == null || remaining.isEmpty) {
-          await svc.removeAllowedUser(guardianEmail);
-        }
-      } catch (e) {
-        AppLogger.e('AddStudent', 'Failed to remove guardian login during rollback', e);
-      }
     }
   }
 

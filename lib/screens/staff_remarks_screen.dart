@@ -404,7 +404,7 @@ class _RecipientPickerState extends State<_RecipientPicker> {
   }
 
   Future<void> _load() async {
-    final ts = TimetableService();
+    final ts = TimetableService.instance;
     final sid = AuthService.currentSchoolId;
     try {
       final teachers = await ts.getTeachers();

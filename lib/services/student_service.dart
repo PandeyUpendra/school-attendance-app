@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/deleted_student.dart';
 import '../models/student.dart';
@@ -48,6 +49,8 @@ class StudentService extends BaseFirestoreService {
 
   static StudentService? _instance;
 
+  static StudentService get instance => StudentService();
+
   /// Default factory — returns the process-level singleton backed by Firestore.
   ///
   /// Pass [repo] to obtain a **fresh, non-singleton** instance. This is the
@@ -77,7 +80,7 @@ class StudentService extends BaseFirestoreService {
   // effectively immutable (historical edits are lock-gated, #34), so caching
   // them for a short TTL collapses those repeated reads. TODAY's doc is never
   // cached (it mutates as marks come in), and any write invalidates its key.
-  static const Duration _dayDocTtl = Duration(seconds: 120);
+  static const Duration _dayDocTtl = Duration(seconds: 30);
   static final Map<String, _DayDocEntry> _dayDocCache = {};
 
   /// Fetches an attendance day doc's data, served from the short-TTL cache when
@@ -162,6 +165,24 @@ class StudentService extends BaseFirestoreService {
   }) async =>
       _visibleOnly(
           await _repo.fetchByClass(className, section, teacherId: teacherId));
+
+  /// Fetch students for a class/section paginated, optionally scoped to one teacher.
+  Future<({List<Student> entries, dynamic cursor})> getStudentsByClassPaginated({
+    required String className,
+    String section = '',
+    String? teacherId,
+    required int limit,
+    dynamic startAfter,
+  }) async {
+    final page = await _repo.fetchByClassPaginated(
+      className,
+      section,
+      teacherId: teacherId,
+      limit: limit,
+      startAfter: startAfter,
+    );
+    return (entries: _visibleOnly(page.entries), cursor: page.cursor);
+  }
 
   /// Fetches raw student records for a class/section (including promoted and deletion pending).
   Future<List<Student>> getStudentsByClassRaw({
@@ -255,9 +276,12 @@ class StudentService extends BaseFirestoreService {
     final controller = StreamController<List<DeletedStudent>>();
     List<DeletedStudent> lastDeleted = [];
     List<Student> lastPending = [];
+    bool deletedEmitted = false;
+    bool pendingEmitted = false;
 
     void emitMerged() {
       if (controller.isClosed) return;
+      if (!deletedEmitted || !pendingEmitted) return;
       final pendingList = lastPending
           .where((s) => s.deletionPending && !s.promoted)
           .map((s) => DeletedStudent(
@@ -281,15 +305,35 @@ class StudentService extends BaseFirestoreService {
       controller.add(merged);
     }
 
-    final sub1 = deletedStream.listen((data) {
-      lastDeleted = data;
-      emitMerged();
-    });
+    final sub1 = deletedStream.listen(
+      (data) {
+        lastDeleted = data;
+        deletedEmitted = true;
+        emitMerged();
+      },
+      onError: (Object e, StackTrace st) {
+        // If either inner stream errors, propagate the error and close the
+        // controller so callers get a proper error event (Issue 23).
+        if (!controller.isClosed) {
+          controller.addError(e, st);
+          controller.close();
+        }
+      },
+    );
 
-    final sub2 = activeStream.listen((data) {
-      lastPending = data;
-      emitMerged();
-    });
+    final sub2 = activeStream.listen(
+      (data) {
+        lastPending = data;
+        pendingEmitted = true;
+        emitMerged();
+      },
+      onError: (Object e, StackTrace st) {
+        if (!controller.isClosed) {
+          controller.addError(e, st);
+          controller.close();
+        }
+      },
+    );
 
     controller.onCancel = () {
       sub1.cancel();
@@ -299,12 +343,11 @@ class StudentService extends BaseFirestoreService {
     return controller.stream;
   }
 
-  /// Generates a stable cross-year admission id (#70). Format: STU-<ms>-<rand>.
-  static String _newAdmissionId() {
-    final ms   = DateTime.now().microsecondsSinceEpoch;
-    final rand = (ms % 100000).toString().padLeft(5, '0');
-    return 'STU-$ms-$rand';
-  }
+  /// Generates a stable cross-year admission id (Issue 18).
+  /// Uses UUID v4 to guarantee global uniqueness even across simultaneous
+  /// insertions — the previous microsecond-based suffix was not truly random.
+  static const _uuid = Uuid();
+  static String _newAdmissionId() => 'STU-${_uuid.v4()}';
 
   /// Returns null on success, error string on duplicate roll.
   Future<String?> addStudent({required Student student}) async {
@@ -317,6 +360,7 @@ class StudentService extends BaseFirestoreService {
       parentPhone: student.parentPhone != null && student.parentPhone!.isNotEmpty
           ? normalizePhone(student.parentPhone!)
           : null,
+      schoolId: _schoolId,
     );
 
     // 2. Stamp stable admissionId
@@ -531,19 +575,12 @@ class StudentService extends BaseFirestoreService {
     String?         schoolId,
     String?         admissionId,
   }) async {
-    final svc = TimetableService();
-    // schoolId must be stamped on every allowed_users write — the security
-    // rules require it on each role-scoped branch. Caller may pass a school
-    // explicitly (e.g. when acting cross-school); fall back to the current
-    // session's school. Without this the guardian-create from Add Student
-    // got rejected as permission-denied and the form locked at "Saving…".
+    final svc = TimetableService.instance;
     final effectiveSchoolId =
         (schoolId != null && schoolId.isNotEmpty)
             ? schoolId
             : (BaseFirestoreService.currentSchoolId ?? 'school_1');
     // Empty password ⇒ addAllowedUser mints a strong random temp credential.
-    // Previously every guardian shared the hardcoded 'TmpParent@2024!', so any
-    // guardian who never reset could be impersonated by anyone (review #6).
     await svc.addAllowedUser(
       email, '', 'guardian',
       name:         name,
@@ -559,6 +596,28 @@ class StudentService extends BaseFirestoreService {
       studentName:  name,
       studentAdmissionId: admissionId,
     );
+    // Issue 21: also update the existing allowed_users doc with the new
+    // class/section/roll so the guardian's cached session points to the
+    // correct class after promotion. addAllowedUser merges the data if the
+    // doc already exists, but we explicitly update for clarity.
+    try {
+      final db = FirebaseFirestore.instance;
+      final docRef = db.collection('allowed_users').doc(email.toLowerCase().trim());
+      final snap = await docRef.get();
+      if (snap.exists) {
+        await docRef.update({
+          'studentClass':   className,
+          'studentRoll':    roll,
+          'studentSection': section,
+          if (admissionId != null && admissionId.isNotEmpty)
+            'studentAdmissionId': admissionId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      AppLogger.e('StudentService',
+          '_upsertGuardianAccount allowed_users update failed (non-fatal): $e', e);
+    }
   }
 
   /// Sets/updates the guardian email and creates a Firebase Auth account so
@@ -575,24 +634,19 @@ class StudentService extends BaseFirestoreService {
     final existing  = await _repo.fetchByRoll(className, section, roll);
     final oldEmail  = existing?.guardianEmail;
 
-    // Best-effort: revoke the old guardian's link and provision the new
-    // guardian's allowed_users / Auth entry. A failure here (network, no
-    // Firebase initialised in tests, REST error) is non-fatal — the primary
-    // effect of this method is persisting the email on the student record,
-    // and the admin can resend the invite later if the auth side missed.
+    // Issue 27: Guardian link revocation is now a BLOCKING prerequisite before
+    // writing the new email. A failure here surfaces to the caller so the admin
+    // knows the old guardian still has access and can retry. Previously this was
+    // fire-and-forget (try/catch swallowed), leaving the old guardian active.
     if (oldEmail != null &&
         oldEmail.isNotEmpty &&
         oldEmail != email.trim().toLowerCase()) {
-      try {
-        await TimetableService().removeGuardianLink(
-          email:        oldEmail,
-          studentClass: className,
-          studentRoll:  roll,
-        );
-      } catch (e) {
-        AppLogger.e('StudentService',
-            'removeGuardianLink failed for $oldEmail (non-fatal): $e', e);
-      }
+      // This will throw if revocation fails — let the caller handle it.
+      await TimetableService.instance.removeGuardianLink(
+        email:        oldEmail,
+        studentClass: className,
+        studentRoll:  roll,
+      );
     }
 
     try {
@@ -623,17 +677,12 @@ class StudentService extends BaseFirestoreService {
     final student = await _repo.fetchByRoll(className, section, roll);
     if (student == null) return; // already deleted — idempotent
 
-    // 2. Record a tombstone so the deleted student stays visible in the
-    //    read-only "Deleted Students" history (best-effort — must not abort
-    //    the deletion if the write fails). Written client-side regardless of
-    //    which cascade path runs.
-    await _recordDeletedStudent(student);
-
-    // 3. Prefer the server-side cascade (#35): the deleteStudent Cloud Function
-    //    runs the whole cleanup to completion server-side, so an interruption
-    //    can't leave orphaned fee/exam records in class totals. Fall back to the
-    //    client cascade if the function is unavailable or errors, so deletion
-    //    never regresses.
+    // Issue 29: Tombstone is written AFTER a successful cascade so the deleted
+    // students history only shows genuinely deleted students. Previously it was
+    // written first, which created zombie entries when the cascade failed.
+    // Prefer the server-side cascade (#35): the deleteStudent Cloud Function
+    // runs the whole cleanup to completion server-side. Fall back to the
+    // client cascade if unavailable.
     bool serverDone = false;
     try {
       serverDone = await _serverDeleteStudent(className, section, roll);
@@ -751,10 +800,12 @@ class StudentService extends BaseFirestoreService {
         // 8. Delete student doc (last to prevent orphaned records in case of failure, #35)
         batchOps.add((batch) async => batch.delete(_studentsRef.doc(studentDocId)));
 
-        // Commit in chunks of 450
+        // Commit in chunks of up to 450 operations each (Firestore limit is 500;
+        // we use 450 for headroom). clamp() ensures we never exceed this limit.
         for (var i = 0; i < batchOps.length; i += 450) {
           final batch = FirebaseFirestore.instance.batch();
-          final chunk = batchOps.sublist(i, i + 450 > batchOps.length ? batchOps.length : i + 450);
+          final end = (i + 450).clamp(0, batchOps.length);
+          final chunk = batchOps.sublist(i, end);
           for (final op in chunk) {
             await op(batch);
           }
@@ -762,6 +813,11 @@ class StudentService extends BaseFirestoreService {
         }
       }
     }
+
+    // Record tombstone AFTER successful cascade so the Deleted Students history
+    // only shows truly deleted records. (Issue 29 fix: was written before cascade.)
+    // Best-effort — must not abort the deletion if this write fails.
+    await _recordDeletedStudent(student);
 
     AuditService.emit(
       action:   'delete',
@@ -777,7 +833,7 @@ class StudentService extends BaseFirestoreService {
     final guardianEmail = student.guardianEmail;
     if (guardianEmail != null && guardianEmail.trim().isNotEmpty) {
       try {
-        final svc = TimetableService();
+        final svc = TimetableService.instance;
         await svc.removeGuardianLink(
           email: guardianEmail,
           studentClass: className,
@@ -862,6 +918,20 @@ class StudentService extends BaseFirestoreService {
   /// Principal approves a deletion request: deletes each student and their
   /// guardian access, then marks the request as approved.
   Future<void> approveDeletionRequest(String requestId) async {
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('approveDeletionRequest');
+      final res = await callable.call(<String, dynamic>{
+        'schoolId': _schoolId,
+        'requestId': requestId,
+      });
+      final data = res.data;
+      if (data is Map && data['ok'] == true) {
+        return;
+      }
+    } catch (e, stack) {
+      AppLogger.e('StudentService', 'Cloud approveDeletionRequest failed, falling back to client-side loop: $e', e, stack);
+    }
+
     final data = await _repo.getDeletionRequest(requestId);
     if (data == null) return;
     final list =
@@ -902,9 +972,7 @@ class StudentService extends BaseFirestoreService {
 
   static String _attendanceDocKey(String className, DateTime date) {
     final prefix = className.replaceAll(' ', '_');
-    final m = date.month.toString().padLeft(2, '0');
-    final d = date.day.toString().padLeft(2, '0');
-    return '${prefix}_${date.year}-$m-$d';
+    return '${prefix}_${SchoolClock.dateKey(date)}';
   }
 
   String _todayKey(String className) {
@@ -918,14 +986,32 @@ class StudentService extends BaseFirestoreService {
   /// Parses a `rolls` map (roll-string → status) into roll-int → status,
   /// SKIPPING any malformed (non-numeric) key. A single bad key previously
   /// crashed the whole class load via int.parse (#50).
+  ///
+  /// Handles dual attendance formats (Issue 28):
+  ///   - New format: String values  ('Present' | 'Absent' | 'Leave')
+  ///   - Old format: bool values    (true → 'Present', false → 'Absent')
+  ///   - Unknown:    any other type → '' (unmarked) to fail gracefully.
   static Map<int, String> _parseRolls(Map<String, dynamic> rolls) {
     final out = <int, String>{};
     rolls.forEach((k, v) {
       final roll = int.tryParse(k);
       if (roll == null) return;
-      out[roll] = v is bool ? (v ? 'Present' : 'Absent') : v.toString();
+      if (v is String) {
+        out[roll] = v;          // Current format: 'Present', 'Absent', 'Leave'
+      } else if (v is bool) {
+        out[roll] = v ? 'Present' : 'Absent';  // Legacy bool format
+      }
+      // Any other type (null, int, etc.) is silently skipped → '' (unmarked).
     });
     return out;
+  }
+
+  Stream<Map<int, String>> watchTodayAttendance({required String className}) {
+    return _attendance.doc(_todayKey(className)).snapshots().map((doc) {
+      if (!doc.exists || doc.data() == null) return {};
+      final rolls = Map<String, dynamic>.from((doc.data()!['rolls'] as Map?) ?? {});
+      return _parseRolls(rolls);
+    });
   }
 
   Future<Map<int, String>> loadTodayAttendance(
@@ -940,14 +1026,18 @@ class StudentService extends BaseFirestoreService {
   Future<void> saveAttendance(
       {required String className,
       required Map<int, String> attendance}) async {
-    final docKey = _todayKey(className);
+    final now = SchoolClock.now();
+    final docKey = _attendanceDocKey(className, now);
     final prev   = await _attendance.doc(docKey).get();
     final isUpdate = prev.exists;
     final rolls  = attendance.map((k, v) => MapEntry(k.toString(), v));
     await _attendance
         .doc(docKey)
-        .set({'rolls': rolls, 'updatedAt': FieldValue.serverTimestamp()},
-            SetOptions(merge: true));
+        .set({
+          'rolls': rolls,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'date': Timestamp.fromDate(DateTime(now.year, now.month, now.day)),
+        }, SetOptions(merge: true));
     _invalidateDayDoc(docKey);
     AuditService.emit(
       action:   isUpdate ? 'update' : 'create',
@@ -979,13 +1069,30 @@ class StudentService extends BaseFirestoreService {
     }
 
     final key    = _attendanceDocKey(className, date);
+    final prev   = await _attendance.doc(key).get();
+    final isUpdate = prev.exists;
     final rolls  = attendance.map((k, v) => MapEntry(k.toString(), v));
     await _attendance
         .doc(key)
-        .set({'rolls': rolls, 'updatedAt': FieldValue.serverTimestamp()},
-            SetOptions(merge: true));
+        .set({
+          'rolls': rolls,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'date': Timestamp.fromDate(DateTime(date.year, date.month, date.day)),
+        }, SetOptions(merge: true));
     _invalidateDayDoc(key);
+
+    AuditService.emit(
+      action:   isUpdate ? 'update' : 'create',
+      entity:   'attendance',
+      entityId: key,
+      before:   isUpdate && prev.data() != null
+          ? Map<String, dynamic>.from(prev.data()!)
+          : null,
+      after:    {'rolls': rolls},
+      reason:   'historical_edit',
+    );
   }
+
 
   /// Marks a student as 'Leave' for every day in the given range.
   ///
@@ -1021,7 +1128,7 @@ class StudentService extends BaseFirestoreService {
   /// (Mon-Sat) when the setting is missing or unrecognised.
   Future<Set<int>> _nonWorkingWeekdays() async {
     try {
-      final settings = await TimetableService().getSettings(schoolId: _schoolId);
+      final settings = await TimetableService.instance.getSettings(schoolId: _schoolId);
       final workingDays = (settings['workingDays'] as String?) ?? 'Mon-Sat';
       if (workingDays == 'Mon-Fri') {
         return {DateTime.saturday, DateTime.sunday};
@@ -1058,8 +1165,13 @@ class StudentService extends BaseFirestoreService {
       required Map<int, String> reasons}) async {
     if (reasons.isEmpty) return;
     final raw = reasons.map((k, v) => MapEntry(k.toString(), v));
+    final now = SchoolClock.now();
     await _attendance.doc(_todayKey(className)).set(
-          {'reasons': raw, 'updatedAt': FieldValue.serverTimestamp()},
+          {
+            'reasons': raw,
+            'updatedAt': FieldValue.serverTimestamp(),
+            'date': Timestamp.fromDate(DateTime(now.year, now.month, now.day)),
+          },
           SetOptions(merge: true),
         );
   }
@@ -1099,9 +1211,7 @@ class StudentService extends BaseFirestoreService {
 
     // 2. Build attendance doc key(s) per class.
     final now     = SchoolClock.now();
-    final m       = now.month.toString().padLeft(2, '0');
-    final d       = now.day.toString().padLeft(2, '0');
-    final dateSfx = '_${now.year}-$m-$d';
+    final dateSfx = '_${SchoolClock.dateKey(now)}';
 
     final classToKeys = <String, List<String>>{};
     for (final cls in classes) {
@@ -1284,6 +1394,15 @@ class StudentService extends BaseFirestoreService {
       {int maxDays = 20}) async {
     final now    = SchoolClock.now();
 
+    // 1. Get working days settings to determine weekends dynamically
+    String workingDaysSetting = 'Mon-Sat';
+    try {
+      final settings = await TimetableService.instance.getSettings(schoolId: _schoolId);
+      workingDaysSetting = (settings['workingDays'] as String?) ?? 'Mon-Sat';
+    } catch (e, stack) {
+      AppLogger.e('StudentService', 'Error getting settings for consecutive absence: $e', e, stack);
+    }
+
     // Build ordered list of (index, date) pairs — today first, past last.
     // Future.wait preserves order so the streak walk below sees days
     // newest → oldest.
@@ -1297,51 +1416,97 @@ class StudentService extends BaseFirestoreService {
       }),
     );
 
+    return calculateStreaksFromData(
+      dates: dates,
+      datas: datas,
+      workingDaysSetting: workingDaysSetting,
+    );
+  }
+
+  /// Core consecutive-absence streak calculation logic, extracted for pure unit testing.
+  static Map<int, int> calculateStreaksFromData({
+    required List<DateTime> dates,
+    required List<Map<String, dynamic>?> datas,
+    required String workingDaysSetting,
+  }) {
     final streaks = <int, int>{};
     final broken  = <int>{};
+    bool firstWorkingDaySeen = false;
 
     for (int i = 0; i < datas.length; i++) {
       final date = dates[i];
       final data = datas[i];
 
-      // Skip weekend days — Sat (6) and Sun (7) are not school days and
-      // must never break or extend a streak (#42).
-      if (date.weekday == DateTime.saturday ||
-          date.weekday == DateTime.sunday) { continue; }
+      // Sunday is always a non-working day.
+      // Saturday is a non-working day only if workingDays setting is 'Mon-Fri'.
+      final isWeekend = date.weekday == DateTime.sunday ||
+          (date.weekday == DateTime.saturday && workingDaysSetting == 'Mon-Fri');
+
+      if (isWeekend) {
+        continue;
+      }
+
+      if (!firstWorkingDaySeen) {
+        firstWorkingDaySeen = true;
+        if (data == null) {
+          // If the most recent working day is unmarked, no one can have an active streak.
+          return {};
+        }
+        final rolls = Map<String, dynamic>.from((data['rolls'] as Map?) ?? {});
+        if (rolls.isEmpty) {
+          return {};
+        }
+        rolls.forEach((rollStr, status) {
+          final roll = int.tryParse(rollStr);
+          if (roll == null) return;
+          final isAbsent =
+              status == 'Absent' || status == 'Leave' || status == false;
+          if (isAbsent) {
+            streaks[roll] = 1;
+          } else {
+            broken.add(roll);
+          }
+        });
+        continue;
+      }
 
       if (data == null) {
-        // Missing doc on a weekday:
-        //   • Within the last 7 days: attendance SHOULD have been taken —
-        //     treat as "no one absent that day" → breaks any active streak.
-        //   • Older than 7 days: could be a public holiday / closed day —
-        //     skip (don't penalise or reward).
-        if (i < 7) {
-          // A missing recent weekday doc means the teacher didn't mark
-          // anyone absent — that implies students were present.
-          // Add every student currently in a streak to the broken set.
-          final currentlyStreaking = streaks.keys
-              .where((r) => !broken.contains(r))
-              .toList();
-          broken.addAll(currentlyStreaking);
-        }
+        // Missing doc on a working day: break all currently active streaks
+        final currentlyStreaking = streaks.keys
+            .where((r) => !broken.contains(r))
+            .toList();
+        broken.addAll(currentlyStreaking);
         continue;
       }
 
       final rolls = Map<String, dynamic>.from((data['rolls'] as Map?) ?? {});
-      if (rolls.isEmpty) continue;
+      
+      // If rolls is empty on a working day, it also breaks all active streaks
+      if (rolls.isEmpty) {
+        final currentlyStreaking = streaks.keys
+            .where((r) => !broken.contains(r))
+            .toList();
+        broken.addAll(currentlyStreaking);
+        continue;
+      }
 
-      rolls.forEach((rollStr, status) {
-        final roll = int.tryParse(rollStr);
-        if (roll == null || broken.contains(roll)) return;
-        final isAbsent =
-            status == 'Absent' || status == 'Leave' || status == false;
+      // Check all rolls currently in an active streak. If they are not marked absent/leave on this day,
+      // or if they are missing from the rolls map, break their streak.
+      final activeStreakRolls = streaks.keys
+          .where((r) => !broken.contains(r))
+          .toList();
+      for (final roll in activeStreakRolls) {
+        final status = rolls[roll.toString()];
+        final isAbsent = status != null &&
+            (status == 'Absent' || status == 'Leave' || status == false);
         if (isAbsent) {
-          streaks[roll] = (streaks[roll] ?? 0) + 1;
+          streaks[roll] = streaks[roll]! + 1;
         } else {
           broken.add(roll);
         }
-      });
+      }
     }
+
     return streaks;
   }
 

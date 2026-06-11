@@ -4,6 +4,7 @@
 /// (`^[^@]+@[^@]+\.[^@]+$`): non-empty local part, an `@`, a domain, a dot,
 /// and a TLD — with no whitespace.
 abstract class Validators {
+  // Keep this in sync with EMAIL_RE in functions/index.js to prevent drift risk (#12).
   static final RegExp _emailRe = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   /// True when [value] is a syntactically valid email address.

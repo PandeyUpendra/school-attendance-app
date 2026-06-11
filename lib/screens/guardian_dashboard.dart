@@ -29,6 +29,7 @@ import 'notifications_screen.dart';
 import 'attendance_certificate_screen.dart';
 import 'student_remarks_screen.dart';
 import 'guardian_student_details_screen.dart';
+import 'guardian_ptm_screen.dart';
 import '../widgets/consent_pending_banner.dart';
 import '../services/consent_service.dart';
 import '../utils/privacy_notice.dart';
@@ -52,11 +53,11 @@ class GuardianDashboard extends StatefulWidget {
 }
 
 class _GuardianDashboardState extends State<GuardianDashboard> {
-  final _service     = StudentService();
+  final _service     = StudentService.instance;
   final _feeService  = FeeService();
   final _hwService   = HomeworkService();
   final _examService = ExamService();
-  final _ttService   = TimetableService();
+  final _ttService   = TimetableService.instance;
 
   bool _loading = true;
   String? _error;
@@ -106,6 +107,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   // Notifications (real-time)
   int _unreadNotifCount = 0;
   StreamSubscription? _notifSub;
+  StreamSubscription<Map<int, String>>? _attendanceSub;
   int _lastSeenMs = 0;
   List<Map<String, dynamic>> _latestNotifs = [];
 
@@ -176,6 +178,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       _loading           = true;
     });
     _notifSub?.cancel();
+    _attendanceSub?.cancel();
     _initNotifStream();
     _loadAll();
   }
@@ -183,6 +186,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   @override
   void dispose() {
     _notifSub?.cancel();
+    _attendanceSub?.cancel();
     super.dispose();
   }
 
@@ -246,7 +250,6 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       final student     = coreResults[0] as Student?;
       final todayByRoll = coreResults[1] as Map<int, String>;
 
-      // ── Optional: fee / exams / homework / timetable ────────────────────────
       // Any individual failure just leaves that section empty; no full crash.
       final optResults = await Future.wait([
         _feeService.getFeeStructure(className: _activeClass).catchError((_) => FeeStructure.empty(_activeClass)),          // 0
@@ -255,7 +258,6 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         _loadExamData().catchError((_) => <MapEntry<Exam, ExamResult?>>[]),                                                              // 3
         _ttService.getTimetable().catchError((_) => <String, Map<String, Map<int, TimetableEntry>>>{}),                                  // 4
         _ttService.getSettings().catchError((_) => <String, dynamic>{}),                                                                 // 5
-        _ttService.getTeachers().catchError((_) => <Teacher>[]),                                                                         // 6
       ]);
       if (!mounted) return;
 
@@ -265,7 +267,23 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       final examData     = optResults[3] as List<MapEntry<Exam, ExamResult?>>;
       final timetable    = optResults[4] as Map<String, Map<String, Map<int, TimetableEntry>>>;
       final ttSettings   = optResults[5] as Map<String, dynamic>;
-      final teachers     = optResults[6] as List<Teacher>;
+
+      // Extract active teacher IDs from timetable and student's class teacher
+      final activeTeacherIds = <String>{};
+      if (student?.teacherId != null && student!.teacherId!.isNotEmpty) {
+        activeTeacherIds.add(student.teacherId!);
+      }
+      final classTt = timetable[_activeClass] ?? {};
+      for (final dayBells in classTt.values) {
+        for (final entry in dayBells.values) {
+          if (entry.teacherId != null && entry.teacherId!.isNotEmpty) {
+            activeTeacherIds.add(entry.teacherId!);
+          }
+        }
+      }
+
+      final teachers = await _ttService.getTeachersForIds(activeTeacherIds.toList()).catchError((_) => <Teacher>[]);
+      if (!mounted) return;
 
       final bells = List<Map<String, dynamic>>.from(
         ((ttSettings['bells'] as List?) ?? [])
@@ -291,12 +309,21 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         _feeStructure   = feeStructure;
         _totalPaid      = totalPaid;
         _homeworkList   = hwList;
-        _examData       = examData;
+        _examData       = examData.where((e) => e.key.isPublished).toList();
         _classTimetable = timetable[_activeClass] ?? {};
         _bellSettings   = bells;
         _firstBellTime  = ttSettings['firstBellTime'] as String? ?? '08:00';
         _teacherById    = {for (final t in teachers) t.id: t};
         _loading        = false;
+      });
+
+      _attendanceSub?.cancel();
+      _attendanceSub = _service.watchTodayAttendance(className: _attendanceKey).listen((todayByRoll) {
+        if (mounted) {
+          setState(() {
+            _todayStatus = todayByRoll[_activeRoll];
+          });
+        }
       });
 
       // Load the guardian's provisioned admissionId once (from the session,
@@ -438,6 +465,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       title: context.tr('homework'),
       subtitle: context.tr('subViewHomework'),
       badge: _homeworkList.isNotEmpty ? '${_homeworkList.length}' : null,
+      isLocked: !_hasConsent,
       onTap: () => _runGatedAction(() => Navigator.push(
         context,
         MaterialPageRoute(
@@ -454,6 +482,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: AppTheme.primary,
       title: context.tr('examResults'),
       subtitle: context.tr('subViewReportCards'),
+      isLocked: !_hasConsent,
       onTap: () => _runGatedAction(() => Navigator.push(
         context,
         MaterialPageRoute(
@@ -470,6 +499,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: AppTheme.primary,
       title: context.tr('attendanceHistory'),
       subtitle: context.tr('subMonthlyReports'),
+      isLocked: !_hasConsent,
       onTap: () => _runGatedAction(() => Navigator.push(
         context,
         MaterialPageRoute(
@@ -487,6 +517,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: AppTheme.primary,
       title: context.tr('attendanceCertificate'),
       subtitle: context.tr('subDownloadCertificate'),
+      isLocked: !_hasConsent,
       onTap: () => _runGatedAction(() => Navigator.push(
         context,
         MaterialPageRoute(
@@ -500,6 +531,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: AppTheme.warning,
       title: context.tr('applyForLeave'),
       subtitle: context.tr('subSubmitLeave'),
+      isLocked: !_hasConsent,
       onTap: () => _runGatedAction(() => Navigator.push(
         context,
         MaterialPageRoute(
@@ -516,6 +548,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       subtitle: _feeStructure != null && _feeStructure!.totalAnnualFee > 0
           ? ((_feeStructure!.totalAnnualFee - _totalPaid) < 1 ? 'Fully Paid' : 'Pending: ₹${(_feeStructure!.totalAnnualFee - _totalPaid).toStringAsFixed(0)}')
           : 'No fee info',
+      isLocked: !_hasConsent,
       onTap: () => _runGatedAction(() => Navigator.push(
         context,
         MaterialPageRoute(
@@ -533,6 +566,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: AppTheme.primary,
       title: context.tr('studentRemarks'),
       subtitle: context.tr('subViewObservations'),
+      isLocked: !_hasConsent,
       onTap: () => _runGatedAction(() => Navigator.push(
         context,
         MaterialPageRoute(
@@ -550,6 +584,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: AppTheme.primary,
       title: context.tr('studentDetails'),
       subtitle: context.tr('subViewProfile'),
+      isLocked: !_hasConsent,
       onTap: () => _runGatedAction(_openChildDetails),
     ),
     const _Divider(),
@@ -599,6 +634,19 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     ),
     const _Divider(),
     _FeatureTile(
+      icon: Icons.calendar_month_outlined,
+      color: AppTheme.primary,
+      title: 'Parent-Teacher Meetings (PTM)',
+      subtitle: 'View scheduled PTM events',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuardianPTMScreen(studentClass: _activeClass),
+        ),
+      ),
+    ),
+    const _Divider(),
+    _FeatureTile(
       icon: Icons.phone_callback_outlined,
       color: AppTheme.primary,
       title: 'Contact School',
@@ -615,7 +663,18 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(context.tr('consentRequiredTitle')),
-        content: Text(context.tr('consentRequiredMessage')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(context.tr('consentRequiredMessage')),
+            const SizedBox(height: 12),
+            Text(
+              'Under the Digital Personal Data Protection (DPDP) Act, we require your explicit consent to process and display your child\'s records, remarks, attendance, and fee details.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -669,11 +728,22 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   }
 
   Future<void> _callSchool() async {
-    if (_student == null || _student!.phone.isEmpty) return;
-    // Calls school number saved on student — usually the class teacher contact.
-    final uri = Uri.parse('tel:${_student!.phone}');
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final phone = settings.schoolPhone;
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No school phone number configured')),
+      );
+      return;
+    }
+    final uri = Uri.parse('tel:$phone');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not dial number: $phone')),
+      );
     }
   }
 
@@ -748,9 +818,11 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => NotificationsScreen(
-                    role:         'guardian',
-                    studentClass: _activeClass,
-                    studentRoll:  _activeRoll,
+                    role:               'guardian',
+                    studentClass:       _activeClass,
+                    studentRoll:        _activeRoll,
+                    studentAdmissionId: _activeAdmissionId,
+                    student:            _student,
                   ),
                 ),
               );
@@ -2041,6 +2113,7 @@ class _FeatureTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
   final String? badge;
+  final bool isLocked;
 
   const _FeatureTile({
     required this.icon,
@@ -2049,64 +2122,74 @@ class _FeatureTile extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     this.badge,
+    this.isLocked = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveColor = isLocked ? Colors.grey : color;
+    final titleStyle = TextStyle(
+      fontSize: 15,
+      fontWeight: FontWeight.w600,
+      color: isLocked ? Colors.grey : null,
+    );
+    final subtitleStyle = TextStyle(
+      fontSize: 12,
+      color: isLocked ? Colors.grey.shade400 : Colors.grey.shade500,
+    );
+
+    final content = Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      child: Row(children: [
+        Stack(clipBehavior: Clip.none, children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: effectiveColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: effectiveColor, size: 22),
+          ),
+          if (badge != null && !isLocked)
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.accent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(badge!,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ),
+        ]),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: titleStyle),
+              const SizedBox(height: 2),
+              Text(subtitle, style: subtitleStyle),
+            ],
+          ),
+        ),
+        Icon(isLocked ? Icons.lock_outline : Icons.chevron_right,
+            color: Colors.grey.shade400, size: 20),
+      ]),
+    );
+
     return InkWell(
       onTap: onTap,
-      child: Container(
-        color: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        child: Row(children: [
-          Stack(clipBehavior: Clip.none, children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            if (badge != null)
-              Positioned(
-                top: -4,
-                right: -4,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppTheme.accent,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(badge!,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold)),
-                ),
-              ),
-          ]),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 2),
-                Text(subtitle,
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade500)),
-              ],
-            ),
-          ),
-          Icon(Icons.chevron_right,
-              color: Colors.grey.shade400, size: 20),
-        ]),
-      ),
+      child: isLocked ? Opacity(opacity: 0.6, child: content) : content,
     );
   }
 }
@@ -2189,8 +2272,15 @@ class _GuardianTimetableScreenState extends State<GuardianTimetableScreen> {
 
     if (bellCount == 0 || dayPeriods.isEmpty) {
       return Center(
-        child: Text('No timetable for $day',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.event_available_outlined, size: 48, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text('No classes scheduled for $day',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+          ],
+        ),
       );
     }
 
@@ -2284,61 +2374,77 @@ class _GuardianTimetableScreenState extends State<GuardianTimetableScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isEmpty = widget.classTimetable.isEmpty || widget.bellSettings.isEmpty;
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Text('${widget.className} Timetable'),
       ),
-      body: Column(
-        children: [
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: _days.map((d) {
-                  final sel = d == _selectedDay;
-                  return GestureDetector(
-                    onTap: () => _pageController.animateToPage(
-                      _days.indexOf(d),
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.easeInOut,
-                    ),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: sel ? AppTheme.primary : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: sel ? AppTheme.primary : Colors.grey.shade300,
-                        ),
-                      ),
-                      child: Text(_dayAbbr[d]!,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: sel ? Colors.white : Colors.grey.shade600)),
-                    ),
-                  );
-                }).toList(),
+      body: isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.calendar_today_outlined, size: 64, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Text('Timetable not set up yet',
+                      style: TextStyle(fontSize: 16, color: Colors.grey.shade400, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Text('Please ask the coordinator to configure the schedule.',
+                      style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+                ],
               ),
+            )
+          : Column(
+              children: [
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: _days.map((d) {
+                        final sel = d == _selectedDay;
+                        return GestureDetector(
+                          onTap: () => _pageController.animateToPage(
+                            _days.indexOf(d),
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeInOut,
+                          ),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: sel ? AppTheme.primary : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: sel ? AppTheme.primary : Colors.grey.shade300,
+                              ),
+                            ),
+                            child: Text(_dayAbbr[d]!,
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: sel ? Colors.white : Colors.grey.shade600)),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: _days.length,
+                    onPageChanged: (i) => setState(() => _selectedDay = _days[i]),
+                    itemBuilder: (context, i) => _buildDayBody(_days[i]),
+                  ),
+                ),
+              ],
             ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: _days.length,
-              onPageChanged: (i) => setState(() => _selectedDay = _days[i]),
-              itemBuilder: (context, i) => _buildDayBody(_days[i]),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -2717,7 +2823,7 @@ class GuardianAttendanceHistoryScreen extends StatefulWidget {
 }
 
 class _GuardianAttendanceHistoryScreenState extends State<GuardianAttendanceHistoryScreen> {
-  final _service = StudentService();
+  final _service = StudentService.instance;
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   Map<int, Map<int, String>> _monthData = {};
   bool _loading = true;

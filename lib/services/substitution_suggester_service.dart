@@ -67,7 +67,7 @@ class SubstitutionSuggesterService {
     required DateTime startDate,
     required int      numberOfDays,
   }) async {
-    final svc = TimetableService();
+    final svc = TimetableService.instance;
 
     final timetable  = await svc.getTimetable();
     final teachers   = await svc.getTeachers();

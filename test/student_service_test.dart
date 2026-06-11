@@ -11,6 +11,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:school_app/models/student.dart';
 import 'package:school_app/repositories/student_repository_fake.dart';
+import 'package:school_app/services/base_firestore_service.dart';
 import 'package:school_app/services/student_service.dart';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -40,11 +41,17 @@ void main() {
   late StudentService service;
 
   setUp(() {
+    // Pre-set the school ID so AuthService.currentSchoolId never falls through
+    // to FirebaseAuth.instance (which is unavailable in unit tests).
+    BaseFirestoreService.currentSchoolId = 'test_school';
     repo    = FakeStudentRepository();
     service = StudentService(repo);
   });
 
-  tearDown(() => repo.clear());
+  tearDown(() {
+    repo.clear();
+    BaseFirestoreService.currentSchoolId = null; // reset
+  });
 
   // ── 1. addStudent — success ──────────────────────────────────────────────────
 

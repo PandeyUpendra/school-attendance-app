@@ -153,7 +153,7 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
 
       // Look up the allowed_users profile by phone number.
       final phone = user.phoneNumber ?? _normalisePhone(_phoneCtrl.text);
-      final userData = await TimetableService().getGuardianByPhone(phone);
+      final userData = await TimetableService.instance.getGuardianByPhone(phone);
 
       if (!mounted) return;
 
@@ -179,7 +179,7 @@ class _PhoneOtpScreenState extends State<PhoneOtpScreen> {
       }
 
       // Fetch student links.
-      final links = await TimetableService().getGuardianLinks(email);
+      final links = await TimetableService.instance.getGuardianLinks(email);
       if (!mounted) return;
 
       if (links == null || links.isEmpty) {

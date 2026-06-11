@@ -227,10 +227,10 @@ class _AssignTabState extends State<_AssignTab> {
       });
     }
     try {
-      final teachers = await TimetableService().getTeachers();
+      final teachers = await TimetableService.instance.getTeachers();
       // Only principals can delegate tasks to coordinators.
       final coords = widget.assignerRole == 'principal'
-          ? await TimetableService().getCoordinators(AuthService.currentSchoolId)
+          ? await TimetableService.instance.getCoordinators(AuthService.currentSchoolId)
           : <Map<String, dynamic>>[];
       if (!mounted) return;
       setState(() {

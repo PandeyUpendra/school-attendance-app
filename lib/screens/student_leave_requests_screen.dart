@@ -28,18 +28,29 @@ class StudentLeaveRequestsScreen extends StatefulWidget {
 class _StudentLeaveRequestsScreenState
     extends State<StudentLeaveRequestsScreen>
     with SingleTickerProviderStateMixin {
-  final _ttService = TimetableService();
-  final _stuService = StudentService();
+  final _ttService = TimetableService.instance;
+  final _stuService = StudentService.instance;
 
   late final TabController _tabCtrl;
   List<Map<String, dynamic>> _pending  = [];
   List<Map<String, dynamic>> _resolved = [];
   bool _loading = true;
 
+  bool _bulkMode = false;
+  final Set<String> _selectedIds = {};
+
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl.addListener(() {
+      if (_tabCtrl.indexIsChanging || _tabCtrl.index != 0) {
+        setState(() {
+          _bulkMode = false;
+          _selectedIds.clear();
+        });
+      }
+    });
     _load();
   }
 
@@ -93,7 +104,7 @@ class _StudentLeaveRequestsScreenState
     );
   }
 
-  Future<void> _act(Map<String, dynamic> app, String status) async {
+  Future<void> _act(Map<String, dynamic> app, String status, {String? bulkRemarks, bool reload = true}) async {
     final id     = app['id']          as String;
     final roll   = (app['studentRoll'] as int?) ?? 0;
     final name   = (app['studentName'] as String?) ?? '';
@@ -104,9 +115,13 @@ class _StudentLeaveRequestsScreenState
 
     String remarks = '';
     if (status == 'approved' || status == 'rejected') {
-      final res = await _showRemarksDialog(status);
-      if (res == null) return; // user cancelled
-      remarks = res;
+      if (bulkRemarks != null) {
+        remarks = bulkRemarks;
+      } else {
+        final res = await _showRemarksDialog(status);
+        if (res == null) return; // user cancelled
+        remarks = res;
+      }
     }
 
     await _ttService.updateLeaveApplication(
@@ -178,7 +193,31 @@ class _StudentLeaveRequestsScreenState
       }
     }
 
-    _load();
+    if (reload) {
+      _load();
+    }
+  }
+
+  Future<void> _bulkAct(String status) async {
+    String? remarks;
+    if (status == 'approved' || status == 'rejected') {
+      remarks = await _showRemarksDialog(status);
+      if (remarks == null) return; // user cancelled
+    }
+
+    setState(() => _loading = true);
+    final ids = _selectedIds.toList();
+    for (final id in ids) {
+      final app = _pending.firstWhere((a) => a['id'] == id, orElse: () => {});
+      if (app.isNotEmpty) {
+        await _act(app, status, bulkRemarks: remarks, reload: false);
+      }
+    }
+    setState(() {
+      _selectedIds.clear();
+      _bulkMode = false;
+    });
+    await _load();
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -230,12 +269,54 @@ class _StudentLeaveRequestsScreenState
           ],
         ),
         actions: [
+          if (_tabCtrl.index == 0 && _pending.isNotEmpty)
+            IconButton(
+              icon: Icon(_bulkMode ? Icons.check_box : Icons.check_box_outline_blank),
+              onPressed: () {
+                setState(() {
+                  _bulkMode = !_bulkMode;
+                  if (!_bulkMode) _selectedIds.clear();
+                });
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _load,
           ),
         ],
       ),
+      bottomNavigationBar: _bulkMode && _selectedIds.isNotEmpty
+          ? Container(
+              padding: const EdgeInsets.all(12),
+              color: Colors.white,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _bulkAct('rejected'),
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      label: Text('Reject (${_selectedIds.length})', style: const TextStyle(color: Colors.red)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _bulkAct('approved'),
+                      icon: const Icon(Icons.check, color: Colors.white),
+                      label: Text('Approve (${_selectedIds.length})'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : null,
       body: _loading
           ? const LoadingState()
           : TabBarView(
@@ -271,15 +352,40 @@ class _StudentLeaveRequestsScreenState
       child: ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: apps.length,
-        itemBuilder: (_, i) => _StudentLeaveCard(
-          app:       apps[i],
-          showActions: showActions,
-          onAccept:  showActions ? () => _act(apps[i], 'approved')               : null,
-          onReject:  showActions ? () => _act(apps[i], 'rejected')               : null,
-          onFwdCoord:showActions ? () => _act(apps[i], 'forwarded_to_coordinator'): null,
-          onFwdPrinc:showActions ? () => _act(apps[i], 'forwarded_to_principal') : null,
-          onTap: () => _showDetail(apps[i], showActions: showActions),
-        ),
+        itemBuilder: (_, i) {
+          final app = apps[i];
+          final id = app['id'] as String;
+          return _StudentLeaveCard(
+            app:       app,
+            showActions: showActions,
+            bulkMode:  _bulkMode,
+            isSelected: _selectedIds.contains(id),
+            onSelectedChanged: (val) {
+              setState(() {
+                if (val == true) {
+                  _selectedIds.add(id);
+                } else {
+                  _selectedIds.remove(id);
+                }
+              });
+            },
+            onAccept:  showActions ? () => _act(app, 'approved')               : null,
+            onReject:  showActions ? () => _act(app, 'rejected')               : null,
+            onFwdCoord:showActions ? () => _act(app, 'forwarded_to_coordinator'): null,
+            onFwdPrinc:showActions ? () => _act(app, 'forwarded_to_principal') : null,
+            onTap: _bulkMode
+                ? () {
+                    setState(() {
+                      if (_selectedIds.contains(id)) {
+                        _selectedIds.remove(id);
+                      } else {
+                        _selectedIds.add(id);
+                      }
+                    });
+                  }
+                : () => _showDetail(app, showActions: showActions),
+          );
+        },
       ),
     );
   }
@@ -313,6 +419,9 @@ class _StudentLeaveCard extends StatelessWidget {
   final VoidCallback? onFwdCoord;
   final VoidCallback? onFwdPrinc;
   final VoidCallback  onTap;
+  final bool          bulkMode;
+  final bool          isSelected;
+  final ValueChanged<bool?>? onSelectedChanged;
 
   const _StudentLeaveCard({
     required this.app,
@@ -322,6 +431,9 @@ class _StudentLeaveCard extends StatelessWidget {
     this.onReject,
     this.onFwdCoord,
     this.onFwdPrinc,
+    this.bulkMode = false,
+    this.isSelected = false,
+    this.onSelectedChanged,
   });
 
   String _fmtSubmissionTime(dynamic createdAt) {
@@ -366,6 +478,14 @@ class _StudentLeaveCard extends StatelessWidget {
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
+            if (bulkMode) ...[
+              Checkbox(
+                value: isSelected,
+                onChanged: onSelectedChanged,
+                activeColor: AppTheme.primary,
+              ),
+              const SizedBox(width: 4),
+            ],
             CircleAvatar(
               radius: 20,
               backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
@@ -414,7 +534,7 @@ class _StudentLeaveCard extends StatelessWidget {
                   color: Colors.orange.shade800),
             ),
           ],
-          if (showActions) ...[
+          if (showActions && !bulkMode) ...[
             const SizedBox(height: 12),
             const Divider(height: 1),
             const SizedBox(height: 10),

@@ -44,6 +44,7 @@ const UID = {
   coordinator: 'uid-coordinator',
   principal:   'uid-principal',
   admin:       'uid-admin',
+  rootAdmin:   'uid-root-admin',   // Root administrator
   anon:        null,               // unauthenticated — use unauthedDb()
 };
 
@@ -98,6 +99,12 @@ const USERS = {
     email: 'admin@school.test',
     classIds: [], studentIds: [], status: 'active',
   },
+  [UID.rootAdmin]: {
+    role: 'admin', schoolId: SCHOOL_ID,
+    name: 'Root Admin',
+    email: 'admin@schoolapp.org',
+    classIds: [], studentIds: [], status: 'active',
+  },
 };
 
 // ── Student fixture data ──────────────────────────────────────────────────────
@@ -109,12 +116,14 @@ const STUDENT_9A = {
   className: 'Class 9-A', section: 'A',
   fatherName: 'Ramesh Sharma', phone: '9999000001',
   feeStatus: 'Pending',
+  guardianEmail: 'parent1@school.test',
 };
 const STUDENT_10B = {
   roll: 15, name: 'Bob Verma',
   className: 'Class 10-B', section: 'B',
   fatherName: 'Suresh Verma', phone: '9999000002',
   feeStatus: 'Paid',
+  guardianEmail: 'parent2@school.test',
 };
 
 
@@ -536,7 +545,24 @@ describe('Firestore Security Rules', () => {
       await assertSucceeds(
         setDoc(
           doc(db(UID.teacher9A), schoolPath('attendance', 'Class 9-A')),
-          { '2026-5-24': { rolls: { '42': 'Absent' } } },
+          {
+            '2026-5-24': { rolls: { '42': 'Absent' } },
+            date: new Date(),
+          },
+        ),
+      );
+    });
+
+    test('DENY — class teacher cannot write attendance older than 7 days', async () => {
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - 8);
+      await assertFails(
+        setDoc(
+          doc(db(UID.teacher9A), schoolPath('attendance', 'Class 9-A')),
+          {
+            '2026-5-16': { rolls: { '42': 'Absent' } },
+            date: oldDate,
+          },
         ),
       );
     });
@@ -545,7 +571,10 @@ describe('Firestore Security Rules', () => {
       await assertFails(
         setDoc(
           doc(db(UID.teacher9A), schoolPath('attendance', 'Class 10-B')),
-          { '2026-5-24': { rolls: { '15': 'Absent' } } },
+          {
+            '2026-5-24': { rolls: { '15': 'Absent' } },
+            date: new Date(),
+          },
         ),
       );
     });
@@ -554,7 +583,24 @@ describe('Firestore Security Rules', () => {
       await assertSucceeds(
         setDoc(
           doc(db(UID.coordinator), schoolPath('attendance', 'Class 9-A')),
-          { '2026-5-24': { rolls: { '42': 'Leave' } } },
+          {
+            '2026-5-24': { rolls: { '42': 'Leave' } },
+            date: new Date(),
+          },
+        ),
+      );
+    });
+
+    test('ALLOW — coordinator/management can write attendance older than 7 days', async () => {
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - 10);
+      await assertSucceeds(
+        setDoc(
+          doc(db(UID.coordinator), schoolPath('attendance', 'Class 9-A')),
+          {
+            '2026-5-14': { rolls: { '42': 'Leave' } },
+            date: oldDate,
+          },
         ),
       );
     });
@@ -715,6 +761,37 @@ describe('Firestore Security Rules', () => {
           doc(db(UID.guardian), schoolPath('announcements', 'ann-fake')),
           { title: 'Fake announcement', body: 'Ignore.' },
         ),
+      );
+    });
+  });
+
+  // ── 11. System configuration ──────────────────────────────────────────────
+  describe('11. System configuration', () => {
+    test('ALLOW — root admin can read and write system config', async () => {
+      const rootDb = db(UID.rootAdmin);
+      await assertSucceeds(
+        setDoc(doc(rootDb, 'system/root_config'), {
+          adminEmails: ['admin@schoolapp.org', 'mandvishal@gmail.com'],
+        })
+      );
+      await assertSucceeds(
+        getDoc(doc(rootDb, 'system/root_config'))
+      );
+    });
+
+    test('DENY — non-root admins cannot read or write system config', async () => {
+      const teacherDb = db(UID.teacher9A);
+      const adminDb = db(UID.admin);
+      await assertFails(
+        getDoc(doc(teacherDb, 'system/root_config'))
+      );
+      await assertFails(
+        getDoc(doc(adminDb, 'system/root_config'))
+      );
+      await assertFails(
+        setDoc(doc(adminDb, 'system/root_config'), {
+          adminEmails: ['evil@schoolapp.org'],
+        })
       );
     });
   });

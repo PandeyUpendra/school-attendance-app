@@ -41,6 +41,7 @@ class TimetableService extends BaseFirestoreService {
   static final TimetableService _instance = TimetableService._();
   TimetableService._();
   factory TimetableService() => _instance;
+  static TimetableService get instance => _instance;
 
   // In-memory cache for settings. Invalidated on every saveSettings call, AND
   // expires after [_settingsCacheTtl] so a change made on ANOTHER device is
@@ -94,6 +95,22 @@ class TimetableService extends BaseFirestoreService {
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
     return list;
+  }
+
+  Future<List<Teacher>> getTeachersForIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    final uniqueIds = ids.toSet().toList();
+    final chunks = <List<String>>[];
+    for (var i = 0; i < uniqueIds.length; i += 30) {
+      chunks.add(uniqueIds.sublist(i, i + 30 > uniqueIds.length ? uniqueIds.length : i + 30));
+    }
+    final results = <Teacher>[];
+    for (final chunk in chunks) {
+      final snap = await _teachers.where(FieldPath.documentId, whereIn: chunk).get();
+      results.addAll(snap.docs.map((d) => Teacher.fromJson(Map<String, dynamic>.from(d.data()))));
+    }
+    results.sort((a, b) => a.name.compareTo(b.name));
+    return results;
   }
 
   /// Returns the classIds[] array that should be stamped on a teacher's
@@ -514,10 +531,6 @@ class TimetableService extends BaseFirestoreService {
   Future<void> updateAllowedUser(
     String email, {
     required String role,
-    // newPassword is intentionally ignored — credentials live in Firebase Auth.
-    // Call resendInvitationEmail() to trigger a password-reset link instead.
-    @Deprecated('Password field removed from allowed_users. Use resendInvitationEmail() instead.')
-    String?       newPassword,
     String?       studentClass,
     int?          studentRoll,
     String?       studentSection,
@@ -1064,11 +1077,6 @@ class TimetableService extends BaseFirestoreService {
     if (!doc.exists || doc.data() == null) return null;
     return doc.data()!['role'] as String?;
   }
-
-  /// @deprecated Password-based login is now handled by Firebase Auth.
-  // (validateLogin removed — it was a dead stub that always returned null yet
-  // read like a credential check. Auth is done via AuthService.signInWithEmail
-  // + getAllowedUserDoc. Review #151.)
 
   /// Looks up a guardian profile by phone number stored in [allowed_users].
   /// Returns the document data (with 'email' key added) or null if not found.

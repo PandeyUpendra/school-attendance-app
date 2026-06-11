@@ -10,6 +10,8 @@ import '../models/teacher.dart';
 import '../services/copy_check_service.dart';
 import '../services/student_service.dart';
 import '../theme.dart';
+import '../utils/phone_utils.dart';
+import '../utils/app_logger.dart';
 
 /// Teacher's copy-checking screen.
 /// Shows all classes the teacher teaches → create sessions → mark students.
@@ -561,11 +563,12 @@ class _CheckSessionScreen extends StatefulWidget {
 class _CheckSessionScreenState extends State<_CheckSessionScreen>
     with SingleTickerProviderStateMixin {
   final _service        = CopyCheckService();
-  final _studentService = StudentService();
+  final _studentService = StudentService.instance;
 
   late TabController _tab;
   bool _loading = true;
   bool _saving  = false;
+  bool _autosaving = false;
 
   List<CopyStatus> _statuses = [];
 
@@ -615,6 +618,19 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
     });
   }
 
+  Future<void> _autosave() async {
+    setState(() => _autosaving = true);
+    try {
+      await _service.saveStatuses(widget.check.id, _statuses);
+    } catch (e) {
+      AppLogger.e('CopyCheckingScreen', 'Autosave draft failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _autosaving = false);
+      }
+    }
+  }
+
   Future<void> _saveAll() async {
     setState(() => _saving = true);
     await _service.saveStatuses(widget.check.id, _statuses);
@@ -635,6 +651,7 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
         _statuses[idx] = _statuses[idx].copyWith(status: status);
       }
     });
+    _autosave();
   }
 
   void _checkAll() {
@@ -643,25 +660,24 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
           .map((s) => s.copyWith(status: 'checked'))
           .toList();
     });
+    _autosave();
   }
 
   Future<void> _call(String phone) async {
     if (phone.isEmpty) return;
-    final uri = Uri.parse('tel:$phone');
+    final uri = Uri(scheme: 'tel', path: phone);
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
   Future<void> _whatsapp(CopyStatus s) async {
     if (s.guardianPhone.isEmpty) return;
-    final msg = Uri.encodeComponent(
-      'Dear Parent, ${s.studentName}\'s copy was '
+    final msg = 'Dear Parent, ${s.studentName}\'s copy was '
       '${s.status == "not_done" ? "not submitted" : "incomplete"} '
       'for ${widget.check.subject} on '
       '${widget.check.checkDate.day}/${widget.check.checkDate.month}/'
       '${widget.check.checkDate.year}. '
-      'Please ensure it is completed by the next class.',
-    );
-    final uri = Uri.parse('https://wa.me/${s.guardianPhone}?text=$msg');
+      'Please ensure it is completed by the next class.';
+    final uri = PhoneUtils.whatsAppUri(s.guardianPhone, text: msg);
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
@@ -690,6 +706,16 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
           ],
         ),
         actions: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_autosaving)
+                const Icon(Icons.cloud_sync, color: Colors.white70, size: 20)
+              else
+                const Icon(Icons.cloud_done_outlined, color: Colors.white38, size: 20),
+              const SizedBox(width: 8),
+            ],
+          ),
           if (_saving)
             const Padding(
               padding: EdgeInsets.all(14),

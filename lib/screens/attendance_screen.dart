@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -48,7 +49,7 @@ class AttendanceScreen extends StatefulWidget {
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
-  final _service      = StudentService();
+  final _service      = StudentService.instance;
   final _offlineQueue = OfflineQueueService();
   final _connectivity = Connectivity();
   StreamSubscription<List<ConnectivityResult>>? _connectSub;
@@ -64,6 +65,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool   _dirty          = false;
   bool   _isOnline       = true;   // current connectivity status
   int    _pendingCount   = 0;      // items waiting to sync
+  int    _classPendingCount = 0;
   bool   _alreadySaved   = false; // today's attendance doc exists
   bool   _isMarking      = false; // user is actively marking attendance
   bool   _noAssignment   = false; // teacher has no assigned class/section
@@ -90,6 +92,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   // Feedback settings
   bool _soundEnabled = true;
   bool _vibrationEnabled = true;
+  bool _autoMarkPresent = false;
 
   // Pager & Stats
   final PageController _pageController = PageController();
@@ -144,6 +147,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       setState(() {
         _soundEnabled = prefs.getBool('att_sound_enabled') ?? true;
         _vibrationEnabled = prefs.getBool('att_vibration_enabled') ?? true;
+        _autoMarkPresent = prefs.getBool('attendance_auto_mark_present') ?? false;
       });
     }
   }
@@ -157,6 +161,63 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
+  void _showSettingsDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Attendance Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                title: const Text('Auto-Mark Present'),
+                subtitle: const Text('Automatically mark student Present when swiping past them if unmarked'),
+                value: _autoMarkPresent,
+                activeColor: AppTheme.primary,
+                onChanged: (val) async {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('attendance_auto_mark_present', val);
+                  setS(() => _autoMarkPresent = val);
+                  setState(() => _autoMarkPresent = val);
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Sound Feedback'),
+                value: _soundEnabled,
+                activeColor: AppTheme.primary,
+                onChanged: (val) async {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('att_sound_enabled', val);
+                  setS(() => _soundEnabled = val);
+                  setState(() => _soundEnabled = val);
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Vibration Feedback'),
+                value: _vibrationEnabled,
+                activeColor: AppTheme.primary,
+                onChanged: (val) async {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('att_vibration_enabled', val);
+                  setS(() => _vibrationEnabled = val);
+                  setState(() => _vibrationEnabled = val);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _connectSub?.cancel();
@@ -165,17 +226,31 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     super.dispose();
   }
 
+  Future<void> _updatePendingCounts() async {
+    final pending = await _offlineQueue.pendingCount();
+    final counts = await _offlineQueue.pendingCountsByClass();
+    final classPending = counts[_attendanceKey] ?? 0;
+    if (mounted) {
+      setState(() {
+        _pendingCount = pending;
+        _classPendingCount = classPending;
+      });
+    }
+  }
+
   Future<void> _checkConnectivity() async {
     final results = await _connectivity.checkConnectivity();
     final online  = results.any((r) => r != ConnectivityResult.none);
-    final pending = await _offlineQueue.pendingCount();
+    await _updatePendingCounts();
     if (!mounted) return;
     setState(() {
       _isOnline     = online;
-      _pendingCount = pending;
     });
     // Auto-sync if we just came online
-    if (online && pending > 0) _syncOfflineQueue();
+    if (online) {
+      if (_pendingCount > 0) _syncOfflineQueue();
+      _retryFailedNotifications();
+    }
   }
 
   void _onConnectivityChanged(List<ConnectivityResult> results) async {
@@ -185,6 +260,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() => _isOnline = online);
     // Coming back online → auto-sync
     if (online && wasOffline) {
+      _retryFailedNotifications();
       final synced = await _syncOfflineQueue();
       if (synced > 0 && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -200,12 +276,63 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<int> _syncOfflineQueue() async {
     final synced = await _offlineQueue.syncAll();
-    final pending = await _offlineQueue.pendingCount();
-    if (!mounted) return synced;
-    setState(() {
-      _pendingCount  = pending;
-    });
+    await _updatePendingCounts();
     return synced;
+  }
+
+  Future<void> _queueFailedNotification({
+    required String className,
+    required int roll,
+    required String studentName,
+    required String status,
+    required String? admissionId,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('failed_notifications') ?? [];
+      final item = {
+        'className': className,
+        'roll': roll,
+        'studentName': studentName,
+        'status': status,
+        'admissionId': admissionId,
+      };
+      list.add(jsonEncode(item));
+      await prefs.setStringList('failed_notifications', list);
+    } catch (e, st) {
+      AppLogger.e('AttendanceScreen', 'Failed to queue notification', e, st);
+    }
+  }
+
+  Future<void> _retryFailedNotifications() async {
+    try {
+      final results = await _connectivity.checkConnectivity();
+      final online  = results.any((r) => r != ConnectivityResult.none);
+      if (!online) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('failed_notifications') ?? [];
+      if (list.isEmpty) return;
+
+      final remaining = <String>[];
+      for (final itemStr in list) {
+        try {
+          final item = jsonDecode(itemStr) as Map<String, dynamic>;
+          await NotificationService().addAbsenceNotice(
+            className:   item['className'] as String,
+            roll:        item['roll'] as int,
+            studentName: item['studentName'] as String,
+            status:      item['status'] as String,
+            admissionId: item['admissionId'] as String?,
+          );
+        } catch (_) {
+          remaining.add(itemStr);
+        }
+      }
+      await prefs.setStringList('failed_notifications', remaining);
+    } catch (e, st) {
+      AppLogger.e('AttendanceScreen', 'Failed retrying notifications', e, st);
+    }
   }
 
   Future<void> _load() async {
@@ -215,7 +342,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final session   = await AuthService().getSession();
     final teacherId = session?['teacherId'] as String?;
     if (teacherId != null) {
-      final teacher         = await TimetableService().getTeacherById(id: teacherId);
+      final teacher         = await TimetableService.instance.getTeacherById(id: teacherId);
       final assignedClass   = teacher?.classTeacherOf ?? '';
       final assignedSection = teacher?.section ?? '';
       if (assignedClass.isEmpty || assignedSection.isEmpty) {
@@ -278,7 +405,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       }
     }
 
-    final pending = await _offlineQueue.pendingCount();
+    await _updatePendingCounts();
 
     // Debug: verify section correctness before committing to state
     AppLogger.d('Attendance', 'Teacher: (id=$_teacherId)');
@@ -297,7 +424,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (!mounted) return;
     setState(() {
       _students     = students;
-      _pendingCount = pending;
       _alreadySaved = saved.isNotEmpty;
       for (final s in students) {
         // Initial state is unmarked ('') so counter starts at 0
@@ -424,8 +550,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     if (!online) {
       await _offlineQueue.enqueue(className: _attendanceKey, attendance: toSave, date: widget.date);
-      final pending = await _offlineQueue.pendingCount();
-      if (mounted) setState(() { _pendingCount = pending; _dirty = false; });
+      await _updatePendingCounts();
+      if (mounted) setState(() { _dirty = false; });
       return;
     }
 
@@ -449,6 +575,67 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       }
       return;
     }
+
+    final unmarkedCount = _students.where((s) => _attendance[s.roll] == '').length;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Confirm Attendance Save', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Please verify the attendance summary before saving:'),
+            const SizedBox(height: 16),
+            _SummaryRow('Total Students', '$_total', Colors.grey),
+            _SummaryRow('Present', '$_present', AppTheme.success),
+            _SummaryRow('On Leave', '$_leave', AppTheme.warning),
+            _SummaryRow('Absent', '$_absent', AppTheme.danger),
+            if (unmarkedCount > 0) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Warning: $unmarkedCount student(s) remain unmarked.',
+                        style: TextStyle(color: Colors.amber.shade900, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
     // Guard against double-taps / re-entry while a save is already running.
     if (_saving) return;
     setState(() => _saving = true);
@@ -473,10 +660,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           // save confirmation, so each is awaited inside its own guard. Notify
           // ONLY students whose status actually changed to Absent/Leave since
           // the last save, so re-saving doesn't duplicate alerts (#74).
+          // Issue 19: also guard on consent — absence notifications must NOT be
+          // sent for students whose guardian has not given data-processing consent.
           for (final s in _students) {
             final status = _attendance[s.roll];
             final wasStatus = _savedStatuses[s.roll];
             if ((status == 'Absent' || status == 'Leave') && status != wasStatus) {
+              // Skip if consent has been loaded but this student's admissionId
+              // is not in the consented set.
+              if (_consentLoaded && !_consentedIds.contains(s.admissionId)) continue;
               try {
                 await NotificationService().addAbsenceNotice(
                   className:   _className,
@@ -485,7 +677,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   status:      status!,
                   admissionId: s.admissionId,
                 );
-              } catch (_) {/* non-fatal */}
+              } catch (_) {
+                await _queueFailedNotification(
+                  className:   _className,
+                  roll:        s.roll,
+                  studentName: s.name,
+                  status:      status!,
+                  admissionId: s.admissionId,
+                );
+              }
             }
           }
           // Update the persisted snapshot to what we just saved.
@@ -516,11 +716,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           // marks were lost. Fall back to the offline queue so the marks are
           // preserved and will sync later, and tell the teacher what happened.
           await _offlineQueue.enqueue(className: _attendanceKey, attendance: toSave, date: widget.date);
-          final pending = await _offlineQueue.pendingCount();
+          await _updatePendingCounts();
           if (!mounted) return;
           setState(() {
             _dirty        = false;
-            _pendingCount = pending;
             _alreadySaved = true;
             _isMarking    = false;
           });
@@ -531,11 +730,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
       // Offline from the start — queue locally.
       await _offlineQueue.enqueue(className: _attendanceKey, attendance: toSave, date: widget.date);
-      final pending = await _offlineQueue.pendingCount();
+      await _updatePendingCounts();
       if (!mounted) return;
       setState(() {
         _dirty        = false;
-        _pendingCount = pending;
         _alreadySaved = true;
         _isMarking    = false;
       });
@@ -696,6 +894,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             onPressed: _showSearchRollDialog,
             tooltip: context.tr('searchByRoll'),
           ),
+        IconButton(
+          icon: const Icon(Icons.settings, color: Colors.white),
+          onPressed: _showSettingsDialog,
+          tooltip: 'Attendance Settings',
+        ),
       ],
     );
   }
@@ -720,6 +923,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               if (roll != null) {
                 final idx = _students.indexWhere((s) => s.roll == roll);
                 if (idx != -1) {
+                  FocusScope.of(context).unfocus();
                   Navigator.pop(ctx);
                   _pageController.animateToPage(
                     idx,
@@ -760,10 +964,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           // ── Connectivity / Sync Banners ───────────────────────────────────
           if (!_isOnline)
             _banner(Colors.orange.shade700, Icons.cloud_off_outlined, 'Offline — saving locally')
-          else if (_pendingCount > 0)
+          else if (_classPendingCount > 0)
             GestureDetector(
               onTap: _syncOfflineQueue,
-              child: _banner(AppTheme.primaryMid, Icons.sync_outlined, '$_pendingCount offline records — Tap to sync'),
+              child: _banner(AppTheme.primaryMid, Icons.sync_outlined, '$_classPendingCount offline record${_classPendingCount > 1 ? "s" : ""} for this class — Tap to sync'),
             ),
 
           // ── Main Student Section: Vertical Swipe Card System ──────────────
@@ -777,7 +981,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               itemCount: _students.length + 1, // +1 for the Summary Screen
               onPageChanged: (i) {
                 // If moving forward, mark the student we just FINISHED as Present (if unmarked)
-                if (i > _currentIndex && _currentIndex < _students.length) {
+                if (_autoMarkPresent && i > _currentIndex && _currentIndex < _students.length) {
                   final prevStudent = _students[_currentIndex];
                   if (_attendance[prevStudent.roll] == '') {
                     _setStatus(prevStudent.roll, 'Present');
@@ -981,7 +1185,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 ),
               ]),
             )
-          else if (_pendingCount > 0)
+          else if (_classPendingCount > 0)
             GestureDetector(
               onTap: () async {
                 final synced = await _syncOfflineQueue();
@@ -1005,7 +1209,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '$_pendingCount offline record${_pendingCount > 1 ? "s" : ""} waiting — Tap to sync',
+                      '$_classPendingCount offline record${_classPendingCount > 1 ? "s" : ""} for this class waiting — Tap to sync',
                       style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
@@ -1580,13 +1784,13 @@ class _AttendanceSummaryCard extends StatelessWidget {
             Text(context.tr('attendanceDone'), 
                 style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.0)),
             const SizedBox(height: 40),
-            _SummaryItem('Total Students', '$total'),
+            _SummaryItem(context.tr('totalStudents'), '$total'),
             const Divider(color: Colors.white24, height: 24),
-            _SummaryItem('Present', '$present'),
+            _SummaryItem(context.tr('presentLabel'), '$present'),
             const Divider(color: Colors.white24, height: 24),
-            _SummaryItem('Absent', '$absent'),
+            _SummaryItem(context.tr('absentLabel'), '$absent'),
             const Divider(color: Colors.white24, height: 24),
-            _SummaryItem('On Leave', '$leave'),
+            _SummaryItem(context.tr('leaveLabel'), '$leave'),
             const SizedBox(height: 48),
             
             ElevatedButton(
@@ -1771,8 +1975,7 @@ class _WhatsAppNotifySheet extends StatelessWidget {
     // Normalise to a wa.me-ready number (digits + country code, #62).
     final digits = PhoneUtils.whatsAppNumber(s.phone);
     if (digits.isEmpty) return;
-    final url = Uri.parse(
-        'https://wa.me/$digits?text=${Uri.encodeComponent(message)}');
+    final url = PhoneUtils.whatsAppUri(s.phone, text: message);
     try {
       final launched = await canLaunchUrl(url) &&
           await launchUrl(url, mode: LaunchMode.externalApplication);

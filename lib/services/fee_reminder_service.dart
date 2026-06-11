@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/student.dart';
+import '../utils/phone_utils.dart';
 import 'auth_service.dart';
 
 /// Describes the current fee reminder state for a student.
@@ -139,9 +140,7 @@ class FeeReminderService {
     final message =
         'Dear Parent,\n\nFee reminder for $studentName.\nAmount: $amtStr\nDue Date: $dateStr\n\nPlease arrange payment at the earliest. Thank you.';
 
-    final cleaned = phone.replaceAll(RegExp(r'\D'), '');
-    final uri = Uri.parse(
-        'https://wa.me/$cleaned?text=${Uri.encodeComponent(message)}');
+    final uri = PhoneUtils.whatsAppUri(phone, text: message);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 

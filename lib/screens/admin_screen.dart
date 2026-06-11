@@ -16,7 +16,7 @@ class AdminScreen extends StatefulWidget {
 }
 
 class _AdminScreenState extends State<AdminScreen> {
-  final _service   = TimetableService();
+  final _service   = TimetableService.instance;
   final _emailCtrl  = TextEditingController();
 
   // Admin can only create Owner accounts — the role is fixed (no picker).

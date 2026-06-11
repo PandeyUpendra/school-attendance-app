@@ -22,7 +22,7 @@ class MarksEntryScreen extends StatefulWidget {
 
 class _MarksEntryScreenState extends State<MarksEntryScreen> {
   final _examService    = ExamService();
-  final _studentService = StudentService();
+  final _studentService = StudentService.instance;
 
   bool _loading = true;
   bool _saving  = false;

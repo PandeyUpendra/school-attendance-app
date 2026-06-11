@@ -21,7 +21,7 @@ class CoordinatorManagementScreen extends StatefulWidget {
 
 class _CoordinatorManagementScreenState
     extends State<CoordinatorManagementScreen> {
-  final _service = TimetableService();
+  final _service = TimetableService.instance;
   final _firestore = FirebaseFirestore.instance;
 
   List<Map<String, dynamic>> _coordinators = [];
@@ -395,7 +395,7 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
     final classes = _selectedClasses.toList();
 
     try {
-      final svc = TimetableService();
+      final svc = TimetableService.instance;
       if (_isEdit) {
         await svc.updateAllowedUser(
           email,

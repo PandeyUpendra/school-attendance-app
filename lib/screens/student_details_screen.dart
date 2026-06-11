@@ -60,7 +60,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
     final isPrincipal = session?['role'] == 'principal';
 
     if (isPrincipal) {
-      final settings = await TimetableService().getSettings();
+      final settings = await TimetableService.instance.getSettings();
       final classesInSchool = List<String>.from(settings['classes'] ?? [])..sort();
 
       final academicDoc = await FirebaseFirestore.instance
@@ -71,7 +71,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
           .get();
       final sectionsInSchool = List<String>.from(academicDoc.data()?['sections'] as List? ?? ['A'])..sort();
 
-      final teachers = await TimetableService().getTeachers();
+      final teachers = await TimetableService.instance.getTeachers();
       final classTeachers = teachers
           .where((t) => t.isClassTeacher && t.classTeacherOf != null)
           .toList();
@@ -88,7 +88,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
           }
         }
 
-        final students = await StudentService().getStudentsByClass(
+        final students = await StudentService.instance.getStudentsByClass(
           className: cls,
           section:   sec,
         );
@@ -117,7 +117,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
       return;
     }
 
-    final teachers = await TimetableService().getTeachers();
+    final teachers = await TimetableService.instance.getTeachers();
     final classTeachers = teachers
         .where((t) => t.isClassTeacher && t.classTeacherOf != null)
         .toList();
@@ -136,7 +136,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
     // Fetch student counts for every class teacher in parallel
     final counts = <String, int>{};
     await Future.wait(classTeachers.map((t) async {
-      final students = await StudentService().getStudentsByClass(
+      final students = await StudentService.instance.getStudentsByClass(
         className: t.classTeacherOf!,
         section:   t.section,
         teacherId: t.id,

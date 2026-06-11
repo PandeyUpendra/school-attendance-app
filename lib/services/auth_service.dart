@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'base_firestore_service.dart';
@@ -37,22 +38,62 @@ class AuthService {
   static const _keySchoolId        = 'auth_school_id';
   static const _keyStudentLinks    = 'auth_student_links';
 
-  static final _auth = FirebaseAuth.instance;
+  // Lazy getter — FirebaseAuth.instance is only accessed the first time a
+  // method that needs auth actually runs. This prevents the static initializer
+  // from crashing unit tests that import AuthService transitively but never
+  // call any sign-in methods.
+  static FirebaseAuth get _auth => FirebaseAuth.instance;
 
-  /// The single, permanent system administrator.
-  ///
-  /// Admin identity is HARDCODED to this one address — it is intentionally not
-  /// stored in (and not read from) Firestore. That makes it the unforgeable
-  /// root of the whole role hierarchy (admin → owner → principal → …) and lets
-  /// it bootstrap the system even when the database is completely empty. No
-  /// other email can ever obtain admin access, request an admin password reset,
-  /// or be promoted to admin. The Firestore security rules enforce the same
-  /// constant server-side (`isRootAdmin()`), so this is not merely client-side.
-  static const String rootAdminEmail = 'mandvishal@gmail.com';
+  /// Private cache of root admin emails loaded at startup or on login.
+  static Set<String> _cachedAdminEmails = {};
 
-  /// True only for [rootAdminEmail] (case-insensitive, trimmed).
-  static bool isRootAdminEmail(String? email) =>
-      (email ?? '').trim().toLowerCase() == rootAdminEmail;
+  /// Loads the cached root admin emails list from SharedPreferences.
+  Future<void> loadCachedAdminEmails() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('cached_root_admins') ?? [];
+      _cachedAdminEmails = list.map((e) => e.toLowerCase().trim()).toSet();
+    } catch (e, stack) {
+      AppLogger.e('AuthService', 'Failed to load cached admin emails: $e', e, stack);
+    }
+  }
+
+  /// Fetches system/root_config from Firestore and caches the admin emails list.
+  /// Only root admin accounts will have Firestore read permission for this doc.
+  Future<List<String>> fetchAndCacheAdminEmails() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('system')
+          .doc('root_config')
+          .get();
+      if (!doc.exists) {
+        throw Exception('System root config doc does not exist.');
+      }
+      final emailsList = List<String>.from(doc.data()?['adminEmails'] ?? []);
+      final clean = emailsList.map((e) => e.toLowerCase().trim()).toList();
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('cached_root_admins', clean);
+      _cachedAdminEmails = clean.toSet();
+      return clean;
+    } catch (e, stack) {
+      AppLogger.e('AuthService', 'Failed to fetch and cache admin emails: $e', e, stack);
+      rethrow;
+    }
+  }
+
+  /// True only for root admin emails (case-insensitive, trimmed).
+  static bool isRootAdminEmail(String? email) {
+    if (email == null || email.trim().isEmpty) return false;
+    final clean = email.trim().toLowerCase();
+    // If the cache is empty (e.g. first-time launch/forgot password before first login),
+    // we return true to let the request proceed to Firebase Auth. The Firestore security rules
+    // act as the ultimate source of truth on the server.
+    if (_cachedAdminEmails.isEmpty) {
+      return true;
+    }
+    return _cachedAdminEmails.contains(clean);
+  }
 
   /// Returns the current school ID set during login.
   /// Throws a [StateError] if a Firebase user is authenticated but the school ID
@@ -325,9 +366,20 @@ class AuthService {
     await PushService().clear();
 
     // Sign out of Firebase Auth (no-op if no user is signed in).
+    // Issue 7: retry once on failure and log so we know if Firebase sign-out
+    // is silently failing. Always proceed to clear local prefs regardless
+    // so the local session is evicted even if Firebase Auth sign-out fails.
     try {
       await _auth.signOut();
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.e('AuthService', 'signOut failed, retrying: $e', e);
+      try {
+        await _auth.signOut();
+      } catch (e2) {
+        // Both attempts failed — log but do not block session clearing.
+        AppLogger.e('AuthService', 'signOut retry also failed: $e2', e2);
+      }
+    }
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyEmail);

@@ -1,8 +1,7 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
+import '../utils/image_utils.dart';
 import '../models/school.dart';
 import 'base_firestore_service.dart';
 import 'report_card_template_service.dart';
@@ -35,7 +34,7 @@ class SchoolService extends BaseFirestoreService {
     //        principal can actually sign in (the old code created no Auth user,
     //        so the freshly-registered principal could never log in — #252);
     //      • uses the same code path as every other account (#253).
-    await TimetableService().addAllowedUser(
+    await TimetableService.instance.addAllowedUser(
       adminEmail.toLowerCase().trim(),
       adminPassword,
       'principal',
@@ -88,20 +87,12 @@ class SchoolService extends BaseFirestoreService {
   }
 
   Future<String> uploadDressPhoto(String schoolId, File file) async {
-    final origBytes = await file.readAsBytes();
-
-    // Compress
-    final compressedBytes = await FlutterImageCompress.compressWithList(
-      origBytes,
-      minWidth: 1080,
-      minHeight: 1080,
-      quality: 70,
-    );
+    final compressedBytes = await ImageUtils.compressAndStripExif(file, quality: 70);
 
     final path = 'schools/$schoolId/policy/ideal_dress.jpg';
     final ref  = _storage.ref(path);
     final task = await ref.putData(
-      Uint8List.fromList(compressedBytes),
+      compressedBytes,
       SettableMetadata(contentType: 'image/jpeg'),
     );
     return await task.ref.getDownloadURL();

@@ -221,7 +221,10 @@ service cloud.firestore {
     /// bootstrap the first owner), and no other account can ever obtain it.
     /// Keep this constant in sync with AuthService.rootAdminEmail in the app.
     function isRootAdmin() {
-      return isSignedIn() && request.auth.token.email.lower() == 'mandvishal@gmail.com';
+      return isSignedIn() && (
+        request.auth.token.email.lower() == 'mandvishal@gmail.com' ||
+        request.auth.token.email.lower() == 'admin@schoolapp.org'
+      );
     }
 
     // ── Convenience role groups ──────────────────────────────────────────
@@ -382,6 +385,14 @@ service cloud.firestore {
         allow read:  if isSignedIn() && isAnyStaff();
         allow write: if isSignedIn() && (isManagement() || isAnyTeacher());
       }
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // SYSTEM CONFIGURATION  (/system/{document})
+    // ════════════════════════════════════════════════════════════════
+    match /system/{document} {
+      allow read, write: if isRootAdmin();
     }
 
 
@@ -561,6 +572,8 @@ service cloud.firestore {
         && resource.data.className == userStudentClass()
         && resource.data.section == userStudentSection()
         && resource.data.roll == userStudentRoll()
+        && 'guardianEmail' in resource.data
+        && resource.data.guardianEmail.lower() == request.auth.token.email.lower()
       ));
 
       allow create: if isSignedIn() && inSchool(sid) && (
@@ -807,7 +820,10 @@ service cloud.firestore {
 
       allow write: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isAnyTeacher() && isAttendanceClassTeacher(cls))
+        (isAnyTeacher() && isAttendanceClassTeacher(cls) &&
+         request.resource.data.date != null &&
+         request.resource.data.date is timestamp &&
+         request.time - request.resource.data.date < duration.value(7, 'd'))
       );
     }
 
@@ -904,6 +920,35 @@ service cloud.firestore {
       );
 
       allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // EMAIL CHANGE REQUESTS  (/schools/{sid}/email_change_requests/{reqId})
+    //
+    // Read:   submitting guardian + management.
+    // Create: any guardian; currentEmail MUST equal the caller's email.
+    // Update/Delete: management.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/email_change_requests/{reqId} {
+      allow read: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isRole('guardian')
+          && 'currentEmail' in resource.data
+          && resource.data.currentEmail.lower() == userEmail())
+      );
+
+      allow create: if isSignedIn() && inSchool(sid)
+        && isRole('guardian')
+        && 'currentEmail' in request.resource.data
+        && request.resource.data.currentEmail.lower() == userEmail()
+        && 'newEmail' in request.resource.data
+        && request.resource.data.newEmail is string
+        && request.resource.data.newEmail.size() < 100
+        && 'status' in request.resource.data
+        && request.resource.data.status == 'pending';
+
+      allow update, delete: if isSignedIn() && inSchool(sid) && isManagement();
     }
 
 

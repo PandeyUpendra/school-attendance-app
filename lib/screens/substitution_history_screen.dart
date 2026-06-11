@@ -27,7 +27,7 @@ class _SubstitutionHistoryScreenState
     extends State<SubstitutionHistoryScreen>
     with SingleTickerProviderStateMixin {
   final _histService = SubstitutionHistoryService();
-  final _ttService   = TimetableService();
+  final _ttService   = TimetableService.instance;
 
   late TabController _tab;
 

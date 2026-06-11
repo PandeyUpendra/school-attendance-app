@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/attendance_status.dart';
+import '../utils/school_clock.dart';
 
 /// Central Firestore service. Firestore offline persistence is enabled in
 /// main.dart, so all methods work offline and auto-sync when reconnected.
@@ -338,8 +339,7 @@ class FirestoreService {
     for (int i = days - 1; i >= 0; i--) {
       final day = DateTime(now.year, now.month, now.day)
           .subtract(Duration(days: i));
-      final key =
-          '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+      final key = SchoolClock.dateKey(day);
       result[key] = null;
     }
 

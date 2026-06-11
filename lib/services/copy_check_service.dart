@@ -23,7 +23,7 @@ class CopyCheckService {
 
   /// Returns a list of all unique (className, section, subject) assignments for the teacher.
   Future<List<TeacherAssignment>> getTeacherAssignments(String teacherId) async {
-    final tt = await TimetableService().getTimetable();
+    final tt = await TimetableService.instance.getTimetable();
     final assignments = <TeacherAssignment>{};
 
     for (final clsEntry in tt.entries) {

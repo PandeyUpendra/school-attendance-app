@@ -37,7 +37,7 @@ class DeletedStudentsScreen extends StatelessWidget {
         title: Text(context.tr('deletedStudents')),
       ),
       body: StreamBuilder<List<DeletedStudent>>(
-        stream: StudentService().watchDeletedAndPendingStudents(
+        stream: StudentService.instance.watchDeletedAndPendingStudents(
           className: classNameFilter,
           section: sectionFilter,
         ),

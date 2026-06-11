@@ -25,7 +25,7 @@ class AttendanceCertificateScreen extends StatefulWidget {
 
 class _AttendanceCertificateScreenState
     extends State<AttendanceCertificateScreen> {
-  final _service = StudentService();
+  final _service = StudentService.instance;
 
   // Date range — default: start of current academic year to today
   late DateTime _from;
@@ -66,7 +66,7 @@ class _AttendanceCertificateScreenState
   }
 
   Future<void> _loadSchoolName() async {
-    final settings = await TimetableService().getSettings();
+    final settings = await TimetableService.instance.getSettings();
     final name = settings['schoolName'] as String? ?? '';
     if (!mounted) return;
     if (name.isNotEmpty) setState(() => _schoolName = name);
