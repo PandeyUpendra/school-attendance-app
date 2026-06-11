@@ -386,6 +386,12 @@ service cloud.firestore {
         allow write: if isSignedIn() && (isManagement() || isAnyTeacher());
       }
     }
+// FEE PAYMENTS (/schools/{sid}/fee_payments/{paymentId})
+match /schools/{sid}/fee_payments/{paymentId} {
+  allow read: if isSignedIn() && (isAnyStaff() || (isRole('guardian') && resource.data.studentId == guardianStudentId())) && resource.data.schoolId == userSchoolId();
+  allow create: if isSignedIn() && (isManagement() || (isRole('guardian') && request.resource.data.studentId == guardianStudentId())) && request.resource.data.schoolId == userSchoolId();
+  allow update, delete: if isSignedIn() && isManagement() && request.resource.data.schoolId == userSchoolId();
+}
 
 
     // ════════════════════════════════════════════════════════════════
@@ -550,9 +556,11 @@ service cloud.firestore {
       // covers any depth below /classes/{classId}/. Staff-only — guardians
       // get their child-scoped views via the existing top-level rules
       // (/schools/{sid}/attendance/{cls} etc.).
-      match /{sub=**} {
-        allow read, write: if isSignedIn() && inSchool(sid) && isAnyStaff();
-      }
+        match /{sub=**} {
+          allow read: if isSignedIn() && inSchool(sid) && isAnyStaff();
+          // Write: management or class teacher for attendance docs
+          allow write: if isSignedIn() && inSchool(sid) && (isManagement() || (isAnyTeacher() && isAttendanceClassTeacher(request.resource.id)));
+        }
     }
 
 
@@ -947,6 +955,35 @@ service cloud.firestore {
         && request.resource.data.newEmail.size() < 100
         && 'status' in request.resource.data
         && request.resource.data.status == 'pending';
+
+      allow update, delete: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // ACCOUNT DELETION REQUESTS (/schools/{sid}/account_deletion_requests/{reqId})
+    //
+    // Google Play requires that signed-in users can INITIATE deletion of
+    // their account from inside the app. Accounts here are provisioned by
+    // the school (the data controller), so self-serve hard-delete is not
+    // appropriate; instead any signed-in member files a request that school
+    // management processes via the existing deleteAccount cascade (A4).
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/account_deletion_requests/{reqId} {
+      allow read: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        ('email' in resource.data && resource.data.email.lower() == userEmail())
+      );
+
+      // Any signed-in member of the school may request deletion of THEIR OWN
+      // account only — the email must match the caller's token.
+      allow create: if isSignedIn() && inSchool(sid)
+        && 'email' in request.resource.data
+        && request.resource.data.email.lower() == userEmail()
+        && 'status' in request.resource.data
+        && request.resource.data.status == 'pending'
+        && (!('reason' in request.resource.data)
+            || (request.resource.data.reason is string
+                && request.resource.data.reason.size() < 500));
 
       allow update, delete: if isSignedIn() && inSchool(sid) && isManagement();
     }

@@ -32,7 +32,23 @@ class FirestoreService {
     final data = {
       for (final e in attendance.entries) e.key.toString(): e.value.code,
     };
-    await _attendanceCol(schoolId, classId).doc(date).set(data);
+    final docRef = _attendanceCol(schoolId, classId).doc(date);
+    const int maxAttempts = 3;
+    int attempt = 0;
+    while (attempt < maxAttempts) {
+      try {
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          transaction.set(docRef, data);
+        });
+        break;
+      } catch (e) {
+        attempt++;
+        if (attempt >= maxAttempts) {
+          rethrow;
+        }
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+    }
   }
 
   /// Returns attendance with backward-compatible bool → AttendanceStatus parsing.

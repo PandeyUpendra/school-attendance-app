@@ -833,23 +833,34 @@ class StudentService extends BaseFirestoreService {
       reason: 'principal-approved deletion',
     );
 
-    // 6. Revoke guardian login (best-effort — never block the deletion on it).
+    // 6. Revoke guardian login (best-effort). Retry up to 3 times in case of transient failures.
     final guardianEmail = student.guardianEmail;
     if (guardianEmail != null && guardianEmail.trim().isNotEmpty) {
-      try {
-        final svc = TimetableService.instance;
-        await svc.removeGuardianLink(
-          email: guardianEmail,
-          studentClass: className,
-          studentRoll: roll,
-        );
-        final remaining = await svc.getGuardianLinks(guardianEmail);
-        if (remaining == null || remaining.isEmpty) {
-          await svc.removeAllowedUser(guardianEmail);
+      const int maxAttempts = 3;
+      int attempt = 0;
+      bool success = false;
+      while (attempt < maxAttempts && !success) {
+        try {
+          final svc = TimetableService.instance;
+          await svc.removeGuardianLink(
+            email: guardianEmail,
+            studentClass: className,
+            studentRoll: roll,
+          );
+          final remaining = await svc.getGuardianLinks(guardianEmail);
+          if (remaining == null || remaining.isEmpty) {
+            await svc.removeAllowedUser(guardianEmail);
+          }
+          success = true;
+        } catch (e) {
+          attempt++;
+          AppLogger.w('StudentService', 'guardian login revoke attempt $attempt failed: $e');
+          if (attempt < maxAttempts) {
+            await Future.delayed(const Duration(milliseconds: 500));
+          } else {
+            AppLogger.e('StudentService', 'guardian login revoke failed after $maxAttempts attempts (non-fatal): $e', e);
+          }
         }
-      } catch (e) {
-        AppLogger.e('StudentService',
-            'guardian login revoke failed (non-fatal): $e', e);
       }
     }
   }

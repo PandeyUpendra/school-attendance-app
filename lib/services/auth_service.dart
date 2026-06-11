@@ -442,4 +442,42 @@ class AuthService {
         return 'Authentication error. Please try again.';
     }
   }
+
+  // ── Self-service account deletion (A4 / Google Play requirement) ───────────
+
+  /// Files a deletion request for the CALLER's own account at
+  /// `schools/{sid}/account_deletion_requests/{email}`. School management
+  /// processes the request via the existing deleteAccount cascade — accounts
+  /// are school-provisioned, so deletion is approved by the data controller
+  /// rather than executed self-serve.
+  ///
+  /// Returns true when a new request was filed, false when one is already
+  /// pending. Throws on permission/network failure so the UI can show an error.
+  Future<bool> requestAccountDeletion({String? reason}) async {
+    final email = _auth.currentUser?.email?.toLowerCase().trim();
+    if (email == null || email.isEmpty) {
+      throw StateError('No signed-in user to request deletion for.');
+    }
+    final sid = AuthService.currentSchoolId;
+    // Doc ID = email → idempotent: one open request per account, and the
+    // existence check is a plain get() permitted by the own-email read rule.
+    final ref = FirebaseFirestore.instance
+        .collection('schools')
+        .doc(sid)
+        .collection('account_deletion_requests')
+        .doc(email);
+    final existing = await ref.get();
+    if (existing.exists) return false;
+
+    final session = await getSession();
+    await ref.set({
+      'email':       email,
+      'role':        session?['role'] ?? '',
+      'name':        session?['name'] ?? '',
+      'status':      'pending',
+      if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      'requestedAt': FieldValue.serverTimestamp(),
+    });
+    return true;
+  }
 }

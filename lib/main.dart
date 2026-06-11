@@ -27,7 +27,7 @@ import 'services/auth_service.dart';
 import 'services/base_firestore_service.dart';
 import 'services/birthday_service.dart';
 import 'services/timetable_service.dart';
-
+final RouteObserver<PageRoute<dynamic>> routeObserver = RouteObserver<PageRoute<dynamic>>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -170,6 +170,7 @@ class _SchoolAppState extends State<SchoolApp> with WidgetsBindingObserver {
             return MaterialApp(
               navigatorKey: rootNavigatorKey,
               debugShowCheckedModeBanner: false,
+              navigatorObservers: [routeObserver],
               title: settings.schoolName == 'My School' ? 'School App' : settings.schoolName,
               theme: AppTheme.light,
               locale: localeProvider.locale,

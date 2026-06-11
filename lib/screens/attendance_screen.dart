@@ -26,6 +26,7 @@ import '../utils/app_logger.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/student_remark.dart';
 import '../widgets/refreshable_data.dart';
+import '../main.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  AttendanceScreen
@@ -48,7 +49,7 @@ class AttendanceScreen extends StatefulWidget {
   State<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
-class _AttendanceScreenState extends State<AttendanceScreen> {
+class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
   final _service      = StudentService.instance;
   final _offlineQueue = OfflineQueueService();
   final _connectivity = Connectivity();
@@ -132,7 +133,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     _connectSub = _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
     _load();
   }
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
 
+  @override
+  void didPopNext() {
+    // Refresh when returning from a pushed route (e.g., AddStudentScreen)
+    _load();
+  }
   /// Determines whether the viewer is management (exempt from the edit lock, #34).
   Future<void> _loadRole() async {
     final session = await AuthService().getSession();
@@ -220,6 +231,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   @override
   void dispose() {
+    // Unsubscribe from route observer
+    routeObserver.unsubscribe(this);
     _connectSub?.cancel();
     _studentSub?.cancel();
     _pageController.dispose();

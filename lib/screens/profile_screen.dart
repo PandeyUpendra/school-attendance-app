@@ -207,6 +207,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _section(context.tr('preferences')),
                 _languageRow(context),
 
+                // ── Privacy: account deletion (A4 / Play requirement) ─────
+                _section(context.tr('privacySection')),
+                _deleteAccountRow(context),
+
                 const SizedBox(height: 24),
 
                 // ── Logout Button ─────────────────────────────────────────
@@ -272,6 +276,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ]),
       ),
     );
+  }
+
+  /// Self-service account-deletion request. Every signed-in role can INITIATE
+  /// deletion here (Google Play requirement); the school processes the request
+  /// through the existing deleteAccount cascade.
+  Widget _deleteAccountRow(BuildContext context) => InkWell(
+        onTap: _requestAccountDeletion,
+        child: Container(
+          color: AppTheme.surface,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(children: [
+            Icon(Icons.delete_forever_outlined,
+                size: 20, color: Colors.red.shade600),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.tr('deleteMyAccount'),
+                        style: TextStyle(
+                            fontSize: 15, color: Colors.red.shade600)),
+                    Text(context.tr('deleteMyAccountSubtitle'),
+                        style: const TextStyle(
+                            fontSize: 11, color: AppTheme.textSecondary)),
+                  ]),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.grey),
+          ]),
+        ),
+      );
+
+  Future<void> _requestAccountDeletion() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(ctx.tr('deleteAccountConfirmTitle')),
+        content: Text(ctx.tr('deleteAccountConfirmBody')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(ctx.tr('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              ctx.tr('requestDeletion'),
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    String message;
+    try {
+      final created = await AuthService().requestAccountDeletion();
+      if (!mounted) return;
+      message = created
+          ? context.tr('deletionRequestSent')
+          : context.tr('deletionRequestPending');
+    } catch (e, st) {
+      AppLogger.e('ProfileScreen', 'Deletion request failed', e, st);
+      if (!mounted) return;
+      message = context.tr('deletionRequestFailed');
+    }
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _pickLanguage(BuildContext context) async {
