@@ -1262,3 +1262,262 @@ exports.backfillStudentAttendance = onCall(
 );
 
 
+// ═══════════════════════════════════════════════════════════════════════════
+// FEES — server-authoritative payment recording (M3)
+//
+// These callables own the receipt-number counter, the overpayment cap, and the
+// cached totals server-side (Admin SDK) so they cannot be bypassed by a direct
+// client write that forges receiptNo / totalPaidPaise / amount or skips the cap.
+// They are a faithful port of FeeService.addPayment / deletePayment.
+//
+// ADDITIVE FOR NOW: nothing is wired to these yet and the fee_payments rules
+// still allow management writes, so live fee collection is unchanged. CUTOVER
+// (separate, staged deploy) = (1) deploy these, (2) point FeeService at them,
+// (3) lock the fee_payments leaf-doc writes to Admin-SDK-only in firestore.rules.
+// Do those three together / in that order or collection breaks.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Management roles permitted to record/reverse fees (mirrors FeeService callers).
+const FEE_ROLES = ["admin", "owner", "ownerPrincipal", "principal", "coordinator"];
+const ALLOWED_FEE_MODES = ["Cash", "UPI", "Bank", "Cheque"];
+const MONTH_INDEX = {
+  January: 1, February: 2, March: 3, April: 4, May: 5, June: 6,
+  July: 7, August: 8, September: 9, October: 10, November: 11, December: 12,
+};
+
+/** Mask 13–19 digit card/account numbers in free text (port of
+ *  FeeService.maskSensitiveInfo). */
+function maskCardNumbers(input) {
+  if (input == null) return input;
+  return String(input).replace(/\b(?:\d[ -]*?){13,19}\b/g, (match) => {
+    const clean = match.replace(/\D/g, "");
+    return (clean.length >= 13 && clean.length <= 19)
+      ? `****-****-****-${clean.slice(-4)}`
+      : match;
+  });
+}
+
+/** Resolve + authorize a fee caller (management of the same school; admin is
+ *  cross-school). Returns { callerEmail, callerRole, callerSchoolId }. */
+async function authorizeFeeCaller(db, request, schoolId) {
+  if (!request.auth || !request.auth.token || !request.auth.token.email) {
+    throw new HttpsError("unauthenticated", "Sign in required.");
+  }
+  const callerEmail = String(request.auth.token.email).toLowerCase();
+  const snap = await db.collection("allowed_users").doc(callerEmail).get();
+  const callerRole = resolveCallerRole(callerEmail, snap);
+  const callerSchoolId = snap.exists ? snap.get("schoolId") : null;
+  if (!FEE_ROLES.includes(callerRole)) {
+    throw new HttpsError("permission-denied", "You are not allowed to record fees.");
+  }
+  if (callerRole !== "admin" && callerSchoolId !== schoolId) {
+    throw new HttpsError("permission-denied", "You can only record fees for your own school.");
+  }
+  return { callerEmail, callerRole, callerSchoolId };
+}
+
+/**
+ * Callable: recordPayment({ schoolId, className, roll, payment, clientTxnId,
+ *                           enforceCap = true, studentId })
+ *
+ * `payment` is the client-built body MINUS any server-owned field: the function
+ * IGNORES client-supplied receiptNo / totalPaidPaise and stamps its own. Returns
+ * { ok, receiptNo }.
+ */
+exports.recordPayment = onCall(
+  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  async (request) => {
+    const db = admin.firestore();
+    const d = request.data || {};
+    const schoolId = String(d.schoolId || "").trim();
+    const className = String(d.className || "").trim();
+    const roll = Number.parseInt(d.roll, 10);
+    const enforceCap = d.enforceCap !== false; // default true
+    const clientTxnId = d.clientTxnId ? String(d.clientTxnId) : "";
+    const studentId = d.studentId ? String(d.studentId) : "";
+    const p = (d.payment && typeof d.payment === "object") ? d.payment : {};
+
+    if (!schoolId || !className || !Number.isInteger(roll) || roll <= 0) {
+      throw new HttpsError("invalid-argument", "schoolId, className and a valid roll are required.");
+    }
+    const amountPaise = Number.parseInt(p.amountPaise, 10);
+    if (!Number.isInteger(amountPaise) || amountPaise <= 0) {
+      throw new HttpsError("invalid-argument", "A positive integer amountPaise is required.");
+    }
+    const mode = String(p.mode || "");
+    if (!ALLOWED_FEE_MODES.includes(mode)) {
+      throw new HttpsError("invalid-argument", `Invalid payment mode "${mode}".`);
+    }
+    const installmentName = p.installmentName ? String(p.installmentName) : "";
+    const note = (p.note != null) ? maskCardNumbers(String(p.note)) : null;
+
+    const { callerEmail } = await authorizeFeeCaller(db, request, schoolId);
+
+    const classKey = className.replace(/ /g, "_");
+    const schoolRef = db.collection("schools").doc(schoolId);
+    const studentFeeRef = schoolRef.collection("fee_payments").doc(classKey)
+      .collection("students").doc(String(roll));
+    const paymentsCol = studentFeeRef.collection("payments");
+    const ref = clientTxnId ? paymentsCol.doc(clientTxnId) : paymentsCol.doc();
+    const counterRef = schoolRef.collection("fee_meta").doc("counters");
+    const structureRef = schoolRef.collection("fee_structures").doc(classKey);
+    const academicRef = schoolRef.collection("settings").doc("academic");
+    const classDocRef = schoolRef.collection("fee_payments").doc(classKey);
+
+    // Cold-start fallback (parity with FeeService.getTotalPaid): if the summary
+    // doc lacks totalPaidPaise, fall back to the sum of non-reversed payments so
+    // the cap can't be bypassed for legacy students with no cached total. Read
+    // OUTSIDE the transaction (a query can't run inside one).
+    let fallbackPaidPaise = 0;
+    try {
+      const prior = await paymentsCol.get();
+      for (const pdoc of prior.docs) {
+        const pd = pdoc.data() || {};
+        if (pd.reversed === true) continue;
+        fallbackPaidPaise += (typeof pd.amountPaise === "number")
+          ? pd.amountPaise : Math.round((pd.amount || 0) * 100);
+      }
+    } catch (_) { /* fall back to 0 */ }
+
+    const receiptNo = await db.runTransaction(async (tx) => {
+      // ── reads (all before writes) ──
+      const existing = await tx.get(ref);
+      if (existing.exists) {
+        // Idempotent: a retry with the same clientTxnId reuses the receipt.
+        return existing.data().receiptNo || (p.receiptNo || "");
+      }
+
+      let capPaise = 0;
+      if (studentId) {
+        const sSnap = await tx.get(schoolRef.collection("students").doc(studentId));
+        const customFee = sSnap.exists ? sSnap.data().feeAmount : null;
+        if (typeof customFee === "number") capPaise = Math.round(customFee * 100);
+      }
+
+      const structSnap = await tx.get(structureRef);
+      const validInstallments = new Set();
+      if (structSnap.exists) {
+        const struct = structSnap.data() || {};
+        for (const inst of (struct.installments || [])) {
+          if (inst && inst.name) validInstallments.add(inst.name);
+        }
+        if (capPaise === 0 && typeof struct.totalAnnualFeePaise === "number") {
+          capPaise = struct.totalAnnualFeePaise;
+        }
+      }
+      if (installmentName && !validInstallments.has(installmentName)) {
+        throw new HttpsError("invalid-argument",
+          `Invalid installment name "${installmentName}".`);
+      }
+
+      const feeSnap = await tx.get(studentFeeRef);
+      const alreadyPaise = (feeSnap.exists && typeof feeSnap.data().totalPaidPaise === "number")
+        ? feeSnap.data().totalPaidPaise : fallbackPaidPaise;
+
+      if (enforceCap && capPaise > 0 && alreadyPaise + amountPaise > capPaise) {
+        const remaining = Math.max(0, capPaise - alreadyPaise);
+        throw new HttpsError("failed-precondition",
+          `Payment exceeds the outstanding due of ₹${Math.round(remaining / 100)}.`);
+      }
+
+      const counterSnap = await tx.get(counterRef);
+      const current = (counterSnap.exists && typeof counterSnap.data().receiptSeq === "number")
+        ? counterSnap.data().receiptSeq : 0;
+      const next = current + 1;
+
+      let prefixYear = new Date().getFullYear();
+      const acadSnap = await tx.get(academicRef);
+      if (acadSnap.exists) {
+        const startMonth = MONTH_INDEX[acadSnap.data().academicYearStart] || 4;
+        const now = new Date();
+        if ((now.getMonth() + 1) < startMonth) prefixYear = now.getFullYear() - 1;
+      }
+      const rno = `RCP-${prefixYear}-${String(next).padStart(6, "0")}`;
+
+      // ── writes ──
+      const data = {
+        ...p,
+        amountPaise,
+        mode,
+        note,
+        installmentName: installmentName || null,
+        reversed: false,
+        receiptNo: rno,
+        schoolId,
+        enteredBy: p.enteredBy || callerEmail,
+        reconciled: p.reconciled === true,
+        paidOn: p.paidOn || admin.firestore.FieldValue.serverTimestamp(),
+      };
+      delete data.totalPaidPaise; // never trust a client-supplied running total
+      tx.set(counterRef, { receiptSeq: next }, { merge: true });
+      tx.set(ref, data);
+      const newTotal = alreadyPaise + amountPaise;
+      tx.set(studentFeeRef, { totalPaidPaise: newTotal }, { merge: true });
+      tx.set(classDocRef, { rolls: { [String(roll)]: newTotal } }, { merge: true });
+      return rno;
+    });
+
+    return { ok: true, receiptNo, paymentId: ref.id };
+  }
+);
+
+/**
+ * Callable: reversePayment({ schoolId, className, roll, paymentId, reason })
+ * Flags a payment reversed and decrements the cached totals (port of
+ * FeeService.deletePayment). Money records are never hard-deleted.
+ */
+exports.reversePayment = onCall(
+  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  async (request) => {
+    const db = admin.firestore();
+    const d = request.data || {};
+    const schoolId = String(d.schoolId || "").trim();
+    const className = String(d.className || "").trim();
+    const roll = Number.parseInt(d.roll, 10);
+    const paymentId = String(d.paymentId || "").trim();
+    const reason = String(d.reason || "").trim();
+
+    if (!schoolId || !className || !Number.isInteger(roll) || roll <= 0 || !paymentId) {
+      throw new HttpsError("invalid-argument", "schoolId, className, roll and paymentId are required.");
+    }
+    if (!reason) {
+      throw new HttpsError("invalid-argument", "A reversal reason is required.");
+    }
+
+    await authorizeFeeCaller(db, request, schoolId);
+
+    const classKey = className.replace(/ /g, "_");
+    const schoolRef = db.collection("schools").doc(schoolId);
+    const studentFeeRef = schoolRef.collection("fee_payments").doc(classKey)
+      .collection("students").doc(String(roll));
+    const ref = studentFeeRef.collection("payments").doc(paymentId);
+    const classDocRef = schoolRef.collection("fee_payments").doc(classKey);
+
+    await db.runTransaction(async (tx) => {
+      const doc = await tx.get(ref);
+      if (!doc.exists) return;
+      const data = doc.data() || {};
+      if (data.reversed === true) return; // already reversed
+      const amountPaise = (typeof data.amountPaise === "number")
+        ? data.amountPaise
+        : Math.round((data.amount || 0) * 100);
+
+      const feeSnap = await tx.get(studentFeeRef);
+      const totalPaidPaise = (feeSnap.exists && typeof feeSnap.data().totalPaidPaise === "number")
+        ? feeSnap.data().totalPaidPaise : 0;
+      const newTotal = Math.max(0, totalPaidPaise - amountPaise);
+
+      tx.set(ref, {
+        reversed: true,
+        reversedAt: admin.firestore.FieldValue.serverTimestamp(),
+        reversedReason: reason,
+      }, { merge: true });
+      tx.set(studentFeeRef, { totalPaidPaise: newTotal }, { merge: true });
+      tx.set(classDocRef, { rolls: { [String(roll)]: newTotal } }, { merge: true });
+    });
+
+    return { ok: true };
+  }
+);
+
+
