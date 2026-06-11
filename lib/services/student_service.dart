@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../models/deleted_student.dart';
 import '../models/student.dart';
 import '../models/student_remark.dart';
+import '../models/parental_consent.dart';
 import '../models/guardian_provided_details.dart';
 import '../models/school_provided_details.dart';
 import '../repositories/student_repository.dart';
@@ -71,6 +72,16 @@ class StudentService extends BaseFirestoreService {
 
   CollectionReference<Map<String, dynamic>> get _attendance =>
       schoolCollection(_schoolId, 'attendance');
+
+  /// Per-student attendance mirror (H2). The class-day `attendance/{cls}` doc
+  /// holds EVERY classmate's status in one document, so a guardian reading it
+  /// would see the whole class. To keep guardians scoped to their own child,
+  /// the `onAttendanceWritten` Cloud Function mirrors each student's daily
+  /// status into `student_attendance/{studentDocId}.days` (server-side, Admin
+  /// SDK). Guardians read ONLY their child's mirror doc; the class doc is now
+  /// staff-only. Doc id = Student.buildDocId(roll, className, section).
+  CollectionReference<Map<String, dynamic>> get _studentAttendance =>
+      schoolCollection(_schoolId, 'student_attendance');
 
   // ── Attendance day-doc read cache (#72/#177) ────────────────────────────────
   // Dashboards (coordinator/principal/owner/analytics) recompute recent- and
@@ -405,6 +416,179 @@ class StudentService extends BaseFirestoreService {
       );
     }
     return null;
+  }
+
+  /// Atomically imports multiple students in a Firestore batch, performing local
+  /// and database uniqueness validations, creating parental consent records,
+  /// and parallelizing post-commit guardian onboarding operations.
+  Future<Map<String, dynamic>> addStudentsBulk({
+    required List<Student> students,
+    required bool assertConsent,
+  }) async {
+    int addedCount = 0;
+    int skippedDbDuplicate = 0;
+    int skippedCsvDuplicate = 0;
+    int skippedInvalid = 0;
+
+    final List<Student> validStudents = [];
+    final Set<String> csvSeen = {};
+
+    // 1. Structural and CSV-level validation
+    for (final s in students) {
+      if (s.name.trim().isEmpty || s.className.trim().isEmpty || s.roll <= 0) {
+        skippedInvalid++;
+        continue;
+      }
+
+      final key = '${_toTitleCase(s.className)}_${s.section.trim().toUpperCase()}_${s.roll}';
+      if (csvSeen.contains(key)) {
+        skippedCsvDuplicate++;
+        continue;
+      }
+      csvSeen.add(key);
+
+      validStudents.add(s);
+    }
+
+    if (validStudents.isEmpty) {
+      return {
+        'addedCount': 0,
+        'skippedDbDuplicate': 0,
+        'skippedCsvDuplicate': skippedCsvDuplicate,
+        'skippedInvalid': skippedInvalid,
+      };
+    }
+
+    // 2. Fetch existing students in database for target class-sections to check duplicate rolls
+    final targetClassSections = validStudents.map((s) => (s.className, s.section)).toSet();
+    final Map<String, Set<int>> dbExistingRolls = {}; // 'className_section' -> Set of rolls
+    await Future.wait(targetClassSections.map((cs) async {
+      final key = '${cs.$1}_${cs.$2}';
+      try {
+        final list = await getStudentsByClass(className: cs.$1, section: cs.$2);
+        dbExistingRolls[key] = list.map((student) => student.roll).toSet();
+      } catch (e) {
+        AppLogger.e('StudentService', 'Failed to fetch existing students for $key: $e', e);
+        dbExistingRolls[key] = {};
+      }
+    }));
+
+    // 3. Database validation
+    final List<Student> finalImportList = [];
+    for (final s in validStudents) {
+      final key = '${_toTitleCase(s.className)}_${s.section.trim().toUpperCase()}';
+      final existing = dbExistingRolls[key];
+      if (existing != null && existing.contains(s.roll)) {
+        skippedDbDuplicate++;
+        continue;
+      }
+      finalImportList.add(s);
+    }
+
+    if (finalImportList.isEmpty) {
+      return {
+        'addedCount': 0,
+        'skippedDbDuplicate': skippedDbDuplicate,
+        'skippedCsvDuplicate': skippedCsvDuplicate,
+        'skippedInvalid': skippedInvalid,
+      };
+    }
+
+    // 4. Firestore Batch Write
+    final db = FirebaseFirestore.instance;
+    final batch = db.batch();
+    final List<Student> processedStudents = [];
+
+    for (final s in finalImportList) {
+      // Sanitize fields (similar to addStudent)
+      var sanitized = s.copyWith(
+        className: _toTitleCase(s.className),
+        section: s.section.trim().toUpperCase(),
+        name: stripHtml(s.name).trim(),
+        fatherName: stripHtml(s.fatherName).trim(),
+        motherName: s.motherName != null ? stripHtml(s.motherName!).trim() : null,
+        phone: s.phone.isNotEmpty ? normalizePhone(s.phone) : '',
+        parentPhone: s.parentPhone != null && s.parentPhone!.isNotEmpty
+            ? normalizePhone(s.parentPhone!)
+            : null,
+        schoolId: _schoolId,
+      );
+
+      // Stamp stable admissionId
+      if (sanitized.admissionId.trim().isEmpty) {
+        sanitized = sanitized.copyWith(admissionId: _newAdmissionId());
+      }
+
+      final docId = Student.buildDocId(sanitized.roll, sanitized.className, sanitized.section);
+      final studentDocRef = db.collection('schools').doc(_schoolId).collection('students').doc(docId);
+      
+      final studentToSet = sanitized.copyWith(id: docId);
+      batch.set(studentDocRef, studentToSet.toJson());
+
+      // If assertConsent is true, create consent doc under the student's sub-collection
+      if (assertConsent) {
+        final consentRef = studentDocRef.collection('consents').doc();
+        final consent = ParentalConsent(
+          id: consentRef.id,
+          studentId: docId,
+          guardianName: sanitized.fatherName.isNotEmpty ? sanitized.fatherName : 'Parent',
+          guardianPhone: sanitized.phone.isNotEmpty ? sanitized.phone : '0000000000',
+          guardianEmail: sanitized.guardianEmail,
+          consentVersion: kCurrentConsentVersion,
+          consentedAt: Timestamp.now(),
+          method: ConsentMethod.inPersonSigned,
+          scopes: ParentalConsent.defaultScopes(),
+        );
+        batch.set(consentRef, consent.toJson());
+      }
+
+      processedStudents.add(studentToSet);
+    }
+
+    // Commit batch write
+    await batch.commit();
+    addedCount = processedStudents.length;
+
+    // 5. Post-Commit tasks (parallelized)
+    final postCommitTasks = <Future<void>>[];
+    for (final s in processedStudents) {
+      // Emit audit log
+      AuditService.emit(
+        action: 'create',
+        entity: 'student',
+        entityId: s.id,
+        after: s.toJson(),
+      );
+
+      // Guardian account onboarding
+      if (s.guardianEmail != null && s.guardianEmail!.trim().isNotEmpty) {
+        postCommitTasks.add(() async {
+          try {
+            await _upsertGuardianAccount(
+              email: s.guardianEmail!.trim().toLowerCase(),
+              className: s.className,
+              roll: s.roll,
+              section: s.section,
+              name: s.name,
+              admissionId: s.admissionId,
+            );
+          } catch (e) {
+            AppLogger.e('StudentService', 'Bulk import guardian account upsert failed for ${s.name}: $e', e);
+          }
+        }());
+      }
+    }
+
+    if (postCommitTasks.isNotEmpty) {
+      await Future.wait(postCommitTasks);
+    }
+
+    return {
+      'addedCount': addedCount,
+      'skippedDbDuplicate': skippedDbDuplicate,
+      'skippedCsvDuplicate': skippedCsvDuplicate,
+      'skippedInvalid': skippedInvalid,
+    };
   }
 
   Future<String?> updateStudent({required Student updated}) async {
@@ -1430,6 +1614,65 @@ class StudentService extends BaseFirestoreService {
       result[i + 1] = _parseRolls(rolls);
     }
     return result;
+  }
+
+  // ── Guardian-scoped attendance reads (H2) ──────────────────────────────────
+  // These read the per-student mirror (`student_attendance/{studentDocId}`)
+  // rather than the class-day doc, so a guardian only ever sees their OWN
+  // child. They return the SAME shapes as the staff methods (keyed by roll) so
+  // the guardian UI is unchanged. The matching firestore.rules grant a guardian
+  // read of `student_attendance/{id}` only when id == their child's doc id.
+
+  /// Today's status for one student → `{ roll: status }` (empty if unmarked).
+  Future<Map<int, String>> loadTodayAttendanceForStudent({
+    required String studentDocId,
+    required int roll,
+  }) async {
+    final doc = await _studentAttendance.doc(studentDocId).get();
+    if (!doc.exists || doc.data() == null) return {};
+    final days = Map<String, dynamic>.from((doc.data()!['days'] as Map?) ?? {});
+    final status = days[SchoolClock.todayKey()];
+    return (status is String && status.isNotEmpty) ? {roll: status} : {};
+  }
+
+  /// Live stream of today's status for one student → `{ roll: status }`.
+  Stream<Map<int, String>> watchTodayAttendanceForStudent({
+    required String studentDocId,
+    required int roll,
+  }) {
+    return _studentAttendance.doc(studentDocId).snapshots().map((doc) {
+      if (!doc.exists || doc.data() == null) return <int, String>{};
+      final days = Map<String, dynamic>.from((doc.data()!['days'] as Map?) ?? {});
+      final status = days[SchoolClock.todayKey()];
+      return (status is String && status.isNotEmpty)
+          ? {roll: status}
+          : <int, String>{};
+    });
+  }
+
+  /// Month calendar for one student → `{ day → { roll: status } }`, matching
+  /// [loadMonthAttendance]'s shape but containing only this child.
+  Future<Map<int, Map<int, String>>> loadMonthAttendanceForStudent({
+    required String studentDocId,
+    required int roll,
+    required int year,
+    required int month,
+  }) async {
+    final doc = await _studentAttendance.doc(studentDocId).get();
+    if (!doc.exists || doc.data() == null) return {};
+    final days = Map<String, dynamic>.from((doc.data()!['days'] as Map?) ?? {});
+    final out = <int, Map<int, String>>{};
+    days.forEach((dateKey, status) {
+      if (status is! String || status.isEmpty) return;
+      final parts = dateKey.split('-'); // padded 'YYYY-MM-DD'
+      if (parts.length != 3) return;
+      final y = int.tryParse(parts[0]);
+      final m = int.tryParse(parts[1]);
+      final d = int.tryParse(parts[2]);
+      if (y != year || m != month || d == null) return;
+      out[d] = {roll: status};
+    });
+    return out;
   }
 
   /// Returns roll → number of consecutive school days absent/on leave,

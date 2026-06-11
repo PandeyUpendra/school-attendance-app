@@ -37,19 +37,42 @@ service firebase.storage {
         && (request.auth.token.email == 'mandvishal@gmail.com' || request.auth.token.email == 'admin@schoolapp.org');
     }
 
-    // Image-only, ≤ 15 MB. resource is null on create, so guard both.
+    // The caller's role custom claim (minted by syncUserClaims from
+    // allowed_users), or null when absent.
+    function tokenRole() {
+      return isSignedIn() && 'role' in request.auth.token
+          ? request.auth.token.role : null;
+    }
+
+    // STAFF roles only (H3). Guardians get a schoolId claim too, so without this
+    // any parent could overwrite the school logo / teacher photos / policy
+    // images under their school. Asset writes are a staff action.
+    function isStaffRole() {
+      return tokenRole() in [
+        'teacher', 'subjectTeacher', 'coordinator', 'principal',
+        'admin', 'owner', 'ownerPrincipal'
+      ];
+    }
+
+    // Image-only, ≤ 15 MB, and NOT SVG (H3). The contentType is client-asserted,
+    // so SVG is rejected outright — an SVG can carry embedded <script> and is a
+    // stored-XSS risk if an asset is ever rendered in a web/admin context. Raster
+    // image types remain allowed. resource is null on delete, so guard both.
     function isAllowedImage() {
       return request.resource != null
         && request.resource.size < 15 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.contentType.matches('image/.*')
+        && !request.resource.contentType.matches('image/svg.*');
     }
 
     // All per-school assets: policy reference photos, teacher photos, the school
-    // logo, etc. Read confined to the caller's own school (root admin exempt);
-    // writes additionally must be images.
+    // logo, etc. Read confined to the caller's own school (root admin exempt).
+    // Writes (H3): caller must belong to the school AND be staff (not a
+    // guardian), and the upload must be a non-SVG image within the size cap.
     match /schools/{schoolId}/{allPaths=**} {
       allow read:  if isRootAdmin() || tokenSchoolId() == schoolId;
-      allow write: if tokenSchoolId() == schoolId && isAllowedImage();
+      allow write: if (isRootAdmin() || (tokenSchoolId() == schoolId && isStaffRole()))
+                   && isAllowedImage();
     }
 
     // Everything else: denied.

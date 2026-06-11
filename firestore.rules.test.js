@@ -206,6 +206,14 @@ beforeEach(async () => {
       '2026-5-23': { rolls: { '15': 'Present' } },
     });
 
+    // Per-student attendance mirror (H2) — what guardians actually read.
+    await setDoc(doc(adb, schoolPath('student_attendance', 'Class_9-A_A_42')), {
+      schoolId: SCHOOL_ID, roll: 42, days: { '2026-05-23': 'Present' },
+    });
+    await setDoc(doc(adb, schoolPath('student_attendance', 'Class_10-B_B_15')), {
+      schoolId: SCHOOL_ID, roll: 15, days: { '2026-05-23': 'Present' },
+    });
+
     // Leave application submitted by teacher9A
     await setDoc(doc(adb, schoolPath('leave_applications', 'leave-1')), {
       teacherId: UID.teacher9A,
@@ -528,16 +536,36 @@ describe('Firestore Security Rules', () => {
 
   // ── 6. Attendance ─────────────────────────────────────────────────────────
   describe('6. Attendance', () => {
-    test('ALLOW — guardian can read attendance for their child\'s class', async () => {
-      await assertSucceeds(
+    test('DENY — H2: guardian CANNOT read the class-day attendance doc (staff-only)', async () => {
+      // The class doc holds every classmate's status; guardians read the
+      // per-student mirror instead (next test).
+      await assertFails(
         getDoc(doc(db(UID.guardian), schoolPath('attendance', 'Class 9-A'))),
       );
     });
 
-    test('DENY — CRITICAL: guardian cannot read attendance for another class', async () => {
-      // guardian.classIds = ['Class 9-A'] → cannot read 'Class 10-B' attendance
+    test('ALLOW — H2: guardian can read their OWN child\'s attendance mirror', async () => {
+      await assertSucceeds(
+        getDoc(doc(db(UID.guardian), schoolPath('student_attendance', 'Class_9-A_A_42'))),
+      );
+    });
+
+    test('DENY — H2: guardian cannot read another student\'s attendance mirror', async () => {
       await assertFails(
-        getDoc(doc(db(UID.guardian), schoolPath('attendance', 'Class 10-B'))),
+        getDoc(doc(db(UID.guardian), schoolPath('student_attendance', 'Class_10-B_B_15'))),
+      );
+    });
+
+    test('DENY — H2: guardian cannot write their child\'s attendance mirror', async () => {
+      await assertFails(
+        setDoc(doc(db(UID.guardian), schoolPath('student_attendance', 'Class_9-A_A_42')),
+          { days: { '2026-05-23': 'Present' } }, { merge: true }),
+      );
+    });
+
+    test('ALLOW — staff can read any student attendance mirror', async () => {
+      await assertSucceeds(
+        getDoc(doc(db(UID.teacher9A), schoolPath('student_attendance', 'Class_10-B_B_15'))),
       );
     });
 

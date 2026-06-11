@@ -251,7 +251,9 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       // These must succeed; if not, show the error screen.
       final coreResults = await Future.wait([
         _service.getStudentByRoll(_activeClass, _activeRoll, section: _activeSection),  // 0
-        _service.loadTodayAttendance(className: _attendanceKey),                  // 1
+        // H2: read this child's per-student mirror, not the class-day doc.
+        _service.loadTodayAttendanceForStudent(
+            studentDocId: _studentDocId, roll: _activeRoll),                      // 1
       ]);
       if (!mounted) return;
 
@@ -326,7 +328,9 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       });
 
       _attendanceSub?.cancel();
-      _attendanceSub = _service.watchTodayAttendance(className: _attendanceKey).listen((todayByRoll) {
+      _attendanceSub = _service.watchTodayAttendanceForStudent(
+              studentDocId: _studentDocId, roll: _activeRoll)
+          .listen((todayByRoll) {
         if (mounted) {
           setState(() {
             _todayStatus = todayByRoll[_activeRoll];
@@ -579,6 +583,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         MaterialPageRoute(
           builder: (_) => GuardianAttendanceHistoryScreen(
             attendanceKey: _attendanceKey,
+            studentDocId: _studentDocId,
             studentRoll: _activeRoll,
             studentName: _student?.name ?? 'Student',
           ),
@@ -2915,12 +2920,14 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
 
 class GuardianAttendanceHistoryScreen extends StatefulWidget {
   final String attendanceKey;
+  final String studentDocId;
   final int studentRoll;
   final String studentName;
 
   const GuardianAttendanceHistoryScreen({
     super.key,
     required this.attendanceKey,
+    required this.studentDocId,
     required this.studentRoll,
     required this.studentName,
   });
@@ -2948,8 +2955,9 @@ class _GuardianAttendanceHistoryScreenState extends State<GuardianAttendanceHist
       _error = null;
     });
     try {
-      final data = await _service.loadMonthAttendance(
-        className: widget.attendanceKey,
+      final data = await _service.loadMonthAttendanceForStudent(
+        studentDocId: widget.studentDocId,
+        roll: widget.studentRoll,
         year: _month.year,
         month: _month.month,
       );

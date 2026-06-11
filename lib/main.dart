@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -181,13 +183,15 @@ class _SchoolAppState extends State<SchoolApp> with WidgetsBindingObserver {
                 GlobalCupertinoLocalizations.delegate,
               ],
               builder: (context, child) {
-                return MediaQuery(
-                  data: MediaQuery.of(context).copyWith(
-                    textScaler: TextScaler.linear(
-                      MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.2),
+                return ConnectivityBannerWrapper(
+                  child: MediaQuery(
+                    data: MediaQuery.of(context).copyWith(
+                      textScaler: TextScaler.linear(
+                        MediaQuery.of(context).textScaler.scale(1.0).clamp(0.8, 1.2),
+                      ),
                     ),
+                    child: child!,
                   ),
-                  child: child!,
                 );
               },
               home: const _SplashGate(),
@@ -475,6 +479,123 @@ class _SplashGateState extends State<_SplashGate> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class ConnectivityBannerWrapper extends StatefulWidget {
+  final Widget child;
+  const ConnectivityBannerWrapper({super.key, required this.child});
+
+  @override
+  State<ConnectivityBannerWrapper> createState() => _ConnectivityBannerWrapperState();
+}
+
+class _ConnectivityBannerWrapperState extends State<ConnectivityBannerWrapper> {
+  final Connectivity _connectivity = Connectivity();
+  StreamSubscription? _subscription;
+  bool _isOnline = true;
+  bool _showOnlineIndicator = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkInitialConnectivity();
+    _subscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
+  }
+
+  Future<void> _checkInitialConnectivity() async {
+    try {
+      final results = await _connectivity.checkConnectivity();
+      _updateConnectionStatus(results);
+    } catch (_) {}
+  }
+
+  void _updateConnectionStatus(List<ConnectivityResult> results) {
+    final online = results.any((r) => r != ConnectivityResult.none);
+    if (online != _isOnline) {
+      setState(() {
+        _isOnline = online;
+        if (online) {
+          _showOnlineIndicator = true;
+        } else {
+          _showOnlineIndicator = false;
+        }
+      });
+      if (online) {
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) {
+            setState(() {
+              _showOnlineIndicator = false;
+            });
+          }
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [
+          Expanded(child: widget.child),
+          if (!_isOnline)
+            Material(
+              color: AppTheme.danger,
+              child: SafeArea(
+                top: false,
+                bottom: true,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                  alignment: Alignment.center,
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.wifi_off_outlined, color: Colors.white, size: 14),
+                      SizedBox(width: 8),
+                      Text(
+                        'You are offline. Changes will sync when you reconnect.',
+                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          if (_showOnlineIndicator)
+            Material(
+              color: AppTheme.success,
+              child: SafeArea(
+                top: false,
+                bottom: true,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                  alignment: Alignment.center,
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.wifi_outlined, color: Colors.white, size: 14),
+                      SizedBox(width: 8),
+                      Text(
+                        'Back online!',
+                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

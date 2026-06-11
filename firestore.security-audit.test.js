@@ -300,6 +300,14 @@ beforeEach(async () => {
     await setDoc(doc(adb, sch('attendance', 'Class 9-A')),  ATTENDANCE_9A);
     await setDoc(doc(adb, sch('attendance', 'Class 10-B')), ATTENDANCE_10B);
 
+    // Per-student attendance mirror (H2) — the guardian-readable projection.
+    await setDoc(doc(adb, sch('student_attendance', 'Class_9-A_A_42')),
+      { schoolId: SCHOOL_ID, roll: 42, days: { '2026-05-23': 'Present' } });
+    await setDoc(doc(adb, sch('student_attendance', 'Class_9-A_A_7')),
+      { schoolId: SCHOOL_ID, roll: 7, days: { '2026-05-23': 'Absent' } });
+    await setDoc(doc(adb, sch('student_attendance', 'Class_10-B_B_15')),
+      { schoolId: SCHOOL_ID, roll: 15, days: { '2026-05-23': 'Present' } });
+
     // Seed copy checks (parent doc + status subcollection)
     await setDoc(doc(adb, sch('copy_checks', 'check-9a')), COPY_CHECK_DOC);
     await setDoc(
@@ -536,19 +544,28 @@ describe('Leak 2 — notifications roll-level enforcement', () => {
 //                after the chosen schema fix is implemented.
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('Leak 3 — attendance (current class-doc leak — schema fix pending)', () => {
+describe('Leak 3 — attendance (FIXED via per-student mirror, H2)', () => {
 
-  test('[CURRENT-LEAK] guardian reads their child\'s class-doc and sees ALL students\' attendance', async () => {
-    // This test ASSERTS the leak exists (assertSucceeds on a document that
-    // contains other students' data). Once Option A or B is implemented, this
-    // test should be updated to assertFails and replaced by the FUTURE-ALLOW test.
-    const result = await assertSucceeds(
+  test('[FIXED] DENY — guardian can no longer read the class-day doc (all classmates)', async () => {
+    // The class doc holds rolls 7, 11, 22, 42… The leak was that a guardian
+    // could read it whole. It is now staff-only.
+    await assertFails(
       getDoc(doc(db(UID.guardianA), sch('attendance', 'Class 9-A'))),
     );
-    // The doc contains roll 7 (Bob) and roll 11, 22 (other students) in addition
-    // to roll 42 (Alice). A guardian should NOT see these — but currently does.
-    // When Option A/B is implemented, guardians will no longer have read access
-    // to this path.
+  });
+
+  test('[FIXED] ALLOW — guardian reads ONLY their own child\'s mirror', async () => {
+    await assertSucceeds(
+      getDoc(doc(db(UID.guardianA), sch('student_attendance', 'Class_9-A_A_42'))),
+    );
+  });
+
+  test('[FIXED] DENY — guardian cannot read a CLASSMATE\'s mirror (same class, roll 7)', async () => {
+    // The strongest proof the intra-class leak is closed: guardianA and
+    // guardianB share Class 9-A, but A cannot read B's child (roll 7).
+    await assertFails(
+      getDoc(doc(db(UID.guardianA), sch('student_attendance', 'Class_9-A_A_7'))),
+    );
   });
 
   test('[REGRESSION] DENY — guardian cannot read another class\'s attendance doc', async () => {

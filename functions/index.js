@@ -278,10 +278,27 @@ exports.deleteAccount = onCall(
  * (PushService). Topic naming MUST match the client exactly:
  *   topic = "s_{schoolId}_{audience}"  with every non [A-Za-z0-9_-] char → "_"
  *
+ * SECURITY (H1): FCM **topic** subscription is NOT access-controlled by Firebase
+ * — any client can subscribe to any topic, and topic names are predictable
+ * (`s_{schoolId}_{audience}`), so a malicious client could subscribe to another
+ * school's / another parent's topic and receive the push copy. The Firestore
+ * notification *document* is protected by rules, but the *push payload* is not.
+ * Therefore per-student / per-individual channels carry NO PII in the push: a
+ * generic "you have a new notification" is sent and the app fetches the real,
+ * rules-protected document on open. Only intentional in-school broadcasts
+ * (announcements to all/teachers/guardians and role digests) keep their text.
+ *
  * Best-effort: a send failure is logged and never throws (the in-app
  * notifications feed is the source of truth; push is a convenience layer).
  */
 const sanitizeTopic = (s) => String(s).replace(/[^A-Za-z0-9_-]/g, "_");
+
+// Audiences that are intentional in-school broadcasts and carry no per-student
+// PII — safe to show their text in the push. Everything else (guardian:*,
+// guardian_adm:*, teacher:*, class:*, class_teacher:*) is genericised.
+const BROADCAST_AUDIENCES = new Set([
+  "all", "teachers", "guardians", "coordinator", "principal",
+]);
 
 exports.pushOnNotificationCreate = onDocumentCreated(
   { document: "schools/{sid}/notifications/{notifId}", region: "us-central1" },
@@ -294,14 +311,25 @@ exports.pushOnNotificationCreate = onDocumentCreated(
 
     const sid = event.params.sid;
     const topic = `s_${sanitizeTopic(sid)}_${sanitizeTopic(audience)}`;
-    const title = String(data.title || "School App");
-    const body = String(data.body || data.message || "");
+
+    // Only broadcast audiences expose their real title/body in the push. For any
+    // targeted (per-student / per-individual) audience, send a contentless
+    // notice so a rogue topic subscriber learns nothing — the app opens to the
+    // rules-protected feed to show the actual content.
+    const isBroadcast = BROADCAST_AUDIENCES.has(audience);
+    const title = isBroadcast
+      ? String(data.title || "School App")
+      : "School App";
+    const body = isBroadcast
+      ? String(data.body || data.message || "")
+      : "You have a new notification. Open the app to view.";
 
     try {
       await admin.messaging().send({
         topic,
         notification: { title, body },
         android: { priority: "high", notification: { channelId: "default" } },
+        // No student name / status / free text in the data payload either.
         data: { type: String(data.type || ""), audience },
       });
     } catch (err) {
@@ -612,8 +640,8 @@ exports.writeAudit = onCall(
       throw new HttpsError("unauthenticated", "Sign in required.");
     }
     const d = request.data || {};
-    const action = String(d.action || "");
-    const entity = String(d.entity || "");
+    const action = String(d.action || "").trim();
+    const entity = String(d.entity || "").trim();
     if (!action || !entity) {
       throw new HttpsError("invalid-argument", "action and entity are required.");
     }
@@ -621,6 +649,53 @@ exports.writeAudit = onCall(
     const callerEmail = String(request.auth.token.email).toLowerCase();
     const snap = await db.collection("allowed_users").doc(callerEmail).get();
     const role = resolveCallerRole(callerEmail, snap); // 'admin' for root admin
+    
+    if (!role) {
+      throw new HttpsError("permission-denied", "Unauthorized actor role.");
+    }
+
+    // Role-based Gating:
+    // Guardians can only audit consent or leave_application operations
+    if (role === "guardian") {
+      const allowedGuardianEntities = ["consent", "leave_application"];
+      if (!allowedGuardianEntities.includes(entity)) {
+        throw new HttpsError("permission-denied", "Guardians cannot audit this entity.");
+      }
+    }
+
+    // Teachers/subjectTeachers cannot audit sensitive administrative or financial entities
+    if (role === "teacher" || role === "subjectTeacher") {
+      const forbiddenTeacherEntities = [
+        "fee_payment",
+        "fee_reconciliation",
+        "fee_structure",
+        "teacher",
+        "timetable",
+        "school_settings",
+        "expense",
+        "audit_logs"
+      ];
+      if (forbiddenTeacherEntities.includes(entity)) {
+        throw new HttpsError("permission-denied", "Teachers cannot audit administrative or financial entities.");
+      }
+    }
+
+    // Strict allowed lists for actions and entities
+    const ALLOWED_ACTIONS = ["create", "update", "delete", "reverse", "promote"];
+    const ALLOWED_ENTITIES = [
+      "student", "attendance", "fee_payment", "homework", "announcement",
+      "copy_check", "leave_application", "teacher", "timetable",
+      "reconciled_payment", "fee_structure", "fee_reconciliation",
+      "school_settings", "datesheet", "duties", "consent", "expense",
+      "marks", "syllabus", "study_material", "class_diary"
+    ];
+    if (!ALLOWED_ACTIONS.includes(action)) {
+      throw new HttpsError("invalid-argument", `Invalid action: ${action}`);
+    }
+    if (!ALLOWED_ENTITIES.includes(entity)) {
+      throw new HttpsError("invalid-argument", `Invalid entity: ${entity}`);
+    }
+
     const callerSchoolId = snap.exists ? snap.get("schoolId") : null;
     // Confine the entry to the caller's own school; the root admin may target
     // any school via the request payload.
@@ -631,19 +706,23 @@ exports.writeAudit = onCall(
       throw new HttpsError("failed-precondition", "No school for the audit entry.");
     }
 
+    // Limit string lengths to prevent DoS/bloating
+    const entityId = String(d.entityId || "").substring(0, 100);
+    const reason = d.reason ? String(d.reason).substring(0, 250) : null;
+
     const entry = {
       action,
       entity,
-      entityId: String(d.entityId || ""),
+      entityId,
       actorUid: request.auth.uid,
       actorEmail: callerEmail,
       actorName: (snap.exists && snap.get("name")) || callerEmail,
-      actorRole: role || "unknown",
+      actorRole: role,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     };
     if (d.before && typeof d.before === "object") entry.before = d.before;
     if (d.after && typeof d.after === "object") entry.after = d.after;
-    if (d.reason) entry.reason = String(d.reason);
+    if (reason) entry.reason = reason;
 
     await db.collection("schools").doc(schoolId).collection("audit_logs").add(entry);
     return { ok: true };
@@ -989,6 +1068,43 @@ exports.onAttendanceWritten = onDocumentWritten(
     const dateSfxLen = 11;
     if (docId.length <= dateSfxLen) return;
     const classSectionPrefix = docId.substring(0, docId.length - dateSfxLen);
+    // The padded date key, e.g. "2026-06-11" — the part after the prefix's "_".
+    const dateKey = docId.substring(classSectionPrefix.length + 1);
+
+    // ── H2: mirror each student's status into a per-student doc ────────────────
+    // The class-day `attendance/{docId}` doc holds EVERY classmate's status, so
+    // guardians can no longer read it (staff-only rule). Instead we mirror each
+    // student's own status into `student_attendance/{studentDocId}.days[dateKey]`,
+    // which the guardian rule scopes to their own child. Only rolls whose status
+    // actually changed are written (idempotent — re-saving the same status is a
+    // no-op), keeping write amplification proportional to real changes.
+    try {
+      const changed = Object.entries(rollsAfter)
+        .filter(([rollStr, status]) => rollsBefore[rollStr] !== status)
+        .map(([rollStr, status]) => [parseInt(rollStr, 10), status])
+        .filter(([roll]) => Number.isInteger(roll));
+      // Chunk under Firestore's 500-op batch limit (classes are small, but be safe).
+      for (let i = 0; i < changed.length; i += 450) {
+        const mirrorBatch = db.batch();
+        for (const [roll, status] of changed.slice(i, i + 450)) {
+          const studentDocId = `${classSectionPrefix}_${roll}`;
+          mirrorBatch.set(
+            db.collection("schools").doc(sid)
+              .collection("student_attendance").doc(studentDocId),
+            {
+              schoolId: sid,
+              roll,
+              days: { [dateKey]: status },
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true },
+          );
+        }
+        await mirrorBatch.commit();
+      }
+    } catch (err) {
+      logger.warn(`[onAttendanceWritten] mirror write failed for ${docId}`, err && err.message);
+    }
 
     for (const [rollStr, status] of Object.entries(rollsAfter)) {
       if (status === "Absent" || status === "Leave") {
@@ -1038,12 +1154,18 @@ exports.onAttendanceWritten = onDocumentWritten(
               continue;
             }
 
-            // Write notification
+            // Write notification.
+            // targetStudentId (L2) is REQUIRED by the guardian notification read
+            // rule for a `guardian:{class}:{roll}` audience — without it the
+            // guardian is denied their own alert (fail-closed). It is the student
+            // doc id "{class spaces→_}_{section}_{roll}", which is exactly the
+            // attendance doc's class-section prefix + roll computed above.
             await db.collection("schools").doc(sid).collection("notifications").add({
               type: "attendance_alert",
               title: "Attendance Alert",
               body: `${studentName} has been marked ${status} today.`,
               audience: `guardian:${studentClass}:${roll}`,
+              targetStudentId: studentDocId,
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
 
@@ -1054,6 +1176,81 @@ exports.onAttendanceWritten = onDocumentWritten(
         }
       }
     }
+  }
+);
+
+/**
+ * Callable: backfillStudentAttendance({ schoolId })
+ *
+ * One-time backfill for H2: builds the per-student attendance mirror
+ * (`student_attendance/{studentDocId}.days`) from all EXISTING class-day
+ * `attendance/{cls}` docs, so guardians see their historical calendar after the
+ * class doc is locked down to staff-only. Going forward, `onAttendanceWritten`
+ * keeps the mirror current; this only seeds the past. Idempotent — safe to
+ * re-run. Restricted to admin/owner of the school (root admin may target any).
+ */
+exports.backfillStudentAttendance = onCall(
+  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  async (request) => {
+    const db = admin.firestore();
+    if (!request.auth || !request.auth.token || !request.auth.token.email) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    const schoolId = String((request.data && request.data.schoolId) || "").trim();
+    if (!schoolId) {
+      throw new HttpsError("invalid-argument", "schoolId is required.");
+    }
+    const callerEmail = String(request.auth.token.email).toLowerCase();
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerRole = resolveCallerRole(callerEmail, callerSnap);
+    const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
+    if (!PURGE_ROLES.includes(callerRole)) {
+      throw new HttpsError("permission-denied", "You are not authorized to run this backfill.");
+    }
+    if (callerRole !== "admin" && callerSchoolId !== schoolId) {
+      throw new HttpsError("permission-denied", "You can only backfill your own school.");
+    }
+
+    const dateSfxLen = 11; // "_2026-06-11"
+    const attendance = await db.collection("schools").doc(schoolId)
+      .collection("attendance").get();
+
+    // Accumulate days per studentDocId across every day-doc, then write once.
+    const perStudent = {}; // studentDocId → { roll, days: { dateKey: status } }
+    for (const doc of attendance.docs) {
+      const id = doc.id;
+      if (id.length <= dateSfxLen) continue;
+      const prefix = id.substring(0, id.length - dateSfxLen);
+      const dateKey = id.substring(prefix.length + 1);
+      const rolls = (doc.data() || {}).rolls || {};
+      for (const [rollStr, status] of Object.entries(rolls)) {
+        if (typeof status !== "string" || !status) continue;
+        const roll = parseInt(rollStr, 10);
+        if (!Number.isInteger(roll)) continue;
+        const studentDocId = `${prefix}_${roll}`;
+        if (!perStudent[studentDocId]) perStudent[studentDocId] = { roll, days: {} };
+        perStudent[studentDocId].days[dateKey] = status;
+      }
+    }
+
+    const ids = Object.keys(perStudent);
+    let written = 0;
+    for (let i = 0; i < ids.length; i += 400) {
+      const batch = db.batch();
+      ids.slice(i, i + 400).forEach((studentDocId) => {
+        const { roll, days } = perStudent[studentDocId];
+        batch.set(
+          db.collection("schools").doc(schoolId)
+            .collection("student_attendance").doc(studentDocId),
+          { schoolId, roll, days, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+          { merge: true },
+        );
+        written++;
+      });
+      await batch.commit();
+    }
+
+    return { ok: true, studentsBackfilled: written, dayDocsScanned: attendance.size };
   }
 );
 

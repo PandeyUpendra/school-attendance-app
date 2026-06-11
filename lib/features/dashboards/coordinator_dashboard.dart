@@ -45,6 +45,7 @@ import '../todo/todo_list_screen.dart';
 import '../todo/todo_reminder_banner.dart';
 import '../exams/report_card_template_editor.dart';
 import '../fees/payment_claims_verification_screen.dart';
+import '../students/bulk_student_import_screen.dart';
 
 const _cPurple    = AppTheme.primary;
 const _cPurpleMid = AppTheme.primaryMid;
@@ -426,6 +427,14 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               title: context.tr('promoteClass'),
               subtitle: context.tr('subPromoteClassDesc'),
               onTap: () => _navigate(const PromotionScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.upload_file_outlined,
+              color: _cPurple,
+              title: context.tr('importFromCsv'),
+              subtitle: 'Batch import student rosters from a CSV file',
+              onTap: () => _navigate(const BulkStudentImportScreen()),
             ),
             const _Divider(),
             _FeatureTile(

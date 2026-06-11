@@ -210,6 +210,30 @@ service cloud.firestore {
       );
     }
 
+    /// Optimized per-student-attendance read permission helper (H2).
+    /// Same let-binding discipline as canReadExamResult: getUserData() is
+    /// evaluated exactly ONCE so a guardian read does not blow the 1000-
+    /// expression ceiling (SCALE-05). Staff read any student in their school;
+    /// a guardian reads only the mirror doc whose id is their own child's.
+    function canReadStudentAttendance(sid, studentId) {
+      let userData = getUserData();
+      let role = userData != null ? userData.role : null;
+      let schoolId = userData != null && 'schoolId' in userData ? userData.schoolId : null;
+      return isRootAdmin() || (
+        userData != null && schoolId == sid && (
+          role in ['teacher', 'subjectTeacher', 'coordinator', 'principal', 'admin', 'owner', 'ownerPrincipal'] ||
+          (role == 'guardian' &&
+           'studentClass' in userData && 'studentRoll' in userData &&
+           studentId == (
+             !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
+               ? userData.studentClass.replace(' ', '_') + '_' + string(userData.studentRoll)
+               : userData.studentClass.replace(' ', '_') + '_' + userData.studentSection.replace(' ', '_') + '_' + string(userData.studentRoll)
+           )
+          )
+        )
+      );
+    }
+
     /// True when cls is listed in the caller's classIds array.
     ///
     /// IMPORTANT — keep this cheap (a single field test, no get()/exists()).
@@ -900,10 +924,13 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/attendance/{cls} {
 
-      allow read: if isSignedIn() && inSchool(sid) && (
-        isAnyStaff() ||
-        (isRole('guardian') && isGuardianAttendanceClass(cls))
-      );
+      // STAFF-ONLY (H2). The class-day doc holds EVERY student's status, call
+      // reasons, and called-flags in one document — Firestore rules cannot
+      // field-filter, so granting a guardian read here exposed every classmate's
+      // attendance to any parent in the class. Guardians now read ONLY their own
+      // child via the per-student mirror below (`student_attendance/{id}`), which
+      // the onAttendanceWritten Cloud Function keeps in sync.
+      allow read: if isSignedIn() && inSchool(sid) && isAnyStaff();
 
       allow write: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
@@ -912,6 +939,29 @@ service cloud.firestore {
          request.resource.data.date is timestamp &&
          request.time - request.resource.data.date < duration.value(7, 'd'))
       );
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // PER-STUDENT ATTENDANCE MIRROR  (/schools/{sid}/student_attendance/{studentId})
+    //
+    // H2: a single-student projection of attendance — { days: {dateKey: status} } —
+    // written SERVER-SIDE by the onAttendanceWritten Cloud Function (Admin SDK,
+    // which bypasses these rules) and seeded by the backfillStudentAttendance
+    // callable. It exists so a guardian can read their OWN child's attendance
+    // without reading the class-day doc that holds every classmate's status.
+    //
+    // Read:  any staff in the school, OR the student's own guardian (doc id ==
+    //        guardianStudentId()).
+    // Write: denied to ALL clients — authored only via the Admin SDK, which is
+    //        not subject to these rules. (`allow write: if false` does not block
+    //        the trigger/backfill.)
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/student_attendance/{studentId} {
+      // Single-get() helper (canReadStudentAttendance) keeps this under the
+      // 1000-expression ceiling — see canReadExamResult for the same pattern.
+      allow read: if isSignedIn() && canReadStudentAttendance(sid, studentId);
+      allow write: if false;
     }
 
 
