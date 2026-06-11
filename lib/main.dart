@@ -544,6 +544,7 @@ class _ConnectivityBannerWrapperState extends State<ConnectivityBannerWrapper> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Column(
         children: [
           Expanded(child: widget.child),
