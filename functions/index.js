@@ -109,7 +109,7 @@ function resolveCallerRole(callerEmail, snap) {
  *     (Accounts they created are intentionally kept — they belong to the school.)
  */
 exports.deleteAccount = onCall(
-  { cors: true, region: "us-central1" },
+  { cors: true, region: "us-central1", invoker: "public" },
   async (request) => {
     const db = admin.firestore();
 
@@ -492,7 +492,7 @@ async function performStudentDeleteCascade(db, schoolId, className, section, rol
 }
 
 exports.deleteStudent = onCall(
-  { cors: true, region: "us-central1" },
+  { cors: true, region: "us-central1", invoker: "public" },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -526,7 +526,7 @@ exports.deleteStudent = onCall(
 );
 
 exports.approveDeletionRequest = onCall(
-  { cors: true, region: "us-central1" },
+  { cors: true, region: "us-central1", invoker: "public" },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -594,7 +594,7 @@ exports.approveDeletionRequest = onCall(
  * server-verified actor.
  */
 exports.writeAudit = onCall(
-  { cors: true, region: "us-central1" },
+  { cors: true, region: "us-central1", invoker: "public" },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -648,7 +648,7 @@ exports.writeAudit = onCall(
 const PURGE_ROLES = ["admin", "owner", "ownerPrincipal"];
 
 exports.purgeOldData = onCall(
-  { cors: true, region: "us-central1" },
+  { cors: true, region: "us-central1", invoker: "public" },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
