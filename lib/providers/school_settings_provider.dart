@@ -32,8 +32,12 @@ class SchoolSettingsProvider extends ChangeNotifier {
   }
 
   void _onActiveSchoolChanged() {
-    if (AuthService.currentSchoolId == _boundSchoolId) return;
-    _bind();
+    try {
+      if (AuthService.currentSchoolId == _boundSchoolId) return;
+      _bind();
+    } catch (_) {
+      // Catch initialization errors during early startup
+    }
   }
 
   bool _notifyPending = false;
@@ -50,7 +54,12 @@ class SchoolSettingsProvider extends ChangeNotifier {
   /// (Re)subscribes the live streams to the currently active school, clearing
   /// any data carried over from a previously bound school.
   void _bind() {
-    _boundSchoolId = AuthService.currentSchoolId;
+    try {
+      _boundSchoolId = AuthService.currentSchoolId;
+    } catch (_) {
+      // Fallback during early startup before _SplashGate has restored the session
+      _boundSchoolId = 'school_1';
+    }
     _schoolSub?.cancel();
     _schoolSub = null;
     _academicSub?.cancel();
