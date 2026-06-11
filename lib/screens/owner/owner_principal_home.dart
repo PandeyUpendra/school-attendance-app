@@ -27,6 +27,7 @@ import 'staff_directory_helpers.dart';
 import '../../widgets/refreshable_data.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/phone_utils.dart';
+import '../../utils/currency_utils.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Owner-Principal Home — menu-list entry point
@@ -691,7 +692,7 @@ class _OPFinancePageState extends State<_OPFinancePage> {
     for (final d in _defaulters) {
       final phone = d['phone'] as String;
       if (phone.replaceAll(RegExp(r'\D'), '').isEmpty) continue;
-      final msg = 'Dear Parent of ${d['name']}, your fee of ₹${(d['amount'] as double).toStringAsFixed(0)} is overdue.';
+      final msg = 'Dear Parent of ${d['name']}, your fee of ${CurrencyUtils.formatRupees(d['amount'] as double)} is overdue.';
       final url = PhoneUtils.whatsAppUri(phone, text: msg);
       await launchUrl(url, mode: LaunchMode.externalApplication);
       await Future.delayed(const Duration(milliseconds: 800));
@@ -719,7 +720,7 @@ class _OPFinancePageState extends State<_OPFinancePage> {
             children: _defaulters.map((d) => _OPCard(margin: const EdgeInsets.only(bottom: 8), child: Row(children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(d['name'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                Text('${d['className']}  ·  ₹${(d['amount'] as double).toStringAsFixed(0)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                Text('${d['className']}  ·  ${CurrencyUtils.formatRupees(d['amount'] as double)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                 Text('${d['daysOverdue']} days overdue', style: const TextStyle(color: AppTheme.danger, fontSize: 11)),
               ])),
               if ((d['phone'] as String).isNotEmpty) IconButton(

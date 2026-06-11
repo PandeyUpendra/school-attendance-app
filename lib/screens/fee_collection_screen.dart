@@ -932,9 +932,9 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
           if (st.totalAnnualFee > 0) ...[
             pw.SizedBox(height: 8),
             pw.Text(
-                'Annual Fee: ₹${st.totalAnnualFee.toStringAsFixed(0)}'),
+                'Annual Fee: ${CurrencyUtils.formatRupees(st.totalAnnualFee)}'),
             pw.Text(
-                'Total Paid: ₹${_totalPaid.toStringAsFixed(0)}   Balance Due: ₹${_due.toStringAsFixed(0)}'),
+                'Total Paid: ${CurrencyUtils.formatRupees(_totalPaid)}   Balance Due: ${CurrencyUtils.formatRupees(_due)}'),
           ],
           if (p.note != null && p.note!.isNotEmpty) ...[
             pw.SizedBox(height: 8),

@@ -797,7 +797,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         leading: _selectMode
             ? IconButton(
@@ -1198,7 +1198,7 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
     final c = widget.color;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Text(t.name,
             style: const TextStyle(

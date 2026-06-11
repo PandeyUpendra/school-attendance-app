@@ -44,8 +44,14 @@ class FirestoreService {
     try {
       final doc = await _attendanceCol(schoolId, classId).doc(date).get();
       if (!doc.exists || doc.data() == null) return null;
-      return doc.data()!.map(
-          (k, v) => MapEntry(int.parse(k), AttendanceStatus.fromValue(v)));
+      final map = <int, AttendanceStatus>{};
+      doc.data()!.forEach((k, v) {
+        final roll = int.tryParse(k);
+        if (roll != null) {
+          map[roll] = AttendanceStatus.fromValue(v);
+        }
+      });
+      return map;
     } catch (_) {
       return null;
     }

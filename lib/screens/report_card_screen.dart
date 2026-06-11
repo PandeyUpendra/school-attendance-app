@@ -460,7 +460,7 @@ class _TopperBanner extends StatelessWidget {
     if (toppers.isEmpty) return const SizedBox.shrink();
     final top  = toppers.first;
     final name = studentMap[top.roll]?.name ?? top.studentName;
-    final grade = template != null && top.percentage > 0
+    final grade = template != null && template!.gradeScheme.isNotEmpty && top.percentage > 0
         ? template!.gradeForPercent(top.percentage)
         : top.grade;
 
@@ -534,7 +534,7 @@ class _StatsSummary extends StatelessWidget {
           _Cell('$passCount',         context.tr('passedLabel'),    Colors.green),
           _Cell('${results.length - passCount}', context.tr('failedLabel'), Colors.red),
           _Cell('${avgPct.toStringAsFixed(1)}%', context.tr('avgPctLabel'),
-              const Color(0xFFF57F17)),
+              AppTheme.warning),
         ],
       ),
     );
@@ -589,7 +589,7 @@ class _StudentResultCard extends StatelessWidget {
     if (result == null) return Colors.grey;
     final p = result!.percentage;
     if (p >= 80) return Colors.green;
-    if (p >= 50) return const Color(0xFFF57F17);
+    if (p >= 50) return AppTheme.warning;
     if (p >= 33) return Colors.blue;
     return Colors.red;
   }
@@ -723,7 +723,7 @@ class _StudentResultCard extends StatelessWidget {
                 ),
                 child: Text(
                   // Use the school's custom grade scheme when available (#38).
-                  '${context.tr('gradePrefix')} ${template != null && r.percentage > 0 ? template!.gradeForPercent(r.percentage) : r.grade}',
+                  '${context.tr('gradePrefix')} ${template != null && template!.gradeScheme.isNotEmpty && r.percentage > 0 ? template!.gradeForPercent(r.percentage) : r.grade}',
                   style: TextStyle(
                       color: color,
                       fontSize: 12,

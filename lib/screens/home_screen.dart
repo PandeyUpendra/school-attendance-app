@@ -1156,7 +1156,7 @@ class _HeroInfo extends StatelessWidget {
           Text(value,
               style: TextStyle(
                   color: highlight
-                      ? const Color(0xFFF48FB1)
+                      ? AppTheme.alertHighlight
                       : Colors.white,
                   fontSize: 15,
                   fontWeight: FontWeight.bold)),

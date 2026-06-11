@@ -23,6 +23,7 @@ import '../services/notification_service.dart';
 import '../services/timetable_service.dart';
 import '../services/base_firestore_service.dart';
 import '../utils/role_guard.dart';
+import '../utils/currency_utils.dart';
 import 'announcements_screen.dart';
 import 'guardian_leave_application_screen.dart';
 import 'notifications_screen.dart';
@@ -546,7 +547,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: Colors.green,
       title: context.tr('feeStatus'),
       subtitle: _feeStructure != null && _feeStructure!.totalAnnualFee > 0
-          ? ((_feeStructure!.totalAnnualFee - _totalPaid) < 1 ? 'Fully Paid' : 'Pending: ₹${(_feeStructure!.totalAnnualFee - _totalPaid).toStringAsFixed(0)}')
+          ? ((_feeStructure!.totalAnnualFee - _totalPaid) < 1 ? 'Fully Paid' : 'Pending: ${CurrencyUtils.formatRupees(_feeStructure!.totalAnnualFee - _totalPaid)}')
           : 'No fee info',
       isLocked: !_hasConsent,
       onTap: () => _runGatedAction(() => Navigator.push(
@@ -1989,7 +1990,7 @@ class _FeeStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = structure.totalAnnualFee;
-    final due   = (total - totalPaid).clamp(0, double.infinity);
+    final due   = (total - totalPaid).clamp(0.0, double.infinity);
     final pct   = total > 0 ? (totalPaid / total).clamp(0.0, 1.0) : 0.0;
     final isFullyPaid = due < 1;
 
@@ -2055,16 +2056,16 @@ class _FeeStatusCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Paid: ₹${totalPaid.toStringAsFixed(0)}',
+              Text('Paid: ${CurrencyUtils.formatRupees(totalPaid)}',
                   style: TextStyle(
                       fontSize: 12, color: Colors.green.shade700)),
-              Text('Due: ₹${due.toStringAsFixed(0)}',
+              Text('Due: ${CurrencyUtils.formatRupees(due)}',
                   style: TextStyle(
                       fontSize: 12,
                       color: due > 0
                           ? Colors.orange.shade700
                           : Colors.grey.shade500)),
-              Text('Total: ₹${total.toStringAsFixed(0)}',
+              Text('Total: ${CurrencyUtils.formatRupees(total)}',
                   style: TextStyle(
                       fontSize: 12, color: Colors.grey.shade600)),
             ],
@@ -2985,7 +2986,7 @@ class GuardianFeeStatusScreen extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(comp.name, style: const TextStyle(fontWeight: FontWeight.w500)),
-                                Text('₹${comp.amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                Text(CurrencyUtils.formatRupees(comp.amount), style: const TextStyle(fontWeight: FontWeight.bold)),
                               ],
                             ),
                           ),
@@ -3024,7 +3025,7 @@ class GuardianFeeStatusScreen extends StatelessWidget {
                     title: Text(inst.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text('Due: $dateStr'),
                     trailing: Text(
-                      '₹${inst.amount.toStringAsFixed(0)}',
+                      CurrencyUtils.formatRupees(inst.amount),
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   ),

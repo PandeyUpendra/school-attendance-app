@@ -32,7 +32,7 @@ class _AdminScreenState extends State<AdminScreen> {
     'coordinator': AppTheme.primaryMid,
     'principal':   AppTheme.primaryDark,
     'guardian':    AppTheme.accent,
-    'owner':       Color(0xFF37474F),
+    'owner':       AppTheme.ownerGray,
   };
 
   @override

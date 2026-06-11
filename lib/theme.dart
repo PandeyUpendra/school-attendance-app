@@ -54,6 +54,25 @@ abstract class AppTheme {
   // WhatsApp brand color
   static const Color whatsapp     = Color(0xFF25D366);
 
+  // Third-party brand and special-use colors
+  static const Color gmailRed       = Color(0xFFEA4335);
+  static const Color alertHighlight = Color(0xFFF48FB1); // Pink highlight for unread counts
+  static const Color ownerGray      = Color(0xFF37474F); // Dark slate gray for owner role
+
+  /// Palette for color-coding different teachers in the timetable grid.
+  static const List<Color> timetablePalette = [
+    Color(0xFF009688),
+    Color(0xFF3F51B5),
+    Color(0xFFFF9800),
+    Color(0xFFE91E63),
+    primary,
+    Color(0xFF4CAF50),
+    Color(0xFFF44336),
+    Color(0xFF795548),
+    Color(0xFF00BCD4),
+    primaryDark,
+  ];
+
   // ── ThemeData ─────────────────────────────────────────────────────────────
 
   static ThemeData get light => ThemeData(

@@ -8,6 +8,7 @@ import '../l10n/app_strings.dart';
 import '../theme.dart';
 import '../services/principal_digest_service.dart';
 import '../widgets/refreshable_data.dart';
+import '../utils/currency_utils.dart';
 
 /// One-screen end-of-day summary for the principal.
 /// Markers viewed-today via SharedPreferences so the dashboard auto-prompt
@@ -86,7 +87,7 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
       '${_pad(d.day)}/${_pad(d.month)}/${d.year}';
   static String _fmtTime(DateTime d) =>
       '${_pad(d.hour)}:${_pad(d.minute)}';
-  static String _money(double v) => '₹${v.toStringAsFixed(0)}';
+  static String _money(double v) => CurrencyUtils.formatRupees(v);
 
   @override
   Widget build(BuildContext context) {

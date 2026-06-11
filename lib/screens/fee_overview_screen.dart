@@ -342,7 +342,7 @@ class _ClassFeeCard extends StatelessWidget {
     } else if (pct >= 0.9) {
       progressColor = Colors.green.shade600;
     } else if (pct >= 0.5) {
-      progressColor = const Color(0xFFF57F17);
+      progressColor = AppTheme.warning;
     } else {
       progressColor = Colors.red.shade400;
     }
