@@ -466,7 +466,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
               section: widget.section,
               teacherId: widget.teacherId)),
     );
-    // Stream auto-refreshes after a student is added.
+    // Refresh the roster after adding a student.
+    await _fetchPage(reset: true);
   }
 
   /// Exports the current roster to a CSV and opens the share sheet (#71).

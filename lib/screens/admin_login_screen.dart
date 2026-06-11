@@ -125,11 +125,12 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     setState(() { _loading = true; _error = null; _resetMsg = null; });
     try {
       await AuthService().sendPasswordResetEmail(email);
+      // Sign out to invalidate any existing session
+      await AuthService().signOut();
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _resetMsg = 'Reset link sent to $email. Check that inbox, set a '
-            'new password, then sign in here.';
+        _resetMsg = 'Reset link sent to $email. Check that inbox, set a new password, then sign in here.';
       });
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
