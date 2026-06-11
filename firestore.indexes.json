@@ -27,6 +27,32 @@
       ]
     },
     {
+      "collectionGroup": "students",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "className",  "order": "ASCENDING" },
+        { "fieldPath": "section",    "order": "ASCENDING" },
+        { "fieldPath": "roll",       "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "students",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "className",  "order": "ASCENDING" },
+        { "fieldPath": "teacherId",  "order": "ASCENDING" },
+        { "fieldPath": "roll",       "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "students",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "className",  "order": "ASCENDING" },
+        { "fieldPath": "roll",       "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "substitution_history",
       "queryScope": "COLLECTION",
       "fields": [
