@@ -62,12 +62,25 @@ class AuthService {
   /// Only root admin accounts will have Firestore read permission for this doc.
   Future<List<String>> fetchAndCacheAdminEmails() async {
     try {
-      final doc = await FirebaseFirestore.instance
+      final docRef = FirebaseFirestore.instance
           .collection('system')
-          .doc('root_config')
-          .get();
+          .doc('root_config');
+      var doc = await docRef.get();
       if (!doc.exists) {
-        throw Exception('System root config doc does not exist.');
+        // Chicken-and-egg bootstrap: if the root_config doc does not exist yet,
+        // and the currently signed-in Firebase user is a hardcoded root admin,
+        // we can automatically initialize the document.
+        final currentUserEmail = _auth.currentUser?.email?.toLowerCase().trim();
+        final hardcodedAdmins = {'mandvishal@gmail.com', 'admin@schoolapp.org'};
+        if (currentUserEmail != null && hardcodedAdmins.contains(currentUserEmail)) {
+          final initialData = {
+            'adminEmails': hardcodedAdmins.toList(),
+          };
+          await docRef.set(initialData);
+          doc = await docRef.get();
+        } else {
+          throw Exception('System root config doc does not exist.');
+        }
       }
       final emailsList = List<String>.from(doc.data()?['adminEmails'] ?? []);
       final clean = emailsList.map((e) => e.toLowerCase().trim()).toList();
@@ -86,11 +99,11 @@ class AuthService {
   static bool isRootAdminEmail(String? email) {
     if (email == null || email.trim().isEmpty) return false;
     final clean = email.trim().toLowerCase();
+    final hardcodedAdmins = {'mandvishal@gmail.com', 'admin@schoolapp.org'};
     // If the cache is empty (e.g. first-time launch/forgot password before first login),
-    // we return true to let the request proceed to Firebase Auth. The Firestore security rules
-    // act as the ultimate source of truth on the server.
+    // we fall back to checking the hardcoded root admin emails.
     if (_cachedAdminEmails.isEmpty) {
-      return true;
+      return hardcodedAdmins.contains(clean);
     }
     return _cachedAdminEmails.contains(clean);
   }
