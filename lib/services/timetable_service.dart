@@ -172,8 +172,8 @@ class TimetableService extends BaseFirestoreService {
     await _teachers.doc(teacher.id).set(teacher.toJson());
 
     // Create Firebase Auth account via REST first (does not displace current admin session).
+    // The UID is not tracked — the allowed_users doc is keyed by email.
     final tempPassword = generateSecurePassword();
-    String? uid;
     try {
       final res = await http.post(
         Uri.parse(
@@ -187,46 +187,33 @@ class TimetableService extends BaseFirestoreService {
       );
       final body    = jsonDecode(res.body) as Map<String, dynamic>;
       final errCode = (body['error'] as Map?)?['message'] as String? ?? '';
-      if (body['localId'] != null) {
-        uid = body['localId'] as String;
-      } else if (errCode == 'EMAIL_EXISTS') {
-        if (existingDoc != null && existingDoc.exists) {
-          uid = existingDoc.id;
-        } else {
-          final query = await _allowedUsers.where('email', isEqualTo: normEmail).limit(1).get();
-          if (query.docs.isNotEmpty) {
-            uid = query.docs.first.id;
-          }
-        }
-      } else {
+      if (body['localId'] == null && errCode != 'EMAIL_EXISTS') {
         throw Exception('Firebase Auth creation failed for $normEmail: $errCode');
       }
     } catch (e) {
-      if (existingDoc != null && existingDoc.exists) {
-        uid = existingDoc.id;
-      } else {
+      // If an existing account is found (EMAIL_EXISTS), that's fine — we just
+      // need the allowed_users doc to exist. If Auth creation truly failed and
+      // no existing account was found, propagate the error.
+      if (existingDoc == null || !existingDoc.exists) {
         final query = await _allowedUsers.where('email', isEqualTo: normEmail).limit(1).get();
-        if (query.docs.isNotEmpty) {
-          uid = query.docs.first.id;
-        } else {
+        if (query.docs.isEmpty) {
           throw Exception('Firebase Auth creation failed and no existing account found: $e');
         }
       }
     }
 
-    if (uid != null) {
-      // Write allowed_users entry so login's role lookup succeeds.
-      await _allowedUsers.doc(uid).set({
-        'role':      'teacher',
-        'email':     normEmail,
-        'name':      teacher.name,
-        'teacherId': teacher.id,
-        'schoolId':  schoolId,
-        'classIds':  _classIdsFor(teacher),
-        'status':    'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    }
+    // Write allowed_users entry keyed by email so login's role lookup
+    // succeeds and syncUserClaims fires correctly.
+    await _allowedUsers.doc(normEmail).set({
+      'role':      'teacher',
+      'email':     normEmail,
+      'name':      teacher.name,
+      'teacherId': teacher.id,
+      'schoolId':  schoolId,
+      'classIds':  _classIdsFor(teacher),
+      'status':    'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
     // Send invitation / password-setup email.
     try {
@@ -1490,13 +1477,24 @@ class TimetableService extends BaseFirestoreService {
   /// Returns the raw allowed_user document data for an email, or null.
   Future<Map<String, dynamic>?> getAllowedUserDoc(String email) async {
     final normEmail = email.toLowerCase().trim();
+    // Primary path: read by email (the canonical document key).
+    final emailDoc = await _allowedUsers.doc(normEmail).get();
+    if (emailDoc.exists && emailDoc.data() != null) {
+      return Map<String, dynamic>.from(emailDoc.data()!);
+    }
+    // Backward-compat: some legacy documents may still be keyed by UID.
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null && currentUser.email?.toLowerCase().trim() == normEmail) {
-      final doc = await _allowedUsers.doc(currentUser.uid).get();
-      if (doc.exists && doc.data() != null) {
-        return Map<String, dynamic>.from(doc.data()!);
+      try {
+        final uidDoc = await _allowedUsers.doc(currentUser.uid).get();
+        if (uidDoc.exists && uidDoc.data() != null) {
+          return Map<String, dynamic>.from(uidDoc.data()!);
+        }
+      } catch (_) {
+        // Permission-denied on UID-keyed read — expected after rules migration.
       }
     }
+    // Last-resort: query by email field (covers any key scheme).
     final query = await _allowedUsers.where('email', isEqualTo: normEmail).limit(1).get();
     if (query.docs.isNotEmpty) {
       return Map<String, dynamic>.from(query.docs.first.data());
@@ -1507,10 +1505,21 @@ class TimetableService extends BaseFirestoreService {
   /// Returns guardian links (list of student references) for a guardian email.
   Future<List<Map<String, dynamic>>?> getGuardianLinks(String email) async {
     final normEmail = email.toLowerCase().trim();
-    final currentUser = FirebaseAuth.instance.currentUser;
     DocumentSnapshot<Map<String, dynamic>>? doc;
-    if (currentUser != null && currentUser.email?.toLowerCase().trim() == normEmail) {
-      doc = await _allowedUsers.doc(currentUser.uid).get();
+    // Primary path: read by email (the canonical document key).
+    final emailDoc = await _allowedUsers.doc(normEmail).get();
+    if (emailDoc.exists) {
+      doc = emailDoc;
+    }
+    // Backward-compat: try UID-keyed read, then email-field query.
+    if (doc == null || !doc.exists) {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null && currentUser.email?.toLowerCase().trim() == normEmail) {
+        try {
+          final uidDoc = await _allowedUsers.doc(currentUser.uid).get();
+          if (uidDoc.exists) doc = uidDoc;
+        } catch (_) {}
+      }
     }
     if (doc == null || !doc.exists) {
       final query = await _allowedUsers.where('email', isEqualTo: normEmail).limit(1).get();
@@ -1561,7 +1570,10 @@ class TimetableService extends BaseFirestoreService {
     String?         schoolId,
     String?         phone,           // E.164 format, e.g. "+919876543210"
   }) async {
-    final docRef = _allowedUsers.doc(uid);
+    final normEmail = email.toLowerCase().trim();
+    // Use email as the canonical document key. Read the existing doc first
+    // to preserve any student links already stored.
+    final docRef = _allowedUsers.doc(normEmail);
     final doc    = await docRef.get();
     final data   = doc.exists && doc.data() != null
         ? Map<String, dynamic>.from(doc.data()!)
@@ -1589,7 +1601,7 @@ class TimetableService extends BaseFirestoreService {
 
     await docRef.set({
       'role':         data['role'] ?? 'guardian',
-      'email':        email.toLowerCase().trim(),
+      'email':        normEmail,
       'studentLinks': links,
       'studentClass': studentClass,  // legacy compat
       'studentRoll':  studentRoll,   // legacy compat

@@ -875,7 +875,7 @@ exports.deleteStudent = onCall(
 
     // Authorization: management of the SAME school (admins may cross schools).
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const callerSnap = await db.collection("allowed_users").doc(request.auth.uid).get();
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!STUDENT_DELETE_ROLES.includes(callerRole)) {
@@ -907,7 +907,7 @@ exports.approveDeletionRequest = onCall(
 
     // Authorization: management of the SAME school (admins may cross schools).
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const callerSnap = await db.collection("allowed_users").doc(request.auth.uid).get();
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!STUDENT_DELETE_ROLES.includes(callerRole)) {
@@ -974,7 +974,7 @@ exports.writeAudit = onCall(
     }
 
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const snap = await db.collection("allowed_users").doc(request.auth.uid).get();
+    const snap = await db.collection("allowed_users").doc(callerEmail).get();
     const role = resolveCallerRole(callerEmail, snap); // 'admin' for root admin
     
     if (!role) {
@@ -1079,7 +1079,7 @@ exports.purgeOldData = onCall(
     }
 
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const callerSnap = await db.collection("allowed_users").doc(request.auth.uid).get();
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
 
@@ -1703,7 +1703,7 @@ exports.backfillStudentAttendance = onCall(
       throw new HttpsError("invalid-argument", "schoolId is required.");
     }
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const callerSnap = await db.collection("allowed_users").doc(request.auth.uid).get();
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!PURGE_ROLES.includes(callerRole)) {
@@ -1793,7 +1793,7 @@ exports.backfillCommsConsent = onCall(
       throw new HttpsError("invalid-argument", "schoolId is required.");
     }
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const callerSnap = await db.collection("allowed_users").doc(request.auth.uid).get();
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!PURGE_ROLES.includes(callerRole)) {
@@ -1847,7 +1847,7 @@ exports.backfillClassStats = onCall(
       throw new HttpsError("invalid-argument", "schoolId is required.");
     }
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const callerSnap = await db.collection("allowed_users").doc(request.auth.uid).get();
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!PURGE_ROLES.includes(callerRole)) {
@@ -1918,7 +1918,7 @@ exports.backfillAttendanceSummary = onCall(
       throw new HttpsError("invalid-argument", "schoolId is required.");
     }
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const callerSnap = await db.collection("allowed_users").doc(request.auth.uid).get();
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!PURGE_ROLES.includes(callerRole)) {

@@ -48,7 +48,7 @@ service cloud.firestore {
     }
 
     function getUserData() {
-      return get(/databases/$(database)/documents/allowed_users/$(request.auth.uid)).data;
+      return get(/databases/$(database)/documents/allowed_users/$(request.auth.token.email.lower())).data;
     }
 
     /// SCALE-05: identity from CUSTOM CLAIMS instead of a document read.
