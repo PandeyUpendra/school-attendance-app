@@ -20,46 +20,7 @@ class PremiumPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    final isFullscreen = route.fullscreenDialog;
-
-    final isReversing = animation.status == AnimationStatus.reverse;
-    final curve = isReversing
-        ? Curves.easeInCubic
-        : const Cubic(0.16, 1, 0.3, 1); // Premium easeOutQuart curve
-
-    final curvedAnim = CurvedAnimation(
-      parent: animation,
-      curve: curve,
-      reverseCurve: curve,
-    );
-
-    if (isFullscreen) {
-      // Modal transition: gentle scale from 98% to 100% + fade
-      final scaleAnim = Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnim);
-      final fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnim);
-      return FadeTransition(
-        opacity: fadeAnim,
-        child: ScaleTransition(
-          scale: scaleAnim,
-          child: child,
-        ),
-      );
-    }
-
-    // Default screen transition: subtle slide (16px equivalent fraction) + fade
-    final slideAnim = Tween<Offset>(
-      begin: const Offset(0.04, 0.0), // ~16px subtle horizontal slide
-      end: Offset.zero,
-    ).animate(curvedAnim);
-    final fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnim);
-
-    return FadeTransition(
-      opacity: fadeAnim,
-      child: SlideTransition(
-        position: slideAnim,
-        child: child,
-      ),
-    );
+    return child;
   }
 }
 
@@ -78,63 +39,9 @@ class AppPageRoute<T> extends PageRouteBuilder<T> {
     super.maintainState = true,
   }) : super(
           pageBuilder: (context, animation, secondaryAnimation) => child,
-          transitionDuration: transition == AppRouteTransition.none
-              ? Duration.zero
-              : const Duration(milliseconds: 250),
-          reverseTransitionDuration: transition == AppRouteTransition.none
-              ? Duration.zero
-              : const Duration(milliseconds: 200),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            if (transition == AppRouteTransition.none) {
-              return child;
-            }
-
-            final isReversing = animation.status == AnimationStatus.reverse;
-            final curve = isReversing
-                ? Curves.easeInCubic
-                : const Cubic(0.16, 1, 0.3, 1); // Premium easeOutQuart curve
-
-            final curvedAnim = CurvedAnimation(
-              parent: animation,
-              curve: curve,
-              reverseCurve: curve,
-            );
-
-            if (isFullscreenDialog || transition == AppRouteTransition.modal) {
-              final scaleAnim = Tween<double>(begin: 0.98, end: 1.0).animate(curvedAnim);
-              final fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnim);
-              return FadeTransition(
-                opacity: fadeAnim,
-                child: ScaleTransition(
-                  scale: scaleAnim,
-                  child: child,
-                ),
-              );
-            }
-
-            if (transition == AppRouteTransition.fade) {
-              final fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnim);
-              return FadeTransition(
-                opacity: fadeAnim,
-                child: child,
-              );
-            }
-
-            // Slide + Fade (Forward/Back navigation)
-            final slideAnim = Tween<Offset>(
-              begin: const Offset(0.04, 0.0), // ~16px subtle horizontal slide
-              end: Offset.zero,
-            ).animate(curvedAnim);
-            final fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnim);
-
-            return FadeTransition(
-              opacity: fadeAnim,
-              child: SlideTransition(
-                position: slideAnim,
-                child: child,
-              ),
-            );
-          },
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) => child,
         );
 
   @override
@@ -209,14 +116,6 @@ class _PremiumTabBarViewState extends State<PremiumTabBarView> {
   Widget build(BuildContext context) {
     if (widget.children.isEmpty) return const SizedBox.shrink();
     final index = _currentIndex.clamp(0, widget.children.length - 1);
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 150),
-      switchInCurve: Curves.easeIn,
-      switchOutCurve: Curves.easeOut,
-      child: KeyedSubtree(
-        key: ValueKey<int>(index),
-        child: widget.children[index],
-      ),
-    );
+    return widget.children[index];
   }
 }
