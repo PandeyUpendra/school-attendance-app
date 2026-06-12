@@ -113,9 +113,6 @@ void main() {
     when(() => mockMeetingService.streamPendingTaskCountForTeacher(any()))
         .thenAnswer((_) => Stream.value(0));
 
-    when(() => mockTimetableService.syncTeacherClassIds(any()))
-        .thenAnswer((_) async {});
-
     when(() => mockTimetableService.getAssignedClasses(any()))
         .thenAnswer((_) async => (assignedClasses: ['Class 9-A', 'Class 9-B'], schoolId: 'test_school'));
 
