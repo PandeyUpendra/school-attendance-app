@@ -60,6 +60,8 @@ class _LoginScreenState extends State<LoginScreen> {
       // Firebase Auth sign-in.
       await AuthService().signInWithEmail(email, password);
 
+      TextInput.finishAutofillContext();
+
       if (!mounted) return;
 
       // Fetch role + extra data from allowed_users.
@@ -310,10 +312,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Email
+                    child: AutofillGroup(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Email
                         EmailTextFormField(
                           controller: _emailCtrl,
                           // RFC 5321 caps an email address at 254 chars; 100
@@ -339,6 +342,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           maxLengthEnforcement: MaxLengthEnforcement.enforced,
                           textInputAction: TextInputAction.done,
                           onSubmitted: (_) => _loading ? null : _signIn(),
+                          autofillHints: const [AutofillHints.password],
                           decoration: InputDecoration(
                             labelText: context.tr('password'),
                             prefixIcon: const Icon(Icons.lock_outline),
@@ -435,6 +439,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ),
+                ),
 
                   const SizedBox(height: 28),
 
