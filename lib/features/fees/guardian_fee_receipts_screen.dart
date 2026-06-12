@@ -1,4 +1,5 @@
 import '../../l10n/app_strings.dart';
+import '../../theme.dart';
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
@@ -32,6 +33,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
   final _feeService = FeeService();
 
   bool _loading = true;
+  String? _error;
   Student? _student;
   FeeStructure? _structure;
   double _totalPaid = 0;
@@ -45,7 +47,10 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final results = await Future.wait([
         _studentService.getStudentByRoll(widget.className, widget.roll, section: ''),
@@ -69,7 +74,10 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
     }
   }
 
@@ -596,9 +604,11 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _payments.isEmpty
-              ? const Center(child: Text('No receipts found'))
-              : Column(
+          : _error != null
+              ? _errorState()
+              : _payments.isEmpty
+                  ? const Center(child: Text('No receipts found'))
+                  : Column(
                   children: [
                     _buildTaxCertificateCard(),
                     Expanded(
@@ -634,5 +644,38 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
                 ),
     );
   }
+
+  Widget _errorState() => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 56, color: Colors.red.shade300),
+              const SizedBox(height: 14),
+              const Text(
+                'Failed to load fee receipts',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _error ?? '',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _loadData,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 }
 

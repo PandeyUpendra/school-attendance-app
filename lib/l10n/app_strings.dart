@@ -99,6 +99,8 @@ class AppStrings {
     'attendanceHistory':   {'en': 'Attendance History',     'hi': 'उपस्थिति इतिहास'},
     'deletedStudents':     {'en': 'Deleted Students',       'hi': 'हटाए गए छात्र'},
     'studentRemarks':      {'en': 'Student Remarks',        'hi': 'छात्र टिप्पणियाँ'},
+    'studyMaterials':      {'en': 'Study Materials',        'hi': 'अध्ययन सामग्री'},
+    'syllabusProgress':    {'en': 'Syllabus Progress',      'hi': 'पाठ्यक्रम प्रगति'},
     'dailyCalls':          {'en': 'Daily Calls',            'hi': 'दैनिक कॉल'},
     'applyForLeave':       {'en': 'Apply for Leave',        'hi': 'अवकाश के लिए आवेदन'},
     'studentLeaveRequests':{'en': 'Student Leave Requests', 'hi': 'छात्र अवकाश अनुरोध'},
@@ -150,6 +152,9 @@ class AppStrings {
     'promoteClass':         {'en': 'Promote Class',          'hi': 'कक्षा पदोन्नति'},
     'analyticsDashboard':   {'en': 'Analytics Dashboard',    'hi': 'विश्लेषण डैशबोर्ड'},
     'attendanceReports':    {'en': 'Attendance Reports',     'hi': 'उपस्थिति रिपोर्ट'},
+    'datesheetsHallTickets': {'en': 'Datesheets & Hall Tickets', 'hi': 'डेटशीट और हॉल टिकट'},
+    'syllabusProgressSummary': {'en': 'Syllabus Progress Summary', 'hi': 'पाठ्यक्रम प्रगति सारांश'},
+    'idCardGenerator':      {'en': 'ID Card Generator',      'hi': 'आईडी कार्ड जनरेटर'},
     'feeCollection':        {'en': 'Fee Collection',         'hi': 'शुल्क संग्रह'},
     'feeStructure':         {'en': 'Fee Structure',          'hi': 'शुल्क संरचना'},
     'examManagement':       {'en': 'Exam Management',         'hi': 'परीक्षा प्रबंधन'},
@@ -302,6 +307,9 @@ class AppStrings {
     'secPaymentHistory':     {'en': 'PAYMENT HISTORY',    'hi': 'भुगतान इतिहास'},
     'noPaymentsYet':         {'en': 'No payments recorded yet.', 'hi': 'अभी कोई भुगतान दर्ज नहीं।'},
     'printReceipt':          {'en': 'Print Receipt',      'hi': 'रसीद प्रिंट करें'},
+    'amountRupees':          {'en': 'Amount (₹)',         'hi': 'राशि (₹)'},
+    'errEnterAmount':        {'en': 'Please enter an amount', 'hi': 'कृपया राशि दर्ज करें'},
+    'errInvalidAmount':      {'en': 'Please enter a valid amount greater than 0', 'hi': 'कृपया 0 से अधिक मान्य राशि दर्ज करें'},
 
     // ── Homework overview screen ─────────────────────────────────────────
     'subHomeworkOverviewAll':{'en': 'All assignments across classes', 'hi': 'सभी कक्षाओं के असाइनमेंट'},
@@ -792,6 +800,9 @@ class AppStrings {
     'remarkForPrefix':       {'en': 'Remark for',         'hi': 'इनके लिए टिप्पणी:'},
     'writeFeedbackHint':     {'en': 'Write your feedback…', 'hi': 'अपनी प्रतिक्रिया लिखें…'},
     'sendAction':            {'en': 'Send',               'hi': 'भेजें'},
+    'selectPresetRemark':    {'en': 'Select Preset Remark', 'hi': 'तैयार टिप्पणी चुनें'},
+    'customRemarkOption':    {'en': 'Write custom remark...', 'hi': 'कस्टम टिप्पणी लिखें...'},
+    'writeRemarkLabel':      {'en': 'Or edit/write remark message', 'hi': 'या टिप्पणी संदेश संपादित/लिखें'},
 
     // ── Class / section picker screen ────────────────────────────────────
     'selectClass':           {'en': 'Select Class',       'hi': 'कक्षा चुनें'},

@@ -396,10 +396,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
         if (raw != null) {
           final rolls = Map<String, dynamic>.from((raw['rolls'] as Map?) ?? {});
           rolls.forEach((k, v) {
-            if (v is bool) {
-              saved[int.parse(k)] = v ? 'Present' : 'Absent';
-            } else {
-              saved[int.parse(k)] = v as String;
+            final roll = int.tryParse(k);
+            if (roll != null) {
+              if (v is bool) {
+                saved[roll] = v ? 'Present' : 'Absent';
+              } else {
+                saved[roll] = v as String;
+              }
             }
           });
         }
@@ -898,6 +901,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
       leading: (_isMarking && _alreadySaved)
           ? IconButton(
               icon: const Icon(Icons.close, color: Colors.white),
+              tooltip: context.tr('close') ?? 'Close',
+              semanticsLabel: context.tr('close') ?? 'Close',
               onPressed: () => setState(() => _isMarking = false),
             )
           : null,
@@ -908,11 +913,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
             icon: const Icon(Icons.search, color: Colors.white),
             onPressed: _showSearchRollDialog,
             tooltip: context.tr('searchByRoll'),
+            semanticsLabel: context.tr('searchByRoll') ?? 'Search by Roll',
           ),
         IconButton(
           icon: const Icon(Icons.settings, color: Colors.white),
           onPressed: _showSettingsDialog,
           tooltip: 'Attendance Settings',
+          semanticsLabel: 'Attendance Settings',
         ),
       ],
     );

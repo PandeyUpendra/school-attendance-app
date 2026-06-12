@@ -225,7 +225,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     setState(() => _saving = true);
 
     final student = Student(
-      roll: int.parse(_rollCtrl.text.trim()),
+      roll: int.tryParse(_rollCtrl.text.trim()) ?? 0,
       name: _nameCtrl.text.trim(),
       className: widget.className,
       section: widget.section,

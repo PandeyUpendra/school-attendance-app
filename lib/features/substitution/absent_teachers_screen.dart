@@ -88,15 +88,21 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
       if (startStr == null) continue;
       try {
         final parts = startStr.split('-');
-        final start = DateTime(
-            int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
-        final days = (leave['numberOfDays'] as int?) ?? 1;
-        final end  = start.add(Duration(days: days - 1));
-        if (!today.isBefore(start) && !today.isAfter(end)) {
-          final tid = leave['teacherId'] as String? ?? '';
-          if (tid.isNotEmpty) {
-            absentFromLeave.add(tid);
-            leaveReasons[tid] = (leave['reason'] as String?) ?? '';
+        if (parts.length == 3) {
+          final year = int.tryParse(parts[0]);
+          final month = int.tryParse(parts[1]);
+          final day = int.tryParse(parts[2]);
+          if (year != null && month != null && day != null) {
+            final start = DateTime(year, month, day);
+            final days = (leave['numberOfDays'] as int?) ?? 1;
+            final end  = start.add(Duration(days: days - 1));
+            if (!today.isBefore(start) && !today.isAfter(end)) {
+              final tid = leave['teacherId'] as String? ?? '';
+              if (tid.isNotEmpty) {
+                absentFromLeave.add(tid);
+                leaveReasons[tid] = (leave['reason'] as String?) ?? '';
+              }
+            }
           }
         }
       } catch (e, st) { AppLogger.e('AbsentTeachersScreen', 'Best-effort load failed', e, st); }

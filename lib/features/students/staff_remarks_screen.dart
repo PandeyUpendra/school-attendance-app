@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../l10n/app_strings.dart';
 import '../../theme.dart';
 import '../../models/staff_remark.dart';
@@ -7,6 +8,7 @@ import '../../services/auth_service.dart';
 import '../../services/staff_remark_service.dart';
 import '../../services/timetable_service.dart';
 import '../../services/notification_service.dart';
+import '../../shared/providers/locale_provider.dart';
 
 /// Remark / feedback hub for staff.
 ///
@@ -84,7 +86,7 @@ class _StaffRemarksScreenState extends State<StaffRemarksScreen> {
         ),
         floatingActionButton: _canGive
             ? FloatingActionButton.extended(
-                backgroundColor: AppTheme.accent,
+                backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
                 icon: const Icon(Icons.rate_review_outlined),
                 label: Text(context.tr('giveRemark')),
@@ -566,6 +568,60 @@ class _RecipientPickerState extends State<_RecipientPicker> {
 
 // ── Remark composer ─────────────────────────────────────────────────────────────
 
+// ── Remark presets ────────────────────────────────────────────────────────────
+
+class _PresetRemark {
+  final String english;
+  final String hindi;
+  const _PresetRemark(this.english, this.hindi);
+
+  String getLocalized(BuildContext context) {
+    final code = Provider.of<LocaleProvider>(context, listen: false).code;
+    return code == 'hi' ? hindi : english;
+  }
+}
+
+const List<_PresetRemark> _commonRemarks = [
+  _PresetRemark(
+    'Excellent classroom management and student engagement.',
+    'शानदार कक्षा प्रबंधन और छात्रों की सक्रिय भागीदारी।',
+  ),
+  _PresetRemark(
+    'Great teaching methods; students were very interactive.',
+    'शिक्षण की बेहतरीन पद्धति; छात्र बहुत संवादात्मक थे।',
+  ),
+  _PresetRemark(
+    'Kindly submit lesson plans and reports on time.',
+    'कृपया पाठ योजनाएँ और रिपोर्ट समय पर जमा करें।',
+  ),
+  _PresetRemark(
+    'Need to improve classroom control and minimize noise level.',
+    'कक्षा के नियंत्रण में सुधार और शोर को कम करने की आवश्यकता है।',
+  ),
+  _PresetRemark(
+    'Punctuality in class attendance needs improvement.',
+    'कक्षा में समय पर आने की आदत में सुधार की आवश्यकता है।',
+  ),
+  _PresetRemark(
+    'Appreciate your dedication and hard work with the students.',
+    'छात्रों के प्रति आपके समर्पण और कड़ी मेहनत की सराहना करते हैं।',
+  ),
+  _PresetRemark(
+    'Excellent coordination of the school event.',
+    'स्कूली कार्यक्रम का बेहतरीन समन्वय।',
+  ),
+  _PresetRemark(
+    'Active and constructive participation in staff meetings.',
+    'स्टाफ बैठकों में सक्रिय और सकारात्मक भागीदारी।',
+  ),
+  _PresetRemark(
+    'Struggling students need more individual attention.',
+    'कमजोर छात्रों पर अधिक व्यक्तिगत ध्यान देने की आवश्यकता है।',
+  ),
+];
+
+// ── Remark composer ─────────────────────────────────────────────────────────────
+
 class _RemarkComposer extends StatefulWidget {
   final String recipientName;
   const _RemarkComposer({required this.recipientName});
@@ -576,35 +632,165 @@ class _RemarkComposer extends StatefulWidget {
 
 class _RemarkComposerState extends State<_RemarkComposer> {
   final _controller = TextEditingController();
+  String? _selectedPreset;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedPreset = 'custom';
+    _controller.addListener(_onTextChanged);
+  }
 
   @override
   void dispose() {
+    _controller.removeListener(_onTextChanged);
     _controller.dispose();
     super.dispose();
   }
 
+  void _onTextChanged() {
+    final text = _controller.text;
+    final hasMatch = _commonRemarks.any((p) => p.getLocalized(context) == text);
+    final expectedPreset = hasMatch ? text : 'custom';
+    if (_selectedPreset != expectedPreset) {
+      setState(() {
+        _selectedPreset = expectedPreset;
+      });
+    } else {
+      setState(() {});
+    }
+  }
+
+  bool get _canSend => _controller.text.trim().isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text('${context.tr('remarkForPrefix')} ${widget.recipientName}'),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        maxLines: 5,
-        minLines: 3,
-        textCapitalization: TextCapitalization.sentences,
-        decoration: InputDecoration(
-          hintText: context.tr('writeFeedbackHint'),
-          border: const OutlineInputBorder(),
+      content: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.9,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                context.tr('selectPresetRemark'),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                value: _selectedPreset,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+                  ),
+                ),
+                items: [
+                  DropdownMenuItem<String>(
+                    value: 'custom',
+                    child: Text(
+                      context.tr('customRemarkOption'),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  ..._commonRemarks.map((preset) {
+                    final text = preset.getLocalized(context);
+                    return DropdownMenuItem<String>(
+                      value: text,
+                      child: Text(
+                        text,
+                        style: const TextStyle(fontSize: 14),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }),
+                ],
+                onChanged: (val) {
+                  if (val == null) return;
+                  setState(() {
+                    _selectedPreset = val;
+                    if (val != 'custom') {
+                      _controller.removeListener(_onTextChanged);
+                      _controller.text = val;
+                      _controller.addListener(_onTextChanged);
+                    } else {
+                      _controller.clear();
+                    }
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              Text(
+                context.tr('writeRemarkLabel'),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _controller,
+                maxLines: 5,
+                minLines: 3,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  hintText: context.tr('writeFeedbackHint'),
+                  hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  contentPadding: const EdgeInsets.all(12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.tr('cancel'))),
+          onPressed: () => Navigator.pop(context),
+          child: Text(context.tr('cancel')),
+        ),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: AppTheme.primary),
-          onPressed: () => Navigator.pop(context, _controller.text),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppTheme.primary,
+            disabledBackgroundColor: Colors.grey.shade300,
+            disabledForegroundColor: Colors.grey.shade500,
+          ),
+          onPressed: _canSend
+              ? () => Navigator.pop(context, _controller.text)
+              : null,
           child: Text(context.tr('sendAction')),
         ),
       ],

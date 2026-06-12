@@ -266,10 +266,12 @@ class _TeacherLeaveBalanceScreenState extends State<TeacherLeaveBalanceScreen> {
     try {
       final parts = dateStr.split('-');
       if (parts.length == 3) {
-        final d = int.parse(parts[2]);
-        final m = int.parse(parts[1]);
-        final y = int.parse(parts[0]);
-        formattedDate = '$d ${months[m]} $y';
+        final d = int.tryParse(parts[2]);
+        final m = int.tryParse(parts[1]);
+        final y = int.tryParse(parts[0]);
+        if (d != null && m != null && y != null && m >= 1 && m <= 12) {
+          formattedDate = '$d ${months[m]} $y';
+        }
       }
     } catch (_) {}
 

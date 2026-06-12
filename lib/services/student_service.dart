@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import '../shared/utils/app_functions.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/deleted_student.dart';
@@ -1087,7 +1088,7 @@ class StudentService extends BaseFirestoreService {
   /// can fall back to the client cascade.
   Future<bool> _serverDeleteStudent(
       String className, String section, int roll) async {
-    final callable = FirebaseFunctions.instance.httpsCallable('deleteStudent');
+    final callable = appFunctions.httpsCallable('deleteStudent');
     final res = await callable.call(<String, dynamic>{
       'schoolId':  _schoolId,
       'className': className,
@@ -1151,7 +1152,7 @@ class StudentService extends BaseFirestoreService {
   /// guardian access, then marks the request as approved.
   Future<void> approveDeletionRequest(String requestId) async {
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('approveDeletionRequest');
+      final callable = appFunctions.httpsCallable('approveDeletionRequest');
       final res = await callable.call(<String, dynamic>{
         'schoolId': _schoolId,
         'requestId': requestId,

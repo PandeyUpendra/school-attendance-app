@@ -2343,8 +2343,8 @@ class _GuardianTimetableScreenState extends State<GuardianTimetableScreen> {
   String _bellTime(int bellIdx) {
     try {
       final parts = widget.firstBellTime.split(':');
-      int h = int.parse(parts[0]);
-      int m = int.parse(parts[1]);
+      int h = parts.isNotEmpty ? (int.tryParse(parts[0]) ?? 8) : 8;
+      int m = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
       for (int i = 0; i < bellIdx; i++) {
         final dur = (widget.bellSettings[i]['duration'] as num?)?.toInt() ?? 45;
         m += dur;

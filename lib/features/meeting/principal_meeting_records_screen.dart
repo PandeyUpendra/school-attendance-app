@@ -44,6 +44,7 @@ class _PrincipalMeetingRecordsScreenState
   String _filter = 'All'; // All | This Month | Completed | Draft
   String _search = '';
   final _searchCtrl = TextEditingController();
+  bool _isSearching = false;
 
   static const _filters = ['All', 'This Month', 'Completed', 'Draft'];
 
@@ -86,45 +87,58 @@ class _PrincipalMeetingRecordsScreenState
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Text(context.tr('meetingRecords')),
+        title: _isSearching
+            ? TextField(
+                controller: _searchCtrl,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: context.tr('searchMeetings'),
+                  hintStyle: const TextStyle(color: Colors.white60),
+                  border: InputBorder.none,
+                ),
+                onChanged: (v) => setState(() => _search = v),
+              )
+            : Text(context.tr('meetingRecords')),
         backgroundColor: AppTheme.primaryDark,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: const [],
+        leading: _isSearching
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  setState(() {
+                    _isSearching = false;
+                    _search = '';
+                    _searchCtrl.clear();
+                  });
+                },
+              )
+            : null,
+        actions: [
+          if (!_isSearching)
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: () {
+                setState(() {
+                  _isSearching = true;
+                });
+              },
+            )
+          else if (_search.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () {
+                setState(() {
+                  _search = '';
+                  _searchCtrl.clear();
+                });
+              },
+            ),
+        ],
       ),
       body: Column(
         children: [
-          // ── Search bar ───────────────────────────────────────────────────
-          Container(
-            color: AppTheme.primary,
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: (v) => setState(() => _search = v),
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: context.tr('searchMeetings'),
-                hintStyle: const TextStyle(color: Colors.white60),
-                prefixIcon: const Icon(Icons.search, color: Colors.white60),
-                suffixIcon: _search.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white60),
-                        onPressed: () => setState(() {
-                          _search = '';
-                          _searchCtrl.clear();
-                        }),
-                      )
-                    : null,
-                filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.15),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-              ),
-            ),
-          ),
 
           // ── Filter chips ─────────────────────────────────────────────────
           SizedBox(

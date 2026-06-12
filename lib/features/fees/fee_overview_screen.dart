@@ -27,6 +27,7 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
   final _feeService = FeeService();
 
   bool _loading = true;
+  String? _error;
   List<String>          _classes   = [];
   List<ClassFeeSummary> _summaries = [];
 
@@ -38,7 +39,10 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
 
   Future<void> _load() async {
     if (!mounted) return;
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final settings = await TimetableService.instance.getSettings();
       final classes  = List<String>.from(settings['classes'] as List? ?? []);
@@ -50,12 +54,11 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
         _loading   = false;
       });
     } catch (e, st) {
-      // Don't surface raw Firestore errors here — fall back to the calm empty
-      // state below (the "No classes configured yet." view, with a Refresh).
       AppLogger.e('FeeOverviewScreen', 'Failed to load fee summaries', e, st);
       if (!mounted) return;
       setState(() {
         _loading = false;
+        _error = e.toString();
       });
     }
   }
@@ -113,9 +116,11 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
       ),
       body: _loading
           ? const LoadingState()
-          : _classes.isEmpty
-              ? _emptyState()
-              : RefreshIndicator(
+          : _error != null
+              ? _errorState()
+              : _classes.isEmpty
+                  ? _emptyState()
+                  : RefreshIndicator(
                   onRefresh: _load,
                   color: AppTheme.primary,
                   child: ListView(
@@ -215,6 +220,39 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
               child: Text(context.tr('refresh')),
             ),
           ],
+        ),
+      );
+
+  Widget _errorState() => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 56, color: Colors.red.shade300),
+              const SizedBox(height: 14),
+              Text(
+                context.tr('failedToLoadFeeOverview') ?? 'Failed to load fee summaries',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _error ?? '',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh),
+                label: Text(context.tr('retry') ?? 'Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
         ),
       );
 }

@@ -23,10 +23,15 @@ const admin = require("firebase-admin");
 // contention. 100 is a safety ceiling, NOT a throughput tune — a single school,
 // or even ~100 schools, will not sustain 100 concurrent instances of one
 // trigger; revisit under load testing once real multi-school traffic exists.
-// Per-function `region` (us-central1) is intentionally left as-is here — moving
-// closer to India (asia-south1) is SCALE-08, a separate deploy-coordinated
-// migration that also depends on the Firestore database location.
-setGlobalOptions({ maxInstances: 100 });
+// Region (SCALE-08): asia-south1 (Mumbai), CO-LOCATED with the Firestore
+// database (confirmed `(default)` lives in asia-south1). The functions
+// originally ran in us-central1, which put an Iowa↔Mumbai round-trip inside
+// EVERY trigger/callable Firestore operation (and billed cross-region egress).
+// Keep function region == database region; the Flutter app must call callables
+// via FirebaseFunctions.instanceFor(region: kFunctionsRegion) — see
+// lib/shared/utils/app_functions.dart — because instance() defaults to
+// us-central1.
+setGlobalOptions({ region: "asia-south1", maxInstances: 100 });
 
 admin.initializeApp();
 
@@ -101,7 +106,7 @@ function consentDocsGrantComms(consentDocs) {
  * login).
  */
 exports.syncUserClaims = onDocumentWritten(
-  { document: "allowed_users/{email}", region: "us-central1" },
+  { document: "allowed_users/{email}", region: "asia-south1" },
   async (event) => {
     const email = event.params.email; // doc id is the lowercased email
     try {
@@ -181,7 +186,7 @@ function resolveCallerRole(callerEmail, snap) {
  *     (Accounts they created are intentionally kept — they belong to the school.)
  */
 exports.deleteAccount = onCall(
-  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
 
@@ -369,7 +374,7 @@ const BROADCAST_AUDIENCES = new Set([
 ]);
 
 exports.pushOnNotificationCreate = onDocumentCreated(
-  { document: "schools/{sid}/notifications/{notifId}", region: "us-central1" },
+  { document: "schools/{sid}/notifications/{notifId}", region: "asia-south1" },
   async (event) => {
     const snap = event.data;
     if (!snap) return;
@@ -599,7 +604,7 @@ async function performStudentDeleteCascade(db, schoolId, className, section, rol
 }
 
 exports.deleteStudent = onCall(
-  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -633,7 +638,7 @@ exports.deleteStudent = onCall(
 );
 
 exports.approveDeletionRequest = onCall(
-  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -701,7 +706,7 @@ exports.approveDeletionRequest = onCall(
  * server-verified actor.
  */
 exports.writeAudit = onCall(
-  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -807,7 +812,7 @@ exports.writeAudit = onCall(
 const PURGE_ROLES = ["admin", "owner", "ownerPrincipal"];
 
 exports.purgeOldData = onCall(
-  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -923,7 +928,7 @@ exports.purgeOldData = onCall(
 exports.sendReceiptEmail = onDocumentCreated(
   {
     document: "schools/{sid}/fee_payments/{classKey}/students/{roll}/payments/{paymentId}",
-    region: "us-central1"
+    region: "asia-south1"
   },
   async (event) => {
     const snap = event.data;
@@ -1128,7 +1133,7 @@ exports.sendReceiptEmail = onDocumentCreated(
  * old (correct) behaviour, never a wrong/stale decision.
  */
 exports.syncCommsConsent = onDocumentWritten(
-  { document: "schools/{sid}/students/{studentId}/consents/{consentId}", region: "us-central1" },
+  { document: "schools/{sid}/students/{studentId}/consents/{consentId}", region: "asia-south1" },
   async (event) => {
     const sid = event.params.sid;
     const studentId = event.params.studentId;
@@ -1168,7 +1173,7 @@ function classStatsKey(className) {
 }
 
 exports.syncClassStats = onDocumentWritten(
-  { document: "schools/{sid}/students/{studentId}", region: "us-central1" },
+  { document: "schools/{sid}/students/{studentId}", region: "asia-south1" },
   async (event) => {
     const sid = event.params.sid;
     const before = event.data && event.data.before;
@@ -1213,7 +1218,7 @@ exports.syncClassStats = onDocumentWritten(
  * when an absence or leave status is recorded, subject to consent validation (DPDP compliance).
  */
 exports.onAttendanceWritten = onDocumentWritten(
-  { document: "schools/{sid}/attendance/{docId}", region: "us-central1" },
+  { document: "schools/{sid}/attendance/{docId}", region: "asia-south1" },
   async (event) => {
     const after = event.data && event.data.after;
     if (!after || !after.exists) return; // deleted
@@ -1426,7 +1431,7 @@ exports.onAttendanceWritten = onDocumentWritten(
  * re-run. Restricted to admin/owner of the school (root admin may target any).
  */
 exports.backfillStudentAttendance = onCall(
-  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -1516,7 +1521,7 @@ exports.backfillStudentAttendance = onCall(
  * target any). Mirrors backfillStudentAttendance's auth.
  */
 exports.backfillCommsConsent = onCall(
-  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -1570,7 +1575,7 @@ exports.backfillCommsConsent = onCall(
  * overwrites totals with the freshly counted values. admin/owner-gated.
  */
 exports.backfillClassStats = onCall(
-  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -1641,7 +1646,7 @@ exports.backfillClassStats = onCall(
  * admin/owner-gated.
  */
 exports.backfillAttendanceSummary = onCall(
-  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -1771,13 +1776,14 @@ async function authorizeFeeCaller(db, request, schoolId) {
   const snap = await db.collection("allowed_users").doc(callerEmail).get();
   const callerRole = resolveCallerRole(callerEmail, snap);
   const callerSchoolId = snap.exists ? snap.get("schoolId") : null;
+  const callerName = snap.exists ? snap.get("name") : callerEmail;
   if (!FEE_ROLES.includes(callerRole)) {
     throw new HttpsError("permission-denied", "You are not allowed to record fees.");
   }
   if (callerRole !== "admin" && callerSchoolId !== schoolId) {
     throw new HttpsError("permission-denied", "You can only record fees for your own school.");
   }
-  return { callerEmail, callerRole, callerSchoolId };
+  return { callerEmail, callerRole, callerSchoolId, callerName };
 }
 
 /**
@@ -1789,7 +1795,7 @@ async function authorizeFeeCaller(db, request, schoolId) {
  * { ok, receiptNo }.
  */
 exports.recordPayment = onCall(
-  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     const d = request.data || {};
@@ -1900,7 +1906,6 @@ exports.recordPayment = onCall(
 
       // ── writes ──
       const data = {
-        ...p,
         amountPaise,
         mode,
         note,
@@ -1908,11 +1913,10 @@ exports.recordPayment = onCall(
         reversed: false,
         receiptNo: rno,
         schoolId,
-        enteredBy: p.enteredBy || callerEmail,
-        reconciled: p.reconciled === true,
-        paidOn: p.paidOn || admin.firestore.FieldValue.serverTimestamp(),
+        enteredBy: callerEmail,
+        reconciled: false,
+        paidOn: admin.firestore.FieldValue.serverTimestamp(),
       };
-      delete data.totalPaidPaise; // never trust a client-supplied running total
       tx.set(counterRef, { receiptSeq: next }, { merge: true });
       tx.set(ref, data);
       const newTotal = alreadyPaise + amountPaise;
@@ -1931,7 +1935,7 @@ exports.recordPayment = onCall(
  * FeeService.deletePayment). Money records are never hard-deleted.
  */
 exports.reversePayment = onCall(
-  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
   async (request) => {
     const db = admin.firestore();
     const d = request.data || {};
@@ -1948,7 +1952,7 @@ exports.reversePayment = onCall(
       throw new HttpsError("invalid-argument", "A reversal reason is required.");
     }
 
-    await authorizeFeeCaller(db, request, schoolId);
+    const { callerEmail, callerRole, callerName } = await authorizeFeeCaller(db, request, schoolId);
 
     const classKey = className.replace(/ /g, "_");
     const schoolRef = db.collection("schools").doc(schoolId);
@@ -1978,6 +1982,31 @@ exports.reversePayment = onCall(
       }, { merge: true });
       tx.set(studentFeeRef, { totalPaidPaise: newTotal }, { merge: true });
       tx.set(classDocRef, { rolls: { [String(roll)]: newTotal } }, { merge: true });
+
+      // Add audit log inside the transaction
+      const auditRef = schoolRef.collection("audit_logs").doc();
+      tx.set(auditRef, {
+        action: "reverse",
+        entity: "fee_payment",
+        entityId: paymentId,
+        actorUid: request.auth.uid,
+        actorEmail: callerEmail,
+        actorName: callerName || callerEmail,
+        actorRole: callerRole,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        reason: reason.substring(0, 250),
+        expireAt: expireAtAfterDays(AUDIT_LOG_RETENTION_DAYS),
+        before: {
+          amountPaise: amountPaise,
+          mode: data.mode,
+          receiptNo: data.receiptNo,
+          installmentName: data.installmentName || null
+        },
+        after: {
+          reversed: true,
+          reversedReason: reason
+        }
+      });
     });
 
     return { ok: true };

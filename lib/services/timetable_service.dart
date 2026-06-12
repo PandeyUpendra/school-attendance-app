@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import '../shared/utils/app_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -611,7 +612,7 @@ class TimetableService extends BaseFirestoreService {
 
     if (existingDoc == null || !existingDoc.exists) {
       try {
-        await FirebaseFunctions.instance
+        await appFunctions
             .httpsCallable('deleteAccount')
             .call(<String, dynamic>{'email': normEmail});
       } catch (e) {
@@ -993,7 +994,7 @@ class TimetableService extends BaseFirestoreService {
     }
 
     try {
-      await FirebaseFunctions.instance
+      await appFunctions
           .httpsCallable('deleteAccount')
           .call(<String, dynamic>{'email': normEmail});
       return true;

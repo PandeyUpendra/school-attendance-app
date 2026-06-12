@@ -1572,15 +1572,17 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
   }
 
   Timestamp? _parseDob(String dob) {
-    try {
-      final parts = dob.split('/');
-      if (parts.length == 3) {
-        final day = int.parse(parts[0]);
-        final month = int.parse(parts[1]);
-        final year = int.parse(parts[2]);
-        return Timestamp.fromDate(DateTime(year, month, day));
+    final parts = dob.split('/');
+    if (parts.length == 3) {
+      final day = int.tryParse(parts[0]);
+      final month = int.tryParse(parts[1]);
+      final year = int.tryParse(parts[2]);
+      if (day != null && month != null && year != null) {
+        try {
+          return Timestamp.fromDate(DateTime(year, month, day));
+        } catch (_) {}
       }
-    } catch (_) {}
+    }
     return null;
   }
 

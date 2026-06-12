@@ -873,42 +873,22 @@ class _FeeTabState extends State<_FeeTab>
   Future<void> _load() async {
     setState(() => _loading = true);
 
-    // Compute every class in parallel; order is preserved by Future.wait.
-    final entries = await Future.wait(widget.classes.map((cls) async {
-      final results = await Future.wait([
-        _feeService.getFeeStructure(className: cls),
-        _studentService.getStudentsByClass(className: cls),
-      ]);
-      final structure = results[0] as dynamic; // FeeStructure
-      final students  = results[1] as List<Student>;
+    try {
+      final summaries = await _feeService.getClassSummaries(classes: widget.classes);
+      final entries = summaries.map((s) => _FeeClassEntry(
+        className: s.className,
+        totalFee: s.totalDue,
+        totalPaid: s.totalCollected,
+        studentCount: s.studentCount,
+      )).toList();
 
-      if (structure.totalAnnualFee <= 0 || students.isEmpty) {
-        return _FeeClassEntry(
-          className: cls,
-          totalFee: 0,
-          totalPaid: 0,
-          studentCount: students.length,
-        );
-      }
-
-      // Load paid per student in parallel
-      final paidList = await Future.wait(
-        students.map((s) => _feeService.getTotalPaid(className: cls, roll: s.roll)),
-      );
-      final totalPaid = paidList.fold<double>(0, (a, b) => a + b);
-      final totalFee  =
-          (structure.totalAnnualFee as double) * students.length;
-
-      return _FeeClassEntry(
-        className:    cls,
-        totalFee:     totalFee,
-        totalPaid:    totalPaid,
-        studentCount: students.length,
-      );
-    }));
-
-    if (!mounted) return;
-    setState(() { _entries = entries; _loading = false; });
+      if (!mounted) return;
+      setState(() { _entries = entries; _loading = false; });
+    } catch (e, st) {
+      AppLogger.e('AnalyticsScreen_FeeTab', 'Failed to load fee summaries', e, st);
+      if (!mounted) return;
+      setState(() { _loading = false; });
+    }
   }
 
   @override

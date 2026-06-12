@@ -62,8 +62,11 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
         if (startStr == null) continue;
         final parts = startStr.split('-');
         if (parts.length != 3) continue;
-        final eStart = DateTime(
-            int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+        final year = int.tryParse(parts[0]);
+        final month = int.tryParse(parts[1]);
+        final day = int.tryParse(parts[2]);
+        if (year == null || month == null || day == null) continue;
+        final eStart = DateTime(year, month, day);
         final eDays = (data['numberOfDays'] as int?) ?? 1;
         final eEnd = eStart.add(Duration(days: eDays - 1));
         if (_startDate.isBefore(eEnd.add(const Duration(days: 1))) &&
@@ -680,10 +683,11 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
       '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
-    try {
-      final parts = startDate.split('-');
-      final start = DateTime(
-          int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+      final year = int.tryParse(parts[0]);
+      final month = int.tryParse(parts[1]);
+      final day = int.tryParse(parts[2]);
+      if (year == null || month == null || day == null) return startDate;
+      final start = DateTime(year, month, day);
       final end = start.add(Duration(days: days - 1));
       if (days == 1) {
         return '${start.day} ${months[start.month]} ${start.year}';

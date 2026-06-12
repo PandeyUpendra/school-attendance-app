@@ -1708,6 +1708,28 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
+    // UPI PAYMENT CLAIMS  (/schools/{sid}/payment_claims/{claimId})
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/payment_claims/{claimId} {
+      allow read: if isSignedIn() && inSchool(sid) && isManagement();
+      
+      allow create: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isRole('guardian')
+          && request.resource.data.status == 'pending'
+          && request.resource.data.className == userStudentClass()
+          && request.resource.data.section == userStudentSection()
+          && request.resource.data.roll == userStudentRoll()
+          && request.resource.data.submittedBy == userEmail())
+      );
+
+      allow update: if isSignedIn() && inSchool(sid) && isManagement();
+
+      allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
     // EXPENSES  (/schools/{sid}/expenses/{expenseId})
     //
     // School-level expenses.

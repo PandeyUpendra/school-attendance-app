@@ -134,15 +134,27 @@ class _StudentLeaveRequestsScreenState
       final days     = (app['numberOfDays'] as num?)?.toInt() ?? 1;
       try {
         final parts  = startStr.split('-');
-        final start  = DateTime(
-            int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
-        await _stuService.markLeaveForDateRange(
-          className:    cls,
-          roll:         roll,
-          startDate:    start,
-          numberOfDays: days,
-        );
-      } catch (_) {}
+        if (parts.length == 3) {
+          final year = int.tryParse(parts[0]);
+          final month = int.tryParse(parts[1]);
+          final day = int.tryParse(parts[2]);
+          if (year != null && month != null && day != null) {
+            final start  = DateTime(year, month, day);
+            await _stuService.markLeaveForDateRange(
+              className:    cls,
+              roll:         roll,
+              startDate:    start,
+              numberOfDays: days,
+            );
+          } else {
+            AppLogger.e('StudentLeaveRequestsScreen', 'Invalid date components in student leave approval: $startStr');
+          }
+        } else {
+          AppLogger.e('StudentLeaveRequestsScreen', 'Malformed date string in student leave approval: $startStr');
+        }
+      } catch (e, st) {
+        AppLogger.e('StudentLeaveRequestsScreen', 'Failed to mark leave range', e, st);
+      }
 
       // Notify guardian
       NotificationService().addStudentLeaveResolved(
