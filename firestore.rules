@@ -106,7 +106,7 @@ service cloud.firestore {
 
     /// Caller's assigned classIds array.
     function userClassIds() {
-      return isSignedIn() && 'classIds' in request.auth.token
+      return isSignedIn() && 'classIds' in request.auth.token && request.auth.token.classIds.size() > 0
         ? request.auth.token.classIds
         : (getUserData() != null && 'classIds' in getUserData() ? getUserData().classIds : []);
     }

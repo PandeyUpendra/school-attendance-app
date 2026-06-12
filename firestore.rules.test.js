@@ -857,4 +857,50 @@ describe('Firestore Security Rules', () => {
     });
   });
 
+  // ── 12. Fee Summaries ──────────────────────────────────────────────────────
+  describe('12. Fee Summaries', () => {
+    test('ALLOW — coordinator can read school fee summaries', async () => {
+      await assertSucceeds(
+        getDoc(doc(db(UID.coordinator), schoolPath('summaries', 'fees')))
+      );
+    });
+
+    test('ALLOW — coordinator can read class fee summaries', async () => {
+      await assertSucceeds(
+        getDoc(doc(db(UID.coordinator), schoolPath('class_fee_summaries', 'Class_9-A')))
+      );
+    });
+
+    test('DENY — teacher cannot read school fee summaries', async () => {
+      await assertFails(
+        getDoc(doc(db(UID.teacher9A), schoolPath('summaries', 'fees')))
+      );
+    });
+
+    test('DENY — teacher cannot read class fee summaries', async () => {
+      await assertFails(
+        getDoc(doc(db(UID.teacher9A), schoolPath('class_fee_summaries', 'Class_9-A')))
+      );
+    });
+
+    test('DENY — guardian cannot read school fee summaries', async () => {
+      await assertFails(
+        getDoc(doc(db(UID.guardian), schoolPath('summaries', 'fees')))
+      );
+    });
+
+    test('DENY — client writes to summaries are forbidden', async () => {
+      await assertFails(
+        setDoc(doc(db(UID.admin), schoolPath('summaries', 'fees')), {
+          collectedPaise: 10000
+        })
+      );
+      await assertFails(
+        setDoc(doc(db(UID.admin), schoolPath('class_fee_summaries', 'Class_9-A')), {
+          studentCount: 5
+        })
+      );
+    });
+  });
+
 }); // describe('Firestore Security Rules')
