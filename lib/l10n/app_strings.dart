@@ -1598,6 +1598,8 @@ class AppStrings {
     'enterValidEmailMsg':      {'en': 'Enter a valid email address', 'hi': 'एक मान्य ईमेल पता दर्ज करें'},
     'selectAtLeastOneSecMsg':  {'en': 'Select at least one section', 'hi': 'कम से कम एक सेक्शन चुनें'},
     'classToMinMsg':           {'en': 'Class To must be ≥ Class From', 'hi': 'कक्षा "टू" कक्षा "फ़्रॉम" से बड़ी या बराबर होनी चाहिए'},
+    'classWiseSectionsLabel':  {'en': 'Class-Wise Sections',   'hi': 'कक्षा-वार सेक्शन'},
+    'classWiseSectionsDesc':   {'en': 'Customize sections for each class individually. Tapping a section toggles it.', 'hi': 'प्रत्येक कक्षा के लिए अलग से सेक्शन कस्टमाइज़ करें। सेक्शन पर टैप करने से वह टॉगल हो जाता है।'},
     'btnContinue':             {'en': 'Continue',             'hi': 'जारी रखें'},
     'afterPeriodPrefixEdit':   {'en': 'After period ',        'hi': 'पीरियड '},
     'afterPeriodSuffixEdit':   {'en': '',                     'hi': ' के बाद'},

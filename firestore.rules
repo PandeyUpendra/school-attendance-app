@@ -994,9 +994,34 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
+    // DASHBOARD ROLLUPS  (SCALE-02)
+    //
+    // attendance_summary/{docId}: per-section-day projection of the class-day
+    // attendance doc — counts + the absent/leave detail list (names/phones).
+    // Same PII surface as the class attendance doc above, so STAFF-ONLY read.
+    // class_stats/{key}: per-class visible-enrollment counter (just a total).
+    //
+    // BOTH are authored SERVER-SIDE only (onAttendanceWritten / syncClassStats /
+    // backfill callables via the Admin SDK, which bypasses these rules), so all
+    // client writes are denied. `allow write: if false` does not block the
+    // trigger/backfill.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/attendance_summary/{summaryId} {
+      allow read:  if isSignedIn() && inSchool(sid) && isAnyStaff();
+      allow write: if false;
+    }
+
+    match /schools/{sid}/class_stats/{classKey} {
+      allow read:  if isSignedIn() && inSchool(sid) && isAnyStaff();
+      allow write: if false;
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
     // PER-STUDENT ATTENDANCE MIRROR  (/schools/{sid}/student_attendance/{studentId})
     //
-    // H2: a single-student projection of attendance — { days: {dateKey: status} } —
+    // H2: a single-student projection of attendance — year-partitioned as
+    // { days_{YYYY}: {dateKey: status} } (SCALE-13, was a flat `days` map) —
     // written SERVER-SIDE by the onAttendanceWritten Cloud Function (Admin SDK,
     // which bypasses these rules) and seeded by the backfillStudentAttendance
     // callable. It exists so a guardian can read their OWN child's attendance
@@ -1679,6 +1704,16 @@ service cloud.firestore {
     match /schools/{sid}/feeReminders/{reminderId} {
       allow read:  if isSignedIn() && inSchool(sid) && isManagement();
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // EXPENSES  (/schools/{sid}/expenses/{expenseId})
+    //
+    // School-level expenses.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/expenses/{expenseId} {
+      allow read, write: if isSignedIn() && inSchool(sid) && isManagement();
     }
 
 

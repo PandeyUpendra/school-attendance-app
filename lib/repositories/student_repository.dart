@@ -475,6 +475,13 @@ class FirestoreStudentRepository implements StudentRepository {
   /// school. This bound keeps the stream affordable; dashboards that need
   /// school-wide figures should migrate to aggregate/rollup reads rather than
   /// raising this number. Ordered by roll so the bounded window is stable.
+  ///
+  /// CRITICAL: [watchAll] is a BOUNDED window, NOT a complete roster. It is for
+  /// best-effort change *detection* only (dashboards re-run their aggregates
+  /// when this window changes). Anything that needs EVERY student — exports,
+  /// official reports, counts — MUST use the cursor-paginated [fetchAll]
+  /// instead. Misusing this stream as a complete source silently dropped every
+  /// student past the cap (SCALE-01).
   static const int _watchAllCap = 500;
 
   @override
@@ -483,7 +490,19 @@ class FirestoreStudentRepository implements StudentRepository {
         .orderBy('roll')
         .limit(_watchAllCap)
         .snapshots()
-        .map((snap) => snap.docs.map(_fromDoc).toList());
+        .map((snap) {
+          // Make truncation LOUD, never silent: a school that has outgrown the
+          // window must surface in logs so the caller is migrated (rollups for
+          // dashboards, fetchAll for complete reads) — SCALE-01/03.
+          if (snap.docs.length >= _watchAllCap) {
+            AppLogger.w('StudentRepository',
+                'watchAll() hit its $_watchAllCap-doc cap for school $_schoolId — '
+                'this stream is a bounded change-detection window, not a complete '
+                'roster. Complete reads must use fetchAll(); dashboards should '
+                'move to aggregate/rollup reads (SCALE-01/02/03).');
+          }
+          return snap.docs.map(_fromDoc).toList();
+        });
   }
 
   // ── Remarks ─────────────────────────────────────────────────────────────────

@@ -77,8 +77,9 @@ class StudentService extends BaseFirestoreService {
   /// holds EVERY classmate's status in one document, so a guardian reading it
   /// would see the whole class. To keep guardians scoped to their own child,
   /// the `onAttendanceWritten` Cloud Function mirrors each student's daily
-  /// status into `student_attendance/{studentDocId}.days` (server-side, Admin
-  /// SDK). Guardians read ONLY their child's mirror doc; the class doc is now
+  /// status into `student_attendance/{studentDocId}.days_{YYYY}` (server-side,
+  /// Admin SDK; year-partitioned per SCALE-13 to keep the doc bounded).
+  /// Guardians read ONLY their child's mirror doc; the class doc is now
   /// staff-only. Doc id = Student.buildDocId(roll, className, section).
   CollectionReference<Map<String, dynamic>> get _studentAttendance =>
       schoolCollection(_schoolId, 'student_attendance');
@@ -214,7 +215,10 @@ class StudentService extends BaseFirestoreService {
           .watchByClass(className, section, teacherId: teacherId)
           .map(_visibleOnly);
 
-  /// Real-time stream of ALL students across every class.
+  /// Real-time, BOUNDED change-detection window over the school's students
+  /// (see [StudentRepository.watchAll] — capped, NOT a complete roster). Use it
+  /// only to react to roster changes; for a COMPLETE list (exports, reports,
+  /// counts) call [getStudents], which cursor-paginates the whole collection.
   Stream<List<Student>> watchStudents({String? schoolId}) =>
       _repo.watchAll().map(_visibleOnly);
 
@@ -1421,112 +1425,97 @@ class StudentService extends BaseFirestoreService {
   // ── Coordinator summary across all classes ─────────────────────────────────
 
   /// Builds today's attendance summary for every class in [classes].
+  ///
+  /// SCALE-02: reads ONLY the maintained rollups — `class_stats` (per-class
+  /// visible-enrollment totals, kept by the syncClassStats trigger) and today's
+  /// `attendance_summary` docs (per-section counts + the absent/leave detail
+  /// list, kept by onAttendanceWritten) — and NEVER the whole student roster.
+  /// Reads drop from O(all students in the school) on every dashboard open to
+  /// O(#classes + #sections-marked-today), independent of enrolment size.
+  ///
+  /// Deploy ordering: after deploying the triggers, run the `backfillClassStats`
+  /// and `backfillAttendanceSummary` callables once; until then totals read 0
+  /// and already-marked classes read as unmarked.
   Future<List<ClassSummary>> loadTodayFullSummary(
       {required List<String> classes, String? schoolId}) async {
     if (classes.isEmpty) return [];
+    final todayKey = SchoolClock.todayKey();
 
-    // 1. Fetch all students via repository.
-    final allStudents = await _repo.fetchAll();
-
-    // Group students by className, sorted by roll.
-    final byClass = <String, List<Student>>{};
-    for (final s in allStudents) {
-      byClass.putIfAbsent(s.className, () => []).add(s);
-    }
-    for (final list in byClass.values) {
-      list.sort((a, b) => a.roll.compareTo(b.roll));
-    }
-
-    // 2. Build attendance doc key(s) per class.
-    final now     = SchoolClock.now();
-    final dateSfx = '_${SchoolClock.dateKey(now)}';
-
-    final classToKeys = <String, List<String>>{};
-    for (final cls in classes) {
-      final sections = (byClass[cls] ?? [])
-          .map((s) => s.section.trim())
-          .where((s) => s.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort();
-
-      classToKeys[cls] = sections.isEmpty
-          ? ['${cls.replaceAll(' ', '_')}$dateSfx']
-          : sections
-              .map((sec) => '${cls.replaceAll(' ', '_')}_$sec$dateSfx')
-              .toList();
-    }
-
-    // 3. Fetch every attendance doc in parallel.
-    final allKeys = classToKeys.values.expand((k) => k).toList();
-    final allDocs =
-        await Future.wait(allKeys.map((k) => _attendance.doc(k).get()));
-    final docsByKey =
-        <String, DocumentSnapshot<Map<String, dynamic>>>{
-      for (var i = 0; i < allKeys.length; i++) allKeys[i]: allDocs[i],
+    // 1. Per-class visible-enrolment totals (one small collection, no roster).
+    //    Counter key = className with spaces → underscores (matches the trigger).
+    final statsSnap = await schoolCollection(_schoolId, 'class_stats').get();
+    final totalByKey = <String, int>{
+      for (final d in statsSnap.docs)
+        d.id: ((d.data()['total'] as num?)?.toInt() ?? 0),
     };
 
-    // 4. Merge section docs into one ClassSummary per class.
-    return List.generate(classes.length, (i) {
-      final cls      = classes[i];
-      final students = byClass[cls] ?? [];
-      final keys     = classToKeys[cls] ?? [];
+    // 2. Today's per-section summaries, found by date alone — no need to know
+    //    which sections exist (which previously required the roster).
+    final summarySnap = await schoolCollection(_schoolId, 'attendance_summary')
+        .where('dateKey', isEqualTo: todayKey)
+        .get();
 
-      final attendance = <int, String>{};
-      final reasons    = <int, String>{};
-      var   anyMarked  = false;
+    // 3. Assign each summary to its class by doc-id prefix. The doc id is
+    //    "{classSectionPrefix}_{dateKey}"; strip the "_{dateKey}" suffix. A
+    //    prefix belongs to the class whose sanitised key it equals (no section)
+    //    or whose key + '_' it starts with (sectioned). Longest match wins so a
+    //    class "Class 6" never swallows a distinct "Class 6 A".
+    final dateSfxLen = todayKey.length + 1; // "_YYYY-MM-DD"
+    final classKeys = {for (final c in classes) c: c.replaceAll(' ', '_')};
+    final sortedClasses = classes.toList()
+      ..sort((a, b) => classKeys[b]!.length.compareTo(classKeys[a]!.length));
 
-      for (final key in keys) {
-        final doc = docsByKey[key];
-        if (doc == null || !doc.exists || doc.data() == null) continue;
-        anyMarked  = true;
-        final data = Map<String, dynamic>.from(doc.data() as Map);
-        final rollsRaw   =
-            Map<String, dynamic>.from((data['rolls']   as Map?) ?? {});
-        final reasonsRaw =
-            Map<String, dynamic>.from((data['reasons'] as Map?) ?? {});
-        rollsRaw.forEach((k, v) {
-          final roll = int.tryParse(k);
-          if (roll == null) return;
-          attendance[roll] =
-              v is bool ? (v ? 'Present' : 'Absent') : v.toString();
-        });
-        reasonsRaw.forEach((k, v) {
-          final roll = int.tryParse(k);
-          if (roll != null) reasons[roll] = v.toString();
-        });
+    final byClass = <String, List<Map<String, dynamic>>>{
+      for (final c in classes) c: <Map<String, dynamic>>[],
+    };
+    for (final doc in summarySnap.docs) {
+      final id = doc.id;
+      if (id.length <= dateSfxLen) continue;
+      final prefix = id.substring(0, id.length - dateSfxLen);
+      for (final cls in sortedClasses) {
+        final key = classKeys[cls]!;
+        if (prefix == key || prefix.startsWith('${key}_')) {
+          byClass[cls]!.add(doc.data());
+          break;
+        }
       }
+    }
 
-      final present =
-          students.where((s) => attendance[s.roll] == 'Present').length;
-      final leave =
-          students.where((s) => attendance[s.roll] == 'Leave').length;
-      final absent =
-          students.where((s) => attendance[s.roll] == 'Absent').length;
+    // 4. Merge each class's section summaries into one ClassSummary.
+    return classes.map((cls) {
+      final total = totalByKey[classKeys[cls]!] ?? 0;
+      var present = 0, absent = 0, leave = 0;
+      var marked = false;
+      final absentLeave = <StudentNote>[];
 
-      final absentLeave = students
-          .where((s) =>
-              attendance[s.roll] == 'Absent' ||
-              attendance[s.roll] == 'Leave')
-          .map((s) => StudentNote(
-                name:   s.name,
-                roll:   s.roll,
-                status: attendance[s.roll] ?? 'Absent',
-                reason: reasons[s.roll],
-                phone:  s.phone,
-              ))
-          .toList();
+      for (final data in byClass[cls]!) {
+        present += (data['present'] as num?)?.toInt() ?? 0;
+        absent  += (data['absent']  as num?)?.toInt() ?? 0;
+        leave   += (data['leave']   as num?)?.toInt() ?? 0;
+        marked   = marked || (data['marked'] == true);
+        for (final e in (data['absentLeave'] as List?) ?? const []) {
+          final m = Map<String, dynamic>.from(e as Map);
+          absentLeave.add(StudentNote(
+            name:   (m['name'] ?? 'Student').toString(),
+            roll:   (m['roll'] as num?)?.toInt() ?? 0,
+            status: (m['status'] ?? 'Absent').toString(),
+            reason: m['reason'] as String?,
+            phone:  (m['phone'] ?? '').toString(),
+          ));
+        }
+      }
+      absentLeave.sort((a, b) => a.roll.compareTo(b.roll));
 
       return ClassSummary(
         className:   cls,
-        total:       students.length,
+        total:       total,
         present:     present,
         leave:       leave,
         absent:      absent,
-        marked:      anyMarked,
+        marked:      marked,
         absentLeave: absentLeave,
       );
-    });
+    }).toList();
   }
 
   /// Returns roll → absent+leave count over the last [days] days (default 14).
@@ -1623,6 +1612,21 @@ class StudentService extends BaseFirestoreService {
   // the guardian UI is unchanged. The matching firestore.rules grant a guardian
   // read of `student_attendance/{id}` only when id == their child's doc id.
 
+  /// Extracts the dateKey→status map for one calendar [year] from a
+  /// `student_attendance` mirror doc. Reads the year partition `days_{year}`
+  /// (SCALE-13) and overlays it on any legacy flat `days` map, so docs written
+  /// before partitioning — or seen mid-migration — still resolve. The partition
+  /// takes precedence on key collisions.
+  static Map<String, dynamic> _mirrorDaysForYear(
+      Map<String, dynamic> data, String year) {
+    final out = <String, dynamic>{};
+    final legacy = data['days'];
+    if (legacy is Map) out.addAll(Map<String, dynamic>.from(legacy));
+    final partition = data['days_$year'];
+    if (partition is Map) out.addAll(Map<String, dynamic>.from(partition));
+    return out;
+  }
+
   /// Today's status for one student → `{ roll: status }` (empty if unmarked).
   Future<Map<int, String>> loadTodayAttendanceForStudent({
     required String studentDocId,
@@ -1630,8 +1634,9 @@ class StudentService extends BaseFirestoreService {
   }) async {
     final doc = await _studentAttendance.doc(studentDocId).get();
     if (!doc.exists || doc.data() == null) return {};
-    final days = Map<String, dynamic>.from((doc.data()!['days'] as Map?) ?? {});
-    final status = days[SchoolClock.todayKey()];
+    final todayKey = SchoolClock.todayKey();
+    final days = _mirrorDaysForYear(doc.data()!, todayKey.substring(0, 4));
+    final status = days[todayKey];
     return (status is String && status.isNotEmpty) ? {roll: status} : {};
   }
 
@@ -1642,8 +1647,9 @@ class StudentService extends BaseFirestoreService {
   }) {
     return _studentAttendance.doc(studentDocId).snapshots().map((doc) {
       if (!doc.exists || doc.data() == null) return <int, String>{};
-      final days = Map<String, dynamic>.from((doc.data()!['days'] as Map?) ?? {});
-      final status = days[SchoolClock.todayKey()];
+      final todayKey = SchoolClock.todayKey();
+      final days = _mirrorDaysForYear(doc.data()!, todayKey.substring(0, 4));
+      final status = days[todayKey];
       return (status is String && status.isNotEmpty)
           ? {roll: status}
           : <int, String>{};
@@ -1660,7 +1666,7 @@ class StudentService extends BaseFirestoreService {
   }) async {
     final doc = await _studentAttendance.doc(studentDocId).get();
     if (!doc.exists || doc.data() == null) return {};
-    final days = Map<String, dynamic>.from((doc.data()!['days'] as Map?) ?? {});
+    final days = _mirrorDaysForYear(doc.data()!, year.toString());
     final out = <int, Map<int, String>>{};
     days.forEach((dateKey, status) {
       if (status is! String || status.isEmpty) return;

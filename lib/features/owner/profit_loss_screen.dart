@@ -50,6 +50,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
   bool _loading = true;
   List<_MonthlyData> _monthsData = [];
   _MonthlyData? _selectedMonth;
+  String? _errorMessage;
 
   static const _monthNames = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -63,7 +64,10 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
     try {
       final sid = AuthService.currentSchoolId;
       final now = DateTime.now();
@@ -147,7 +151,10 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
     } catch (e, st) {
       AppLogger.e('ProfitLossScreen', 'Failed to load P&L data: $e', e, st);
       if (mounted) {
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+          _errorMessage = e.toString();
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load P&L: $e'), backgroundColor: AppTheme.danger),
         );
@@ -172,8 +179,10 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _monthsData.isEmpty
-              ? _buildEmptyState()
+          : _errorMessage != null
+              ? _buildErrorState()
+              : _monthsData.isEmpty
+                  ? _buildEmptyState()
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -205,6 +214,38 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
             Icon(Icons.bar_chart_outlined, size: 64, color: Colors.grey),
             SizedBox(height: 16),
             Text('No transaction data found for the last 6 months', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: AppTheme.danger),
+            const SizedBox(height: 16),
+            Text(
+              'Failed to load P&L data:\n$_errorMessage',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadData,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
           ],
         ),
       ),

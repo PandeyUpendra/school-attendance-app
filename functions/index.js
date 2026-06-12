@@ -10,10 +10,23 @@
  * authenticated-domain sender; see git history for the previous SendGrid impl.)
  */
 
+const { setGlobalOptions } = require("firebase-functions/v2");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
+
+// SCALE-15: billing/runaway safety rail. Without a cap, a synchronised spike
+// (e.g. every class across many schools marking attendance at 9 AM, each save
+// firing onAttendanceWritten → notification → pushOnNotificationCreate) can fan
+// out to thousands of concurrent instances → runaway cost + Firestore write
+// contention. 100 is a safety ceiling, NOT a throughput tune — a single school,
+// or even ~100 schools, will not sustain 100 concurrent instances of one
+// trigger; revisit under load testing once real multi-school traffic exists.
+// Per-function `region` (us-central1) is intentionally left as-is here — moving
+// closer to India (asia-south1) is SCALE-08, a separate deploy-coordinated
+// migration that also depends on the Firestore database location.
+setGlobalOptions({ maxInstances: 100 });
 
 admin.initializeApp();
 
@@ -26,6 +39,33 @@ function escapeHtml(unsafe) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+// ── DPDP consent (SCALE-14) ──────────────────────────────────────────────────
+// Must stay in lock-step with kCurrentConsentVersion in
+// lib/models/parental_consent.dart.
+const CURRENT_CONSENT_VERSION = "v1.0";
+
+/**
+ * Given a student's consent docs (the `consents` subcollection), returns true
+ * iff there is a current-version, un-withdrawn consent that opts in to the
+ * 'communication' or 'attendance' data scope. This is the SINGLE source of the
+ * rule for whether attendance alerts may be sent — both the per-consent-write
+ * `syncCommsConsent` trigger and the `backfillCommsConsent` callable derive the
+ * denormalized `students/{id}.commsConsent` flag from it, and it matches the
+ * logic onAttendanceWritten falls back to when that flag is absent.
+ */
+function consentDocsGrantComms(consentDocs) {
+  for (const doc of consentDocs) {
+    const cData = doc.data() || {};
+    if (cData.consentVersion !== CURRENT_CONSENT_VERSION) continue;
+    if (cData.withdrawnAt) continue;
+    const scopes = cData.scopes || [];
+    const targetScope = scopes.find(
+      (s) => s.dataType === "communication" || s.dataType === "attendance");
+    if (targetScope && targetScope.optedIn) return true;
+  }
+  return false;
 }
 
 /**
@@ -1050,6 +1090,103 @@ exports.sendReceiptEmail = onDocumentCreated(
 );
 
 /**
+ * SCALE-14: maintain the denormalized `students/{id}.commsConsent` flag.
+ *
+ * onAttendanceWritten needs to know, per absent student, whether attendance
+ * alerts are consented. Querying the `consents` subcollection per absent student
+ * per day is the dominant read cost on that hot path. Consent changes RARELY, so
+ * we recompute the boolean here — once per consent write — and stamp it onto the
+ * parent student doc, which the attendance trigger already fetches for name/class.
+ *
+ * The flag is written with set+merge (single field) and is SERVER-OWNED: it is
+ * deliberately NOT part of Student.toJson, because student docs are saved with a
+ * full `.set()` overwrite (student_repository.dart) that would clobber it. A
+ * clobbered flag reads back as `undefined`, which onAttendanceWritten treats as
+ * "unknown → fall back to the subcollection query" — so the worst case is the
+ * old (correct) behaviour, never a wrong/stale decision.
+ */
+exports.syncCommsConsent = onDocumentWritten(
+  { document: "schools/{sid}/students/{studentId}/consents/{consentId}", region: "us-central1" },
+  async (event) => {
+    const sid = event.params.sid;
+    const studentId = event.params.studentId;
+    const db = admin.firestore();
+    try {
+      const consentsSnap = await db.collection("schools").doc(sid)
+        .collection("students").doc(studentId)
+        .collection("consents").get();
+      const commsConsent = consentDocsGrantComms(consentsSnap.docs);
+      await db.collection("schools").doc(sid)
+        .collection("students").doc(studentId)
+        .set({ commsConsent }, { merge: true });
+    } catch (err) {
+      logger.warn(`[syncCommsConsent] failed for ${sid}/${studentId}`, err && err.message);
+    }
+  }
+);
+
+/**
+ * SCALE-02: maintain per-class visible-enrollment counters (`class_stats/{key}`).
+ *
+ * The dashboards need each class's TOTAL student count (the "Present X/total"
+ * denominator) without reading every student doc. We keep an exact counter,
+ * adjusted by the delta of THIS write: a student counts toward its class iff it
+ * is "visible" (not promoted, not deletion-pending) — matching
+ * StudentService._visibleOnly. Handling before/after independently covers create
+ * (no before), delete (no after), a visibility toggle, AND a class change (which
+ * moves the count between two class keys). Counter key = className with spaces
+ * → underscores, matching the dashboard's sanitisation. Drift is repaired by the
+ * `backfillClassStats` callable (also the initial seed).
+ */
+function isVisibleStudent(data) {
+  return !!data && data.promoted !== true && data.deletionPending !== true;
+}
+function classStatsKey(className) {
+  return String(className || "").replace(/ /g, "_");
+}
+
+exports.syncClassStats = onDocumentWritten(
+  { document: "schools/{sid}/students/{studentId}", region: "us-central1" },
+  async (event) => {
+    const sid = event.params.sid;
+    const before = event.data && event.data.before;
+    const after = event.data && event.data.after;
+    const beforeData = (before && before.exists) ? (before.data() || {}) : null;
+    const afterData = (after && after.exists) ? (after.data() || {}) : null;
+
+    const beforeVisible = isVisibleStudent(beforeData);
+    const afterVisible = isVisibleStudent(afterData);
+    const beforeKey = beforeVisible ? classStatsKey(beforeData.className) : null;
+    const afterKey = afterVisible ? classStatsKey(afterData.className) : null;
+
+    // No net change to any class total — nothing to do.
+    if (beforeKey === afterKey) return;
+
+    const db = admin.firestore();
+    const statsCol = db.collection("schools").doc(sid).collection("class_stats");
+    const deltas = {}; // key → net increment
+    if (beforeKey) deltas[beforeKey] = (deltas[beforeKey] || 0) - 1;
+    if (afterKey) deltas[afterKey] = (deltas[afterKey] || 0) + 1;
+
+    try {
+      const batch = db.batch();
+      for (const [key, delta] of Object.entries(deltas)) {
+        if (delta === 0) continue;
+        const className = (afterKey === key ? afterData.className : beforeData.className);
+        batch.set(statsCol.doc(key), {
+          className,
+          total: admin.firestore.FieldValue.increment(delta),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+      await batch.commit();
+    } catch (err) {
+      logger.warn(`[syncClassStats] failed for ${sid}/${event.params.studentId}`, err && err.message);
+    }
+  }
+);
+
+/**
  * Firestore trigger: publish absence/leave notifications to the guardian's topic channel
  * when an absence or leave status is recorded, subject to consent validation (DPDP compliance).
  */
@@ -1081,8 +1218,9 @@ exports.onAttendanceWritten = onDocumentWritten(
     // ── H2: mirror each student's status into a per-student doc ────────────────
     // The class-day `attendance/{docId}` doc holds EVERY classmate's status, so
     // guardians can no longer read it (staff-only rule). Instead we mirror each
-    // student's own status into `student_attendance/{studentDocId}.days[dateKey]`,
-    // which the guardian rule scopes to their own child. Only rolls whose status
+    // student's own status into `student_attendance/{studentDocId}.days_{YYYY}[dateKey]`
+    // (year-partitioned, SCALE-13), which the guardian rule scopes to their own
+    // child. Only rolls whose status
     // actually changed are written (idempotent — re-saving the same status is a
     // no-op), keeping write amplification proportional to real changes.
     try {
@@ -1095,13 +1233,19 @@ exports.onAttendanceWritten = onDocumentWritten(
         const mirrorBatch = db.batch();
         for (const [roll, status] of changed.slice(i, i + 450)) {
           const studentDocId = `${classSectionPrefix}_${roll}`;
+          // SCALE-13: year-partition the mirror. A flat `days` map grows one key
+          // per school-day forever (unbounded doc, re-sent in full to the
+          // guardian listener on every change). Writing into `days_{YYYY}`
+          // instead caps each map at ~250 keys/year. set+merge deep-merges the
+          // nested map, so prior days in the same year are retained.
+          const yearField = `days_${dateKey.slice(0, 4)}`;
           mirrorBatch.set(
             db.collection("schools").doc(sid)
               .collection("student_attendance").doc(studentDocId),
             {
               schoolId: sid,
               roll,
-              days: { [dateKey]: status },
+              [yearField]: { [dateKey]: status },
               updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             },
             { merge: true },
@@ -1113,75 +1257,136 @@ exports.onAttendanceWritten = onDocumentWritten(
       logger.warn(`[onAttendanceWritten] mirror write failed for ${docId}`, err && err.message);
     }
 
+    // ── Guardian absence/leave alerts (SCALE-14) ───────────────────────────────
+    // Process every NEWLY absent/leave student in parallel (was a serial loop,
+    // which stretched function wall-time on high-absence classes), and decide
+    // consent from the denormalized `commsConsent` flag (maintained by
+    // syncCommsConsent) instead of a per-student `consents` subcollection query.
+    // The flag is trusted ONLY when present as a boolean; when absent — never
+    // computed yet, or clobbered by a full-overwrite student save — we fall back
+    // to the subcollection query, so the consent decision is never wrong, only
+    // (rarely) slower. Notification docs are batched; each still triggers
+    // pushOnNotificationCreate (the single push path — intentionally unchanged).
+    const newlyAbsent = [];
     for (const [rollStr, status] of Object.entries(rollsAfter)) {
-      if (status === "Absent" || status === "Leave") {
-        const prevStatus = rollsBefore[rollStr];
-        if (prevStatus !== status) {
-          // Status newly changed to Absent or Leave!
-          const roll = parseInt(rollStr, 10);
-          const studentDocId = `${classSectionPrefix}_${roll}`;
+      if (status !== "Absent" && status !== "Leave") continue;
+      if (rollsBefore[rollStr] === status) continue; // not a NEW change
+      const roll = parseInt(rollStr, 10);
+      if (!Number.isInteger(roll)) continue;
+      newlyAbsent.push({ roll, status, studentDocId: `${classSectionPrefix}_${roll}` });
+    }
 
-          try {
-            // Fetch student document
-            const studentSnap = await db.collection("schools").doc(sid)
-              .collection("students").doc(studentDocId).get();
-            
-            if (!studentSnap.exists) {
-              logger.warn(`[onAttendanceWritten] Student document not found: ${studentDocId}`);
-              continue;
-            }
+    if (newlyAbsent.length > 0) {
+      try {
+        const studentsCol = db.collection("schools").doc(sid).collection("students");
+        const studentSnaps = await db.getAll(
+          ...newlyAbsent.map((e) => studentsCol.doc(e.studentDocId)));
 
-            const studentData = studentSnap.data() || {};
-            const studentName = studentData.name || "Student";
-            const studentClass = studentData.className || "";
+        const alerts = (await Promise.all(newlyAbsent.map(async (entry, i) => {
+          const snap = studentSnaps[i];
+          if (!snap.exists) {
+            logger.warn(`[onAttendanceWritten] Student document not found: ${entry.studentDocId}`);
+            return null;
+          }
+          const data = snap.data() || {};
+          let hasConsent;
+          if (typeof data.commsConsent === "boolean") {
+            hasConsent = data.commsConsent; // fast path: denormalized flag
+          } else {
+            const consentsSnap = await studentsCol.doc(entry.studentDocId)
+              .collection("consents").get(); // fallback when flag not yet set
+            hasConsent = consentDocsGrantComms(consentsSnap.docs);
+          }
+          if (!hasConsent) return null;
+          return {
+            studentDocId: entry.studentDocId,
+            roll: entry.roll,
+            status: entry.status,
+            studentName: data.name || "Student",
+            studentClass: data.className || "",
+          };
+        }))).filter(Boolean);
 
-            // Check DPDP Consent
-            const consentSnap = await db.collection("schools").doc(sid)
-              .collection("students").doc(studentDocId)
-              .collection("consents")
-              .where("consentVersion", "==", "v1.0")
-              .get();
-
-            let hasConsent = false;
-            for (const doc of consentSnap.docs) {
-              const cData = doc.data() || {};
-              if (!cData.withdrawnAt) {
-                const scopes = cData.scopes || [];
-                // Check if 'communication' or 'attendance' dataType scope is optedIn
-                const targetScope = scopes.find(s => s.dataType === "communication" || s.dataType === "attendance");
-                if (targetScope && targetScope.optedIn) {
-                  hasConsent = true;
-                  break;
-                }
-              }
-            }
-
-            if (!hasConsent) {
-              logger.info(`[onAttendanceWritten] Skip alert for ${studentName} (no active consent for communication/attendance)`);
-              continue;
-            }
-
-            // Write notification.
-            // targetStudentId (L2) is REQUIRED by the guardian notification read
-            // rule for a `guardian:{class}:{roll}` audience — without it the
-            // guardian is denied their own alert (fail-closed). It is the student
-            // doc id "{class spaces→_}_{section}_{roll}", which is exactly the
-            // attendance doc's class-section prefix + roll computed above.
-            await db.collection("schools").doc(sid).collection("notifications").add({
+        // targetStudentId (L2) is REQUIRED by the guardian notification read rule
+        // for a `guardian:{class}:{roll}` audience — without it the guardian is
+        // denied their own alert (fail-closed). It is the student doc id, i.e.
+        // the attendance doc's class-section prefix + roll.
+        const notifsCol = db.collection("schools").doc(sid).collection("notifications");
+        for (let i = 0; i < alerts.length; i += 450) {
+          const batch = db.batch();
+          for (const a of alerts.slice(i, i + 450)) {
+            batch.set(notifsCol.doc(), {
               type: "attendance_alert",
               title: "Attendance Alert",
-              body: `${studentName} has been marked ${status} today.`,
-              audience: `guardian:${studentClass}:${roll}`,
-              targetStudentId: studentDocId,
+              body: `${a.studentName} has been marked ${a.status} today.`,
+              audience: `guardian:${a.studentClass}:${a.roll}`,
+              targetStudentId: a.studentDocId,
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
-
-            logger.info(`[onAttendanceWritten] Sent attendance alert for ${studentName} (${status})`);
-          } catch (err) {
-            logger.error(`[onAttendanceWritten] Error processing student ${studentDocId}:`, err);
           }
+          await batch.commit();
         }
+        if (alerts.length > 0) {
+          logger.info(`[onAttendanceWritten] Sent ${alerts.length} attendance alert(s) for ${docId}`);
+        }
+      } catch (err) {
+        logger.error(`[onAttendanceWritten] alert processing failed for ${docId}:`, err);
       }
+    }
+
+    // ── SCALE-02: maintain the per-section attendance ROLLUP ───────────────────
+    // The coordinator/principal dashboards used to read EVERY student doc in the
+    // school (StudentService.fetchAll) on every open just to render per-class
+    // present/absent/leave counts + the inline absent/leave list. We instead
+    // mirror exactly what they render into `attendance_summary/{sameDocId}` (1:1
+    // with this attendance doc, so no write hotspot), keyed by `dateKey` so the
+    // dashboard can fetch "today" in one query with ZERO student reads. The
+    // denominator (enrolled total) comes from `class_stats` (syncClassStats).
+    try {
+      const reasons = dataAfter.reasons || {};
+      let present = 0, absent = 0, leave = 0;
+      const absentRolls = [];
+      for (const [rollStr, status] of Object.entries(rollsAfter)) {
+        if (status === "Present") present++;
+        else if (status === "Absent") { absent++; absentRolls.push(rollStr); }
+        else if (status === "Leave") { leave++; absentRolls.push(rollStr); }
+      }
+
+      // Fetch ONLY the absent/leave students for their name/phone (small subset);
+      // present students never need a read. Then build the inline detail list.
+      const studentsCol = db.collection("schools").doc(sid).collection("students");
+      const absentLeave = [];
+      if (absentRolls.length > 0) {
+        const snaps = await db.getAll(
+          ...absentRolls.map((r) => studentsCol.doc(`${classSectionPrefix}_${r}`)));
+        absentRolls.forEach((rollStr, i) => {
+          const snap = snaps[i];
+          if (!snap || !snap.exists) return; // deleted student still in rolls — drop
+          const d = snap.data() || {};
+          const roll = parseInt(rollStr, 10);
+          absentLeave.push({
+            name: d.name || "Student",
+            roll: Number.isInteger(roll) ? roll : rollStr,
+            status: rollsAfter[rollStr],
+            reason: reasons[rollStr] != null ? String(reasons[rollStr]) : null,
+            phone: d.phone || "",
+          });
+        });
+      }
+
+      await db.collection("schools").doc(sid)
+        .collection("attendance_summary").doc(docId)
+        .set({
+          schoolId: sid,
+          dateKey,
+          date: dataAfter.date || null,
+          present, absent, leave,
+          marked: Object.keys(rollsAfter).length > 0,
+          absentLeave,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    } catch (err) {
+      logger.error(`[onAttendanceWritten] summary rollup failed for ${docId}:`, err);
     }
   }
 );
@@ -1190,7 +1395,8 @@ exports.onAttendanceWritten = onDocumentWritten(
  * Callable: backfillStudentAttendance({ schoolId })
  *
  * One-time backfill for H2: builds the per-student attendance mirror
- * (`student_attendance/{studentDocId}.days`) from all EXISTING class-day
+ * (`student_attendance/{studentDocId}.days_{YYYY}`, year-partitioned per
+ * SCALE-13) from all EXISTING class-day
  * `attendance/{cls}` docs, so guardians see their historical calendar after the
  * class doc is locked down to staff-only. Going forward, `onAttendanceWritten`
  * keeps the mirror current; this only seeds the past. Idempotent — safe to
@@ -1222,21 +1428,27 @@ exports.backfillStudentAttendance = onCall(
     const attendance = await db.collection("schools").doc(schoolId)
       .collection("attendance").get();
 
-    // Accumulate days per studentDocId across every day-doc, then write once.
-    const perStudent = {}; // studentDocId → { roll, days: { dateKey: status } }
+    // Accumulate days per studentDocId across every day-doc, bucketed by YEAR
+    // so the mirror seeds into the same `days_{YYYY}` partitions the live
+    // onAttendanceWritten trigger writes (SCALE-13). A flat `days` map would
+    // re-introduce the unbounded-doc growth this partitioning exists to avoid.
+    const perStudent = {}; // studentDocId → { roll, daysByYear: { '2026': { dateKey: status } } }
     for (const doc of attendance.docs) {
       const id = doc.id;
       if (id.length <= dateSfxLen) continue;
       const prefix = id.substring(0, id.length - dateSfxLen);
       const dateKey = id.substring(prefix.length + 1);
+      const year = dateKey.slice(0, 4);
       const rolls = (doc.data() || {}).rolls || {};
       for (const [rollStr, status] of Object.entries(rolls)) {
         if (typeof status !== "string" || !status) continue;
         const roll = parseInt(rollStr, 10);
         if (!Number.isInteger(roll)) continue;
         const studentDocId = `${prefix}_${roll}`;
-        if (!perStudent[studentDocId]) perStudent[studentDocId] = { roll, days: {} };
-        perStudent[studentDocId].days[dateKey] = status;
+        if (!perStudent[studentDocId]) perStudent[studentDocId] = { roll, daysByYear: {} };
+        const byYear = perStudent[studentDocId].daysByYear;
+        if (!byYear[year]) byYear[year] = {};
+        byYear[year][dateKey] = status;
       }
     }
 
@@ -1245,11 +1457,19 @@ exports.backfillStudentAttendance = onCall(
     for (let i = 0; i < ids.length; i += 400) {
       const batch = db.batch();
       ids.slice(i, i + 400).forEach((studentDocId) => {
-        const { roll, days } = perStudent[studentDocId];
+        const { roll, daysByYear } = perStudent[studentDocId];
+        const payload = {
+          schoolId,
+          roll,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        for (const [year, days] of Object.entries(daysByYear)) {
+          payload[`days_${year}`] = days;
+        }
         batch.set(
           db.collection("schools").doc(schoolId)
             .collection("student_attendance").doc(studentDocId),
-          { schoolId, roll, days, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+          payload,
           { merge: true },
         );
         written++;
@@ -1258,6 +1478,227 @@ exports.backfillStudentAttendance = onCall(
     }
 
     return { ok: true, studentsBackfilled: written, dayDocsScanned: attendance.size };
+  }
+);
+
+/**
+ * Callable: backfillCommsConsent({ schoolId })
+ *
+ * One-time seed for SCALE-14: computes the denormalized `students/{id}.commsConsent`
+ * flag for EVERY existing student from their `consents` subcollection, so
+ * onAttendanceWritten can take the fast path immediately instead of falling back
+ * to a per-student consent query until each student's consent happens to change.
+ * Idempotent — safe to re-run (also useful after bulk student edits that
+ * overwrite the flag). Restricted to admin/owner of the school (root admin may
+ * target any). Mirrors backfillStudentAttendance's auth.
+ */
+exports.backfillCommsConsent = onCall(
+  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  async (request) => {
+    const db = admin.firestore();
+    if (!request.auth || !request.auth.token || !request.auth.token.email) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    const schoolId = String((request.data && request.data.schoolId) || "").trim();
+    if (!schoolId) {
+      throw new HttpsError("invalid-argument", "schoolId is required.");
+    }
+    const callerEmail = String(request.auth.token.email).toLowerCase();
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerRole = resolveCallerRole(callerEmail, callerSnap);
+    const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
+    if (!PURGE_ROLES.includes(callerRole)) {
+      throw new HttpsError("permission-denied", "You are not authorized to run this backfill.");
+    }
+    if (callerRole !== "admin" && callerSchoolId !== schoolId) {
+      throw new HttpsError("permission-denied", "You can only backfill your own school.");
+    }
+
+    const studentsCol = db.collection("schools").doc(schoolId).collection("students");
+    const studentsSnap = await studentsCol.get();
+
+    let updated = 0;
+    // Resolve consent for each student in parallel, then write the flags in
+    // chunked batches (under the 500-op limit).
+    const flags = await Promise.all(studentsSnap.docs.map(async (s) => {
+      const consentsSnap = await studentsCol.doc(s.id).collection("consents").get();
+      return { id: s.id, commsConsent: consentDocsGrantComms(consentsSnap.docs) };
+    }));
+    for (let i = 0; i < flags.length; i += 450) {
+      const batch = db.batch();
+      flags.slice(i, i + 450).forEach(({ id, commsConsent }) => {
+        batch.set(studentsCol.doc(id), { commsConsent }, { merge: true });
+        updated++;
+      });
+      await batch.commit();
+    }
+
+    return { ok: true, studentsUpdated: updated };
+  }
+);
+
+/**
+ * Callable: backfillClassStats({ schoolId })
+ *
+ * SCALE-02 seed/repair: recomputes EVERY `class_stats/{key}.total` exactly by
+ * counting visible students (not promoted, not deletion-pending) per class.
+ * Run once after deploying syncClassStats, and any time counts may have drifted
+ * (e.g. a bulk import/promotion that pre-dated the trigger). Idempotent — it
+ * overwrites totals with the freshly counted values. admin/owner-gated.
+ */
+exports.backfillClassStats = onCall(
+  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  async (request) => {
+    const db = admin.firestore();
+    if (!request.auth || !request.auth.token || !request.auth.token.email) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    const schoolId = String((request.data && request.data.schoolId) || "").trim();
+    if (!schoolId) {
+      throw new HttpsError("invalid-argument", "schoolId is required.");
+    }
+    const callerEmail = String(request.auth.token.email).toLowerCase();
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerRole = resolveCallerRole(callerEmail, callerSnap);
+    const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
+    if (!PURGE_ROLES.includes(callerRole)) {
+      throw new HttpsError("permission-denied", "You are not authorized to run this backfill.");
+    }
+    if (callerRole !== "admin" && callerSchoolId !== schoolId) {
+      throw new HttpsError("permission-denied", "You can only backfill your own school.");
+    }
+
+    const schoolRef = db.collection("schools").doc(schoolId);
+    const studentsSnap = await schoolRef.collection("students").get();
+
+    // Count visible students per class key + remember a display className.
+    const totals = {};       // key → count
+    const classNames = {};   // key → className
+    for (const s of studentsSnap.docs) {
+      const data = s.data() || {};
+      if (!isVisibleStudent(data)) continue;
+      const key = classStatsKey(data.className);
+      totals[key] = (totals[key] || 0) + 1;
+      classNames[key] = data.className || "";
+    }
+
+    // Overwrite existing class_stats docs (so stale/removed classes go to 0) and
+    // write the freshly counted ones.
+    const statsCol = schoolRef.collection("class_stats");
+    const existing = await statsCol.get();
+    const keys = new Set([...existing.docs.map((d) => d.id), ...Object.keys(totals)]);
+
+    let written = 0;
+    const keyList = [...keys];
+    for (let i = 0; i < keyList.length; i += 450) {
+      const batch = db.batch();
+      keyList.slice(i, i + 450).forEach((key) => {
+        batch.set(statsCol.doc(key), {
+          className: classNames[key] || key.replace(/_/g, " "),
+          total: totals[key] || 0,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        written++;
+      });
+      await batch.commit();
+    }
+
+    return { ok: true, classesWritten: written, studentsScanned: studentsSnap.size };
+  }
+);
+
+/**
+ * Callable: backfillAttendanceSummary({ schoolId, dateKey? })
+ *
+ * SCALE-02 seed: rebuilds `attendance_summary/{docId}` for one day (default
+ * today) from the existing `attendance/{docId}` day-docs, so the dashboards have
+ * complete summaries for attendance already marked BEFORE onAttendanceWritten's
+ * summary write was deployed. Only the requested day is rebuilt (the dashboard
+ * only reads "today"); going forward the trigger keeps it current. Idempotent.
+ * admin/owner-gated.
+ */
+exports.backfillAttendanceSummary = onCall(
+  { cors: true, region: "us-central1", invoker: "public", enforceAppCheck: true },
+  async (request) => {
+    const db = admin.firestore();
+    if (!request.auth || !request.auth.token || !request.auth.token.email) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    const schoolId = String((request.data && request.data.schoolId) || "").trim();
+    if (!schoolId) {
+      throw new HttpsError("invalid-argument", "schoolId is required.");
+    }
+    const callerEmail = String(request.auth.token.email).toLowerCase();
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerRole = resolveCallerRole(callerEmail, callerSnap);
+    const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
+    if (!PURGE_ROLES.includes(callerRole)) {
+      throw new HttpsError("permission-denied", "You are not authorized to run this backfill.");
+    }
+    if (callerRole !== "admin" && callerSchoolId !== schoolId) {
+      throw new HttpsError("permission-denied", "You can only backfill your own school.");
+    }
+
+    // Default to "today" in the same padded YYYY-MM-DD form the app uses. The
+    // attendance doc id suffix is always 11 chars ("_2026-06-11").
+    const requestedKey = String((request.data && request.data.dateKey) || "").trim();
+    const dateKey = requestedKey || new Date().toISOString().slice(0, 10);
+    const dateSfx = `_${dateKey}`;
+
+    const schoolRef = db.collection("schools").doc(schoolId);
+    const studentsCol = schoolRef.collection("students");
+    const attendanceSnap = await schoolRef.collection("attendance").get();
+
+    const dayDocs = attendanceSnap.docs.filter((d) => d.id.endsWith(dateSfx));
+
+    let written = 0;
+    for (const doc of dayDocs) {
+      const docId = doc.id;
+      const data = doc.data() || {};
+      const rolls = data.rolls || {};
+      const reasons = data.reasons || {};
+      const classSectionPrefix = docId.substring(0, docId.length - dateSfx.length);
+
+      let present = 0, absent = 0, leave = 0;
+      const absentRolls = [];
+      for (const [rollStr, status] of Object.entries(rolls)) {
+        if (status === "Present") present++;
+        else if (status === "Absent") { absent++; absentRolls.push(rollStr); }
+        else if (status === "Leave") { leave++; absentRolls.push(rollStr); }
+      }
+
+      const absentLeave = [];
+      if (absentRolls.length > 0) {
+        const snaps = await db.getAll(
+          ...absentRolls.map((r) => studentsCol.doc(`${classSectionPrefix}_${r}`)));
+        absentRolls.forEach((rollStr, i) => {
+          const snap = snaps[i];
+          if (!snap || !snap.exists) return;
+          const d = snap.data() || {};
+          const roll = parseInt(rollStr, 10);
+          absentLeave.push({
+            name: d.name || "Student",
+            roll: Number.isInteger(roll) ? roll : rollStr,
+            status: rolls[rollStr],
+            reason: reasons[rollStr] != null ? String(reasons[rollStr]) : null,
+            phone: d.phone || "",
+          });
+        });
+      }
+
+      await schoolRef.collection("attendance_summary").doc(docId).set({
+        schoolId,
+        dateKey,
+        date: data.date || null,
+        present, absent, leave,
+        marked: Object.keys(rolls).length > 0,
+        absentLeave,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      written++;
+    }
+
+    return { ok: true, dateKey, summariesWritten: written };
   }
 );
 

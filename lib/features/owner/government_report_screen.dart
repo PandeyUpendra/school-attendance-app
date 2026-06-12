@@ -20,8 +20,11 @@ class _GovernmentReportScreenState extends State<GovernmentReportScreen> {
   Future<void> _exportUdiseReport() async {
     setState(() => _exporting = true);
     try {
-      // Fetch all students in the school
-      final students = await _studentService.watchStudents().first;
+      // Fetch EVERY student in the school via the cursor-paginated getStudents()
+      // — NOT watchStudents(), whose stream is a bounded (capped) change-detection
+      // window. Using the capped stream here silently truncated the official
+      // UDISE export to the first 500 students by roll (SCALE-01).
+      final students = await _studentService.getStudents();
 
       if (students.isEmpty) {
         if (mounted) {

@@ -464,6 +464,7 @@ class _AcademicTabState extends State<_AcademicTab>
   int _fromIdx = 3, _toIdx = 12;
   int _periods = 8, _duration = 45, _lunch = 4;
   List<String> _sections = ['A'];
+  List<String> _classList = [];
   String _yearStart = 'April';
   String _workingDays = 'Mon-Sat';
   bool _saving = false;
@@ -494,10 +495,90 @@ class _AcademicTabState extends State<_AcademicTab>
       _duration = _durations.contains(p.periodDuration) ? p.periodDuration : 45;
       _lunch = p.lunchAfterPeriod;
       _sections = List.from(p.sections);
+      _classList = List.from(p.classList);
+      if (_classList.isEmpty) {
+        _classList = _generateClassList();
+      } else {
+        _sortClassList();
+      }
       _yearStart = p.academicYearStart;
       _workingDays = p.workingDays;
       _init = true;
     }
+  }
+
+  String _getClassPrefix(String label) {
+    if (_prePrimary.contains(label)) {
+      return label;
+    } else {
+      return label.replaceFirst('Class ', '');
+    }
+  }
+
+  void _sortClassList() {
+    _classList.sort((a, b) {
+      final partsA = a.split('-');
+      final partsB = b.split('-');
+      final prefixA = partsA[0];
+      final prefixB = partsB[0];
+      final secA = partsA.length > 1 ? partsA[1] : '';
+      final secB = partsB.length > 1 ? partsB[1] : '';
+
+      final idxA = _classOptions.indexWhere((label) => _getClassPrefix(label) == prefixA);
+      final idxB = _classOptions.indexWhere((label) => _getClassPrefix(label) == prefixB);
+
+      if (idxA != idxB) {
+        return idxA.compareTo(idxB);
+      }
+      return secA.compareTo(secB);
+    });
+  }
+
+  void _syncClassListToRange() {
+    if (_toIdx < _fromIdx) return;
+    final validPrefixes = <String>{};
+    for (int i = _fromIdx; i <= _toIdx; i++) {
+      validPrefixes.add(_getClassPrefix(_classOptions[i]));
+    }
+
+    setState(() {
+      _classList.removeWhere((item) {
+        final parts = item.split('-');
+        if (parts.isEmpty) return true;
+        return !validPrefixes.contains(parts[0]);
+      });
+
+      for (int i = _fromIdx; i <= _toIdx; i++) {
+        final prefix = _getClassPrefix(_classOptions[i]);
+        final hasAny = _classList.any((item) => item.startsWith('$prefix-'));
+        if (!hasAny) {
+          for (final s in _sections) {
+            _classList.add('$prefix-$s');
+          }
+        }
+      }
+
+      _sortClassList();
+    });
+  }
+
+  void _addGlobalSection(String s) {
+    setState(() {
+      for (int i = _fromIdx; i <= _toIdx; i++) {
+        final prefix = _getClassPrefix(_classOptions[i]);
+        final item = '$prefix-$s';
+        if (!_classList.contains(item)) {
+          _classList.add(item);
+        }
+      }
+      _sortClassList();
+    });
+  }
+
+  void _removeGlobalSection(String s) {
+    setState(() {
+      _classList.removeWhere((item) => item.endsWith('-$s'));
+    });
   }
 
   Future<void> _save() async {
@@ -522,7 +603,7 @@ class _AcademicTabState extends State<_AcademicTab>
       if (ok != true) return;
     }
 
-    final newClasses = _generateClassList();
+    final newClasses = List<String>.from(_classList);
 
     final removed = oldClasses.where((c) => !newClasses.contains(c)).toList();
     if (removed.isNotEmpty && mounted) {
@@ -599,9 +680,15 @@ class _AcademicTabState extends State<_AcademicTab>
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _sectionLabel(context.tr('classRangeLabel')),
         Row(children: [
-          Expanded(child: _classDropdown(context.tr('rangeFrom'), _fromIdx, (v) => setState(() => _fromIdx = v))),
+          Expanded(child: _classDropdown(context.tr('rangeFrom'), _fromIdx, (v) {
+            setState(() => _fromIdx = v);
+            _syncClassListToRange();
+          })),
           const SizedBox(width: 12),
-          Expanded(child: _classDropdown(context.tr('rangeTo'), _toIdx, (v) => setState(() => _toIdx = v))),
+          Expanded(child: _classDropdown(context.tr('rangeTo'), _toIdx, (v) {
+            setState(() => _toIdx = v);
+            _syncClassListToRange();
+          })),
         ]),
         const SizedBox(height: 16),
         _sectionLabel(context.tr('sectionsLabel')),
@@ -614,18 +701,122 @@ class _AcademicTabState extends State<_AcademicTab>
               selected: sel,
               selectedColor: AppTheme.primaryLight,
               onSelected: widget.editing
-                  ? (v) => setState(() {
-                        if (v) { _sections.add(s); _sections.sort(); } else { _sections.remove(s); }
-                      })
+                  ? (v) {
+                      if (v) {
+                        setState(() {
+                          _sections.add(s);
+                          _sections.sort();
+                        });
+                        _addGlobalSection(s);
+                      } else {
+                        setState(() {
+                          _sections.remove(s);
+                        });
+                        _removeGlobalSection(s);
+                      }
+                    }
                   : null,
             );
           }).toList(),
         ),
-        if (_sections.isNotEmpty) ...[
+        if (_classList.isNotEmpty) ...[
           const SizedBox(height: 6),
           Text(
-            '${context.tr('classesLabel')}: ${_generateClassList().join(", ")}',
+            '${context.tr('classesLabel')}: ${_classList.join(", ")}',
             style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+          ),
+        ],
+        if (widget.editing && _toIdx >= _fromIdx) ...[
+          const SizedBox(height: 20),
+          _sectionLabel(context.tr('classWiseSectionsLabel')),
+          const SizedBox(height: 4),
+          Text(
+            context.tr('classWiseSectionsDesc'),
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _toIdx - _fromIdx + 1,
+              separatorBuilder: (_, __) => const Divider(color: AppTheme.border, height: 1),
+              itemBuilder: (context, index) {
+                final classIdx = _fromIdx + index;
+                if (classIdx >= _classOptions.length) return const SizedBox.shrink();
+                final label = _classOptions[classIdx];
+                final prefix = _getClassPrefix(label);
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                      Wrap(
+                        spacing: 8,
+                        children: _sectionOptions.map((s) {
+                          final item = '$prefix-$s';
+                          final isSelected = _classList.contains(item);
+                          return InkWell(
+                            onTap: () {
+                              setState(() {
+                                if (isSelected) {
+                                  final classSections = _classList
+                                      .where((c) => c.startsWith('$prefix-'))
+                                      .toList();
+                                  if (classSections.length <= 1) {
+                                    _snack(context.tr('selectAtLeastOneSecMsg'));
+                                    return;
+                                  }
+                                  _classList.remove(item);
+                                } else {
+                                  _classList.add(item);
+                                  _sortClassList();
+                                }
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              width: 32,
+                              height: 32,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppTheme.primaryLight : Colors.grey.shade200,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                s,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? AppTheme.primary : Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ],
         const SizedBox(height: 16),
