@@ -8,6 +8,7 @@ import '../../services/base_firestore_service.dart';
 import '../../shared/utils/validators.dart';
 import '../../shared/widgets/email_text_form_field.dart';
 import '../dashboards/admin_screen.dart';
+import '../../shared/utils/app_transitions.dart';
 
 /// Full-screen admin login — replaces the old "Admin Access" dialog so the
 /// experience matches the other roles (staff / guardian) instead of a
@@ -55,6 +56,8 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     try {
       // Firebase Auth sign-in.
       await AuthService().signInWithEmail(email, pass);
+
+      TextInput.finishAutofillContext();
 
       // Verify admin status dynamically by fetching/caching system/root_config from Firestore.
       // (This read will fail with permission-denied if they are not defined as root admin).
@@ -184,46 +187,55 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                   ),
                   const SizedBox(height: 8),
 
-                  // Header
-                  const Icon(Icons.manage_accounts_outlined,
-                      size: 56, color: Colors.white),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Admin Access',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                  FadeInUp(
+                    delay: Duration.zero,
+                    child: Column(
+                      children: [
+                        const Icon(Icons.manage_accounts_outlined,
+                            size: 56, color: Colors.white),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Admin Access',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Manage registered users & login access',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 15, color: Colors.white.withValues(alpha: 0.75)),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Manage registered users & login access',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 15, color: Colors.white.withValues(alpha: 0.75)),
                   ),
                   const SizedBox(height: 40),
 
                   // Card
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Email
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 150),
+                    child: Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: AutofillGroup(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Email
                         EmailTextFormField(
                           controller: _emailCtrl,
                           enabled: !_loading,
@@ -248,6 +260,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                           maxLengthEnforcement: MaxLengthEnforcement.enforced,
                           textInputAction: TextInputAction.done,
                           onSubmitted: (_) => _loading ? null : _signIn(),
+                          autofillHints: const [AutofillHints.password],
                           decoration: InputDecoration(
                             labelText: context.tr('password'),
                             prefixIcon: const Icon(Icons.lock_outline),
@@ -364,6 +377,8 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                       ],
                     ),
                   ),
+                ),
+                ), // End of FadeInUp for Card
                 ],
               ),
             ),

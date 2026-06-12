@@ -7,11 +7,11 @@ import '../../theme.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/teacher.dart';
 import '../auth/profile_screen.dart';
-import 'package:school_app/services/auth_service.dart';
 import 'package:school_app/services/notification_service.dart';
 import 'package:school_app/services/staff_task_service.dart';
 import 'package:school_app/services/timetable_service.dart';
 import '../../shared/utils/role_guard.dart';
+import '../../shared/utils/app_transitions.dart';
 import '../class_diary/class_diary_screen.dart';
 import '../study_material/study_material_upload_screen.dart';
 import '../syllabus/syllabus_tracker_screen.dart';
@@ -380,11 +380,17 @@ class _HomeScreenState extends State<HomeScreen> {
             role: 'teacher',
           ),
           if (teacher != null)
-            TeacherMorningSummaryCard(
-              key: _morningSummaryKey1,
-              teacher: teacher!,
+            FadeInUp(
+              delay: const Duration(milliseconds: 50),
+              child: TeacherMorningSummaryCard(
+                key: _morningSummaryKey1,
+                teacher: teacher!,
+              ),
             ),
-          _buildSubDutyCard(),
+          FadeInUp(
+            delay: const Duration(milliseconds: 120),
+            child: _buildSubDutyCard(),
+          ),
 
            _SectionHeader(context.tr('secAcademics')),
            _FeatureTile(
@@ -784,11 +790,17 @@ class _HomeScreenState extends State<HomeScreen> {
           role: 'teacher',
         ),
         if (teacher != null)
-          TeacherMorningSummaryCard(
-            key: _morningSummaryKey2,
-            teacher: teacher!,
+          FadeInUp(
+            delay: const Duration(milliseconds: 50),
+            child: TeacherMorningSummaryCard(
+              key: _morningSummaryKey2,
+              teacher: teacher!,
+            ),
           ),
-        _buildSubDutyCard(),
+        FadeInUp(
+          delay: const Duration(milliseconds: 120),
+          child: _buildSubDutyCard(),
+        ),
 
         _SectionHeader(context.tr('secAcademics')),
         _FeatureTile(

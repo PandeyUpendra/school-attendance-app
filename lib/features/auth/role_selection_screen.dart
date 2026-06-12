@@ -5,6 +5,7 @@ import '../../l10n/app_strings.dart';
 import './login_screen.dart';
 import './guardian_login_screen.dart';
 import './admin_login_screen.dart';
+import '../../shared/utils/app_transitions.dart';
 
 /// Role selection screen — now a lightweight hub that routes to:
 /// • LoginScreen for all staff (owner, principal, coordinator, teacher)
@@ -52,51 +53,68 @@ class RoleSelectionScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.school, size: 48, color: Colors.white),
-                const SizedBox(height: 16),
-                Text(context.tr('schoolApp'),
-                    style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white)),
-                const SizedBox(height: 6),
-                Text(context.tr('chooseHowToSignIn'),
-                    style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white.withValues(alpha: 0.7))),
+                FadeInUp(
+                  delay: Duration.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.school, size: 48, color: Colors.white),
+                      const SizedBox(height: 16),
+                      Text(context.tr('schoolApp'),
+                          style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
+                      const SizedBox(height: 6),
+                      Text(context.tr('chooseHowToSignIn'),
+                          style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white.withValues(alpha: 0.7))),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 32),
 
                 // ── Staff (teacher / coordinator / principal / owner) ───────
-                _RoleCard(
-                  icon: Icons.badge_outlined,
-                  title: context.tr('staffLogin'),
-                  subtitle: context.tr('staffLoginSubtitle'),
-                  onTap: () => Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                FadeInUp(
+                  delay: const Duration(milliseconds: 100),
+                  child: _RoleCard(
+                    icon: Icons.badge_outlined,
+                    title: context.tr('staffLogin'),
+                    subtitle: context.tr('staffLoginSubtitle'),
+                    onTap: () => Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
 
                 // ── Guardian ──────────────────────────────────────────────
-                _RoleCard(
-                  icon: Icons.family_restroom_outlined,
-                  title: context.tr('role_guardian'),
-                  subtitle: context.tr('guardianSubtitle'),
-                  onTap: () => Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const GuardianLoginScreen()),
+                FadeInUp(
+                  delay: const Duration(milliseconds: 180),
+                  child: _RoleCard(
+                    icon: Icons.family_restroom_outlined,
+                    title: context.tr('role_guardian'),
+                    subtitle: context.tr('guardianSubtitle'),
+                    onTap: () => Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const GuardianLoginScreen()),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
 
                 // ── Admin ─────────────────────────────────────────────────
-                _RoleCard(
-                  icon: Icons.manage_accounts_outlined,
-                  title: context.tr('role_admin'),
-                  subtitle: context.tr('adminSubtitle'),
-                  onTap: () => _openAdmin(context),
+                FadeInUp(
+                  delay: const Duration(milliseconds: 260),
+                  child: _RoleCard(
+                    icon: Icons.manage_accounts_outlined,
+                    title: context.tr('role_admin'),
+                    subtitle: context.tr('adminSubtitle'),
+                    onTap: () => _openAdmin(context),
+                  ),
                 ),
 
                 const SizedBox(height: 32),

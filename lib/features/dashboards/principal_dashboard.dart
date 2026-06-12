@@ -36,6 +36,7 @@ import '../birthdays/birthdays_screen.dart';
 import '../../models/task.dart';
 import '../../services/task_service.dart';
 import '../../shared/utils/role_guard.dart';
+import '../../shared/utils/app_transitions.dart';
 import '../meeting/principal_meeting_records_screen.dart';
 import '../todo/todo_list_screen.dart';
 import '../todo/todo_reminder_banner.dart';
@@ -280,13 +281,16 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               role: _sessionRole,
             ),
             if (!_loading) ...[
-              _PrincipalMorningSummaryCard(
-                absentStudents: _summaries.fold(0, (acc, s) => acc + s.absent),
-                pendingLeaves: _pendingLeaveCount,
-                absentTeachers: _teachersAbsent,
-                unassignedBells: _unassignedBells,
-                onViewLeaves: () => _navigate(
-                  const LeaveRequestsScreen(viewerRole: 'principal'),
+              FadeInUp(
+                delay: const Duration(milliseconds: 50),
+                child: _PrincipalMorningSummaryCard(
+                  absentStudents: _summaries.fold(0, (acc, s) => acc + s.absent),
+                  pendingLeaves: _pendingLeaveCount,
+                  absentTeachers: _teachersAbsent,
+                  unassignedBells: _unassignedBells,
+                  onViewLeaves: () => _navigate(
+                    const LeaveRequestsScreen(viewerRole: 'principal'),
+                  ),
                 ),
               ),
               // ── Active Tasks ───────────────────────────────────────────

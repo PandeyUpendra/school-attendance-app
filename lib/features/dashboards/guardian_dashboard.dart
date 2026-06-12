@@ -26,6 +26,7 @@ import '../../services/notification_service.dart';
 import '../../services/timetable_service.dart';
 import '../../services/base_firestore_service.dart';
 import '../../shared/utils/role_guard.dart';
+import '../../shared/utils/app_transitions.dart';
 import '../../shared/utils/currency_utils.dart';
 import '../announcements/announcements_screen.dart';
 import '../leave/guardian_leave_application_screen.dart';
@@ -445,24 +446,27 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       ),
     ],
     const SizedBox(height: 12),
-    _GuardianMorningSummaryCard(
-      todayStatus: _todayStatus,
-      homeworkCount: _homeworkList.length,
-      examCount: _examData.length,
-      feesPaid: _totalPaid,
-      hasConsent: _hasConsent,
-      onApplyLeave: () {
-        if (_student != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => GuardianLeaveApplicationScreen(
-                student: _student!,
+    FadeInUp(
+      delay: const Duration(milliseconds: 50),
+      child: _GuardianMorningSummaryCard(
+        todayStatus: _todayStatus,
+        homeworkCount: _homeworkList.length,
+        examCount: _examData.length,
+        feesPaid: _totalPaid,
+        hasConsent: _hasConsent,
+        onApplyLeave: () {
+          if (_student != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianLeaveApplicationScreen(
+                  student: _student!,
+                ),
               ),
-            ),
-          );
-        }
-      },
+            );
+          }
+        },
+      ),
     ),
 
     _SectionHeader(context.tr('secAcademics')),

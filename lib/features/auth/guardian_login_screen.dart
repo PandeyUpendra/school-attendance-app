@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../theme.dart';
 import '../../l10n/app_strings.dart';
 import '../../services/auth_service.dart';
@@ -10,8 +11,9 @@ import '../../shared/widgets/email_text_form_field.dart';
 import '../dashboards/guardian_dashboard.dart';
 import '../students/student_selection_screen.dart';
 import './forgot_password_screen.dart';
-import './login_screen.dart';
 import './role_selection_screen.dart';
+import './login_screen.dart';
+import '../../shared/utils/app_transitions.dart';
 
 class GuardianLoginScreen extends StatefulWidget {
   const GuardianLoginScreen({super.key});
@@ -51,6 +53,7 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
 
     try {
       await AuthService().signInWithEmail(email, password);
+      TextInput.finishAutofillContext();
       if (!mounted) return;
 
       final userData = await TimetableService.instance.getAllowedUserDoc(email);
@@ -169,154 +172,165 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 24),
-
-                // Header
-                const Icon(Icons.family_restroom_outlined,
-                    size: 56, color: Colors.white),
-                const SizedBox(height: 16),
-                const Text(
-                  'Guardian Portal',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                FadeInUp(
+                  delay: Duration.zero,
+                  child: Column(
+                    children: [
+                      const Icon(Icons.family_restroom_outlined,
+                          size: 56, color: Colors.white),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Guardian Portal',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        context.tr('guardianSignInSubtitle'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 15, color: Colors.white.withValues(alpha: 0.75)),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  context.tr('guardianSignInSubtitle'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 15, color: Colors.white.withValues(alpha: 0.75)),
                 ),
                 const SizedBox(height: 40),
 
                 // Card
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Email
-                      EmailTextFormField(
-                        controller: _emailCtrl,
-                        textInputAction: TextInputAction.next,
-                        decoration: InputDecoration(
-                          labelText: context.tr('emailAddress'),
-                          prefixIcon: const Icon(Icons.email_outlined),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                FadeInUp(
+                  delay: const Duration(milliseconds: 150),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
                         ),
-                      ),
-                      const SizedBox(height: 16),
+                      ],
+                    ),
+                    child: AutofillGroup(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Email
+                          EmailTextFormField(
+                            controller: _emailCtrl,
+                            textInputAction: TextInputAction.next,
+                            decoration: InputDecoration(
+                              labelText: context.tr('emailAddress'),
+                              prefixIcon: const Icon(Icons.email_outlined),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
 
-                      // Password
-                      TextField(
-                        controller: _passCtrl,
-                        obscureText: !_showPass,
-                        textInputAction: TextInputAction.done,
-                        onSubmitted: (_) => _loading ? null : _signIn(),
-                        decoration: InputDecoration(
-                          labelText: context.tr('password'),
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                                _showPass
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                                size: 18),
-                            onPressed: () =>
-                                setState(() => _showPass = !_showPass),
+                          // Password
+                          TextField(
+                            controller: _passCtrl,
+                            obscureText: !_showPass,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => _loading ? null : _signIn(),
+                            autofillHints: const [AutofillHints.password],
+                            decoration: InputDecoration(
+                              labelText: context.tr('password'),
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                    _showPass
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
+                                    size: 18),
+                                onPressed: () =>
+                                    setState(() => _showPass = !_showPass),
+                              ),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
                           ),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
 
-                      // Forgot password
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => ForgotPasswordScreen(
-                                    initialEmail: _emailCtrl.text.trim(),
-                                )),
-                          ),
-                          child: Text(
-                            context.tr('forgotPassword'),
-                            style: const TextStyle(color: AppTheme.primary),
-                          ),
-                        ),
-                      ),
-
-                      // Error
-                      if (_error != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.red.shade200),
-                          ),
-                          child: Row(children: [
-                            Icon(Icons.error_outline,
-                                color: Colors.red.shade600, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
+                          // Forgot password
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => ForgotPasswordScreen(
+                                        initialEmail: _emailCtrl.text.trim(),
+                                    )),
+                              ),
                               child: Text(
-                                _error!,
-                                style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.red.shade700),
+                                context.tr('forgotPassword'),
+                                style: const TextStyle(color: AppTheme.primary),
                               ),
                             ),
-                          ]),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      // Sign In button
-                      SizedBox(
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _loading ? null : _signIn,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            elevation: 0,
                           ),
-                          child: _loading
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white),
-                                )
-                              : Text(
-                                  context.tr('signIn'),
-                                  style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600),
+
+                          // Error
+                          if (_error != null) ...[
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: Row(children: [
+                                Icon(Icons.error_outline,
+                                    color: Colors.red.shade600, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _error!,
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.red.shade700),
+                                  ),
                                 ),
-                        ),
+                              ]),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+
+                          // Sign In button
+                          SizedBox(
+                            height: 52,
+                            child: ElevatedButton(
+                              onPressed: _loading ? null : _signIn,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primary,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
+                              ),
+                              child: _loading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : Text(
+                                      context.tr('signIn'),
+                                      style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
 

@@ -15,10 +15,11 @@ import '../dashboards/principal_dashboard.dart';
 import './guardian_login_screen.dart';
 import '../dashboards/admin_screen.dart';
 import './admin_login_screen.dart';
-import './forgot_password_screen.dart';
 import './role_selection_screen.dart';
+import './forgot_password_screen.dart';
 import '../owner/owner_home.dart';
 import '../owner/owner_principal_home.dart';
+import '../../shared/utils/app_transitions.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -272,47 +273,53 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 24),
-                  // Header. Long-pressing the title opens admin login — the
-                  // entry point is a hidden gesture rather than a visible link,
-                  // so it isn't a discoverable attack surface (#93).
-                  GestureDetector(
-                    onLongPress: _openAdminLogin,
-                    child: const Icon(Icons.school, size: 56, color: Colors.white),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'School App',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                  FadeInUp(
+                    delay: Duration.zero,
+                    child: Column(
+                      children: [
+                        GestureDetector(
+                          onLongPress: _openAdminLogin,
+                          child: const Icon(Icons.school, size: 56, color: Colors.white),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'School App',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          context.tr('signInSubtitle'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 15, color: Colors.white.withValues(alpha: 0.75)),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    context.tr('signInSubtitle'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 15, color: Colors.white.withValues(alpha: 0.75)),
                   ),
                   const SizedBox(height: 40),
 
                   // Card
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: AutofillGroup(
+                  FadeInUp(
+                    delay: const Duration(milliseconds: 150),
+                    child: Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: AutofillGroup(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -440,6 +447,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
+                ), // End of FadeInUp for Card
 
                   const SizedBox(height: 28),
 

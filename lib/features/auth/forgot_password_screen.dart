@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:android_intent_plus/flag.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../theme.dart';
 import '../../services/auth_service.dart';
@@ -114,6 +115,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
 
     try {
       final result = await AuthService().sendResetIfRegistered(email);
+      TextInput.finishAutofillContext();
       if (!mounted) return;
       switch (result) {
         case ResetResult.sent:
@@ -144,11 +146,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
         elevation: 0,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        child: AutofillGroup(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               const SizedBox(height: 24),
 
               // Icon
@@ -339,6 +342,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

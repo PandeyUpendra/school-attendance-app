@@ -261,16 +261,19 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               role: 'coordinator',
             ),
             if (!_attendanceLoading)
-              _CoordinatorMorningSummaryCard(
-                absentStudents: _summaries.fold(0, (acc, s) => acc + s.absent),
-                pendingLeaves: _pendingLeaveCount,
-                absentTeachers: _teachersAbsent,
-                incompleteTasks: _incompleteTaskCount,
-                onViewTasks: () => _navigate(UnifiedStaffTaskScreen(
-                  role: 'coordinator',
-                  userEmail: _coordEmail,
-                  userName: _coordEmail,
-                )),
+              FadeInUp(
+                delay: const Duration(milliseconds: 50),
+                child: _CoordinatorMorningSummaryCard(
+                  absentStudents: _summaries.fold(0, (acc, s) => acc + s.absent),
+                  pendingLeaves: _pendingLeaveCount,
+                  absentTeachers: _teachersAbsent,
+                  incompleteTasks: _incompleteTaskCount,
+                  onViewTasks: () => _navigate(UnifiedStaffTaskScreen(
+                    role: 'coordinator',
+                    userEmail: _coordEmail,
+                    userName: _coordEmail,
+                  )),
+                ),
               ),
 
             // ── Staff Tasks ───────────────────────────────────────────────
