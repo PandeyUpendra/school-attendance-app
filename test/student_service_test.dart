@@ -472,7 +472,7 @@ void main() {
     expect(docId1, 'Class_6_A_12');
 
     final docId2 = Student.buildDocId(5, '   cLaSs    9-b ', '  c  ');
-    expect(docId2, 'Class_9-b_C_5');
+    expect(docId2, 'Class_9-B_C_5');
 
     final docId3 = Student.buildDocId(20, 'Class 10', '');
     expect(docId3, 'Class_10_20');

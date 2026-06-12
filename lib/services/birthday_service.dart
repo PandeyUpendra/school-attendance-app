@@ -474,7 +474,10 @@ class BirthdayService extends BaseFirestoreService {
     if (text.trim().isEmpty) return text;
     return text.trim().split(RegExp(r'\s+')).map((word) {
       if (word.isEmpty) return '';
-      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+      return word.split('-').map((subWord) {
+        if (subWord.isEmpty) return '';
+        return subWord[0].toUpperCase() + subWord.substring(1).toLowerCase();
+      }).join('-');
     }).join(' ');
   }
 

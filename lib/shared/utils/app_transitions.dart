@@ -49,8 +49,8 @@ class AppPageRoute<T> extends PageRouteBuilder<T> {
 }
 
 /// A premium, high-performance TabBarView replacement.
-/// Instantly swaps tabs with a micro-fade (150ms) to avoid layout lag and sliding frame drops.
-class PremiumTabBarView extends StatefulWidget {
+/// Supports swiping right and left to navigate between tabs using the native TabBarView.
+class PremiumTabBarView extends StatelessWidget {
   final List<Widget> children;
   final TabController? controller;
 
@@ -61,61 +61,11 @@ class PremiumTabBarView extends StatefulWidget {
   });
 
   @override
-  State<PremiumTabBarView> createState() => _PremiumTabBarViewState();
-}
-
-class _PremiumTabBarViewState extends State<PremiumTabBarView> {
-  TabController? _controller;
-  int _currentIndex = 0;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _updateController();
-  }
-
-  @override
-  void didUpdateWidget(PremiumTabBarView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.controller != oldWidget.controller) {
-      _updateController();
-    }
-  }
-
-  void _updateController() {
-    final TabController? newController = widget.controller ?? DefaultTabController.maybeOf(context);
-    if (_controller != newController) {
-      if (_controller != null) {
-        _controller!.removeListener(_handleTabChange);
-      }
-      _controller = newController;
-      if (_controller != null) {
-        _controller!.addListener(_handleTabChange);
-        _currentIndex = _controller!.index;
-      }
-    }
-  }
-
-  void _handleTabChange() {
-    if (_controller != null && _controller!.index != _currentIndex) {
-      setState(() {
-        _currentIndex = _controller!.index;
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    if (_controller != null) {
-      _controller!.removeListener(_handleTabChange);
-    }
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (widget.children.isEmpty) return const SizedBox.shrink();
-    final index = _currentIndex.clamp(0, widget.children.length - 1);
-    return widget.children[index];
+    if (children.isEmpty) return const SizedBox.shrink();
+    return TabBarView(
+      controller: controller,
+      children: children,
+    );
   }
 }

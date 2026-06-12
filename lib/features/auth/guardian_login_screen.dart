@@ -252,7 +252,9 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
                           onPressed: () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (_) => const ForgotPasswordScreen()),
+                                builder: (_) => ForgotPasswordScreen(
+                                    initialEmail: _emailCtrl.text.trim(),
+                                )),
                           ),
                           child: Text(
                             context.tr('forgotPassword'),

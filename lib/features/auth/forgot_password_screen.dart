@@ -12,7 +12,8 @@ import '../../shared/widgets/email_text_form_field.dart';
 import './role_selection_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({super.key});
+  final String? initialEmail;
+  const ForgotPasswordScreen({super.key, this.initialEmail});
 
   @override
   State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
@@ -30,6 +31,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (widget.initialEmail != null && widget.initialEmail!.isNotEmpty) {
+      _emailCtrl.text = widget.initialEmail!;
+    }
   }
 
   @override

@@ -364,8 +364,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             onPressed: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) =>
-                                      const ForgotPasswordScreen()),
+                                  builder: (_) => ForgotPasswordScreen(
+                                      initialEmail: _emailCtrl.text.trim(),
+                                  )),
                             ),
                             child: Text(
                               context.tr('forgotPassword'),

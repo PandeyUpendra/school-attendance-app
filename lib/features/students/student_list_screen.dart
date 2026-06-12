@@ -932,75 +932,85 @@ class _StudentListScreenState extends State<StudentListScreen> {
           : null,
       body: _loading
           ? const LoadingState()
-          : _students.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.group_add,
-                          size: 72, color: Colors.grey.shade300),
-                      const SizedBox(height: 16),
-                      Text('${context.tr('noStudentsIn')} $_effectiveTitle',
-                          style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade400)),
-                      const SizedBox(height: 6),
-                      Text(context.tr('tapAddStudentStart'),
-                          style: TextStyle(
-                              color: Colors.grey.shade400)),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _refresh,
-                  color: AppTheme.primary,
-                  child: ListView.separated(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
-                    itemCount: _students.length + (_loadingMore ? 1 : 0),
-                    separatorBuilder: (_, __) =>
-                        const Divider(height: 1, indent: 80),
-                    itemBuilder: (_, i) {
-                      if (i == _students.length) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
+          : RefreshIndicator(
+              onRefresh: _refresh,
+              color: AppTheme.primary,
+              child: _students.isEmpty
+                  ? LayoutBuilder(
+                      builder: (context, constraints) => SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                          ),
                           child: Center(
-                            child: SizedBox(
-                              width: 24, height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.group_add,
+                                    size: 72, color: Colors.grey.shade300),
+                                const SizedBox(height: 16),
+                                Text('${context.tr('noStudentsIn')} $_effectiveTitle',
+                                    style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey.shade400)),
+                                const SizedBox(height: 6),
+                                Text(context.tr('tapAddStudentStart'),
+                                    style: TextStyle(
+                                        color: Colors.grey.shade400)),
+                              ],
                             ),
                           ),
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
+                      itemCount: _students.length + (_loadingMore ? 1 : 0),
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 1, indent: 80),
+                      itemBuilder: (_, i) {
+                        if (i == _students.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(
+                              child: SizedBox(
+                                width: 24, height: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2.5),
+                              ),
+                            ),
+                          );
+                        }
+                        final s = _students[i];
+                        return _StudentCard(
+                          student: s,
+                          selected: _selectedRolls.contains(s.roll),
+                          selectMode: _selectMode,
+                          pendingDeletion: s.deletionPending,
+                          // No badge until consent has loaded (avoids a flash).
+                          hasConsent: !_consentLoaded ||
+                              _consentedIds.contains(Student.buildDocId(
+                                  s.roll, s.className, s.section)),
+                          // In select mode a pending student can still be tapped
+                          // to view detail (but not toggled); otherwise normal tap
+                          // opens detail.
+                          onTap: _selectMode
+                              ? (s.deletionPending
+                                  ? () => _openDetail(s)
+                                  : () => _toggleSelect(s))
+                              : () => _openDetail(s),
+                          onLongPress: widget.isClassTeacher &&
+                                  !_selectMode &&
+                                  !s.deletionPending
+                              ? () => _enterSelectMode(s)
+                              : null,
                         );
-                      }
-                      final s = _students[i];
-                      return _StudentCard(
-                        student: s,
-                        selected: _selectedRolls.contains(s.roll),
-                        selectMode: _selectMode,
-                        pendingDeletion: s.deletionPending,
-                        // No badge until consent has loaded (avoids a flash).
-                        hasConsent: !_consentLoaded ||
-                            _consentedIds.contains(Student.buildDocId(
-                                s.roll, s.className, s.section)),
-                        // In select mode a pending student can still be tapped
-                        // to view detail (but not toggled); otherwise normal tap
-                        // opens detail.
-                        onTap: _selectMode
-                            ? (s.deletionPending
-                                ? () => _openDetail(s)
-                                : () => _toggleSelect(s))
-                            : () => _openDetail(s),
-                        onLongPress: widget.isClassTeacher &&
-                                !_selectMode &&
-                                !s.deletionPending
-                            ? () => _enterSelectMode(s)
-                            : null,
-                      );
-                    },
-                  ),
-                ),
+                      },
+                    ),
+            ),
     );
   }
 }
