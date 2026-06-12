@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../l10n/app_strings.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -55,6 +56,13 @@ class _OwnerHomeState extends State<OwnerHome> {
   Map<String, String> _schoolsMap = {};
   bool _switchingSchool = false;
 
+  bool _statsLoading = true;
+  int _totalStudents = 0;
+  int _absentStudents = 0;
+  int _teachersAbsent = 0;
+  int _pendingLeaves = 0;
+  StreamSubscription? _leaveSub;
+
   @override
   void initState() {
     super.initState();
@@ -62,6 +70,47 @@ class _OwnerHomeState extends State<OwnerHome> {
       RoleGuard.verify(context, ['owner']);
     });
     _init();
+  }
+
+  @override
+  void dispose() {
+    _leaveSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadStats() async {
+    if (!mounted) return;
+    setState(() => _statsLoading = true);
+    try {
+      final svc = TimetableService.instance;
+      final settings = await svc.getSettings();
+      final classes = List<String>.from(settings['classes'] as List? ?? []);
+
+      final summariesFuture = StudentService.instance.loadTodayFullSummary(classes: classes);
+      final absentFuture = svc.getTodayAbsentTeachersInfo();
+
+      final results = await Future.wait([summariesFuture, absentFuture]);
+      final summaries = results[0] as List<ClassSummary>;
+      final absentInfo = results[1] as Map<String, dynamic>;
+
+      int total = 0;
+      int absent = 0;
+      for (final s in summaries) {
+        total += s.total;
+        absent += s.absent;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _totalStudents = total;
+        _absentStudents = absent;
+        _teachersAbsent = absentInfo['absentCount'] ?? 0;
+        _statsLoading = false;
+      });
+    } catch (e, st) {
+      AppLogger.e('OwnerHome', 'Failed to load owner stats', e, st);
+      if (mounted) setState(() => _statsLoading = false);
+    }
   }
 
   Future<void> _init() async {
@@ -119,6 +168,12 @@ class _OwnerHomeState extends State<OwnerHome> {
       _schoolsMap = schoolsMap;
       _loaded = true;
     });
+
+    _leaveSub?.cancel();
+    _leaveSub = TimetableService.instance.streamPendingLeaveCount().listen((n) {
+      if (mounted) setState(() => _pendingLeaves = n);
+    });
+    _loadStats();
   }
 
   Future<void> _switchSchool(String targetSchoolId) async {
@@ -198,12 +253,31 @@ class _OwnerHomeState extends State<OwnerHome> {
         children: [
           _buildHero(),
           Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-          const SizedBox(height: 4),
-
-          const _SectionHeader('OVERVIEW'),
+            child: RefreshIndicator(
+              onRefresh: () async {
+                await _init();
+                await _loadStats();
+              },
+              color: AppTheme.primary,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                children: [
+                  const SizedBox(height: 4),
+                  if (!_statsLoading)
+                    _OwnerMorningSummaryCard(
+                      totalStudents: _totalStudents,
+                      absentStudents: _absentStudents,
+                      teachersAbsent: _teachersAbsent,
+                      pendingLeaves: _pendingLeaves,
+                      onViewSettings: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const EditSchoolSettingsScreen(),
+                        ),
+                      ),
+                    ),
+                  const _SectionHeader('OVERVIEW'),
           _FeatureTile(
             icon: Icons.dashboard_outlined,
             color: AppTheme.primary,
@@ -323,6 +397,7 @@ class _OwnerHomeState extends State<OwnerHome> {
           const SizedBox(height: 32),
               ],
             ),
+          ),
           ),
         ],
       ),
@@ -1850,4 +1925,191 @@ Widget _badge(int count) {
     decoration: BoxDecoration(color: AppTheme.accent, borderRadius: BorderRadius.circular(12)),
     child: Text('$count', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
   );
+}
+
+class _OwnerMorningSummaryCard extends StatelessWidget {
+  final int totalStudents;
+  final int absentStudents;
+  final int teachersAbsent;
+  final int pendingLeaves;
+  final VoidCallback onViewSettings;
+
+  const _OwnerMorningSummaryCard({
+    required this.totalStudents,
+    required this.absentStudents,
+    required this.teachersAbsent,
+    required this.pendingLeaves,
+    required this.onViewSettings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.primary,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryDark.withValues(alpha: 0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Row(
+              children: [
+                const Icon(Icons.wb_sunny_outlined, color: Colors.amber, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'School Today',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Main content grid
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMetricTile(
+                        icon: Icons.people_outline,
+                        label: 'Total Students',
+                        value: '$totalStudents',
+                        color: Colors.greenAccent.shade100,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildMetricTile(
+                        icon: Icons.person_off_outlined,
+                        label: 'Absent Students',
+                        value: '$absentStudents',
+                        color: Colors.redAccent.shade100,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMetricTile(
+                        icon: Icons.people_outline,
+                        label: 'Absent Teachers',
+                        value: '$teachersAbsent',
+                        color: Colors.amberAccent.shade100,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildMetricTile(
+                        icon: Icons.hourglass_top_outlined,
+                        label: 'Pending Leaves',
+                        value: '$pendingLeaves',
+                        color: Colors.orangeAccent.shade100,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Action Button
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: ElevatedButton.icon(
+              onPressed: onViewSettings,
+              icon: const Icon(Icons.tune_outlined, size: 16),
+              label: const Text('Manage School Settings'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white.withValues(alpha: 0.15),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: const BorderSide(color: Colors.white24),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: color.withValues(alpha: 0.2),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

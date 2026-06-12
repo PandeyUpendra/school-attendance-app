@@ -429,9 +429,22 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       ),
     ],
     const SizedBox(height: 12),
-    Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: _TodayBanner(status: _todayStatus, hasConsent: _hasConsent),
+    _GuardianMorningSummaryCard(
+      todayStatus: _todayStatus,
+      homeworkCount: _homeworkList.length,
+      examCount: _examData.length,
+      feesPaid: _totalPaid,
+      hasConsent: _hasConsent,
+      onApplyLeave: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuardianLeaveApplicationScreen(
+            studentClass: _activeClass,
+            studentRoll: _activeRoll,
+            studentSection: _activeSection,
+          ),
+        ),
+      ),
     ),
 
     _SectionHeader(context.tr('secAcademics')),
@@ -3427,6 +3440,224 @@ class GuardianConsentScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _GuardianMorningSummaryCard extends StatelessWidget {
+  final String? todayStatus;
+  final int homeworkCount;
+  final int examCount;
+  final double feesPaid;
+  final bool hasConsent;
+  final VoidCallback onApplyLeave;
+
+  const _GuardianMorningSummaryCard({
+    required this.todayStatus,
+    required this.homeworkCount,
+    required this.examCount,
+    required this.feesPaid,
+    required this.hasConsent,
+    required this.onApplyLeave,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    String attendanceText = 'Pending';
+    Color attendanceColor = Colors.white70;
+    IconData attendanceIcon = Icons.schedule_outlined;
+
+    if (!hasConsent) {
+      attendanceText = 'Gated (No Consent)';
+      attendanceColor = Colors.orangeAccent.shade100;
+      attendanceIcon = Icons.lock_outline;
+    } else {
+      switch (todayStatus) {
+        case 'Present':
+          attendanceText = 'Present';
+          attendanceColor = Colors.greenAccent.shade100;
+          attendanceIcon = Icons.check_circle_outline;
+          break;
+        case 'Absent':
+          attendanceText = 'Absent';
+          attendanceColor = Colors.redAccent.shade100;
+          attendanceIcon = Icons.cancel_outlined;
+          break;
+        case 'Leave':
+          attendanceText = 'On Leave';
+          attendanceColor = Colors.orangeAccent.shade100;
+          attendanceIcon = Icons.event_busy_outlined;
+          break;
+      }
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.primary,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryDark.withValues(alpha: 0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Row(
+              children: [
+                const Icon(Icons.wb_sunny_outlined, color: Colors.amber, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Student Summary Today',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Main content grid
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMetricTile(
+                        icon: attendanceIcon,
+                        label: 'Attendance Today',
+                        value: attendanceText,
+                        color: attendanceColor,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildMetricTile(
+                        icon: Icons.assignment_outlined,
+                        label: 'Homework Tasks',
+                        value: '$homeworkCount',
+                        color: Colors.orangeAccent.shade100,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMetricTile(
+                        icon: Icons.book_outlined,
+                        label: 'Published Exams',
+                        value: '$examCount',
+                        color: Colors.amberAccent.shade100,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildMetricTile(
+                        icon: Icons.currency_rupee_outlined,
+                        label: 'Total Fees Paid',
+                        value: CurrencyUtils.format(feesPaid),
+                        color: Colors.greenAccent.shade100,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Action Button
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: ElevatedButton.icon(
+              onPressed: onApplyLeave,
+              icon: const Icon(Icons.beach_access, size: 16),
+              label: const Text('Apply Student Leave'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white.withValues(alpha: 0.15),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: const BorderSide(color: Colors.white24),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: color.withValues(alpha: 0.2),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
