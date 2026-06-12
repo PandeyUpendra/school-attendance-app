@@ -1053,7 +1053,7 @@ service cloud.firestore {
           && 'studentClass' in resource.data && resource.data.studentClass == userStudentClass()
           && 'studentRoll' in resource.data && resource.data.studentRoll == userStudentRoll()
           && 'studentSection' in resource.data && resource.data.studentSection == userStudentSection()) ||
-        (isAnyTeacher() && 'studentClass' in resource.data && isClassTeacher(resource.data.studentClass))
+        (isAnyTeacher() && 'studentClass' in resource.data && (resource.data.studentClass in userClassIds() || isClassTeacher(resource.data.studentClass)))
       );
 
       // No impersonation: teacherId must equal the calling user's teacherId, or guardian matches student info.

@@ -83,7 +83,22 @@ class _ParentalConsentFlowState extends State<ParentalConsentFlow> {
   void initState() {
     super.initState();
     _nameCtrl.text  = widget.prefillGuardianName  ?? '';
-    _phoneCtrl.text = widget.prefillGuardianPhone ?? '';
+    
+    String initialPhone = (widget.prefillGuardianPhone ?? '').trim();
+    if (initialPhone.isEmpty) {
+      initialPhone = '+91';
+    } else if (!initialPhone.startsWith('+')) {
+      while (initialPhone.startsWith('0')) {
+        initialPhone = initialPhone.substring(1);
+      }
+      if (initialPhone.startsWith('91') && initialPhone.length == 12) {
+        initialPhone = '+$initialPhone';
+      } else {
+        initialPhone = '+91$initialPhone';
+      }
+    }
+    _phoneCtrl.text = initialPhone;
+
     _emailCtrl.text = widget.prefillGuardianEmail ?? '';
     _scopes         = ParentalConsent.defaultScopes();
   }
