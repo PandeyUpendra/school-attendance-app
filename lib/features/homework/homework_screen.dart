@@ -10,6 +10,7 @@ import '../../services/base_firestore_service.dart';
 import '../../services/offline_queue_service.dart';
 import '../../theme.dart';
 import '../../shared/widgets/refreshable_data.dart';
+import '../../shared/utils/app_transitions.dart';
 
 class HomeworkScreen extends StatefulWidget {
   final Teacher teacher;
@@ -250,7 +251,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
               ),
             const Divider(height: 1),
             Expanded(
-              child: TabBarView(
+              child: PremiumTabBarView(
                 children: [
                   _buildHomeworkList(current: true),
                   _buildHomeworkList(current: false),

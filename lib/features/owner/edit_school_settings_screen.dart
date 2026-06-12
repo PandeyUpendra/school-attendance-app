@@ -17,6 +17,7 @@ import '../../shared/utils/validators.dart';
 import '../../shared/widgets/email_text_form_field.dart';
 import '../../shared/widgets/index_building_notice.dart';
 import '../../shared/widgets/managed_dropdown.dart';
+import '../../shared/utils/app_transitions.dart';
 
 class EditSchoolSettingsScreen extends StatefulWidget {
   const EditSchoolSettingsScreen({super.key});
@@ -109,7 +110,7 @@ class _EditSchoolSettingsScreenState extends State<EditSchoolSettingsScreen>
               ]),
             ),
           Expanded(
-            child: TabBarView(
+            child: PremiumTabBarView(
               controller: _tab,
               children: [
                 _BasicInfoTab(editing: _editing, onSaved: _onTabSaved),

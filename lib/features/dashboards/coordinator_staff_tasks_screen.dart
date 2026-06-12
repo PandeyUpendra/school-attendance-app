@@ -8,6 +8,7 @@ import '../../services/timetable_service.dart';
 import '../../services/notification_service.dart';
 import '../../shared/widgets/index_building_notice.dart';
 import '../tasks/task_badge_widgets.dart';
+import '../../shared/utils/app_transitions.dart';
 
 const Map<String, String> _kTemplates = {
   "PTM Preparation":
@@ -89,7 +90,7 @@ class CoordinatorStaffTasksScreen extends StatelessWidget {
             ],
           ),
         ),
-        body: TabBarView(
+        body: PremiumTabBarView(
           children: [
             _AssignTab(coordinatorEmail: coordinatorEmail),
             _AllTasksTab(coordinatorEmail: coordinatorEmail),

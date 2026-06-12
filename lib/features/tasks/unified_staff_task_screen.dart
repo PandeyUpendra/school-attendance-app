@@ -11,6 +11,7 @@ import '../../services/auth_service.dart';
 import '../../shared/widgets/index_building_notice.dart';
 import './task_badge_widgets.dart';
 import './create_staff_task_screen.dart';
+import '../../shared/utils/app_transitions.dart';
 
 const String _kAllTeachers = 'ALL_TEACHERS';
 const String _kCoordPrefix = 'coord:';
@@ -121,7 +122,7 @@ class UnifiedStaffTaskScreen extends StatelessWidget {
               ],
             ),
           ),
-          body: TabBarView(
+          body: PremiumTabBarView(
             children: [
               _AssignTab(
                   assignerEmail: userEmail,
@@ -155,7 +156,7 @@ class UnifiedStaffTaskScreen extends StatelessWidget {
             ],
           ),
         ),
-        body: TabBarView(
+        body: PremiumTabBarView(
           children: [
             _TeacherTaskTab(
               teacherId: teacherId ?? '',

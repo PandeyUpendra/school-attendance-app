@@ -6,6 +6,7 @@ import '../../services/base_firestore_service.dart';
 import '../../theme.dart';
 import '../../l10n/app_strings.dart';
 import '../../shared/widgets/refreshable_data.dart';
+import '../../shared/utils/app_transitions.dart';
 
 /// Coordinator screen — view all homework across classes.
 class HomeworkOverviewScreen extends StatefulWidget {
@@ -243,7 +244,7 @@ class _HomeworkOverviewScreenState extends State<HomeworkOverviewScreen> {
                     ),
   
                   Expanded(
-                    child: TabBarView(
+                    child: PremiumTabBarView(
                       children: [
                         _buildHomeworkList(current: true),
                         _buildHomeworkList(current: false),

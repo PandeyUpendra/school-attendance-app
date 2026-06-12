@@ -6,6 +6,7 @@ import '../../services/student_service.dart';
 import '../../theme.dart';
 import '../../shared/widgets/refreshable_data.dart';
 import '../../shared/widgets/index_building_notice.dart';
+import '../../shared/utils/app_transitions.dart';
 
 /// Principal-only screen to review, approve or reject teacher-submitted
 /// student deletion requests.
@@ -182,7 +183,7 @@ class _StudentDeletionRequestsScreenState
           ],
         ),
       ),
-      body: TabBarView(
+      body: PremiumTabBarView(
         controller: _tabs,
         children: [
           _RequestList(

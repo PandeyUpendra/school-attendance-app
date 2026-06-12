@@ -13,6 +13,7 @@ import '../../theme.dart';
 import '../../shared/utils/phone_utils.dart';
 import '../../shared/utils/app_logger.dart';
 import '../../services/ai_service.dart';
+import '../../shared/utils/app_transitions.dart';
 
 /// Teacher's copy-checking screen.
 /// Shows all classes the teacher teaches → create sessions → mark students.
@@ -921,7 +922,7 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
+          : PremiumTabBarView(
               controller: _tab,
               children: [
                 // ── All Students Tab ──

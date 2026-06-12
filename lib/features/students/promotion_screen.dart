@@ -6,6 +6,7 @@ import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../services/promotion_service.dart';
 import '../../shared/utils/app_logger.dart';
+import '../../shared/utils/app_transitions.dart';
 
 /// Academic-year promotion / rollover (#70).
 ///
@@ -383,7 +384,7 @@ class _PromotionDryRunDialogState extends State<PromotionDryRunDialog> with Sing
               ],
             ),
             Expanded(
-              child: TabBarView(
+              child: PremiumTabBarView(
                 controller: _tabCtrl,
                 children: [
                   toPromote.isEmpty

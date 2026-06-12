@@ -7,6 +7,7 @@ import '../../services/timetable_service.dart';
 import '../../services/base_firestore_service.dart';
 import '../../theme.dart';
 import '../../shared/utils/timetable_conflict_detector.dart';
+import '../../shared/utils/app_transitions.dart';
 
 // ── Bell model ────────────────────────────────────────────────────────────────
 
@@ -598,7 +599,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
+          : PremiumTabBarView(
               controller: _tabCtrl,
               children: [
                 _buildSettingsTab(),

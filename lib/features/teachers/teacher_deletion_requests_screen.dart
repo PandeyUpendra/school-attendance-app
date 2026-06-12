@@ -4,6 +4,7 @@ import '../../l10n/app_strings.dart';
 import '../../services/base_firestore_service.dart';
 import '../../services/teacher_deletion_service.dart';
 import '../../theme.dart';
+import '../../shared/utils/app_transitions.dart';
 
 /// Principal / Owner review screen for coordinator-submitted teacher
 /// deletion requests. Approve = actually delete the teacher (record +
@@ -201,7 +202,7 @@ class _TeacherDeletionRequestsScreenState
           ],
         ),
       ),
-      body: TabBarView(
+      body: PremiumTabBarView(
         controller: _tabs,
         children: [
           _RequestList(
