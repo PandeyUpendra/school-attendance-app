@@ -137,10 +137,10 @@ class _OwnerHomeState extends State<OwnerHome> {
     List<String> schoolIds = [];
     Map<String, String> schoolsMap = {};
     try {
-      final uid = AuthService().currentFirebaseUser?.uid;
+      // Identity document is keyed by lowercased email
       final userDoc = await FirebaseFirestore.instance
           .collection('allowed_users')
-          .doc(uid ?? email)
+          .doc(email.toLowerCase().trim())
           .get();
       if (userDoc.exists && userDoc.data() != null) {
         final data = userDoc.data()!;
@@ -182,11 +182,10 @@ class _OwnerHomeState extends State<OwnerHome> {
     setState(() => _switchingSchool = true);
 
     try {
-      // 1. Update schoolId in allowed_users
-      final uid = AuthService().currentFirebaseUser?.uid;
+      // 1. Update schoolId in allowed_users (identity doc is keyed by lowercased email)
       await FirebaseFirestore.instance
           .collection('allowed_users')
-          .doc(uid ?? _myEmail)
+          .doc(_myEmail.toLowerCase().trim())
           .update({'schoolId': targetSchoolId});
 
       // 2. Update local state / notifier

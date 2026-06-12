@@ -587,9 +587,43 @@ service cloud.firestore {
         (isManagement() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId)
       ));
 
-      // Only root admins can write directly from client SDKs.
+      // Client-side writes are allowed for self-updates (e.g., status/school switching) and school management.
       // All other mutations must call secure Cloud Functions.
-      allow create, update, delete: if isRootAdmin();
+      allow create: if isRootAdmin() || (isSignedIn() && (
+        // Management can provision users in their own school
+        (isStrictAdmin() &&
+         request.resource.data.schoolId == userSchoolId() &&
+         request.resource.data.role in ['principal', 'coordinator', 'teacher', 'subjectTeacher', 'guardian']) ||
+        
+        (isRole('coordinator') &&
+         request.resource.data.schoolId == userSchoolId() &&
+         request.resource.data.role in ['teacher', 'subjectTeacher', 'guardian'])
+      ));
+
+      allow update: if isRootAdmin() || (isSignedIn() && (
+        // Self update: status can transition to 'active', name/phone/designation can be updated, schoolId can switch
+        (userEmail() == email &&
+         request.resource.data.role == resource.data.role &&
+         (request.resource.data.schoolId == resource.data.schoolId || 
+          ('schoolIds' in resource.data && request.resource.data.schoolId in resource.data.schoolIds))) ||
+        
+        // Management updates in same school (excluding role changes)
+        (isStrictAdmin() &&
+         resource.data.schoolId == userSchoolId() &&
+         request.resource.data.schoolId == userSchoolId() &&
+         request.resource.data.role == resource.data.role) ||
+        
+        (isRole('coordinator') &&
+         resource.data.schoolId == userSchoolId() &&
+         request.resource.data.schoolId == userSchoolId() &&
+         request.resource.data.role == resource.data.role)
+      ));
+
+      allow delete: if isRootAdmin() || (isSignedIn() && (
+        // Management delete in same school
+        (isStrictAdmin() && resource.data.schoolId == userSchoolId()) ||
+        (isRole('coordinator') && resource.data.schoolId == userSchoolId() && resource.data.role in ['teacher', 'subjectTeacher', 'guardian'])
+      ));
     }
 
 

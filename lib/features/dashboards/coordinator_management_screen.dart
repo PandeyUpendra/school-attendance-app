@@ -440,7 +440,7 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
         if (extraData.isNotEmpty) {
           await FirebaseFirestore.instance
               .collection('allowed_users')
-              .doc(uid)
+              .doc(email.toLowerCase().trim())
               .update(extraData);
         }
       }
