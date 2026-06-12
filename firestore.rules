@@ -99,12 +99,16 @@ service cloud.firestore {
 
     /// Caller's teacherId.
     function userTeacherId() {
-      return getUserData() != null && 'teacherId' in getUserData() ? getUserData().teacherId : null;
+      return isSignedIn() && 'teacherId' in request.auth.token
+        ? request.auth.token.teacherId
+        : (getUserData() != null && 'teacherId' in getUserData() ? getUserData().teacherId : null);
     }
 
     /// Caller's assigned classIds array.
     function userClassIds() {
-      return getUserData() != null && 'classIds' in getUserData() ? getUserData().classIds : [];
+      return isSignedIn() && 'classIds' in request.auth.token
+        ? request.auth.token.classIds
+        : (getUserData() != null && 'classIds' in getUserData() ? getUserData().classIds : []);
     }
 
     /// Caller's assigned studentIds array (for guardians).
@@ -118,15 +122,21 @@ service cloud.firestore {
     /// the app never populates classIds[]/studentIds[] for guardians, so those
     /// must NOT be relied on for guardian access.
     function userStudentClass() {
-      return getUserData() != null && 'studentClass' in getUserData() ? getUserData().studentClass : null;
+      return isSignedIn() && 'studentClass' in request.auth.token
+        ? request.auth.token.studentClass
+        : (getUserData() != null && 'studentClass' in getUserData() ? getUserData().studentClass : null);
     }
 
     function userStudentRoll() {
-      return getUserData() != null && 'studentRoll' in getUserData() ? getUserData().studentRoll : null;
+      return isSignedIn() && 'studentRoll' in request.auth.token
+        ? request.auth.token.studentRoll
+        : (getUserData() != null && 'studentRoll' in getUserData() ? getUserData().studentRoll : null);
     }
 
     function userStudentSection() {
-      return getUserData() != null && 'studentSection' in getUserData() ? getUserData().studentSection : '';
+      return isSignedIn() && 'studentSection' in request.auth.token
+        ? request.auth.token.studentSection
+        : (getUserData() != null && 'studentSection' in getUserData() ? getUserData().studentSection : '');
     }
 
     /// Caller's child's STABLE admission id (#39). Stamped on the guardian's
@@ -136,8 +146,9 @@ service cloud.firestore {
     /// who reuses the vacated class+roll. Returns null when absent (legacy
     /// guardians) so the admissionId audience branch simply never matches.
     function userStudentAdmissionId() {
-      return getUserData() != null && 'studentAdmissionId' in getUserData()
-        ? getUserData().studentAdmissionId : null;
+      return isSignedIn() && 'studentAdmissionId' in request.auth.token
+        ? request.auth.token.studentAdmissionId
+        : (getUserData() != null && 'studentAdmissionId' in getUserData() ? getUserData().studentAdmissionId : null);
     }
 
     /// The student document ID for the caller's own child:
@@ -370,8 +381,14 @@ service cloud.firestore {
     function isRootAdmin() {
       return isSignedIn() && (
         request.auth.token.email.lower() == 'mandvishal@gmail.com' ||
-        request.auth.token.email.lower() == 'admin@schoolapp.org'
+        request.auth.token.email.lower() == 'admin@schoolapp.org' ||
+        ('isRootAdmin' in request.auth.token && request.auth.token.isRootAdmin == true)
       );
+    }
+
+    /// root admin | admin | owner | ownerPrincipal | finance_admin
+    function isFinanceAdmin() {
+      return isRootAdmin() || hasAnyRole(['admin', 'owner', 'ownerPrincipal', 'finance_admin']);
     }
 
     // ── Convenience role groups ──────────────────────────────────────────
@@ -562,117 +579,17 @@ service cloud.firestore {
     // Root collection — identity is cross-school by design. schoolId
     // embedded in each document scopes reads and writes.
     // ════════════════════════════════════════════════════════════════
-    match /allowed_users/{uid} {
+    match /allowed_users/{email} {
 
-      // Own document, OR any coordinator / principal / admin in the same school,
-      // OR any owner globally.
-      // (Previously also allowed UNAUTHENTICATED read of any 'owner' doc for
-      //  "bootstrapping" — that leaked every owner's email/name/phone to the
-      //  public internet. Bootstrapping is done by the hardcoded root admin.)
-      // Phase 3 tenancy: owner/ownerPrincipal are NOT a cross-school super-role
-      // here — they're covered by the school-scoped isManagement() branch, so an
-      // owner can only read user docs in their OWN school. (The old standalone
-      // `isRole('owner')` branch let any owner read every school's user docs.)
+      // Own document, OR any coordinator / principal / admin in the same school.
       allow read: if isRootAdmin() || (isSignedIn() && (
-        request.auth.uid == uid ||
+        userEmail() == email ||
         (isManagement() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId)
       ));
 
-      // ③ Only strict admin; new document must belong to caller's school.
-      // OR any owner globally.
-      // OR a principal creating a non-management staff account (coordinator,
-      //    teacher, or subjectTeacher) in their own school.
-      // OR a coordinator creating a teacher / subjectTeacher account in
-      //    their own school (Manage Teachers add-flow + Send Login Invite).
-      //    Coordinators may NOT create coordinators (no peer creation),
-      //    principals, admins, owners, or guardians.
-      // OR unauthenticated create if the new document's role is 'owner' (for bootstrapping).
-      // owner/ownerPrincipal create via the school-scoped isStrictAdmin() branch
-      // (Phase 3 tenancy) — they can only create accounts in their own school.
-      allow create: if isRootAdmin() || (isSignedIn() && (
-        (isStrictAdmin() && 'schoolId' in request.resource.data && userSchoolId() == request.resource.data.schoolId) ||
-        (isRole('principal')
-          && 'schoolId' in request.resource.data
-          && userSchoolId() == request.resource.data.schoolId
-          && 'role' in request.resource.data
-          && request.resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian']) ||
-        (isRole('coordinator')
-          && 'schoolId' in request.resource.data
-          && userSchoolId() == request.resource.data.schoolId
-          && 'role' in request.resource.data
-          && request.resource.data.role in ['teacher', 'subjectTeacher', 'guardian']) ||
-        (isAnyTeacher()
-          && 'schoolId' in request.resource.data
-          && userSchoolId() == request.resource.data.schoolId
-          && 'role' in request.resource.data
-          && request.resource.data.role == 'guardian')
-      ));
-      // NOTE: the previous trailing clause allowed ANYONE (even unauthenticated)
-      // to create a doc whose role == 'owner' — i.e. mint themselves owner and
-      // own the whole system. Removed. The first owner is bootstrapped by the
-      // hardcoded root admin (isRootAdmin), and further owners by an existing owner.
-
-      allow update: if isRootAdmin() || (isSignedIn() && (
-        // Admin/owner/ownerPrincipal: full update power within own school
-        // (school-scoped via isStrictAdmin — Phase 3 tenancy; no cross-school).
-        (isStrictAdmin() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId) ||
-
-        // Principal: may update non-management staff in their own school.
-        // No privilege escalation: target role before AND after must stay
-        // in the allowed staff set.
-        (isRole('principal')
-          && 'schoolId' in resource.data
-          && userSchoolId() == resource.data.schoolId
-          && 'role' in resource.data
-          && resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian']
-          && 'role' in request.resource.data
-          && request.resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian']) ||
-
-        // Coordinator: may update teacher / subjectTeacher in their own
-        // school (edit, Send Login Invite). Cannot promote anyone.
-        (isRole('coordinator')
-          && 'schoolId' in resource.data
-          && userSchoolId() == resource.data.schoolId
-          && 'role' in resource.data
-          && resource.data.role in ['teacher', 'subjectTeacher', 'guardian']
-          && 'role' in request.resource.data
-          && request.resource.data.role in ['teacher', 'subjectTeacher', 'guardian']) ||
-
-        // Teacher: may update a guardian in their own school. No privilege escalation.
-        (isAnyTeacher()
-          && 'schoolId' in resource.data
-          && userSchoolId() == resource.data.schoolId
-          && 'role' in resource.data
-          && resource.data.role == 'guardian'
-          && 'role' in request.resource.data
-          && request.resource.data.role == 'guardian') ||
-
-        // ③ Non-admin self-update: role and schoolId MUST remain unchanged.
-        (request.auth.uid == uid
-          && 'role' in request.resource.data && 'role' in resource.data
-          && request.resource.data.role     == resource.data.role
-          && 'schoolId' in request.resource.data && 'schoolId' in resource.data
-          && request.resource.data.schoolId == resource.data.schoolId)
-      ));
-      // NOTE: removed the trailing clause that let ANY signed-in user modify ANY
-      // owner doc as long as role stayed 'owner' — a guardian could rewrite an
-      // owner's schoolId/name/classIds. Owner docs are now editable only by the
-      // root admin, an owner, a strict admin in-school, or the owner themselves
-      // (covered above, with role/schoolId pinned).
-
-      allow delete: if isRootAdmin() || (isSignedIn() && (
-        // owner/ownerPrincipal delete via school-scoped isStrictAdmin (Phase 3).
-        (isStrictAdmin() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId) ||
-        // Principal: may delete non-management staff in their own school.
-        (isRole('principal')
-          && 'schoolId' in resource.data
-          && userSchoolId() == resource.data.schoolId
-          && 'role' in resource.data
-          && resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian'])
-      ));
-      // NOTE: removed the trailing clause that let ANY signed-in user DELETE any
-      // owner doc — a trivial lockout/DoS of every school. Owner docs are now
-      // deletable only by the root admin, an owner, or a strict admin in-school.
+      // Only root admins can write directly from client SDKs.
+      // All other mutations must call secure Cloud Functions.
+      allow create, update, delete: if isRootAdmin();
     }
 
 

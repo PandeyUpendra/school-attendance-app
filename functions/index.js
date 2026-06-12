@@ -106,22 +106,29 @@ function consentDocsGrantComms(consentDocs) {
  * login).
  */
 exports.syncUserClaims = onDocumentWritten(
-  { document: "allowed_users/{uid}", region: "asia-south1" },
+  { document: "allowed_users/{email}", region: "asia-south1" },
   async (event) => {
-    const uid = event.params.uid; // doc id is the UID
+    const email = event.params.email.toLowerCase(); // doc id is the lowercased email
     try {
+      const user = await admin.auth().getUserByEmail(email);
       const after = event.data && event.data.after;
       if (!after || !after.exists) {
-        await admin.auth().setCustomUserClaims(uid, null); // doc deleted
+        await admin.auth().setCustomUserClaims(user.uid, null); // doc deleted
         return;
       }
       const d = after.data() || {};
-      const claims = {};
-      if (d.role) claims.role = String(d.role);
-      if (d.schoolId) claims.schoolId = String(d.schoolId);
-      await admin.auth().setCustomUserClaims(uid, claims);
+      const claims = {
+        role: d.role ? String(d.role) : null,
+        schoolId: d.schoolId ? String(d.schoolId) : null,
+        classIds: d.classIds ? d.classIds : [],
+        studentClass: d.studentClass ? String(d.studentClass) : null,
+        studentRoll: d.studentRoll ? Number(d.studentRoll) : null,
+        studentSection: d.studentSection ? String(d.studentSection) : null,
+        studentAdmissionId: d.studentAdmissionId ? String(d.studentAdmissionId) : null,
+      };
+      await admin.auth().setCustomUserClaims(user.uid, claims);
     } catch (err) {
-      logger.warn(`claims sync skipped for ${uid}`, err && err.code);
+      logger.warn(`claims sync skipped for ${email}`, err && err.code);
     }
   }
 );
@@ -205,14 +212,13 @@ exports.deleteAccount = onCall(
     }
 
     // Resolve caller + target identity from allowed_users.
-    const [callerSnap, targetQuery] = await Promise.all([
-      db.collection("allowed_users").doc(request.auth.uid).get(),
-      db.collection("allowed_users").where("email", "==", email).limit(1).get(),
+    const [callerSnap, targetSnap] = await Promise.all([
+      db.collection("allowed_users").doc(callerEmail).get(),
+      db.collection("allowed_users").doc(email).get(),
     ]);
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
-    const targetSnap = targetQuery.empty ? null : targetQuery.docs[0];
-    const targetExists = targetSnap !== null && targetSnap.exists;
+    const targetExists = targetSnap.exists;
 
     if (!DELETE_ROLES.includes(callerRole)) {
       throw new HttpsError("permission-denied", "You are not allowed to delete accounts.");
@@ -224,34 +230,39 @@ exports.deleteAccount = onCall(
     const targetRole = targetData ? targetData.role : null;
     const targetSchoolId = targetData ? targetData.schoolId : null;
 
-    if (targetRole === "admin" || ROOT_ADMIN_EMAILS.includes(email)) {
+    // Resolve target's tenant info from Custom Claims if they lack a document (orphan verification).
+    let targetSchoolIdFromClaims = null;
+    let targetRoleFromClaims = null;
+    try {
+      const targetUser = await admin.auth().getUserByEmail(email);
+      if (targetUser.customClaims) {
+        targetSchoolIdFromClaims = targetUser.customClaims.schoolId || null;
+        targetRoleFromClaims = targetUser.customClaims.role || null;
+      }
+    } catch (e) {
+      // Auth user doesn't exist either. This is a true orphan.
+    }
+
+    const targetSchoolIdResolved = targetSchoolId || targetSchoolIdFromClaims;
+    const targetRoleResolved = targetRole || targetRoleFromClaims;
+
+    if (targetRoleResolved === "admin" || ROOT_ADMIN_EMAILS.includes(email)) {
       throw new HttpsError("permission-denied", "Admin accounts cannot be deleted here.");
     }
 
-    // Authorization: admins may delete anyone; other management roles may delete
-    // within their own school, or clean up a truly orphaned Auth login that has
-    // NO allowed_users doc at all (half-provisioned account).
-    //
-    // L5: previously "orphan" also matched a target that HAD a doc but merely
-    // lacked a schoolId — which let a coordinator/principal of school A delete a
-    // (possibly other-school) account whose schoolId was just unset. Now an
-    // existing doc with no schoolId is NOT treated as a free-for-all orphan: it
-    // requires admin, since we cannot prove it belongs to the caller's school.
-    const isAdmin = callerRole === "admin";
-    const targetIsTrueOrphan = !targetExists;
-    const sameSchool =
-      callerSchoolId && targetSchoolId && callerSchoolId === targetSchoolId;
-    if (!isAdmin && !sameSchool && !targetIsTrueOrphan) {
-      throw new HttpsError("permission-denied", "You can only delete accounts in your own school.");
-    }
+    const isAdmin = callerRole === "admin" || ROOT_ADMIN_EMAILS.includes(callerEmail);
+    const sameSchoolResolved = callerSchoolId && targetSchoolIdResolved && callerSchoolId === targetSchoolIdResolved;
 
-    // Role-hierarchy enforcement (review #1–#3). The root admin is exempt; every
-    // other caller must STRICTLY outrank the target so peers and superiors
-    // cannot be deleted (e.g. a coordinator deleting the principal, or a
-    // principal deleting another principal).
     if (!isAdmin) {
+      if (!sameSchoolResolved) {
+        throw new HttpsError(
+          "permission-denied",
+          "You can only delete accounts in your own school. Orphan accounts in other schools or without school associations require admin privileges."
+        );
+      }
+
       const callerRank = rankOf(callerRole);
-      const targetRank = rankOf(targetRole);
+      const targetRank = rankOf(targetRoleResolved);
       if (callerRank <= targetRank) {
         throw new HttpsError(
           "permission-denied",
@@ -261,7 +272,7 @@ exports.deleteAccount = onCall(
       // Deleting an owner / ownerPrincipal cascades to a FULL-SCHOOL WIPE, so it
       // is restricted to owner-rank callers (or the root admin handled above) —
       // never a principal or coordinator.
-      if ((targetRole === "owner" || targetRole === "ownerPrincipal") &&
+      if ((targetRoleResolved === "owner" || targetRoleResolved === "ownerPrincipal") &&
           callerRank < OWNER_RANK) {
         throw new HttpsError(
           "permission-denied",
@@ -356,6 +367,219 @@ exports.deleteAccount = onCall(
     }
 
     return { ok: true, role: targetRole || "unknown" };
+  }
+);
+
+/**
+ * Callable: createAllowedUser({ email, password, role, name, schoolId, studentClass, studentRoll, studentSection, studentAdmissionId, assignedClasses })
+ *
+ * Securely provisions a new user account (handles Auth signup, creates the allowed_users document, and triggers custom claims sync).
+ */
+exports.createAllowedUser = onCall(
+  { cors: true, region: "asia-south1", enforceAppCheck: true },
+  async (request) => {
+    const db = admin.firestore();
+    
+    if (!request.auth || !request.auth.token || !request.auth.token.email) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    
+    const email = String(request.data && request.data.email ? request.data.email : "")
+      .trim()
+      .toLowerCase();
+    const password = String(request.data && request.data.password ? request.data.password : "").trim();
+    const role = String(request.data && request.data.role ? request.data.role : "").trim();
+    const name = String(request.data && request.data.name ? request.data.name : "").trim();
+    const schoolId = String(request.data && request.data.schoolId ? request.data.schoolId : "").trim();
+    const studentClass = request.data && request.data.studentClass ? String(request.data.studentClass).trim() : null;
+    const studentRoll = request.data && request.data.studentRoll !== undefined && request.data.studentRoll !== null ? Number(request.data.studentRoll) : null;
+    const studentSection = request.data && request.data.studentSection ? String(request.data.studentSection).trim() : null;
+    const studentAdmissionId = request.data && request.data.studentAdmissionId ? String(request.data.studentAdmissionId).trim() : null;
+    const assignedClasses = request.data && request.data.assignedClasses ? request.data.assignedClasses : [];
+
+    if (!EMAIL_RE.test(email)) {
+      throw new HttpsError("invalid-argument", "A valid email address is required.");
+    }
+    if (!role || !schoolId) {
+      throw new HttpsError("invalid-argument", "Role and School ID are required.");
+    }
+
+    const callerEmail = request.auth.token.email.toLowerCase();
+    const callerRole = request.auth.token.role;
+    const callerSchoolId = request.auth.token.schoolId;
+    const callerClassIds = request.auth.token.classIds || [];
+
+    const isAdmin = callerRole === "admin" || ROOT_ADMIN_EMAILS.includes(callerEmail);
+
+    // School check
+    if (!isAdmin && schoolId !== callerSchoolId) {
+      throw new HttpsError("permission-denied", "You can only create users in your own school.");
+    }
+
+    // Role Hierarchy check
+    if (!isAdmin) {
+      if (callerRole === "owner" || callerRole === "ownerPrincipal") {
+        if (!["principal", "coordinator", "teacher", "subjectTeacher", "guardian"].includes(role)) {
+          throw new HttpsError("permission-denied", "Unauthorized target role creation.");
+        }
+      } else if (callerRole === "principal") {
+        if (!["coordinator", "teacher", "subjectTeacher", "guardian"].includes(role)) {
+          throw new HttpsError("permission-denied", "Principal cannot create this role.");
+        }
+      } else if (callerRole === "coordinator") {
+        if (!["teacher", "subjectTeacher", "guardian"].includes(role)) {
+          throw new HttpsError("permission-denied", "Coordinator cannot create this role.");
+        }
+      } else if (callerRole === "teacher" || callerRole === "subjectTeacher") {
+        if (role !== "guardian") {
+          throw new HttpsError("permission-denied", "Teachers can only create guardian accounts.");
+        }
+        if (!studentClass || !callerClassIds.includes(studentClass)) {
+          throw new HttpsError("permission-denied", "Teachers can only create guardians for their assigned classes.");
+        }
+      } else {
+        throw new HttpsError("permission-denied", "You do not have permission to create users.");
+      }
+    }
+
+    // Verify duplicate / conflict in allowed_users doc (keyed by lowercased email)
+    const docRef = db.collection("allowed_users").doc(email);
+    const docSnap = await docRef.get();
+    if (docSnap.exists) {
+      const existingData = docSnap.data();
+      if (existingData.role !== role) {
+        throw new HttpsError("already-exists", `This email is already in use under a different role (${existingData.role}).`);
+      }
+    }
+
+    // Create Firebase Auth user (if they don't exist yet)
+    let user;
+    try {
+      user = await admin.auth().getUserByEmail(email);
+    } catch (e) {
+      if (e.code === "auth/user-not-found") {
+        // If not found, create new Auth user with temp password
+        const tempPass = password || Math.random().toString(36).substring(2, 10) + "A!";
+        user = await admin.auth().createUser({
+          email: email,
+          password: tempPass,
+        });
+      } else {
+        throw new HttpsError("internal", e.message);
+      }
+    }
+
+    // Write allowed_users document keyed by email
+    const data = {
+      role: role,
+      email: email,
+      status: "pending",
+      schoolId: schoolId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      name: name || "",
+    };
+    if (role === "guardian") {
+      data.studentClass = studentClass || null;
+      data.studentRoll = studentRoll || null;
+      data.studentSection = studentSection || null;
+      data.studentAdmissionId = studentAdmissionId || null;
+    }
+    if (["coordinator", "principal", "owner"].includes(role)) {
+      data.assignedClasses = assignedClasses || [];
+    }
+
+    await docRef.set(data);
+
+    return { success: true, uid: user.uid };
+  }
+);
+
+/**
+ * Callable: updateUserMetadata({ email, classIds, studentClass, studentRoll, studentSection, studentAdmissionId, name, teacherId })
+ *
+ * Securely updates a user's permissions, class assignments, or guardian mapping.
+ */
+exports.updateUserMetadata = onCall(
+  { cors: true, region: "asia-south1", enforceAppCheck: true },
+  async (request) => {
+    const db = admin.firestore();
+
+    if (!request.auth || !request.auth.token || !request.auth.token.email) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+
+    const callerEmail = request.auth.token.email.toLowerCase();
+    const callerRole = request.auth.token.role;
+    const callerSchoolId = request.auth.token.schoolId;
+    const callerClassIds = request.auth.token.classIds || [];
+
+    const email = String(request.data && request.data.email ? request.data.email : "")
+      .trim()
+      .toLowerCase();
+    if (!email) {
+      throw new HttpsError("invalid-argument", "Target email is required.");
+    }
+
+    const targetDoc = await db.collection("allowed_users").doc(email).get();
+    if (!targetDoc.exists) {
+      throw new HttpsError("not-found", "Target user does not exist.");
+    }
+
+    const targetData = targetDoc.data();
+    const targetRole = targetData.role;
+    const targetSchoolId = targetData.schoolId;
+
+    const isAdmin = callerRole === "admin" || ROOT_ADMIN_EMAILS.includes(callerEmail);
+
+    if (!isAdmin && targetSchoolId !== callerSchoolId) {
+      throw new HttpsError("permission-denied", "Target user belongs to a different school.");
+    }
+
+    let isAuthorized = false;
+    if (isAdmin || ["owner", "ownerPrincipal", "principal", "coordinator"].includes(callerRole)) {
+      isAuthorized = true;
+    } else if (callerRole === "teacher" || callerRole === "subjectTeacher") {
+      // Teachers can only update guardians in classes they teach
+      if (targetRole === "guardian" && targetData.studentClass && callerClassIds.includes(targetData.studentClass)) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      throw new HttpsError("permission-denied", "You are not authorized to update this user's details.");
+    }
+
+    const updates = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (request.data.name !== undefined) {
+      updates.name = String(request.data.name).trim();
+    }
+
+    if (targetRole === "guardian") {
+      if (request.data.studentClass !== undefined) {
+        if ((callerRole === "teacher" || callerRole === "subjectTeacher") && 
+            !callerClassIds.includes(request.data.studentClass)) {
+          throw new HttpsError("permission-denied", "Cannot assign guardian to a class you do not teach.");
+        }
+        updates.studentClass = request.data.studentClass;
+      }
+      if (request.data.studentRoll !== undefined) updates.studentRoll = Number(request.data.studentRoll);
+      if (request.data.studentSection !== undefined) updates.studentSection = request.data.studentSection;
+      if (request.data.studentAdmissionId !== undefined) updates.studentAdmissionId = request.data.studentAdmissionId;
+    } else if (["teacher", "subjectTeacher"].includes(targetRole)) {
+      if (request.data.classIds !== undefined) {
+        updates.classIds = Array.isArray(request.data.classIds) ? request.data.classIds.map(String) : [];
+      }
+      if (request.data.teacherId !== undefined) {
+        updates.teacherId = String(request.data.teacherId).trim();
+      }
+    }
+
+    await db.collection("allowed_users").doc(email).update(updates);
+
+    return { success: true };
   }
 );
 
