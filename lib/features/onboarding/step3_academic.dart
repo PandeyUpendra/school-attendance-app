@@ -22,6 +22,7 @@ class Step3AcademicState extends State<Step3Academic> {
   late int _fromIdx;
   late int _toIdx;
   late List<String> _sections;
+  late List<String> _classList;
   late String _yearStart;
   late String _workingDays;
   late int _periods;
@@ -54,6 +55,12 @@ class Step3AcademicState extends State<Step3Academic> {
       _toIdx = (d.classesTo + 2).clamp(0, _classOptions.length - 1);
     }
     _sections = List.from(d.sectionsPerClass.isNotEmpty ? d.sectionsPerClass : ['A']);
+    _classList = List.from(d.classList);
+    if (_classList.isEmpty) {
+      _classList = _generateClassList();
+    } else {
+      _sortClassList();
+    }
     _yearStart = d.academicYearStart;
     _workingDays = d.workingDays;
     _periods = d.periodsPerDay.clamp(4, 10);
@@ -61,8 +68,82 @@ class Step3AcademicState extends State<Step3Academic> {
     _lunch = d.lunchAfterPeriod;
   }
 
+  String _getClassPrefix(String label) {
+    if (_prePrimary.contains(label)) {
+      return label;
+    } else {
+      return label.replaceFirst('Class ', '');
+    }
+  }
+
+  void _sortClassList() {
+    _classList.sort((a, b) {
+      final partsA = a.split('-');
+      final partsB = b.split('-');
+      final prefixA = partsA[0];
+      final prefixB = partsB[0];
+      final secA = partsA.length > 1 ? partsA[1] : '';
+      final secB = partsB.length > 1 ? partsB[1] : '';
+
+      final idxA = _classOptions.indexWhere((label) => _getClassPrefix(label) == prefixA);
+      final idxB = _classOptions.indexWhere((label) => _getClassPrefix(label) == prefixB);
+
+      if (idxA != idxB) {
+        return idxA.compareTo(idxB);
+      }
+      return secA.compareTo(secB);
+    });
+  }
+
+  void _syncClassListToRange() {
+    if (_toIdx < _fromIdx) return;
+    final validPrefixes = <String>{};
+    for (int i = _fromIdx; i <= _toIdx; i++) {
+      validPrefixes.add(_getClassPrefix(_classOptions[i]));
+    }
+
+    setState(() {
+      _classList.removeWhere((item) {
+        final parts = item.split('-');
+        if (parts.isEmpty) return true;
+        return !validPrefixes.contains(parts[0]);
+      });
+
+      for (int i = _fromIdx; i <= _toIdx; i++) {
+        final prefix = _getClassPrefix(_classOptions[i]);
+        final hasAny = _classList.any((item) => item.startsWith('$prefix-'));
+        if (!hasAny) {
+          for (final s in _sections) {
+            _classList.add('$prefix-$s');
+          }
+        }
+      }
+
+      _sortClassList();
+    });
+  }
+
+  void _addGlobalSection(String s) {
+    setState(() {
+      for (int i = _fromIdx; i <= _toIdx; i++) {
+        final prefix = _getClassPrefix(_classOptions[i]);
+        final item = '$prefix-$s';
+        if (!_classList.contains(item)) {
+          _classList.add(item);
+        }
+      }
+      _sortClassList();
+    });
+  }
+
+  void _removeGlobalSection(String s) {
+    setState(() {
+      _classList.removeWhere((item) => item.endsWith('-$s'));
+    });
+  }
+
   void _notify() {
-    final classList = _generateClassList();
+    final classList = List<String>.from(_classList);
     widget.onChanged(widget.initial.copyWith(
       classesFrom: _fromIdx >= 3 ? (_fromIdx - 2) : 1, // backward-compat integer
       classesTo:   _toIdx   >= 3 ? (_toIdx   - 2) : 1,
@@ -125,13 +206,17 @@ class Step3AcademicState extends State<Step3Academic> {
         _label('${context.tr('classRange')} *'),
         Row(children: [
           Expanded(child: _classDropdown(context.tr('rangeFrom'), _fromIdx, (v) {
-            setState(() => _fromIdx = v);
-            if (_toIdx < v) setState(() => _toIdx = v);
+            setState(() {
+              _fromIdx = v;
+              if (_toIdx < v) _toIdx = v;
+            });
+            _syncClassListToRange();
             _notify();
           })),
           const SizedBox(width: 12),
           Expanded(child: _classDropdown(context.tr('rangeTo'), _toIdx, (v) {
             setState(() => _toIdx = v);
+            _syncClassListToRange();
             _notify();
           })),
         ]),
@@ -152,14 +237,18 @@ class Step3AcademicState extends State<Step3Academic> {
               selectedColor: AppTheme.primaryLight,
               checkmarkColor: AppTheme.primary,
               onSelected: (v) {
-                setState(() {
-                  if (v) {
+                if (v) {
+                  setState(() {
                     _sections.add(s);
                     _sections.sort();
-                  } else {
+                  });
+                  _addGlobalSection(s);
+                } else {
+                  setState(() {
                     _sections.remove(s);
-                  }
-                });
+                  });
+                  _removeGlobalSection(s);
+                }
                 _notify();
               },
             );
@@ -170,11 +259,108 @@ class Step3AcademicState extends State<Step3Academic> {
             padding: const EdgeInsets.only(top: 6),
             child: Text(context.tr(_sectionErrorKey!), style: const TextStyle(color: AppTheme.danger, fontSize: 12)),
           ),
-        if (_sections.isNotEmpty && _toIdx >= _fromIdx) ...[
+        if (_classList.isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(
-            '${context.tr('classesColon')}: ${_generateClassList().join(", ")}',
+            '${context.tr('classesColon')}: ${_classList.join(", ")}',
             style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+          ),
+        ],
+        if (_toIdx >= _fromIdx) ...[
+          const SizedBox(height: 20),
+          _label(context.tr('classWiseSectionsLabel')),
+          const SizedBox(height: 4),
+          Text(
+            context.tr('classWiseSectionsDesc'),
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _toIdx - _fromIdx + 1,
+              separatorBuilder: (_, __) => const Divider(color: AppTheme.border, height: 1),
+              itemBuilder: (context, index) {
+                final classIdx = _fromIdx + index;
+                if (classIdx >= _classOptions.length) return const SizedBox.shrink();
+                final label = _classOptions[classIdx];
+                final prefix = _getClassPrefix(label);
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                      Wrap(
+                        spacing: 8,
+                        children: _sectionOptions.map((s) {
+                          final item = '$prefix-$s';
+                          final isSelected = _classList.contains(item);
+                          return InkWell(
+                            onTap: () {
+                              setState(() {
+                                if (isSelected) {
+                                  final classSections = _classList
+                                      .where((c) => c.startsWith('$prefix-'))
+                                      .toList();
+                                  if (classSections.length <= 1) {
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                      content: Text(context.tr('selectAtLeastOneSecMsg')),
+                                      backgroundColor: AppTheme.danger,
+                                    ));
+                                    return;
+                                  }
+                                  _classList.remove(item);
+                                } else {
+                                  _classList.add(item);
+                                  _sortClassList();
+                                }
+                              });
+                              _notify();
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              width: 32,
+                              height: 32,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppTheme.primaryLight : Colors.grey.shade200,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                s,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? AppTheme.primary : Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ],
         const SizedBox(height: 18),
