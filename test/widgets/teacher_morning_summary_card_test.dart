@@ -10,6 +10,7 @@ import 'package:school_app/services/timetable_service.dart';
 import 'package:school_app/services/birthday_service.dart';
 import 'package:school_app/services/copy_check_service.dart';
 import 'package:school_app/shared/providers/locale_provider.dart';
+import 'package:school_app/shared/utils/school_clock.dart';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -88,7 +89,7 @@ void main() {
             studentClass: 'Class 9-A',
             status: 'approved',
           )).thenAnswer((_) async => [
-            {'startDate': '2026-06-12', 'numberOfDays': 1}
+            {'startDate': SchoolClock.todayKey(), 'numberOfDays': 1}
           ]);
 
       when(() => mockBirthdayService.getUpcomingStudentBirthdays(7, className: 'Class 9-A'))

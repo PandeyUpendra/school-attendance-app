@@ -4,6 +4,7 @@ import '../../l10n/app_strings.dart';
 import '../../models/todo_item.dart';
 import '../../services/todo_service.dart';
 import '../../shared/widgets/index_building_notice.dart';
+import '../../shared/utils/app_transitions.dart';
 
 class TodoListScreen extends StatefulWidget {
   final String userId;
@@ -70,7 +71,7 @@ class _TodoListScreenState extends State<TodoListScreen>
           final pending   = all.where((t) => !t.isCompleted).toList();
           final completed = all.where((t) => t.isCompleted).toList();
 
-          return TabBarView(
+          return PremiumTabBarView(
             controller: _tab,
             children: [
               _TodoTab(

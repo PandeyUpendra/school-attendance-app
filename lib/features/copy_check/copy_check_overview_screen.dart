@@ -8,6 +8,7 @@ import '../../services/timetable_service.dart';
 import '../../theme.dart';
 import '../../shared/utils/app_logger.dart';
 import '../../shared/widgets/refreshable_data.dart';
+import '../../shared/utils/app_transitions.dart';
 
 /// Coordinator screen — view copy-checking status across all classes.
 class CopyCheckOverviewScreen extends StatefulWidget {
@@ -314,7 +315,7 @@ class _CoordCheckDetailScreenState extends State<_CoordCheckDetailScreen>
       ),
       body: _loading
           ? const LoadingState()
-          : TabBarView(
+          : PremiumTabBarView(
               controller: _tab,
               children: [
                 _StatusList(statuses: _all, showAll: true),

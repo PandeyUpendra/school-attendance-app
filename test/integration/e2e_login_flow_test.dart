@@ -139,6 +139,8 @@ void main() {
 
     when(() => mockStudentService.watchStudents())
         .thenAnswer((_) => Stream.value([]));
+    when(() => mockStudentService.watchClassStatsTotals())
+        .thenAnswer((_) => Stream.value(<String, int>{}));
     when(() => mockStudentService.loadTodayFullSummary(classes: any(named: 'classes')))
         .thenAnswer((_) async => []);
     when(() => mockStudentService.loadConsecutiveAbsenceDays(any()))

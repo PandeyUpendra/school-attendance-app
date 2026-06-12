@@ -16,6 +16,7 @@ import '../../services/student_service.dart';
 import '../../shared/utils/app_logger.dart';
 import '../../shared/utils/phone_utils.dart';
 import '../../shared/utils/consent_gate.dart';
+import '../../shared/utils/app_transitions.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  DailyCallsScreen — permanent calls tracking for class teacher
@@ -74,7 +75,7 @@ class _DailyCallsScreenState extends State<DailyCallsScreen>
           ],
         ),
       ),
-      body: TabBarView(
+      body: PremiumTabBarView(
         controller: _tabCtrl,
         children: [
           _TodayCallsTab(className: _className, section: _section, service: _service),

@@ -27,17 +27,17 @@ class PremiumSkeleton extends StatefulWidget {
           color: Colors.white,
           border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
         ),
-        child: Row(
+        child: const Row(
           children: [
-            PremiumSkeleton(width: 48, height: 48, borderRadius: BorderRadius.circular(24)),
-            const SizedBox(width: 16),
+            PremiumSkeleton(width: 48, height: 48, borderRadius: BorderRadius.all(Radius.circular(24))),
+            SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const PremiumSkeleton(width: 140, height: 16),
-                  const SizedBox(height: 8),
-                  const PremiumSkeleton(width: 200, height: 12),
+                  PremiumSkeleton(width: 140, height: 16),
+                  SizedBox(height: 8),
+                  PremiumSkeleton(width: 200, height: 12),
                 ],
               ),
             ),
@@ -56,18 +56,18 @@ class PremiumSkeleton extends StatefulWidget {
         ),
         child: SizedBox(
           height: height - 32, // adjust for padding
-          child: Column(
+          child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const PremiumSkeleton(width: 120, height: 18),
-              const SizedBox(height: 12),
-              const PremiumSkeleton(width: double.infinity, height: 14),
-              const SizedBox(height: 8),
-              const PremiumSkeleton(width: 200, height: 14),
-              const Spacer(),
+              PremiumSkeleton(width: 120, height: 18),
+              SizedBox(height: 12),
+              PremiumSkeleton(width: double.infinity, height: 14),
+              SizedBox(height: 8),
+              PremiumSkeleton(width: 200, height: 14),
+              Spacer(),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
+                children: [
                   PremiumSkeleton(width: 80, height: 28, borderRadius: BorderRadius.all(Radius.circular(6))),
                   PremiumSkeleton(width: 60, height: 20),
                 ],
