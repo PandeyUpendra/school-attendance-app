@@ -595,6 +595,10 @@ service cloud.firestore {
          request.resource.data.schoolId == userSchoolId() &&
          request.resource.data.role in ['principal', 'coordinator', 'teacher', 'subjectTeacher', 'guardian']) ||
         
+        (isRole('principal') &&
+         request.resource.data.schoolId == userSchoolId() &&
+         request.resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian']) ||
+
         (isRole('coordinator') &&
          request.resource.data.schoolId == userSchoolId() &&
          request.resource.data.role in ['teacher', 'subjectTeacher', 'guardian'])
@@ -613,15 +617,23 @@ service cloud.firestore {
          request.resource.data.schoolId == userSchoolId() &&
          request.resource.data.role == resource.data.role) ||
         
+        (isRole('principal') &&
+         resource.data.schoolId == userSchoolId() &&
+         request.resource.data.schoolId == userSchoolId() &&
+         resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian'] &&
+         request.resource.data.role == resource.data.role) ||
+
         (isRole('coordinator') &&
          resource.data.schoolId == userSchoolId() &&
          request.resource.data.schoolId == userSchoolId() &&
+         resource.data.role in ['teacher', 'subjectTeacher', 'guardian'] &&
          request.resource.data.role == resource.data.role)
       ));
 
       allow delete: if isRootAdmin() || (isSignedIn() && (
         // Management delete in same school
         (isStrictAdmin() && resource.data.schoolId == userSchoolId()) ||
+        (isRole('principal') && resource.data.schoolId == userSchoolId() && resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian']) ||
         (isRole('coordinator') && resource.data.schoolId == userSchoolId() && resource.data.role in ['teacher', 'subjectTeacher', 'guardian'])
       ));
     }
