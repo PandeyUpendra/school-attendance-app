@@ -281,9 +281,9 @@ beforeEach(async () => {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const adb = ctx.firestore();
 
-    // Seed allowed_users (keyed by email)
-    for (const data of Object.values(USERS)) {
-      await setDoc(doc(adb, 'allowed_users', data.email.toLowerCase()), data);
+    // Seed allowed_users (keyed by UID)
+    for (const [uid, data] of Object.entries(USERS)) {
+      await setDoc(doc(adb, 'allowed_users', uid), data);
     }
 
     // Seed exam results

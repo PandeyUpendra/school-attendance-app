@@ -713,6 +713,9 @@ class _GuardianLeaveApplicationScreenState
       '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
+    try {
+      final parts = startDate.split('-');
+      if (parts.length < 3) return startDate;
       final year = int.tryParse(parts[0]);
       final month = int.tryParse(parts[1]);
       final day = int.tryParse(parts[2]);

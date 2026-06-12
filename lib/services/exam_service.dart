@@ -10,9 +10,10 @@ import 'base_firestore_service.dart';
 ///   schools/{schoolId}/exams/{examId}                        → Exam doc
 ///   schools/{schoolId}/exam_results/{examId}/students/{roll} → ExamResult doc
 class ExamService extends BaseFirestoreService {
-  static final ExamService _instance = ExamService._();
+  static ExamService? _instance;
   ExamService._();
-  factory ExamService() => _instance;
+  factory ExamService() => _instance ??= ExamService._();
+  static set mockInstance(ExamService? mock) => _instance = mock;
 
   static String _toTitleCase(String text) {
     if (text.trim().isEmpty) return text;

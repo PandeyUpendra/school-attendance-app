@@ -3,9 +3,10 @@ import 'base_firestore_service.dart';
 import 'auth_service.dart';
 
 class BirthdayService extends BaseFirestoreService {
-  static final BirthdayService _instance = BirthdayService._();
+  static BirthdayService? _instance;
   BirthdayService._();
-  factory BirthdayService() => _instance;
+  factory BirthdayService() => _instance ??= BirthdayService._();
+  static set mockInstance(BirthdayService? mock) => _instance = mock;
 
   CollectionReference<Map<String, dynamic>> get _teachers =>
       schoolCollection(AuthService.currentSchoolId, 'teachers');

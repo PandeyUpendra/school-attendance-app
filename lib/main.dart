@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:ui';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -273,37 +272,12 @@ class _SplashGateState extends State<_SplashGate> {
     // read/write is denied (the app thinks you're the owner; the server doesn't).
     // Force re-login on any mismatch so the two can't diverge.
     //
-    // Phone-OTP guardians have no token email. Instead we verify by checking
-    // that their phone number still has a linked student in allowed_users.
-    // (Issue 5: previously phone-OTP guardians bypassed the identity guard entirely.)
-    if (role == 'guardian') {
-      final authPhone = firebaseUser.phoneNumber;
-      if (authPhone != null && authPhone.isNotEmpty) {
-        // Phone-OTP guardian: validate that the phone still maps to an active
-        // guardian account. If no allowed_users doc is found for this phone,
-        // clear the session and go to login.
-        bool phoneValid = false;
-        try {
-          final docs = await FirebaseFirestore.instance
-              .collection('allowed_users')
-              .where('phone', isEqualTo: authPhone)
-              .where('role', isEqualTo: 'guardian')
-              .limit(1)
-              .get();
-          phoneValid = docs.docs.isNotEmpty;
-        } catch (_) {
-          // On network error, allow cached routing (offline tolerance).
-          phoneValid = true;
-        }
-        if (!phoneValid) {
-          await AuthService().clearSession();
-          if (!mounted) return;
-          _go(const LoginScreen());
-          return;
-        }
-      }
-      // Email-based guardians fall through to the standard re-validation below.
-    } else {
+    // Applies to EVERY role, guardians included: phone-OTP login was removed
+    // (L1), so all sessions — guardian or staff — are email-keyed. (The old
+    // guardian phone-number branch here was dead code that also FAILED OPEN on
+    // any query error and ran an unscoped cross-tenant allowed_users query —
+    // SCALE-11 audit.)
+    {
       final authEmail    = firebaseUser.email?.toLowerCase().trim();
       final sessionEmail = (session['email'] as String?)?.toLowerCase().trim();
       if (authEmail == null || authEmail.isEmpty ||
@@ -327,9 +301,6 @@ class _SplashGateState extends State<_SplashGate> {
     //                                  → clear the stale session, force re-login
     //   • read threw (offline/transient) → keep cached routing (don't lock out)
     //   • role matches & status active  → proceed
-    //
-    // Phone-OTP guardians have no session email and so cannot be re-checked here
-    // (their allowed_users doc is keyed by email); they are skipped.
     final email = session['email'] as String?;
     if (email != null && email.isNotEmpty) {
       bool readFailed = false;

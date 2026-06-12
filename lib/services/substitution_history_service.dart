@@ -7,10 +7,10 @@ import 'auth_service.dart';
 /// Firestore schema:
 ///   substitution_history/{auto}  →  SubstitutionRecord doc
 class SubstitutionHistoryService {
-  static final SubstitutionHistoryService _instance =
-      SubstitutionHistoryService._internal();
-  factory SubstitutionHistoryService() => _instance;
+  static SubstitutionHistoryService? _instance;
   SubstitutionHistoryService._internal();
+  factory SubstitutionHistoryService() => _instance ??= SubstitutionHistoryService._internal();
+  static set mockInstance(SubstitutionHistoryService? mock) => _instance = mock;
 
   final _db  = FirebaseFirestore.instance;
   CollectionReference get _col => _db.collection('substitution_history');

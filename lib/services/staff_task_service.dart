@@ -4,9 +4,10 @@ import 'auth_service.dart';
 import 'base_firestore_service.dart';
 
 class StaffTaskService extends BaseFirestoreService {
-  static final StaffTaskService _instance = StaffTaskService._();
-  factory StaffTaskService() => _instance;
+  static StaffTaskService? _instance;
   StaffTaskService._();
+  factory StaffTaskService() => _instance ??= StaffTaskService._();
+  static set mockInstance(StaffTaskService? mock) => _instance = mock;
 
   // ── School-scoped collection helpers ──────────────────────────────────────
   // All tasks live at schools/{schoolId}/staff_tasks. The single-arg [_tasks]

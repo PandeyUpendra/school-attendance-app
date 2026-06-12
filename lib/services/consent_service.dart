@@ -12,12 +12,13 @@ import 'base_firestore_service.dart';
 ///
 /// Firestore path: schools/{sid}/students/{studentDocId}/consents/{consentId}
 class ConsentService {
-  static final _db  = FirebaseFirestore.instance;
-  static final _fba = FirebaseAuth.instance;
-
-  static final ConsentService _instance = ConsentService._();
+  static ConsentService? _instance;
   ConsentService._();
-  factory ConsentService() => _instance;
+  factory ConsentService() => _instance ??= ConsentService._();
+  static set mockInstance(ConsentService? mock) => _instance = mock;
+
+  static FirebaseFirestore get _db => FirebaseFirestore.instance;
+  static FirebaseAuth get _fba => FirebaseAuth.instance;
 
   // ── Path helpers ──────────────────────────────────────────────────────────
 

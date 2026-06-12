@@ -61,6 +61,22 @@ class GuardianDashboard extends StatefulWidget {
 }
 
 class _GuardianDashboardState extends State<GuardianDashboard> {
+  final GlobalKey _heroKey = GlobalKey();
+  double _heroHeight = 260.0;
+
+  void _measureHeroHeight() {
+    if (!mounted) return;
+    final RenderBox? renderBox = _heroKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox != null) {
+      final height = renderBox.size.height;
+      if (height != _heroHeight) {
+        setState(() {
+          _heroHeight = height;
+        });
+      }
+    }
+  }
+
   final _service     = StudentService.instance;
   final _feeService  = FeeService();
   final _hwService   = HomeworkService();
@@ -435,16 +451,18 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       examCount: _examData.length,
       feesPaid: _totalPaid,
       hasConsent: _hasConsent,
-      onApplyLeave: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuardianLeaveApplicationScreen(
-            studentClass: _activeClass,
-            studentRoll: _activeRoll,
-            studentSection: _activeSection,
-          ),
-        ),
-      ),
+      onApplyLeave: () {
+        if (_student != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => GuardianLeaveApplicationScreen(
+                student: _student!,
+              ),
+            ),
+          );
+        }
+      },
     ),
 
     _SectionHeader(context.tr('secAcademics')),
@@ -926,47 +944,20 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureHeroHeight());
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: Column(
+      body: Stack(
         children: [
-          // ── Wave hero (sticky — never scrolls) ───────────────────────
-          _GuardianHeroCard(
-            studentName:      _student?.name ?? '',
-            studentClass:     _activeClass,
-            studentRoll:      _activeRoll,
-            todayStatus:      _todayStatus,
-            loading:          _loading,
-            unreadNotifCount: _unreadNotifCount,
-            onNotifTap: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => NotificationsScreen(
-                    role:               'guardian',
-                    studentClass:       _activeClass,
-                    studentRoll:        _activeRoll,
-                    studentAdmissionId: _activeAdmissionId,
-                    student:            _student,
-                  ),
-                ),
-              );
-              _refreshLastSeen();
-            },
-          ),
-
-          // ── Child switcher (only when this guardian has >1 child) ───────
-          _childSwitcher(),
-
-          // ── Scrollable content ────────────────────────────────────────
-          Expanded(
+          Positioned.fill(
             child: RefreshIndicator(
+              edgeOffset: _heroHeight,
               onRefresh: _loadAll,
               color: AppTheme.primary,
               child: ListView(
                 // Full-bleed list — matches teacher / coordinator / principal
                 // dashboards (edge-to-edge white rows on the lavender page).
-                padding: EdgeInsets.zero,
+                padding: EdgeInsets.only(top: _heroHeight),
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: _loading
                     ? [const SizedBox(height: 60),
@@ -978,6 +969,41 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                         ? _buildNoStudentChildren()
                         : _buildContentChildren(),
               ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Column(
+              key: _heroKey,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _GuardianHeroCard(
+                  studentName:      _student?.name ?? '',
+                  studentClass:     _activeClass,
+                  studentRoll:      _activeRoll,
+                  todayStatus:      _todayStatus,
+                  loading:          _loading,
+                  unreadNotifCount: _unreadNotifCount,
+                  onNotifTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => NotificationsScreen(
+                          role:               'guardian',
+                          studentClass:       _activeClass,
+                          studentRoll:        _activeRoll,
+                          studentAdmissionId: _activeAdmissionId,
+                          student:            _student,
+                        ),
+                      ),
+                    );
+                    _refreshLastSeen();
+                  },
+                ),
+                _childSwitcher(),
+              ],
             ),
           ),
         ],
@@ -3578,7 +3604,7 @@ class _GuardianMorningSummaryCard extends StatelessWidget {
                       child: _buildMetricTile(
                         icon: Icons.currency_rupee_outlined,
                         label: 'Total Fees Paid',
-                        value: CurrencyUtils.format(feesPaid),
+                        value: CurrencyUtils.formatRupees(feesPaid),
                         color: Colors.greenAccent.shade100,
                       ),
                     ),

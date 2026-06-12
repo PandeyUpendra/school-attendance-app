@@ -16,7 +16,7 @@ class RoleGuard {
     // were previously exempt, so a guardian whose token was revoked kept access
     // (review #26). Phone-OTP guardians also have a Firebase Auth user, so this
     // check is valid for them too.
-    final firebaseExpired = FirebaseAuth.instance.currentUser == null;
+    final firebaseExpired = AuthService().currentFirebaseUser == null;
 
     if (noSession || wrongRole || firebaseExpired) {
       // Always clear the cached session when bouncing to login — previously a

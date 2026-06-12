@@ -50,15 +50,10 @@ class StudentService extends BaseFirestoreService {
 
   static StudentService? _instance;
 
-  static StudentService get instance => StudentService();
+  static StudentService get instance => _instance ??= StudentService._(FirestoreStudentRepository());
 
-  /// Default factory — returns the process-level singleton backed by Firestore.
-  ///
-  /// Pass [repo] to obtain a **fresh, non-singleton** instance. This is the
-  /// intended injection point for unit tests:
-  /// ```dart
-  /// final service = StudentService(FakeStudentRepository());
-  /// ```
+  static set mockInstance(StudentService? mock) => _instance = mock;
+
   factory StudentService([StudentRepository? repo]) {
     if (repo != null) return StudentService._(repo);
     return _instance ??= StudentService._(FirestoreStudentRepository());
@@ -785,7 +780,7 @@ class StudentService extends BaseFirestoreService {
             ? schoolId
             : AuthService.currentSchoolId;
     // Empty password ⇒ addAllowedUser mints a strong random temp credential.
-    await svc.addAllowedUser(
+    final uid = await svc.addAllowedUser(
       email, '', 'guardian',
       name:         name,
       schoolId:     effectiveSchoolId,
@@ -794,6 +789,7 @@ class StudentService extends BaseFirestoreService {
       studentAdmissionId: admissionId,
     );
     await svc.linkGuardianEmail(
+      uid:          uid,
       email:        email,
       studentClass: className,
       studentRoll:  roll,
@@ -802,11 +798,10 @@ class StudentService extends BaseFirestoreService {
     );
     // Issue 21: also update the existing allowed_users doc with the new
     // class/section/roll so the guardian's cached session points to the
-    // correct class after promotion. addAllowedUser merges the data if the
-    // doc already exists, but we explicitly update for clarity.
+    // correct class after promotion.
     try {
       final db = FirebaseFirestore.instance;
-      final docRef = db.collection('allowed_users').doc(email.toLowerCase().trim());
+      final docRef = db.collection('allowed_users').doc(uid);
       final snap = await docRef.get();
       if (snap.exists) {
         await docRef.update({
@@ -931,7 +926,10 @@ class StudentService extends BaseFirestoreService {
           schoolCollection(_schoolId, 'exams')
               .where('className', isEqualTo: className)
               .get(),
-          studentNode.collection('payments').get(),
+          schoolCollection(_schoolId, 'payments')
+              .where('className', isEqualTo: className)
+              .where('roll', isEqualTo: roll)
+              .get(),
           FirebaseFirestore.instance
               .collection('copy_checks')
               .where('schoolId', isEqualTo: _schoolId)

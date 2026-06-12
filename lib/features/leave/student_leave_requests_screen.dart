@@ -7,7 +7,7 @@ import '../../services/student_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/base_firestore_service.dart';
 import '../../shared/widgets/refreshable_data.dart';
-
+import '../../shared/utils/app_logger.dart';
 /// Shown to the class teacher — lists leave applications submitted by guardians.
 /// Teacher can Approve (auto-marks attendance), Reject, or Forward to Coordinator/Principal.
 class StudentLeaveRequestsScreen extends StatefulWidget {

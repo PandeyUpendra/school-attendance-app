@@ -106,23 +106,22 @@ function consentDocsGrantComms(consentDocs) {
  * login).
  */
 exports.syncUserClaims = onDocumentWritten(
-  { document: "allowed_users/{email}", region: "asia-south1" },
+  { document: "allowed_users/{uid}", region: "asia-south1" },
   async (event) => {
-    const email = event.params.email; // doc id is the lowercased email
+    const uid = event.params.uid; // doc id is the UID
     try {
-      const user = await admin.auth().getUserByEmail(email);
       const after = event.data && event.data.after;
       if (!after || !after.exists) {
-        await admin.auth().setCustomUserClaims(user.uid, null); // doc deleted
+        await admin.auth().setCustomUserClaims(uid, null); // doc deleted
         return;
       }
       const d = after.data() || {};
       const claims = {};
       if (d.role) claims.role = String(d.role);
       if (d.schoolId) claims.schoolId = String(d.schoolId);
-      await admin.auth().setCustomUserClaims(user.uid, claims);
+      await admin.auth().setCustomUserClaims(uid, claims);
     } catch (err) {
-      logger.warn(`claims sync skipped for ${email}`, err && err.code);
+      logger.warn(`claims sync skipped for ${uid}`, err && err.code);
     }
   }
 );
@@ -206,12 +205,14 @@ exports.deleteAccount = onCall(
     }
 
     // Resolve caller + target identity from allowed_users.
-    const [callerSnap, targetSnap] = await Promise.all([
-      db.collection("allowed_users").doc(callerEmail).get(),
-      db.collection("allowed_users").doc(email).get(),
+    const [callerSnap, targetQuery] = await Promise.all([
+      db.collection("allowed_users").doc(request.auth.uid).get(),
+      db.collection("allowed_users").where("email", "==", email).limit(1).get(),
     ]);
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
+    const targetSnap = targetQuery.empty ? null : targetQuery.docs[0];
+    const targetExists = targetSnap !== null && targetSnap.exists;
 
     if (!DELETE_ROLES.includes(callerRole)) {
       throw new HttpsError("permission-denied", "You are not allowed to delete accounts.");
@@ -219,7 +220,7 @@ exports.deleteAccount = onCall(
 
     // If the target no longer has an allowed_users doc, still try to free the
     // Auth login so a half-deleted account can be cleaned up (idempotent).
-    const targetData = targetSnap.exists ? targetSnap.data() : null;
+    const targetData = targetExists ? targetSnap.data() : null;
     const targetRole = targetData ? targetData.role : null;
     const targetSchoolId = targetData ? targetData.schoolId : null;
 
@@ -237,7 +238,7 @@ exports.deleteAccount = onCall(
     // existing doc with no schoolId is NOT treated as a free-for-all orphan: it
     // requires admin, since we cannot prove it belongs to the caller's school.
     const isAdmin = callerRole === "admin";
-    const targetIsTrueOrphan = !targetSnap.exists;
+    const targetIsTrueOrphan = !targetExists;
     const sameSchool =
       callerSchoolId && targetSchoolId && callerSchoolId === targetSchoolId;
     if (!isAdmin && !sameSchool && !targetIsTrueOrphan) {
@@ -269,6 +270,16 @@ exports.deleteAccount = onCall(
       }
     }
 
+    const deleteAuthUid = async (uid) => {
+      try {
+        await admin.auth().deleteUser(uid);
+      } catch (err) {
+        if (!err || err.code !== "auth/user-not-found") {
+          logger.warn(`deleteAuth failed for UID ${uid}`, err && err.code);
+        }
+      }
+    };
+
     const deleteAuth = async (e) => {
       try {
         const u = await admin.auth().getUserByEmail(e);
@@ -290,10 +301,10 @@ exports.deleteAccount = onCall(
       // writes, instead of a fully serial getUserByEmail+delete per member —
       // a large school previously risked exceeding the function timeout and
       // leaving the school half-deleted (#113).
-      const memberEmails = members.docs.map((d) => d.id);
+      const memberUids = members.docs.map((d) => d.id);
       const authChunk = 25;
-      for (let i = 0; i < memberEmails.length; i += authChunk) {
-        await Promise.all(memberEmails.slice(i, i + authChunk).map(deleteAuth));
+      for (let i = 0; i < memberUids.length; i += authChunk) {
+        await Promise.all(memberUids.slice(i, i + authChunk).map(deleteAuthUid));
       }
       const docChunk = 450; // under Firestore's 500-op batch limit
       for (let i = 0; i < members.docs.length; i += docChunk) {
@@ -337,8 +348,12 @@ exports.deleteAccount = onCall(
 
     // Always remove the target's own login record + Auth account (idempotent —
     // the owner loop above may have already handled it).
-    await deleteAuth(email);
-    await db.collection("allowed_users").doc(email).delete().catch(() => {});
+    if (targetSnap) {
+      await deleteAuthUid(targetSnap.id);
+      await targetSnap.ref.delete().catch(() => {});
+    } else {
+      await deleteAuth(email);
+    }
 
     return { ok: true, role: targetRole || "unknown" };
   }
@@ -453,9 +468,10 @@ async function performStudentDeleteCascade(db, schoolId, className, section, rol
   // C. Revoke guardian login record
   if (guardianEmail) {
     try {
-      const guardianRef = db.collection("allowed_users").doc(guardianEmail);
-      const guardianSnap = await guardianRef.get();
-      if (guardianSnap.exists) {
+      const guardianQuery = await db.collection("allowed_users").where("email", "==", guardianEmail).limit(1).get();
+      if (!guardianQuery.empty) {
+        const guardianSnap = guardianQuery.docs[0];
+        const guardianRef = guardianSnap.ref;
         const data = guardianSnap.data() || {};
         let links = data.studentLinks || [];
         links = links.filter((l) => !(l.studentClass === className && l.studentRoll === roll && (l.studentSection || '') === section));
@@ -464,11 +480,10 @@ async function performStudentDeleteCascade(db, schoolId, className, section, rol
           await guardianRef.delete();
           // Delete Auth account
           try {
-            const u = await admin.auth().getUserByEmail(guardianEmail);
-            await admin.auth().deleteUser(u.uid);
+            await admin.auth().deleteUser(guardianSnap.id);
           } catch (authErr) {
             if (!authErr || authErr.code !== "auth/user-not-found") {
-              logger.warn(`deleteAuth failed for guardian ${guardianEmail}`, authErr && authErr.code);
+              logger.warn(`deleteAuth failed for guardian UID ${guardianSnap.id}`, authErr && authErr.code);
             }
           }
         } else {
@@ -541,6 +556,21 @@ async function performStudentDeleteCascade(db, schoolId, className, section, rol
       schoolRef.collection("fee_payments").doc(classKey).collection("students").doc(String(roll)));
   } catch (err) {
     logger.warn(`fee cleanup failed for ${docId}`, err && err.message);
+  }
+
+  // 3b. Flat fee payments
+  try {
+    const pSnap = await schoolRef.collection("payments")
+      .where("className", "==", className)
+      .where("roll", "==", roll)
+      .get();
+    for (let i = 0; i < pSnap.docs.length; i += 400) {
+      const batch = db.batch();
+      pSnap.docs.slice(i, i + 400).forEach((pDoc) => batch.delete(pDoc.ref));
+      await batch.commit();
+    }
+  } catch (err) {
+    logger.warn(`flat fee payments cleanup failed for ${docId}`, err && err.message);
   }
 
   // 4. Guardian notifications + the class-teacher leave notice for this roll.
@@ -621,7 +651,7 @@ exports.deleteStudent = onCall(
 
     // Authorization: management of the SAME school (admins may cross schools).
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerSnap = await db.collection("allowed_users").doc(request.auth.uid).get();
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!STUDENT_DELETE_ROLES.includes(callerRole)) {
@@ -653,7 +683,7 @@ exports.approveDeletionRequest = onCall(
 
     // Authorization: management of the SAME school (admins may cross schools).
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerSnap = await db.collection("allowed_users").doc(request.auth.uid).get();
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!STUDENT_DELETE_ROLES.includes(callerRole)) {
@@ -720,7 +750,7 @@ exports.writeAudit = onCall(
     }
 
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const snap = await db.collection("allowed_users").doc(callerEmail).get();
+    const snap = await db.collection("allowed_users").doc(request.auth.uid).get();
     const role = resolveCallerRole(callerEmail, snap); // 'admin' for root admin
     
     if (!role) {
@@ -825,7 +855,7 @@ exports.purgeOldData = onCall(
     }
 
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerSnap = await db.collection("allowed_users").doc(request.auth.uid).get();
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
 
@@ -857,9 +887,15 @@ exports.purgeOldData = onCall(
 
     // 1. Purge old notifications
     try {
+      // Every notification writer (NotificationService._addAndLog, the fee
+      // reminder, onAttendanceWritten's alerts) stamps `createdAt` — there is no
+      // `timestamp` field on notifications, so the previous where("timestamp")
+      // matched NOTHING and the purge silently skipped the entire collection.
+      // (audit_logs genuinely uses `timestamp` and tombstones `deletedAt`; the
+      // two queries below are correct.)
       const snap = await schoolRef
         .collection("notifications")
-        .where("timestamp", "<", notifCutoff)
+        .where("createdAt", "<", notifCutoff)
         .get();
       for (let i = 0; i < snap.docs.length; i += 400) {
         const batch = db.batch();
@@ -922,12 +958,12 @@ exports.purgeOldData = onCall(
 
 /**
  * Firestore trigger: send payment receipt email automatically.
- * Scopes to the subcollection path:
- * schools/{sid}/fee_payments/{classKey}/students/{roll}/payments/{paymentId}
+ * Scopes to the flat collection path:
+ * schools/{sid}/payments/{paymentId}
  */
 exports.sendReceiptEmail = onDocumentCreated(
   {
-    document: "schools/{sid}/fee_payments/{classKey}/students/{roll}/payments/{paymentId}",
+    document: "schools/{sid}/payments/{paymentId}",
     region: "asia-south1"
   },
   async (event) => {
@@ -946,8 +982,9 @@ exports.sendReceiptEmail = onDocumentCreated(
     const installmentName = payment.installmentName || "";
 
     const sid = event.params.sid;
-    const classKey = event.params.classKey;
-    const roll = event.params.roll;
+    const className = payment.className || "";
+    const classKey = className.replace(/ /g, "_");
+    const roll = payment.roll;
 
     const db = admin.firestore();
 
@@ -1442,7 +1479,7 @@ exports.backfillStudentAttendance = onCall(
       throw new HttpsError("invalid-argument", "schoolId is required.");
     }
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerSnap = await db.collection("allowed_users").doc(request.auth.uid).get();
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!PURGE_ROLES.includes(callerRole)) {
@@ -1532,7 +1569,7 @@ exports.backfillCommsConsent = onCall(
       throw new HttpsError("invalid-argument", "schoolId is required.");
     }
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerSnap = await db.collection("allowed_users").doc(request.auth.uid).get();
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!PURGE_ROLES.includes(callerRole)) {
@@ -1586,7 +1623,7 @@ exports.backfillClassStats = onCall(
       throw new HttpsError("invalid-argument", "schoolId is required.");
     }
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerSnap = await db.collection("allowed_users").doc(request.auth.uid).get();
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!PURGE_ROLES.includes(callerRole)) {
@@ -1657,7 +1694,7 @@ exports.backfillAttendanceSummary = onCall(
       throw new HttpsError("invalid-argument", "schoolId is required.");
     }
     const callerEmail = String(request.auth.token.email).toLowerCase();
-    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerSnap = await db.collection("allowed_users").doc(request.auth.uid).get();
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!PURGE_ROLES.includes(callerRole)) {
@@ -1827,7 +1864,7 @@ exports.recordPayment = onCall(
     const schoolRef = db.collection("schools").doc(schoolId);
     const studentFeeRef = schoolRef.collection("fee_payments").doc(classKey)
       .collection("students").doc(String(roll));
-    const paymentsCol = studentFeeRef.collection("payments");
+    const paymentsCol = schoolRef.collection("payments");
     const ref = clientTxnId ? paymentsCol.doc(clientTxnId) : paymentsCol.doc();
     const counterRef = schoolRef.collection("fee_meta").doc("counters");
     const structureRef = schoolRef.collection("fee_structures").doc(classKey);
@@ -1840,7 +1877,10 @@ exports.recordPayment = onCall(
     // OUTSIDE the transaction (a query can't run inside one).
     let fallbackPaidPaise = 0;
     try {
-      const prior = await paymentsCol.get();
+      const prior = await paymentsCol
+        .where("className", "==", className)
+        .where("roll", "==", roll)
+        .get();
       for (const pdoc of prior.docs) {
         const pd = pdoc.data() || {};
         if (pd.reversed === true) continue;
@@ -1913,10 +1953,15 @@ exports.recordPayment = onCall(
         reversed: false,
         receiptNo: rno,
         schoolId,
+        className,
+        roll,
         enteredBy: callerEmail,
         reconciled: false,
         paidOn: admin.firestore.FieldValue.serverTimestamp(),
       };
+      if (studentId) {
+        data.studentId = studentId;
+      }
       tx.set(counterRef, { receiptSeq: next }, { merge: true });
       tx.set(ref, data);
       const newTotal = alreadyPaise + amountPaise;
@@ -1958,7 +2003,7 @@ exports.reversePayment = onCall(
     const schoolRef = db.collection("schools").doc(schoolId);
     const studentFeeRef = schoolRef.collection("fee_payments").doc(classKey)
       .collection("students").doc(String(roll));
-    const ref = studentFeeRef.collection("payments").doc(paymentId);
+    const ref = schoolRef.collection("payments").doc(paymentId);
     const classDocRef = schoolRef.collection("fee_payments").doc(classKey);
 
     await db.runTransaction(async (tx) => {

@@ -4,9 +4,10 @@ import '../models/staff_task.dart';
 import 'auth_service.dart';
 
 class MeetingService {
-  static final MeetingService _instance = MeetingService._();
-  factory MeetingService() => _instance;
+  static MeetingService? _instance;
   MeetingService._();
+  factory MeetingService() => _instance ??= MeetingService._();
+  static set mockInstance(MeetingService? mock) => _instance = mock;
 
   static final _db = FirebaseFirestore.instance;
 

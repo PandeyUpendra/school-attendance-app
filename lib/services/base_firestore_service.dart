@@ -17,7 +17,8 @@ class BaseFirestoreService {
     schoolIdNotifier.value = id;
   }
 
-  FirebaseFirestore get db => FirebaseFirestore.instance;
+  static FirebaseFirestore? mockDb;
+  FirebaseFirestore get db => mockDb ?? FirebaseFirestore.instance;
 
   /// Returns a top-level collection reference scoped to the given school.
   CollectionReference<Map<String, dynamic>> schoolCollection(

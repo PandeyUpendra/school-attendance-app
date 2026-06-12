@@ -902,7 +902,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
           ? IconButton(
               icon: const Icon(Icons.close, color: Colors.white),
               tooltip: context.tr('close') ?? 'Close',
-              semanticsLabel: context.tr('close') ?? 'Close',
               onPressed: () => setState(() => _isMarking = false),
             )
           : null,
@@ -913,13 +912,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
             icon: const Icon(Icons.search, color: Colors.white),
             onPressed: _showSearchRollDialog,
             tooltip: context.tr('searchByRoll'),
-            semanticsLabel: context.tr('searchByRoll') ?? 'Search by Roll',
           ),
         IconButton(
           icon: const Icon(Icons.settings, color: Colors.white),
           onPressed: _showSettingsDialog,
           tooltip: 'Attendance Settings',
-          semanticsLabel: 'Attendance Settings',
         ),
       ],
     );

@@ -30,14 +30,17 @@ class PrincipalDigestService {
     // School-scoped: read only the signed-in user's school subtree.
     final sid           = AuthService.currentSchoolId;
 
+    final thirtyDaysAgo = dayStart.subtract(const Duration(days: 30));
+    final sevenDaysAgo  = dayStart.subtract(const Duration(days: 7));
+
     // Fan out everything in parallel.
     final summariesF    = StudentService.instance.loadTodayFullSummary(classes: classes);
     final teachersF     = TimetableService.instance.getTeachers();
-    final allLeavesF    = TimetableService.instance.getLeaveApplications();
+    final allLeavesF    = TimetableService.instance.getLeaveApplications(since: thirtyDaysAgo);
     final pendingLeavesF= TimetableService.instance.getLeaveApplications(status: 'pending');
     final remarksTodayF = _fetchTodayRemarks(sid, dayStart);
     final paymentsTodayF= _fetchTodayPayments(sid, dayStart);
-    final copyChecksF   = CopyCheckService().getAllChecks();
+    final copyChecksF   = CopyCheckService().getAllChecks(since: sevenDaysAgo);
 
     final summaries     = await summariesF;
     final teachers      = await teachersF;

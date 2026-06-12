@@ -16,6 +16,7 @@ import '../../services/student_service.dart';
 import '../../theme.dart';
 import '../../shared/utils/report_card_pdf_builder.dart';
 import './report_card_template_editor.dart';
+import '../../services/ai_service.dart';
 
 /// Report card screen — shows all students' results for one exam.
 /// Coordinator picks a template before exporting any PDF.
@@ -52,6 +53,8 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
   // getter (#38). Null until the first template fetch resolves; cards fall
   // back to r.grade in the meantime.
   ReportCardTemplate?     _activeTemplate;
+  String _currentUserRole = 'teacher';
+  String _currentUserEmail = '';
 
   @override
   void initState() {
@@ -98,12 +101,18 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
       // Non-fatal — fall back to ExamResult.grade which uses hardcoded bands.
     }
 
+    final session = await AuthService().getSession();
+    final userRole = session?['role'] ?? 'teacher';
+    final userEmail = session?['email'] ?? '';
+
     if (!mounted) return;
     setState(() {
       _students       = students;
       _results        = results;
       _ranks          = ranks;
       _activeTemplate = tmpl;
+      _currentUserRole = userRole;
+      _currentUserEmail = userEmail;
       _loading        = false;
     });
   }
@@ -234,6 +243,116 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
     );
   }
 
+  Future<void> _showAiRemarksDialog(Student student, ExamResult result) async {
+    final aiService = AIService();
+    final textCtrl = TextEditingController();
+    bool generating = true;
+    bool saving = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          if (generating) {
+            generating = false;
+            aiService.generateReportCardRemarks(student: student, result: result).then((remark) {
+              textCtrl.text = remark;
+              setDialogState(() { generating = false; });
+            }).catchError((e) {
+              textCtrl.text = "Error generating remarks. Please try again.";
+              setDialogState(() { generating = false; });
+            });
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.auto_awesome, color: Colors.purple),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('AI Remarks: ${student.name}', 
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 340,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (textCtrl.text.isEmpty)
+                    const Column(
+                      children: [
+                        SizedBox(height: 20),
+                        CircularProgressIndicator(color: Colors.purple),
+                        SizedBox(height: 16),
+                        Text('Drafting personalized remarks...', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                        SizedBox(height: 20),
+                      ],
+                    )
+                  else
+                    TextField(
+                      controller: textCtrl,
+                      maxLines: 4,
+                      maxLength: 200,
+                      style: const TextStyle(fontSize: 14),
+                      decoration: InputDecoration(
+                        labelText: 'Teacher Remark Draft',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        helperText: 'Review and edit comment before saving',
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              if (textCtrl.text.isNotEmpty && !textCtrl.text.startsWith("Error"))
+                ElevatedButton(
+                  onPressed: saving ? null : () async {
+                    setDialogState(() { saving = true; });
+                    try {
+                      await _studentSvc.addStudentRemark(
+                        widget.className,
+                        student.roll,
+                        _currentUserEmail,
+                        _currentUserRole,
+                        textCtrl.text.trim(),
+                        section: widget.section,
+                        type: result.percentage >= 60 ? 'positive' : 'negative',
+                      );
+                      if (context.mounted) {
+                        Navigator.pop(ctx);
+                        _showSnack('Remark saved to student profile!', color: Colors.green);
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        setDialogState(() { saving = false; });
+                        _showSnack('Error saving: $e', color: Colors.red);
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: saving 
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Save Remark'),
+                ),
+            ],
+          );
+        }
+      ),
+    );
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -307,6 +426,9 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
                             template: _activeTemplate,
                             onShare:  result != null
                                 ? () => _shareStudentReport(s, result)
+                                : null,
+                            onAiRemarks: result != null
+                                ? () => _showAiRemarksDialog(s, result)
                                 : null,
                           ),
                         );
@@ -575,6 +697,7 @@ class _StudentResultCard extends StatelessWidget {
   final List<String> subjects;
   final int          maxMarks;
   final VoidCallback? onShare;
+  final VoidCallback? onAiRemarks;
   // Optional custom grade scheme from the school's active template (#38).
   // When null, falls back to the ExamResult.grade hardcoded bands.
   final ReportCardTemplate? template;
@@ -586,6 +709,7 @@ class _StudentResultCard extends StatelessWidget {
     required this.subjects,
     required this.maxMarks,
     this.onShare,
+    this.onAiRemarks,
     this.template,
   });
 
@@ -661,6 +785,18 @@ class _StudentResultCard extends StatelessWidget {
                       fontWeight: FontWeight.bold),
                 ),
               ),
+            if (onAiRemarks != null) ...[
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.auto_awesome, size: 18),
+                tooltip: 'Generate AI Remarks',
+                color: Colors.purple,
+                padding: EdgeInsets.zero,
+                constraints:
+                    const BoxConstraints(minWidth: 30, minHeight: 30),
+                onPressed: onAiRemarks,
+              ),
+            ],
             if (onShare != null) ...[
               const SizedBox(width: 4),
               IconButton(

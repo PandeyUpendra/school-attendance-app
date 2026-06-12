@@ -18,21 +18,18 @@ class FeeOverpaymentException implements Exception {
 ///   schools/{schoolId}/fee_structures/{className}  → FeeStructure doc
 ///   schools/{schoolId}/fee_payments/{className}/students/{roll}/payments/{auto}
 class FeeService extends BaseFirestoreService {
-  static final FeeService _instance = FeeService._();
+  static FeeService? _instance;
   FeeService._();
-  factory FeeService() => _instance;
+  factory FeeService() => _instance ??= FeeService._();
+  static set mockInstance(FeeService? mock) => _instance = mock;
 
   String get _sid => AuthService.currentSchoolId;
 
   CollectionReference<Map<String, dynamic>> get _feeStructures =>
       schoolCollection(_sid, 'fee_structures');
 
-  CollectionReference _paymentsCol(String className, int roll) =>
-      schoolCollection(_sid, 'fee_payments')
-          .doc(className.replaceAll(' ', '_'))
-          .collection('students')
-          .doc('$roll')
-          .collection('payments');
+  CollectionReference<Map<String, dynamic>> _paymentsCol() =>
+      schoolCollection(_sid, 'payments');
 
   // ── Masking Helper ─────────────────────────────────────────────────────────
 
@@ -97,7 +94,9 @@ class FeeService extends BaseFirestoreService {
     required int roll,
     bool includeReversed = false,
   }) async {
-    final snap = await _paymentsCol(className, roll)
+    final snap = await _paymentsCol()
+        .where('className', isEqualTo: className)
+        .where('roll', isEqualTo: roll)
         .orderBy('paidOn', descending: true)
         .get();
     final all = snap.docs
@@ -141,7 +140,7 @@ class FeeService extends BaseFirestoreService {
     // Sanitize and mask sensitive info in note (#664)
     final sanitizedNote = payment.note != null ? maskSensitiveInfo(payment.note!) : null;
 
-    final col = _paymentsCol(className, roll);
+    final col = _paymentsCol();
     final ref = (clientTxnId != null && clientTxnId.isNotEmpty)
         ? col.doc(clientTxnId)
         : col.doc();
@@ -255,9 +254,14 @@ class FeeService extends BaseFirestoreService {
       final data = Map<String, dynamic>.from(payment.toJson())
         ..['receiptNo'] = rno
         ..['schoolId'] = _sid
+        ..['className'] = className
+        ..['roll'] = roll
         ..['note'] = sanitizedNote
         ..['enteredBy'] = payment.enteredBy ?? currentEmail
         ..['reconciled'] = payment.reconciled;
+      if (studentId != null && studentId.isNotEmpty) {
+        data['studentId'] = studentId;
+      }
       tx.set(_receiptCounter, {'receiptSeq': next}, SetOptions(merge: true));
       tx.set(ref, data);
 
@@ -302,7 +306,7 @@ class FeeService extends BaseFirestoreService {
     if (reason.trim().isEmpty) {
       throw ArgumentError('Reversal reason is required');
     }
-    final ref = _paymentsCol(className, roll).doc(paymentId);
+    final ref = _paymentsCol().doc(paymentId);
     final studentFeeDocRef = schoolCollection(_sid, 'fee_payments')
         .doc(className.replaceAll(' ', '_'))
         .collection('students')

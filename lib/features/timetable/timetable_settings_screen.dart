@@ -6,6 +6,7 @@ import '../../models/timetable_entry.dart';
 import '../../services/timetable_service.dart';
 import '../../services/base_firestore_service.dart';
 import '../../theme.dart';
+import '../../shared/utils/timetable_conflict_detector.dart';
 
 // ── Bell model ────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   bool _loading = true;
   bool _settingsEditing = false;
   bool _timetableEditing = false;
+  List<TimetableConflict> _conflicts = [];
   static const _days = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
   ];
@@ -131,6 +133,103 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       _timetable = tt;
       _loading = false;
     });
+    _scanConflicts();
+  }
+
+  void _scanConflicts() {
+    final lunchIndices = <int>[];
+    for (int idx = 0; idx < _bells.length; idx++) {
+      if (_bells[idx].isLunch) {
+        lunchIndices.add(idx + 1);
+      }
+    }
+
+    final list = TimetableConflictDetector.detectConflicts(
+      timetable: _timetable,
+      teachers: _teachers,
+      classes: _classes,
+      days: _days,
+      bellsCount: _bells.length,
+      lunchBells: lunchIndices,
+    );
+
+    setState(() {
+      _conflicts = list;
+    });
+  }
+
+  void _showConflictsDetails() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        builder: (_, ctrl) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Scheduling Conflicts',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Expanded(
+              child: ListView.separated(
+                controller: ctrl,
+                padding: const EdgeInsets.all(16),
+                itemCount: _conflicts.length,
+                separatorBuilder: (_, __) => const Divider(),
+                itemBuilder: (context, idx) {
+                  final conflict = _conflicts[idx];
+                  IconData icon = Icons.warning_amber_rounded;
+                  Color color = Colors.orange;
+                  if (conflict.type == 'clash') {
+                    icon = Icons.error_outline;
+                    color = Colors.red;
+                  } else if (conflict.type == 'empty') {
+                    icon = Icons.hourglass_empty;
+                    color = Colors.blue;
+                  }
+                  
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: color.withValues(alpha: 0.1),
+                      child: Icon(icon, color: color, size: 18),
+                    ),
+                    title: Text(
+                      conflict.details,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Type: ${conflict.type.toUpperCase()} · Period: ${conflict.bell} on ${conflict.day}',
+                        style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ── Bell time helpers ──────────────────────────────────────────────────────
@@ -462,6 +561,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
             TimetableEntry(teacherId: result.teacherId, subject: result.subject);
       }
     });
+    _scanConflicts();
   }
 
   void _saveTimetableMode() {
@@ -856,6 +956,43 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
 
   // ── Tab 2: Timetable ───────────────────────────────────────────────────────
 
+  Widget _buildConflictBanner() {
+    return InkWell(
+      onTap: _showConflictsDetails,
+      child: Container(
+        color: Colors.red.shade50,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red.shade800, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '${_conflicts.length} Timetable Scheduling Conflicts Found',
+                style: TextStyle(
+                  color: Colors.red.shade900,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Text(
+              'View Details',
+              style: TextStyle(
+                color: Colors.red.shade800,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, color: Colors.red.shade800, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTimetableTab() {
     if (_classes.isEmpty) {
       return _hint('No classes configured',
@@ -867,6 +1004,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     }
     return Stack(children: [
       Column(children: [
+        if (_conflicts.isNotEmpty) _buildConflictBanner(),
         const Divider(height: 1),
         Expanded(child: _buildGrid()),
         const SizedBox(height: 72),
@@ -1061,6 +1199,9 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       );
     }
 
+    final cellConflicts = _conflicts.where((c) => c.className == cls && c.bell == bell && c.type == 'clash').toList();
+    final hasClash = cellConflicts.isNotEmpty;
+
     return GestureDetector(
       onTap: _timetableEditing ? () => _editCell(cls, bell) : null,
       child: Stack(children: [
@@ -1069,13 +1210,18 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           height: h,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: teacher != null
-                ? color.withValues(alpha: 0.14)
-                : (even ? Colors.grey.shade50 : Colors.white),
+            color: hasClash 
+                ? Colors.red.shade50
+                : (teacher != null
+                    ? color.withValues(alpha: 0.14)
+                    : (even ? Colors.grey.shade50 : Colors.white)),
             border: Border.all(
-                color: teacher != null
-                    ? color.withValues(alpha: 0.35)
-                    : Colors.grey.shade200),
+                color: hasClash
+                    ? Colors.red.shade300
+                    : (teacher != null
+                        ? color.withValues(alpha: 0.35)
+                        : Colors.grey.shade200),
+                width: hasClash ? 1.5 : 1),
           ),
           child: teacher != null
               ? Column(
@@ -1142,7 +1288,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                   : const SizedBox.shrink(),
         ),
         // Partial assignment indicator (orange dot top-right)
-        if (isPartial)
+        if (isPartial && !hasClash)
           Positioned(
             top: 4,
             right: 4,
@@ -1152,6 +1298,27 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
               decoration: const BoxDecoration(
                 color: Colors.orange,
                 shape: BoxShape.circle,
+              ),
+            ),
+          ),
+        // Clash warning indicator (red exclamation / warning icon top-right)
+        if (hasClash)
+          Positioned(
+            top: 4,
+            right: 4,
+            child: Tooltip(
+              message: cellConflicts.first.details,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.warning,
+                  color: Colors.white,
+                  size: 10,
+                ),
               ),
             ),
           ),

@@ -25,9 +25,10 @@ import 'communication_log_service.dart';
 ///     createdAt: Timestamp,
 ///   }
 class NotificationService extends BaseFirestoreService {
-  static final NotificationService _instance = NotificationService._();
+  static NotificationService? _instance;
   NotificationService._();
-  factory NotificationService() => _instance;
+  factory NotificationService() => _instance ??= NotificationService._();
+  static set mockInstance(NotificationService? mock) => _instance = mock;
 
   String get _sid => AuthService.currentSchoolId;
 

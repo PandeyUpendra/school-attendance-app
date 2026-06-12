@@ -551,7 +551,7 @@ class _StudentPerformanceChartsScreenState
                   final sub = subjects[idx];
                   final score = _selectedExamResult!.marks[sub];
                   final max = _selectedExamResult!.maxMarks;
-                  final percentage = score != null ? (score / max * 100) : 0.0;
+                  final percentage = (score != null && max > 0) ? (score / max * 100) : 0.0;
                   final isPassed = percentage >= 33;
 
                   return ListTile(

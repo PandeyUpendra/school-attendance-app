@@ -120,9 +120,10 @@ class AuthService {
     return id;
   }
 
-  static final AuthService _instance = AuthService._();
+  static AuthService? _instance;
   AuthService._();
-  factory AuthService() => _instance;
+  factory AuthService() => _instance ??= AuthService._();
+  static set mockInstance(AuthService? mock) => _instance = mock;
 
   // ── Firebase Auth ─────────────────────────────────────────────────────────
 

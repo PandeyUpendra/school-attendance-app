@@ -100,7 +100,10 @@ class _CoordinatorManagementScreenState
     if (ok != true || !mounted) return;
 
     try {
-      await _firestore.collection('allowed_users').doc(email.toLowerCase().trim()).delete();
+      final query = await _firestore.collection('allowed_users').where('email', isEqualTo: email.toLowerCase().trim()).limit(1).get();
+      for (final doc in query.docs) {
+        await doc.reference.delete();
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$name ${context.tr('removedSuffix')}'), backgroundColor: Colors.green),
@@ -408,14 +411,18 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
           if (phone.isNotEmpty) 'phone': phone else 'phone': FieldValue.delete(),
           if (desig.isNotEmpty) 'designation': desig else 'designation': FieldValue.delete(),
         };
-        await FirebaseFirestore.instance
+        final query = await FirebaseFirestore.instance
             .collection('allowed_users')
-            .doc(email)
-            .update(extraData);
+            .where('email', isEqualTo: email.toLowerCase().trim())
+            .limit(1)
+            .get();
+        if (query.docs.isNotEmpty) {
+          await query.docs.first.reference.update(extraData);
+        }
       } else {
         // Empty password → service generates a temp credential and emails the
         // coordinator an invite link so they set their own password.
-        await svc.addAllowedUser(
+        final uid = await svc.addAllowedUser(
           email, '', 'coordinator',
           name: name,
           // Inherit the principal's own school so the coordinator is created in
@@ -433,7 +440,7 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
         if (extraData.isNotEmpty) {
           await FirebaseFirestore.instance
               .collection('allowed_users')
-              .doc(email)
+              .doc(uid)
               .update(extraData);
         }
       }

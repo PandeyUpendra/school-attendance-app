@@ -45,8 +45,9 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
       final sid = AuthService.currentSchoolId;
       
       Query query = FirebaseFirestore.instance
-          .collectionGroup('payments')
-          .where('schoolId', isEqualTo: sid)
+          .collection('schools')
+          .doc(sid)
+          .collection('payments')
           .where('mode', isEqualTo: 'Cash');
 
       if (_showOnlyToday) {
@@ -381,15 +382,12 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
                     final date = ts != null ? ts.toDate() : DateTime.now();
                     final dateStr = '${date.day}/${date.month}/${date.year}';
 
-                    // Parse path to find student info or details
-                    // Path format: schools/{sid}/fee_payments/{className}/students/{roll}/payments/{docId}
-                    final pathSegments = doc.reference.path.split('/');
-                    String studentInfo = 'Student';
-                    if (pathSegments.length >= 6) {
-                      final className = pathSegments[4].replaceAll('_', ' ');
-                      final roll = pathSegments[6];
-                      studentInfo = 'Roll $roll · Class $className';
-                    }
+                    // Read student details directly from the payment document attributes (flattened layout)
+                    final className = data['className'] as String?;
+                    final roll = data['roll'];
+                    final studentInfo = (className != null && roll != null)
+                        ? 'Roll $roll · Class $className'
+                        : 'Student';
 
                     final isSelected = _selectedDocPaths.contains(doc.reference.path);
 

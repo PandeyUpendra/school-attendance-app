@@ -2,9 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/homework.dart';
 
 class HomeworkService {
-  static final HomeworkService _instance = HomeworkService._internal();
-  factory HomeworkService() => _instance;
+  static HomeworkService? _instance;
   HomeworkService._internal();
+  factory HomeworkService() => _instance ??= HomeworkService._internal();
+  static set mockInstance(HomeworkService? mock) => _instance = mock;
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
 

@@ -12,6 +12,7 @@ import '../../services/student_service.dart';
 import '../../theme.dart';
 import '../../shared/utils/phone_utils.dart';
 import '../../shared/utils/app_logger.dart';
+import '../../services/ai_service.dart';
 
 /// Teacher's copy-checking screen.
 /// Shows all classes the teacher teaches → create sessions → mark students.
@@ -654,6 +655,181 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
     _autosave();
   }
 
+  void _runAiVerification(int roll) {
+    final statusObj = _statuses.firstWhere((s) => s.roll == roll);
+    final aiService = AIService();
+    final typedCtrl = TextEditingController();
+    bool evaluating = false;
+    Map<String, dynamic>? result;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.auto_awesome, color: Colors.purple),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('AI Copy Assistant: ${statusObj.studentName}', 
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 360,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (!evaluating && result == null) ...[
+                    const Text('Type student\'s text submission or a description of their homework notebook page:', 
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: typedCtrl,
+                      maxLines: 4,
+                      style: const TextStyle(fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'e.g. Completed page 12 exercises, handwriting is neat. Answers for questions 1-5 are correct.',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        typedCtrl.text = "Uploaded photo of page 24. Math equations show steps and final answer of x=5, y=10. Work is neat and well presented.";
+                        setDialogState(() {});
+                      },
+                      icon: const Icon(Icons.camera_alt_outlined),
+                      label: const Text('Simulate Notebook Photo Scan'),
+                    ),
+                  ] else if (evaluating) ...[
+                    const Column(
+                      children: [
+                        SizedBox(height: 20),
+                        CircularProgressIndicator(color: Colors.purple),
+                        SizedBox(height: 16),
+                        Text('Analyzing homework copy details...', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                        SizedBox(height: 20),
+                      ],
+                    )
+                  ] else if (result != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: result!['status'] == 'Completed' 
+                            ? Colors.green.shade50 
+                            : Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: result!['status'] == 'Completed' 
+                              ? Colors.green.shade200 
+                              : Colors.orange.shade200,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                result!['status'] == 'Completed' 
+                                    ? Icons.check_circle 
+                                    : Icons.warning,
+                                color: result!['status'] == 'Completed' 
+                                    ? Colors.green 
+                                    : Colors.orange,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text('AI Suggested Status: ${result!['status']}', 
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text('Feedback: ${result!['feedback']}', style: const TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              if (!evaluating && result == null)
+                ElevatedButton(
+                  onPressed: () async {
+                    setDialogState(() { evaluating = true; });
+                    try {
+                      final res = await aiService.checkHomework(
+                        homeworkTitle: widget.check.subject,
+                        studentName: statusObj.studentName,
+                        typedWork: typedCtrl.text.trim().isNotEmpty ? typedCtrl.text.trim() : null,
+                      );
+                      setDialogState(() { 
+                        evaluating = false;
+                        result = res;
+                      });
+                    } catch (e) {
+                      setDialogState(() { 
+                        evaluating = false;
+                        result = {'status': 'Incomplete', 'feedback': 'Failed to analyze copy: $e'};
+                      });
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Run AI Review'),
+                ),
+              if (result != null)
+                ElevatedButton(
+                  onPressed: () {
+                    final String status = result!['status'] == 'Completed' ? 'checked' : 'incomplete';
+                    final String feedback = result!['feedback'] ?? '';
+                    
+                    setState(() {
+                      final idx = _statuses.indexWhere((s) => s.roll == roll);
+                      if (idx >= 0) {
+                        _statuses[idx] = CopyStatus(
+                          roll:          _statuses[idx].roll,
+                          studentName:   _statuses[idx].studentName,
+                          guardianPhone: _statuses[idx].guardianPhone,
+                          status:        status,
+                          remarks:       feedback,
+                        );
+                      }
+                    });
+                    _autosave();
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Applied AI check for ${statusObj.studentName}!'), backgroundColor: Colors.purple),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Apply AI Feedback'),
+                ),
+            ],
+          );
+        }
+      ),
+    );
+  }
+
   void _checkAll() {
     setState(() {
       _statuses = _statuses
@@ -752,6 +928,7 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
                 _AllStudentsTab(
                   statuses:   _statuses,
                   onStatus:   _setStatus,
+                  onAiVerify: _runAiVerification,
                   onSave:     _saveAll,
                   onCheckAll: _checkAll,
                   saving:     _saving,
@@ -773,6 +950,7 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
 class _AllStudentsTab extends StatelessWidget {
   final List<CopyStatus> statuses;
   final void Function(int roll, String status) onStatus;
+  final void Function(int roll) onAiVerify;
   final VoidCallback onSave;
   final VoidCallback onCheckAll;
   final bool saving;
@@ -780,6 +958,7 @@ class _AllStudentsTab extends StatelessWidget {
   const _AllStudentsTab({
     required this.statuses,
     required this.onStatus,
+    required this.onAiVerify,
     required this.onSave,
     required this.onCheckAll,
     required this.saving,
@@ -848,6 +1027,7 @@ class _AllStudentsTab extends StatelessWidget {
               return _StudentStatusTile(
                 status:   s,
                 onStatus: (newStatus) => onStatus(s.roll, newStatus),
+                onAiVerify: () => onAiVerify(s.roll),
               );
             },
           ),
@@ -902,9 +1082,10 @@ class _SumChip extends StatelessWidget {
 class _StudentStatusTile extends StatelessWidget {
   final CopyStatus status;
   final void Function(String) onStatus;
+  final VoidCallback onAiVerify;
 
   const _StudentStatusTile(
-      {required this.status, required this.onStatus});
+      {required this.status, required this.onStatus, required this.onAiVerify});
 
   Color get _color {
     switch (status.status) {
@@ -959,6 +1140,14 @@ class _StudentStatusTile extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(right: 12),
               child: Row(children: [
+                _StatusBtn(
+                  icon: Icons.auto_awesome,
+                  color: Colors.purple,
+                  active: false,
+                  onTap: onAiVerify,
+                  tooltip: 'Verify with AI',
+                ),
+                const SizedBox(width: 4),
                 _StatusBtn(
                   icon: Icons.cancel_outlined,
                   color: AppTheme.danger,

@@ -5,9 +5,10 @@ import 'base_firestore_service.dart';
 import 'audit_log_service.dart';
 
 class SyllabusService extends BaseFirestoreService {
-  static final SyllabusService _instance = SyllabusService._();
+  static SyllabusService? _instance;
   SyllabusService._();
-  factory SyllabusService() => _instance;
+  factory SyllabusService() => _instance ??= SyllabusService._();
+  static set mockInstance(SyllabusService? mock) => _instance = mock;
 
   String get _sid => AuthService.currentSchoolId;
 

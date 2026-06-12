@@ -51,6 +51,22 @@ class PrincipalDashboard extends StatefulWidget {
 }
 
 class _PrincipalDashboardState extends State<PrincipalDashboard> {
+  final GlobalKey _heroKey = GlobalKey();
+  double _heroHeight = 260.0;
+
+  void _measureHeroHeight() {
+    if (!mounted) return;
+    final RenderBox? renderBox = _heroKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox != null) {
+      final height = renderBox.size.height;
+      if (height != _heroHeight) {
+        setState(() {
+          _heroHeight = height;
+        });
+      }
+    }
+  }
+
   bool _loading = true;
 
   List<ClassSummary>         _summaries      = [];
@@ -232,6 +248,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureHeroHeight());
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -243,30 +260,15 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       ),
       child: Scaffold(
       backgroundColor: AppTheme.background,
-      body: Column(
+      body: Stack(
         children: [
-          // ── Wave hero card (sticky — never scrolls) ───────────────────
-          _PrincipalHeroCard(
-            loading:          _loading,
-            teachersAbsent:   _teachersAbsent,
-            unassignedBells:  _unassignedBells,
-            unreadNotifCount: _unreadNotifCount,
-            onNotifTap: () async {
-              await _navigate(const NotificationsScreen(role: 'principal'));
-              _refreshLastSeen();
-            },
-            onTeachersAbsentTap: () => _navigate(
-              const LeaveRequestsScreen(viewerRole: 'principal'),
-            ),
-            onBellsTap: () =>
-                _navigate(const AbsentTeachersScreen()),
-          ),
-          Expanded(
+          Positioned.fill(
             child: RefreshIndicator(
+              edgeOffset: _heroHeight,
               onRefresh: _loadAll,
               color: AppTheme.primary,
               child: ListView(
-                padding: EdgeInsets.zero,
+                padding: EdgeInsets.only(top: _heroHeight),
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
             TodoReminderBanner(
@@ -538,8 +540,29 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 ),
               ),
             ),
-          ],
-        ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _PrincipalHeroCard(
+              key: _heroKey,
+              loading:          _loading,
+              teachersAbsent:   _teachersAbsent,
+              unassignedBells:  _unassignedBells,
+              unreadNotifCount: _unreadNotifCount,
+              onNotifTap: () async {
+                await _navigate(const NotificationsScreen(role: 'principal'));
+                _refreshLastSeen();
+              },
+              onTeachersAbsentTap: () => _navigate(
+                const LeaveRequestsScreen(viewerRole: 'principal'),
+              ),
+              onBellsTap: () =>
+                  _navigate(const AbsentTeachersScreen()),
+            ),
+          ),
+        ],
+      ),
       ),
     );
   }
@@ -756,6 +779,7 @@ class _PrincipalHeroCard extends StatelessWidget {
   final VoidCallback onBellsTap;
 
   const _PrincipalHeroCard({
+    super.key,
     required this.loading,
     required this.teachersAbsent,
     required this.unassignedBells,

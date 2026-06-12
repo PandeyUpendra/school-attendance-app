@@ -303,6 +303,23 @@
         { "fieldPath": "mode", "order": "ASCENDING" },
         { "fieldPath": "reconciled", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "className", "order": "ASCENDING" },
+        { "fieldPath": "roll",      "order": "ASCENDING" },
+        { "fieldPath": "paidOn",    "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "copy_checks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "schoolId",  "order": "ASCENDING" },
+        { "fieldPath": "checkDate", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -312,6 +329,21 @@
       "indexes": [
         { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
       ]
+    },
+    {
+      "collectionGroup": "attendance",
+      "fieldPath": "rolls",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "attendance",
+      "fieldPath": "reasons",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "timetable",
+      "fieldPath": "data",
+      "indexes": []
     }
   ]
 }

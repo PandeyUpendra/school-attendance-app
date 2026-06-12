@@ -231,7 +231,21 @@ class TeacherDeletionService {
 
     // d. Remove the allowed_users doc to revoke login access.
     if (resolvedTeacherEmail.isNotEmpty && resolvedTeacherEmail.contains('@')) {
-      batch.delete(_db.collection('allowed_users').doc(resolvedTeacherEmail));
+      String? teacherUid;
+      try {
+        final query = await _db
+            .collection('allowed_users')
+            .where('email', isEqualTo: resolvedTeacherEmail.toLowerCase().trim())
+            .limit(1)
+            .get();
+        if (query.docs.isNotEmpty) {
+          teacherUid = query.docs.first.id;
+        }
+      } catch (_) {}
+
+      if (teacherUid != null) {
+        batch.delete(_db.collection('allowed_users').doc(teacherUid));
+      }
     }
 
     await batch.commit();

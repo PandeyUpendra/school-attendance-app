@@ -51,6 +51,21 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _morningSummaryKey1 = GlobalKey<TeacherMorningSummaryCardState>();
   final _morningSummaryKey2 = GlobalKey<TeacherMorningSummaryCardState>();
+  final GlobalKey _heroKey = GlobalKey();
+  double _heroHeight = 260.0;
+
+  void _measureHeroHeight() {
+    if (!mounted) return;
+    final RenderBox? renderBox = _heroKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox != null) {
+      final height = renderBox.size.height;
+      if (height != _heroHeight) {
+        setState(() {
+          _heroHeight = height;
+        });
+      }
+    }
+  }
 
   int _unreadNotifCount     = 0;
   int _pendingTaskCount     = 0;
@@ -162,6 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureHeroHeight());
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -201,6 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
             : 'Teacher  ·  ${t.subject}';
 
     return ClipPath(
+      key: _heroKey,
       clipper: _WaveClipper(),
       child: Container(
         decoration: const BoxDecoration(
@@ -351,17 +368,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBody(BuildContext context) {
     if (_isClassTeacher) {
-      return Column(
+      return Stack(
         children: [
-          _buildHero(),
-          Expanded(
+          Positioned.fill(
             child: RefreshIndicator(
+              edgeOffset: _heroHeight,
               onRefresh: _refreshAll,
               color: AppTheme.primary,
               child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.zero,
-              children: [
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.only(top: _heroHeight),
+                children: [
           const SizedBox(height: 4),
           TodoReminderBanner(
             userId: teacher?.id ?? teacher?.email ?? '',
@@ -742,24 +759,30 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 32),
               ],
             ),
-            ),
           ),
-        ],
-      );
-    }
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: _buildHero(),
+        ),
+      ],
+    );
+  }
 
     // Regular teacher
-    return Column(
+    return Stack(
       children: [
-        _buildHero(),
-        Expanded(
+        Positioned.fill(
           child: RefreshIndicator(
+            edgeOffset: _heroHeight,
             onRefresh: _refreshAll,
             color: AppTheme.primary,
             child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.zero,
-            children: [
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.only(top: _heroHeight),
+              children: [
         const SizedBox(height: 4),
         TodoReminderBanner(
           userId: teacher?.id ?? teacher?.email ?? '',
@@ -1064,11 +1087,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
         const SizedBox(height: 32),
             ],
-          ),
-          ),
         ),
-      ],
-    );
+      ),
+    ),
+    Positioned(
+        top: 0,
+        left: 0,
+        right: 0,
+        child: _buildHero(),
+      ),
+    ],
+  );
   }
 
   // ── Substitute duty card ──────────────────────────────────────────────────

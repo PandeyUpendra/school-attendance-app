@@ -11,7 +11,8 @@
   "scripts": {
     "test":          "jest --runInBand --no-coverage --testTimeout=30000 --testPathPatterns='firestore\\.(rules|security-audit)\\.test\\.js$' --rootDir /Users/upendrapandey/school_app",
     "test:rules":    "jest --runInBand --no-coverage --testTimeout=30000 /Users/upendrapandey/school_app/firestore.rules.test.js",
-    "test:security": "jest --runInBand --no-coverage --testTimeout=30000 /Users/upendrapandey/school_app/firestore.security-audit.test.js"
+    "test:security": "jest --runInBand --no-coverage --testTimeout=30000 /Users/upendrapandey/school_app/firestore.security-audit.test.js",
+    "test:all-security": "npm run test:rules && npm run test:security"
   },
   "repository": {
     "type": "git",

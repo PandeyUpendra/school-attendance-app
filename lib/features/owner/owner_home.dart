@@ -137,9 +137,10 @@ class _OwnerHomeState extends State<OwnerHome> {
     List<String> schoolIds = [];
     Map<String, String> schoolsMap = {};
     try {
+      final uid = AuthService().currentFirebaseUser?.uid;
       final userDoc = await FirebaseFirestore.instance
           .collection('allowed_users')
-          .doc(email)
+          .doc(uid ?? email)
           .get();
       if (userDoc.exists && userDoc.data() != null) {
         final data = userDoc.data()!;
@@ -182,9 +183,10 @@ class _OwnerHomeState extends State<OwnerHome> {
 
     try {
       // 1. Update schoolId in allowed_users
+      final uid = AuthService().currentFirebaseUser?.uid;
       await FirebaseFirestore.instance
           .collection('allowed_users')
-          .doc(_myEmail)
+          .doc(uid ?? _myEmail)
           .update({'schoolId': targetSchoolId});
 
       // 2. Update local state / notifier

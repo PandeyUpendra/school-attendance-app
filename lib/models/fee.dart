@@ -159,6 +159,10 @@ class Payment {
   final bool     reversed;        // soft-reversal flag (money records are never hard-deleted)
   final String?  enteredBy;
   final bool     reconciled;
+  final String?  schoolId;
+  final String?  className;
+  final int?     roll;
+  final String?  studentId;
 
   double get amount => paiseToRupees(amountPaise);
 
@@ -173,6 +177,10 @@ class Payment {
     this.reversed = false,
     this.enteredBy,
     this.reconciled = false,
+    this.schoolId,
+    this.className,
+    this.roll,
+    this.studentId,
   }) : amountPaise = rupeesToPaise(amount);
 
   const Payment._paise({
@@ -186,6 +194,10 @@ class Payment {
     this.reversed = false,
     this.enteredBy,
     this.reconciled = false,
+    this.schoolId,
+    this.className,
+    this.roll,
+    this.studentId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -200,6 +212,10 @@ class Payment {
         'reversed':        reversed,
         'enteredBy':       enteredBy,
         'reconciled':      reconciled,
+        if (schoolId != null) 'schoolId': schoolId,
+        if (className != null) 'className': className,
+        if (roll != null) 'roll': roll,
+        if (studentId != null) 'studentId': studentId,
       };
 
   factory Payment.fromDoc(String id, Map<String, dynamic> data) {
@@ -215,6 +231,10 @@ class Payment {
       reversed:        (data['reversed']         as bool?)   ?? false,
       enteredBy:       (data['enteredBy']        as String?),
       reconciled:      (data['reconciled']       as bool?)   ?? false,
+      schoolId:        (data['schoolId']         as String?),
+      className:       (data['className']        as String?),
+      roll:            (data['roll']             as num?)?.toInt(),
+      studentId:       (data['studentId']        as String?),
     );
   }
 }

@@ -60,6 +60,22 @@ class CoordinatorDashboard extends StatefulWidget {
 }
 
 class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
+  final GlobalKey _heroKey = GlobalKey();
+  double _heroHeight = 260.0;
+
+  void _measureHeroHeight() {
+    if (!mounted) return;
+    final RenderBox? renderBox = _heroKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox != null) {
+      final height = renderBox.size.height;
+      if (height != _heroHeight) {
+        setState(() {
+          _heroHeight = height;
+        });
+      }
+    }
+  }
+
   bool _attendanceLoading = true;
   bool _navigating        = false; // prevents double-push navigation loop
   List<ClassSummary>       _summaries          = [];
@@ -208,6 +224,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureHeroHeight());
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -219,26 +236,15 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
       ),
       child: Scaffold(
       backgroundColor: _cBg,
-      body: Column(
+      body: Stack(
         children: [
-          // ── Hero card (fixed — does not scroll) ───────────────────────
-          _CoordHeroCard(
-            loading:           _attendanceLoading,
-            teachersAbsent:    _teachersAbsent,
-            unassignedBells:   _unassignedBells,
-            unreadNotifCount:  _unreadNotifCount,
-            onNotifTap: () async {
-              await _navigate(const NotificationsScreen(
-                role: 'coordinator'));
-              _refreshLastSeen();
-            },
-          ),
-          Expanded(
+          Positioned.fill(
             child: RefreshIndicator(
+              edgeOffset: _heroHeight,
               onRefresh: _loadAll,
               color: _cPurple,
               child: ListView(
-                padding: EdgeInsets.zero,
+                padding: EdgeInsets.only(top: _heroHeight),
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
             const SizedBox(height: 4),
@@ -609,6 +615,23 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               ),
             ),
           ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _CoordHeroCard(
+              key: _heroKey,
+              loading:           _attendanceLoading,
+              teachersAbsent:    _teachersAbsent,
+              unassignedBells:   _unassignedBells,
+              unreadNotifCount:  _unreadNotifCount,
+              onNotifTap: () async {
+                await _navigate(const NotificationsScreen(
+                  role: 'coordinator'));
+                _refreshLastSeen();
+              },
+            ),
+          ),
         ],
       ),
       ),
@@ -914,6 +937,7 @@ class _CoordHeroCard extends StatelessWidget {
   final VoidCallback onNotifTap;
 
   const _CoordHeroCard({
+    super.key,
     required this.loading,
     required this.teachersAbsent,
     required this.unassignedBells,

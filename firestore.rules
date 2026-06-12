@@ -48,7 +48,7 @@ service cloud.firestore {
     }
 
     function getUserData() {
-      return get(/databases/$(database)/documents/allowed_users/$(userEmail())).data;
+      return get(/databases/$(database)/documents/allowed_users/$(request.auth.uid)).data;
     }
 
     /// SCALE-05: identity from CUSTOM CLAIMS instead of a document read.
@@ -562,7 +562,7 @@ service cloud.firestore {
     // Root collection — identity is cross-school by design. schoolId
     // embedded in each document scopes reads and writes.
     // ════════════════════════════════════════════════════════════════
-    match /allowed_users/{email} {
+    match /allowed_users/{uid} {
 
       // Own document, OR any coordinator / principal / admin in the same school,
       // OR any owner globally.
@@ -574,7 +574,7 @@ service cloud.firestore {
       // owner can only read user docs in their OWN school. (The old standalone
       // `isRole('owner')` branch let any owner read every school's user docs.)
       allow read: if isRootAdmin() || (isSignedIn() && (
-        userEmail() == email ||
+        request.auth.uid == uid ||
         (isManagement() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId)
       ));
 
@@ -648,7 +648,7 @@ service cloud.firestore {
           && request.resource.data.role == 'guardian') ||
 
         // ③ Non-admin self-update: role and schoolId MUST remain unchanged.
-        (userEmail() == email
+        (request.auth.uid == uid
           && 'role' in request.resource.data && 'role' in resource.data
           && request.resource.data.role     == resource.data.role
           && 'schoolId' in request.resource.data && 'schoolId' in resource.data
@@ -1245,17 +1245,22 @@ service cloud.firestore {
       }
 
       // (fee_meta counter rule is defined as a sibling match below.)
-      match /students/{roll}/payments/{paymentId} {
-        // Guardian reads only their own child's payments — scoped by both the
-        // class node and the roll, so no intra-class or cross-class leak.
-        allow read: if isSignedIn() && inSchool(sid) && (
-          isManagement() ||
-          (isRole('guardian')
-            && classId == userStudentClass().replace(' ', '_')
-            && roll == string(userStudentRoll()))
-        );
-        allow write: if isSignedIn() && inSchool(sid) && isManagement();
-      }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // FLAT PAYMENTS  (/schools/{sid}/payments/{paymentId})
+    //
+    // Holds individual payment transactions for students in the school.
+    // Guardian reads limited to their own child's payments.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/payments/{paymentId} {
+      allow read: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        (isRole('guardian')
+          && resource.data.className == userStudentClass()
+          && resource.data.roll == userStudentRoll())
+      );
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
     }
 
 

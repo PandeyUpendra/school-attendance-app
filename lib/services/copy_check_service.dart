@@ -12,9 +12,10 @@ class CopyCheckService {
   static final _db    = FirebaseFirestore.instance;
   static final _coll  = _db.collection('copy_checks');
 
-  static final CopyCheckService _instance = CopyCheckService._();
+  static CopyCheckService? _instance;
   CopyCheckService._();
-  factory CopyCheckService() => _instance;
+  factory CopyCheckService() => _instance ??= CopyCheckService._();
+  static set mockInstance(CopyCheckService? mock) => _instance = mock;
 
   CollectionReference _statuses(String checkId) =>
       _coll.doc(checkId).collection('statuses');
@@ -162,11 +163,14 @@ class CopyCheckService {
   }
 
   /// Get ALL checking sessions — for coordinator overview.
-  Future<List<CopyCheck>> getAllChecks({String? className}) async {
+  Future<List<CopyCheck>> getAllChecks({String? className, DateTime? since}) async {
     // schoolId filter required by the tenant-scoped copy_checks read rule.
     Query q = _coll.where('schoolId', isEqualTo: AuthService.currentSchoolId);
     if (className != null) {
       q = q.where('className', isEqualTo: className);
+    }
+    if (since != null) {
+      q = q.where('checkDate', isGreaterThanOrEqualTo: Timestamp.fromDate(since));
     }
     final snap = await q.get();
     return snap.docs
