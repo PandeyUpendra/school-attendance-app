@@ -5,6 +5,7 @@ import '../../services/announcement_service.dart';
 import '../../services/notification_service.dart';
 import '../../theme.dart';
 import '../../l10n/app_strings.dart';
+import '../../shared/utils/app_transitions.dart';
 import '../../shared/utils/app_logger.dart';
 
 /// Announcements / Notice Board.
@@ -746,7 +747,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
         backgroundColor: AppTheme.background,
         appBar: appBar,
         floatingActionButton: fab,
-        body: TabBarView(
+        body: PremiumTabBarView(
           controller: _tabController!,
           children: [
             _buildNoticeBoard(),

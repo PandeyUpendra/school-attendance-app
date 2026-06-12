@@ -1079,7 +1079,7 @@ class _OPManagePageState extends State<_OPManagePage> {
               Row(children: [
                 Expanded(child: Text(a['title'] as String? ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
                 Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: _primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                  child: Text(a['audience'] as String? ?? '', style: const TextStyle(fontSize: 10, color: _primary))),
+                  child: Text(_audienceLabel(a['audience'] as String? ?? ''), style: const TextStyle(fontSize: 10, color: _primary))),
               ]),
               const SizedBox(height: 4),
               Text(a['body'] as String? ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.black87, fontSize: 13)),
@@ -1454,4 +1454,12 @@ class _OwnerMorningSummaryCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _audienceLabel(String a) {
+  if (a == 'all') return 'Everyone';
+  if (a == 'teachers') return 'All Staff';
+  if (a == 'guardians') return 'All Guardians';
+  if (a.startsWith('class:')) return 'Class ${a.substring(6)}';
+  return '${a[0].toUpperCase()}${a.substring(1)}';
 }

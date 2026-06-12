@@ -5,6 +5,12 @@ import '../../theme.dart';
 ///
 /// Used as the "until the data gets loaded" state across every Firestore-backed
 /// screen so the loading experience is consistent app-wide.
+import 'premium_skeleton.dart';
+
+/// A standardized loading indicator with a premium shimmer skeleton loader.
+///
+/// Used as the "until the data gets loaded" state across every Firestore-backed
+/// screen so the loading experience is consistent app-wide.
 class LoadingState extends StatelessWidget {
   /// Message shown beneath the spinner while data is loading.
   final String message;
@@ -13,21 +19,10 @@ class LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(color: AppTheme.primary),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.primary.withValues(alpha: 0.7),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+        children: List.generate(6, (index) => PremiumSkeleton.listItem()),
       ),
     );
   }

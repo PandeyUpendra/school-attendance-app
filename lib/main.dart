@@ -28,6 +28,7 @@ import 'services/auth_service.dart';
 import 'services/base_firestore_service.dart';
 import 'services/birthday_service.dart';
 import 'services/timetable_service.dart';
+import './shared/utils/app_transitions.dart';
 final RouteObserver<PageRoute<dynamic>> routeObserver = RouteObserver<PageRoute<dynamic>>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -143,7 +144,7 @@ class _SchoolAppState extends State<SchoolApp> with WidgetsBindingObserver {
     if (session == null) return;
     await AuthService().clearSession();
     rootNavigatorKey.currentState?.pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      AppPageRoute(child: const LoginScreen()),
       (route) => false,
     );
   }
@@ -402,7 +403,7 @@ class _SplashGateState extends State<_SplashGate> {
   void _go(Widget screen) {
     if (!mounted) return;
     Navigator.pushReplacement(
-        context, MaterialPageRoute(builder: (_) => screen));
+        context, AppPageRoute(child: screen));
   }
 
   @override

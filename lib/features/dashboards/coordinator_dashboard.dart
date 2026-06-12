@@ -38,6 +38,7 @@ import '../tasks/unified_staff_task_screen.dart';
 import '../substitution/absent_teachers_screen.dart';
 import 'package:school_app/services/staff_task_service.dart';
 import '../../shared/utils/role_guard.dart';
+import '../../shared/utils/app_transitions.dart';
 import '../exams/exam_datesheet_screen.dart';
 import '../syllabus/syllabus_coverage_dashboard_screen.dart';
 import '../students/id_card_generator_screen.dart';
@@ -222,7 +223,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
     if (_navigating || !mounted) return;
     _navigating = true;
     try {
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+      await Navigator.push(context, AppPageRoute(child: screen));
       if (mounted) await _loadAll();
     } finally {
       _navigating = false;

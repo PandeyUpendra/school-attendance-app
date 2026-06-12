@@ -52,3 +52,4 @@ android/key.properties
 # Node dependencies (never commit)
 node_modules/
 firestore-debug.log
+users2.json

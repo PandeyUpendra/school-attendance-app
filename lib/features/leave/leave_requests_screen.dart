@@ -8,6 +8,7 @@ import '../timetable/free_bells_screen.dart';
 import '../substitution/substitution_plan_screen.dart';
 import '../../theme.dart';
 import '../../shared/widgets/refreshable_data.dart';
+import '../../shared/utils/app_transitions.dart';
 
 class LeaveRequestsScreen extends StatefulWidget {
   /// 'principal' | 'coordinator'
@@ -286,7 +287,7 @@ class _LeaveRequestsScreenState extends State<LeaveRequestsScreen>
           : null,
       body: _loading
           ? const LoadingState()
-          : TabBarView(
+          : PremiumTabBarView(
               controller: _tabCtrl,
               children: [
                 _buildList(_pending, showActions: true),

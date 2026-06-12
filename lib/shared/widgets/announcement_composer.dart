@@ -38,7 +38,7 @@ class _AnnouncementComposerState extends State<AnnouncementComposer> {
 
   final _titleCtrl = TextEditingController();
   final _msgCtrl = TextEditingController();
-  String _target = 'All Staff';
+  String _target = 'teachers';
   bool _sending = false;
 
   /// Currently selected dropdown value: a known title, [_kCustom], or null.
@@ -216,12 +216,14 @@ class _AnnouncementComposerState extends State<AnnouncementComposer> {
         value: _target,
         decoration: InputDecoration(
           labelText: context.tr('targetAudience'),
-          prefixIcon: Icon(Icons.group_outlined),
+          prefixIcon: const Icon(Icons.group_outlined),
           isDense: true,
         ),
-        items: ['All Staff', 'All Guardians', 'Everyone']
-            .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-            .toList(),
+        items: const [
+          DropdownMenuItem(value: 'teachers', child: Text('All Staff')),
+          DropdownMenuItem(value: 'guardians', child: Text('All Guardians')),
+          DropdownMenuItem(value: 'all', child: Text('Everyone')),
+        ],
         onChanged: (v) {
           if (v != null) setState(() => _target = v);
         },

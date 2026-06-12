@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import './shared/utils/app_transitions.dart';
 
 /// Single source of truth for the app's colour palette.
 ///
@@ -80,6 +81,27 @@ abstract class AppTheme {
     primaryColor: primary,
     primarySwatch: Colors.teal,
     scaffoldBackgroundColor: background,
+
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: PremiumPageTransitionsBuilder(),
+        TargetPlatform.iOS: PremiumPageTransitionsBuilder(),
+        TargetPlatform.macOS: PremiumPageTransitionsBuilder(),
+        TargetPlatform.windows: PremiumPageTransitionsBuilder(),
+        TargetPlatform.linux: PremiumPageTransitionsBuilder(),
+      },
+    ),
+
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.white,
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      clipBehavior: Clip.antiAliasWithSaveLayer,
+      dragHandleColor: Color(0xFFD1D5DB),
+      showDragHandle: true,
+    ),
 
     // AppBar: deep teal-green everywhere, no elevation, white status-bar icons.
     // Uses the darker shade so headers match the dark hero banners that sit
