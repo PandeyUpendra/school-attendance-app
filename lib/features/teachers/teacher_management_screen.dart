@@ -1710,6 +1710,11 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
       final teacherId = widget.existing?.id ??
           DateTime.now().millisecondsSinceEpoch.toString();
       final photoUrl = await _resolvePhotoUrl(teacherId);
+      final classTeacherOfVal = _isClassTeacher ? _classTeacherOf : null;
+      String sectionVal = widget.existing?.section ?? '';
+      if (_isClassTeacher && classTeacherOfVal != null) {
+        sectionVal = Teacher.extractSection(classTeacherOfVal);
+      }
       final teacher = Teacher(
         id: teacherId,
         name:    _nameCtrl.text.trim(),
@@ -1717,9 +1722,9 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
             ? _subjectCtrl.text.trim()
             : (_selectedSubject ?? ''),
         email:   _emailCtrl.text.trim().toLowerCase(),
-        section: widget.existing?.section ?? '',
+        section: sectionVal,
         isClassTeacher: _isClassTeacher,
-        classTeacherOf: _isClassTeacher ? _classTeacherOf : null,
+        classTeacherOf: classTeacherOfVal,
         schoolId: BaseFirestoreService.currentSchoolId ?? 'default_school',
         assignedClasses: widget.existing?.assignedClasses ?? const [],
         phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),

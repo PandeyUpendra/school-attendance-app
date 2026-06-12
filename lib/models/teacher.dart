@@ -65,32 +65,53 @@ class Teacher {
         if (emergencyContact != null) 'emergencyContact': emergencyContact,
       };
 
-  factory Teacher.fromJson(Map<String, dynamic> json) => Teacher(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        subject: json['subject'] as String,
-        email: json['email'] as String? ?? '',
-        section: json['section'] as String? ?? '',
-        isClassTeacher: json['isClassTeacher'] as bool? ?? false,
-        classTeacherOf: json['classTeacherOf'] as String?,
-        schoolId: json['schoolId'] as String? ?? 'default_school',
-        assignedClasses: (json['assignedClasses'] as List?)
-                ?.map((e) => e as String)
-                .toList() ??
-            [],
-        phone: json['phone'] as String?,
-        dateOfBirth: json['dateOfBirth'] as Timestamp?,
-        birthMonth: json['birthMonth'] as int? ??
-            (json['dateOfBirth'] as Timestamp?)?.toDate().month,
-        birthDay: json['birthDay'] as int? ??
-            (json['dateOfBirth'] as Timestamp?)?.toDate().day,
-        photoUrl: json['photoUrl'] as String?,
-        designation: json['designation'] as String?,
-        joiningDate: json['joiningDate'] as Timestamp?,
-        qualification: json['qualification'] as String?,
-        address: json['address'] as String?,
-        emergencyContact: json['emergencyContact'] as String?,
-      );
+  static String extractSection(String className) {
+    if (className.contains('-')) {
+      return className.split('-').last.trim();
+    }
+    if (className.contains(' ')) {
+      return className.split(' ').last.trim();
+    }
+    final match = RegExp(r'\d([A-Z])$').firstMatch(className);
+    if (match != null) {
+      return match.group(1) ?? '';
+    }
+    return '';
+  }
+
+  factory Teacher.fromJson(Map<String, dynamic> json) {
+    final classTeacherOf = json['classTeacherOf'] as String?;
+    String section = json['section'] as String? ?? '';
+    if (section.trim().isEmpty && classTeacherOf != null && classTeacherOf.isNotEmpty) {
+      section = extractSection(classTeacherOf);
+    }
+    return Teacher(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      subject: json['subject'] as String,
+      email: json['email'] as String? ?? '',
+      section: section,
+      isClassTeacher: json['isClassTeacher'] as bool? ?? false,
+      classTeacherOf: classTeacherOf,
+      schoolId: json['schoolId'] as String? ?? 'default_school',
+      assignedClasses: (json['assignedClasses'] as List?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+      phone: json['phone'] as String?,
+      dateOfBirth: json['dateOfBirth'] as Timestamp?,
+      birthMonth: json['birthMonth'] as int? ??
+          (json['dateOfBirth'] as Timestamp?)?.toDate().month,
+      birthDay: json['birthDay'] as int? ??
+          (json['dateOfBirth'] as Timestamp?)?.toDate().day,
+      photoUrl: json['photoUrl'] as String?,
+      designation: json['designation'] as String?,
+      joiningDate: json['joiningDate'] as Timestamp?,
+      qualification: json['qualification'] as String?,
+      address: json['address'] as String?,
+      emergencyContact: json['emergencyContact'] as String?,
+    );
+  }
 
   Teacher copyWith({
     String? name,

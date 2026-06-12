@@ -11,6 +11,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/student.dart';
+import '../../models/teacher.dart';
 import 'package:school_app/services/auth_service.dart';
 import 'package:school_app/services/student_service.dart';
 import 'package:school_app/services/timetable_service.dart';
@@ -127,6 +128,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
     super.initState();
     _className = widget.className;
     _section   = widget.section;
+    if (_section.trim().isEmpty && _className.isNotEmpty) {
+      _section = Teacher.extractSection(_className);
+    }
     _loadSettings();
     _loadRole();
     _checkConnectivity();
@@ -896,7 +900,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    final title = _section.isNotEmpty ? '$_className - $_section' : _className;
+    final title = (_section.isNotEmpty &&
+            !_className.endsWith('-$_section') &&
+            !_className.endsWith(' $_section'))
+        ? '$_className - $_section'
+        : _className;
     return AppBar(
       leading: (_isMarking && _alreadySaved)
           ? IconButton(
