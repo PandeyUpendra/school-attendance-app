@@ -14,6 +14,8 @@ import 'package:school_app/services/base_firestore_service.dart';
 import 'package:school_app/services/notification_service.dart';
 import 'package:school_app/services/staff_task_service.dart';
 import 'package:school_app/services/meeting_service.dart';
+import 'package:school_app/services/substitution_history_service.dart';
+import 'package:school_app/services/todo_service.dart';
 import 'package:school_app/shared/providers/locale_provider.dart';
 import 'package:school_app/shared/widgets/email_text_form_field.dart';
 
@@ -24,6 +26,8 @@ class MockUser extends Mock implements User {}
 class MockNotificationService extends Mock implements NotificationService {}
 class MockStaffTaskService extends Mock implements StaffTaskService {}
 class MockMeetingService extends Mock implements MeetingService {}
+class MockSubstitutionHistoryService extends Mock implements SubstitutionHistoryService {}
+class MockTodoService extends Mock implements TodoService {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +49,8 @@ void main() {
   late MockNotificationService mockNotificationService;
   late MockStaffTaskService mockStaffTaskService;
   late MockMeetingService mockMeetingService;
+  late MockSubstitutionHistoryService mockSubstitutionHistoryService;
+  late MockTodoService mockTodoService;
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -56,6 +62,8 @@ void main() {
     mockNotificationService = MockNotificationService();
     mockStaffTaskService = MockStaffTaskService();
     mockMeetingService = MockMeetingService();
+    mockSubstitutionHistoryService = MockSubstitutionHistoryService();
+    mockTodoService = MockTodoService();
 
     when(() => mockUserCredential.user).thenReturn(mockUser);
     when(() => mockUser.email).thenReturn('teacher@school.test');
@@ -93,11 +101,19 @@ void main() {
           studentSection: any(named: 'studentSection'),
         )).thenAnswer((_) => Stream.value(0));
 
+    when(() => mockSubstitutionHistoryService.streamSubstitutions(any()))
+        .thenAnswer((_) => Stream.empty());
+
+    when(() => mockTodoService.streamTodayReminders(any()))
+        .thenAnswer((_) => Stream.empty());
+
     AuthService.mockInstance = mockAuthService;
     TimetableService.mockInstance = mockTimetableService;
     NotificationService.mockInstance = mockNotificationService;
     StaffTaskService.mockInstance = mockStaffTaskService;
     MeetingService.mockInstance = mockMeetingService;
+    SubstitutionHistoryService.mockInstance = mockSubstitutionHistoryService;
+    TodoService.mockInstance = mockTodoService;
   });
 
   tearDown(() {
@@ -107,6 +123,8 @@ void main() {
     NotificationService.mockInstance = null;
     StaffTaskService.mockInstance = null;
     MeetingService.mockInstance = null;
+    SubstitutionHistoryService.mockInstance = null;
+    TodoService.mockInstance = null;
   });
 
   Widget createLoginScreen() {

@@ -86,4 +86,14 @@ class SubstitutionHistoryService {
   Future<void> deleteRecord(String id) async {
     await _col.doc(id).delete();
   }
+
+  // ── Stream today's substitutions for a school ──────────────────────────────
+  Stream<DocumentSnapshot<Map<String, dynamic>>> streamSubstitutions(String todayKey) {
+    return _db
+        .collection('schools')
+        .doc(AuthService.currentSchoolId)
+        .collection('substitutions')
+        .doc(todayKey)
+        .snapshots();
+  }
 }

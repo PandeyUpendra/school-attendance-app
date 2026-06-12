@@ -1,13 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:meta/meta.dart';
 import '../models/todo_item.dart';
 
 class TodoService {
-  static final _db    = FirebaseFirestore.instance;
-  static final _col   = _db.collection('personal_todos');
+  static FirebaseFirestore get _db => FirebaseFirestore.instance;
+  static CollectionReference<Map<String, dynamic>> get _col => _db.collection('personal_todos');
 
-  static final TodoService _instance = TodoService._();
+  static TodoService? _instance;
   TodoService._();
-  factory TodoService() => _instance;
+  factory TodoService() => _instance ??= TodoService._();
+
+  @visibleForTesting
+  static set mockInstance(TodoService? mock) => _instance = mock;
 
   Stream<List<TodoItem>> streamForUser(String userId) {
     // No orderBy — avoids the composite index requirement.

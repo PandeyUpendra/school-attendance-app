@@ -159,6 +159,10 @@ void main() {
       await tester.pumpWidget(createScreen());
       await tester.pumpAndSettle();
 
+      // Tap Take Attendance for Today
+      await tester.tap(find.text('Take Attendance for Today'));
+      await tester.pumpAndSettle();
+
       // Verify students rendered
       expect(find.text('Alice'), findsOneWidget);
       expect(find.text('Bob'), findsOneWidget);
@@ -206,6 +210,10 @@ void main() {
 
       // Pump screen
       await tester.pumpWidget(createScreen());
+      await tester.pumpAndSettle();
+
+      // Tap Take Attendance for Today
+      await tester.tap(find.text('Take Attendance for Today'));
       await tester.pumpAndSettle();
 
       // Tap Save

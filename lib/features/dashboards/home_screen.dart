@@ -35,6 +35,7 @@ import '../students/staff_remarks_screen.dart';
 import '../tasks/staff_tasks_screen.dart';
 import '../meeting/teacher_meeting_tasks_screen.dart';
 import '../../services/meeting_service.dart';
+import '../../services/substitution_history_service.dart';
 import '../birthdays/birthdays_screen.dart';
 import '../todo/todo_list_screen.dart';
 import '../todo/todo_reminder_banner.dart';
@@ -1110,12 +1111,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final todayKey = '${now.year}-${now.month}-${now.day}';
 
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('schools')
-          .doc(AuthService.currentSchoolId)
-          .collection('substitutions')
-          .doc(todayKey)
-          .snapshots(),
+      stream: SubstitutionHistoryService().streamSubstitutions(todayKey),
       builder: (context, snap) {
         // Optional inline banner — single-doc read, stay hidden on any error
         // rather than intruding.
