@@ -44,9 +44,15 @@ class Step3AcademicState extends State<Step3Academic> {
   void initState() {
     super.initState();
     final d = widget.initial;
-    // Convert stored integer class number to index (Class N → index N+2)
-    _fromIdx = (d.classesFrom + 2).clamp(0, _classOptions.length - 1);
-    _toIdx   = (d.classesTo   + 2).clamp(0, _classOptions.length - 1);
+    // Prefer label-based fields first, falling back to legacy integer index calculation
+    _fromIdx = _classOptions.indexOf(d.classesFromLabel ?? '');
+    if (_fromIdx < 0) {
+      _fromIdx = (d.classesFrom + 2).clamp(0, _classOptions.length - 1);
+    }
+    _toIdx = _classOptions.indexOf(d.classesToLabel ?? '');
+    if (_toIdx < 0) {
+      _toIdx = (d.classesTo + 2).clamp(0, _classOptions.length - 1);
+    }
     _sections = List.from(d.sectionsPerClass.isNotEmpty ? d.sectionsPerClass : ['A']);
     _yearStart = d.academicYearStart;
     _workingDays = d.workingDays;
@@ -60,6 +66,8 @@ class Step3AcademicState extends State<Step3Academic> {
     widget.onChanged(widget.initial.copyWith(
       classesFrom: _fromIdx >= 3 ? (_fromIdx - 2) : 1, // backward-compat integer
       classesTo:   _toIdx   >= 3 ? (_toIdx   - 2) : 1,
+      classesFromLabel: _classOptions[_fromIdx],
+      classesToLabel:   _classOptions[_toIdx],
       sectionsPerClass: List.from(_sections),
       classList: classList,
       academicYearStart: _yearStart,

@@ -77,7 +77,7 @@ class Step6Review extends StatelessWidget {
           stepIndex: 2,
           onEdit: onEditStep,
           children: [
-            _row(context.tr('classesColon'), 'Class ${data.classesFrom} to ${data.classesTo}'),
+            _row(context.tr('classesColon'), '${data.classesFromLabel ?? 'Class ${data.classesFrom}'} to ${data.classesToLabel ?? 'Class ${data.classesTo}'}'),
             _row(context.tr('sectionsPerClass'), data.sectionsPerClass.join(', ')),
             _row(context.tr('rvTotalClasses'), '${data.classList.length}'),
             _row(context.tr('rvAcademicYear'), '${context.tr('startsInPrefix')} ${data.academicYearStart}'),

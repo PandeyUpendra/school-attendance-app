@@ -831,7 +831,7 @@ class _OPManagePageState extends State<_OPManagePage> {
       final doc = await FirebaseFirestore.instance.collection('schools').doc(sid).collection('settings').doc('school').get();
       if (doc.exists && doc.data() != null) {
         final d = doc.data()!;
-        _schoolNameCtrl.text = d['name'] as String? ?? '';
+        _schoolNameCtrl.text = d['schoolName'] as String? ?? d['name'] as String? ?? '';
         _schoolPhoneCtrl.text = d['phone'] as String? ?? '';
         _schoolAddressCtrl.text = d['address'] as String? ?? '';
         _academicYearCtrl.text = d['academicYear'] as String? ?? '';
@@ -851,15 +851,16 @@ class _OPManagePageState extends State<_OPManagePage> {
     }
     setState(() => _settingsSaving = true);
     try {
-      // Fail loud instead of defaulting to 'school_1': an owner session always
-      // has a resolved school, and a silent fallback would read/write another
-      // tenant's data (SCALE-06).
-      final sid = AuthService.currentSchoolId;
-      await FirebaseFirestore.instance.collection('schools').doc(sid).collection('settings').doc('school').set({
-        'name': _schoolNameCtrl.text.trim(), 'phone': _schoolPhoneCtrl.text.trim(),
-        'address': _schoolAddressCtrl.text.trim(), 'academicYear': _academicYearCtrl.text.trim(),
+      // Save using SchoolSettingsService so it automatically invalidates cache,
+      // updates settings/school document, and syncs schoolName to settings/main.
+      await SchoolSettingsService().updateSchoolSettings({
+        'schoolName': _schoolNameCtrl.text.trim(),
+        'name': _schoolNameCtrl.text.trim(), // Keep both for backward compatibility
+        'phone': _schoolPhoneCtrl.text.trim(),
+        'address': _schoolAddressCtrl.text.trim(),
+        'academicYear': _academicYearCtrl.text.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('School settings saved'), backgroundColor: AppTheme.success));
     } catch (e) { if (mounted) _snack('Error: $e'); }
     if (mounted) setState(() => _settingsSaving = false);

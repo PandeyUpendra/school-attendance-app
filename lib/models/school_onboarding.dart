@@ -34,6 +34,8 @@ class SchoolOnboarding {
   String schoolTagline;
   bool isCompleted;
   int currentStep;
+  String? classesFromLabel;
+  String? classesToLabel;
 
   SchoolOnboarding({
     this.schoolName = '',
@@ -71,6 +73,8 @@ class SchoolOnboarding {
     this.schoolTagline = '',
     this.isCompleted = false,
     this.currentStep = 0,
+    this.classesFromLabel,
+    this.classesToLabel,
   });
 
   SchoolOnboarding copyWith({
@@ -109,6 +113,8 @@ class SchoolOnboarding {
     String? schoolTagline,
     bool? isCompleted,
     int? currentStep,
+    String? classesFromLabel,
+    String? classesToLabel,
   }) => SchoolOnboarding(
     schoolName: schoolName ?? this.schoolName,
     logoUrl: logoUrl ?? this.logoUrl,
@@ -145,6 +151,8 @@ class SchoolOnboarding {
     schoolTagline: schoolTagline ?? this.schoolTagline,
     isCompleted: isCompleted ?? this.isCompleted,
     currentStep: currentStep ?? this.currentStep,
+    classesFromLabel: classesFromLabel ?? this.classesFromLabel,
+    classesToLabel: classesToLabel ?? this.classesToLabel,
   );
 
   Map<String, dynamic> toJson() => {
@@ -183,6 +191,8 @@ class SchoolOnboarding {
     'schoolTagline': schoolTagline,
     'isCompleted': isCompleted,
     'currentStep': currentStep,
+    'classesFromLabel': classesFromLabel,
+    'classesToLabel': classesToLabel,
   };
 
   factory SchoolOnboarding.fromJson(Map<String, dynamic> j) => SchoolOnboarding(
@@ -221,6 +231,8 @@ class SchoolOnboarding {
     schoolTagline: j['schoolTagline'] as String? ?? '',
     isCompleted: j['isCompleted'] as bool? ?? false,
     currentStep: j['currentStep'] as int? ?? 0,
+    classesFromLabel: j['classesFromLabel'] as String?,
+    classesToLabel: j['classesToLabel'] as String?,
   );
 
   static List<String> generateClassList(

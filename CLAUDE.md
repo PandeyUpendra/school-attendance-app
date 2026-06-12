@@ -91,3 +91,7 @@ Plain Dart classes with `toJson()` / `fromJson()` — no code generation. Studen
 ### Firebase project
 
 Firebase project: `attendanceapp-e76e1`. Config lives in `lib/firebase_options.dart` (generated) and `android/app/google-services.json`.
+
+## Working Procedures
+
+- **Commit completed work**: As soon as a task or feature implementation is completed and verified, commit the changes to Git.
