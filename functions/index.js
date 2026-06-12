@@ -2285,3 +2285,396 @@ exports.reversePayment = onCall(
 );
 
 
+// ── Fee Pre-Aggregation Triggers and Backfill ───────────────────────────────
+
+function getDaysOverdueHelper(structure, paidPaise, now = new Date()) {
+  const installments = structure.installments || [];
+  if (installments.length === 0) return 0;
+
+  // Sort installments by dueDate
+  const sorted = [...installments].sort((a, b) => {
+    const dateA = a.dueDate.toDate ? a.dueDate.toDate() : new Date(a.dueDate);
+    const dateB = b.dueDate.toDate ? b.dueDate.toDate() : new Date(b.dueDate);
+    return dateA - dateB;
+  });
+
+  let cumulativePaise = 0;
+  for (const inst of sorted) {
+    const instAmountPaise = typeof inst.amountPaise === "number"
+      ? inst.amountPaise
+      : Math.round((inst.amount || 0) * 100);
+    cumulativePaise += instAmountPaise;
+    if (paidPaise < cumulativePaise) {
+      const dueDate = inst.dueDate.toDate ? inst.dueDate.toDate() : new Date(inst.dueDate);
+      if (dueDate < now) {
+        return Math.floor((now - dueDate) / (1000 * 60 * 60 * 24));
+      }
+      return 0;
+    }
+  }
+  return 0;
+}
+
+exports.onStudentFeePaidWritten = onDocumentWritten(
+  { document: "schools/{sid}/fee_payments/{classKey}/students/{roll}", region: "asia-south1" },
+  async (event) => {
+    const sid = event.params.sid;
+    const classKey = event.params.classKey;
+    const roll = Number.parseInt(event.params.roll, 10);
+    const after = event.data && event.data.after;
+    if (!after || !after.exists) {
+      return;
+    }
+    const afterData = after.data() || {};
+    const totalPaidPaise = typeof afterData.totalPaidPaise === "number" ? afterData.totalPaidPaise : 0;
+
+    const db = admin.firestore();
+    const className = classKey.replace(/_/g, " ");
+
+    try {
+      const studentSnap = await db.collection("schools").doc(sid).collection("students")
+        .where("className", "==", className)
+        .where("roll", "==", roll)
+        .limit(1)
+        .get();
+
+      if (studentSnap.empty) {
+        logger.warn(`[onStudentFeePaidWritten] Student not found for class: ${className}, roll: ${roll} in school ${sid}`);
+        return;
+      }
+
+      const studentDoc = studentSnap.docs[0];
+      await studentDoc.ref.update({
+        totalPaidPaise: totalPaidPaise,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (err) {
+      logger.error(`[onStudentFeePaidWritten] failed for ${sid}/${classKey}/${roll}`, err);
+    }
+  }
+);
+
+exports.syncStudentFeeAggregates = onDocumentWritten(
+  { document: "schools/{sid}/students/{studentId}", region: "asia-south1" },
+  async (event) => {
+    const sid = event.params.sid;
+    const studentId = event.params.studentId;
+    const before = event.data && event.data.before;
+    const after = event.data && event.data.after;
+    const beforeData = (before && before.exists) ? (before.data() || {}) : null;
+    const afterData = (after && after.exists) ? (after.data() || {}) : null;
+
+    const isVisible = (d) => !!d && d.promoted !== true && d.deletionPending !== true;
+    const beforeVisible = isVisible(beforeData);
+    const afterVisible = isVisible(afterData);
+
+    const db = admin.firestore();
+
+    if (!beforeVisible && !afterVisible) return;
+
+    try {
+      let newCollected = 0;
+      let newPending = 0;
+      let newOverdue = 0;
+      let newFullyPaid = false;
+      let newDaysOverdue = 0;
+      let newDuePaise = 0;
+
+      const afterClassKey = afterVisible ? afterData.className.replace(/ /g, "_") : null;
+      const beforeClassKey = beforeVisible ? beforeData.className.replace(/ /g, "_") : null;
+
+      if (afterVisible) {
+        let customFee = typeof afterData.feeAmount === "number" ? afterData.feeAmount : null;
+        if (customFee === null && typeof afterData.feeAmount === "string") {
+          customFee = parseFloat(afterData.feeAmount);
+        }
+
+        let duePaise = 0;
+        let structure = null;
+
+        if (customFee !== null && !isNaN(customFee)) {
+          duePaise = Math.round(customFee * 100);
+        } else if (afterClassKey) {
+          const structDoc = await db.collection("schools").doc(sid).collection("fee_structures").doc(afterClassKey).get();
+          if (structDoc.exists) {
+            structure = structDoc.data() || {};
+            duePaise = typeof structure.totalAnnualFeePaise === "number"
+              ? structure.totalAnnualFeePaise
+              : Math.round((structure.totalAnnualFee || 0) * 100);
+          }
+        }
+        newDuePaise = duePaise;
+
+        const paidPaise = typeof afterData.totalPaidPaise === "number" ? afterData.totalPaidPaise : 0;
+        newCollected = paidPaise < duePaise ? paidPaise : duePaise;
+        newPending = Math.max(0, duePaise - paidPaise);
+
+        if (newPending > 0 && structure && structure.installments && structure.installments.length > 0) {
+          newDaysOverdue = getDaysOverdueHelper(structure, paidPaise);
+          if (newDaysOverdue > 0) {
+            newOverdue = newPending;
+          }
+        }
+        newFullyPaid = duePaise > 0 && paidPaise >= duePaise;
+      }
+
+      const oldCollected = (beforeVisible && typeof beforeData.feeCollectedPaise === "number") ? beforeData.feeCollectedPaise : 0;
+      const oldPending = (beforeVisible && typeof beforeData.feePendingPaise === "number") ? beforeData.feePendingPaise : 0;
+      const oldOverdue = (beforeVisible && typeof beforeData.feeOverduePaise === "number") ? beforeData.feeOverduePaise : 0;
+      const oldDuePaise = (beforeVisible && typeof beforeData.feeDuePaise === "number") ? beforeData.feeDuePaise : 0;
+      const oldFullyPaid = beforeVisible && beforeData.feeFullyPaid === true;
+
+      const deltaCollected = newCollected - oldCollected;
+      const deltaPending = newPending - oldPending;
+      const deltaOverdue = newOverdue - oldOverdue;
+      const deltaStudentCount = (afterVisible ? 1 : 0) - (beforeVisible ? 1 : 0);
+      const deltaFullyPaid = (newFullyPaid ? 1 : 0) - (oldFullyPaid ? 1 : 0);
+      const deltaDue = newDuePaise - oldDuePaise;
+
+      const studentFieldsChanged =
+        afterVisible && (
+          afterData.feeCollectedPaise !== newCollected ||
+          afterData.feePendingPaise !== newPending ||
+          afterData.feeOverduePaise !== newOverdue ||
+          afterData.feeDaysOverdue !== newDaysOverdue ||
+          afterData.feeFullyPaid !== newFullyPaid ||
+          afterData.feeDuePaise !== newDuePaise
+        );
+
+      const batch = db.batch();
+
+      if (studentFieldsChanged) {
+        batch.update(db.collection("schools").doc(sid).collection("students").doc(studentId), {
+          feeCollectedPaise: newCollected,
+          feePendingPaise: newPending,
+          feeOverduePaise: newOverdue,
+          feeDaysOverdue: newDaysOverdue,
+          feeFullyPaid: newFullyPaid,
+          feeDuePaise: newDuePaise
+        });
+      }
+
+      const schoolSummaryRef = db.collection("schools").doc(sid).collection("summaries").doc("fees");
+      batch.set(schoolSummaryRef, {
+        collectedPaise: admin.firestore.FieldValue.increment(deltaCollected),
+        pendingPaise: admin.firestore.FieldValue.increment(deltaPending),
+        overduePaise: admin.firestore.FieldValue.increment(deltaOverdue),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      if (beforeClassKey === afterClassKey && afterClassKey) {
+        const classSummaryRef = db.collection("schools").doc(sid).collection("class_fee_summaries").doc(afterClassKey);
+        batch.set(classSummaryRef, {
+          studentCount: admin.firestore.FieldValue.increment(deltaStudentCount),
+          fullyPaid: admin.firestore.FieldValue.increment(deltaFullyPaid),
+          totalCollectedPaise: admin.firestore.FieldValue.increment(deltaCollected),
+          totalDuePaise: admin.firestore.FieldValue.increment(deltaDue),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      } else {
+        if (beforeClassKey) {
+          const oldClassRef = db.collection("schools").doc(sid).collection("class_fee_summaries").doc(beforeClassKey);
+          batch.set(oldClassRef, {
+            studentCount: admin.firestore.FieldValue.increment(-1),
+            fullyPaid: admin.firestore.FieldValue.increment(oldFullyPaid ? -1 : 0),
+            totalCollectedPaise: admin.firestore.FieldValue.increment(-oldCollected),
+            totalDuePaise: admin.firestore.FieldValue.increment(-oldDuePaise),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        }
+        if (afterClassKey) {
+          const newClassRef = db.collection("schools").doc(sid).collection("class_fee_summaries").doc(afterClassKey);
+          batch.set(newClassRef, {
+            studentCount: admin.firestore.FieldValue.increment(1),
+            fullyPaid: admin.firestore.FieldValue.increment(newFullyPaid ? 1 : 0),
+            totalCollectedPaise: admin.firestore.FieldValue.increment(newCollected),
+            totalDuePaise: admin.firestore.FieldValue.increment(newDuePaise),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        }
+      }
+
+      await batch.commit();
+
+    } catch (err) {
+      logger.error(`[syncStudentFeeAggregates] failed for ${sid}/${studentId}`, err);
+    }
+  }
+);
+
+exports.backfillFeeSummaries = onCall(
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: false },
+  async (request) => {
+    const db = admin.firestore();
+
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Auth required.");
+    }
+
+    try {
+      const schoolsSnap = await db.collection("schools").get();
+      const results = [];
+
+      for (const schoolDoc of schoolsSnap.docs) {
+        const sid = schoolDoc.id;
+
+        await db.collection("schools").doc(sid).collection("summaries").doc("fees").delete();
+
+        const classSummariesSnap = await db.collection("schools").doc(sid).collection("class_fee_summaries").get();
+        const summaryBatch = db.batch();
+        for (const doc of classSummariesSnap.docs) {
+          summaryBatch.delete(doc.ref);
+        }
+        await summaryBatch.commit();
+
+        const structuresSnap = await db.collection("schools").doc(sid).collection("fee_structures").get();
+        const structures = {};
+        for (const doc of structuresSnap.docs) {
+          structures[doc.id] = doc.data() || {};
+        }
+
+        const studentsSnap = await db.collection("schools").doc(sid).collection("students").get();
+
+        let totalCollectedPaise = 0;
+        let totalPendingPaise = 0;
+        let totalOverduePaise = 0;
+
+        const classStats = {};
+
+        const studentBatch = db.batch();
+        let studentBatchCount = 0;
+
+        for (const studentDoc of studentsSnap.docs) {
+          const sData = studentDoc.data() || {};
+          const isVisible = sData.promoted !== true && sData.deletionPending !== true;
+
+          if (!isVisible) {
+            studentBatch.update(studentDoc.ref, {
+              feeCollectedPaise: 0,
+              feePendingPaise: 0,
+              feeOverduePaise: 0,
+              feeDaysOverdue: 0,
+              feeFullyPaid: false,
+              feeDuePaise: 0
+            });
+            studentBatchCount++;
+            if (studentBatchCount >= 400) {
+              await studentBatch.commit();
+              studentBatchCount = 0;
+            }
+            continue;
+          }
+
+          const className = sData.className || "";
+          const classKey = className.replace(/ /g, "_");
+          const roll = typeof sData.roll === "number" ? sData.roll : 0;
+
+          let totalPaidPaise = typeof sData.totalPaidPaise === "number" ? sData.totalPaidPaise : 0;
+          if (totalPaidPaise === 0 && className && roll > 0) {
+            const feePaymentDoc = await db.collection("schools").doc(sid)
+              .collection("fee_payments").doc(classKey)
+              .collection("students").doc(String(roll)).get();
+            if (feePaymentDoc.exists) {
+              totalPaidPaise = feePaymentDoc.data().totalPaidPaise || 0;
+            }
+          }
+
+          let customFee = typeof sData.feeAmount === "number" ? sData.feeAmount : null;
+          if (customFee === null && typeof sData.feeAmount === "string") {
+            customFee = parseFloat(sData.feeAmount);
+          }
+
+          let duePaise = 0;
+          const structure = structures[classKey];
+          if (customFee !== null && !isNaN(customFee)) {
+            duePaise = Math.round(customFee * 100);
+          } else if (structure) {
+            duePaise = typeof structure.totalAnnualFeePaise === "number"
+              ? structure.totalAnnualFeePaise
+              : Math.round((structure.totalAnnualFee || 0) * 100);
+          }
+
+          const collectedPaise = totalPaidPaise < duePaise ? totalPaidPaise : duePaise;
+          const pendingPaise = Math.max(0, duePaise - totalPaidPaise);
+          let overduePaise = 0;
+          let daysOverdue = 0;
+
+          if (pendingPaise > 0 && structure && structure.installments && structure.installments.length > 0) {
+            daysOverdue = getDaysOverdueHelper(structure, totalPaidPaise);
+            if (daysOverdue > 0) {
+              overduePaise = pendingPaise;
+            }
+          }
+
+          const fullyPaid = duePaise > 0 && totalPaidPaise >= duePaise;
+
+          totalCollectedPaise += collectedPaise;
+          totalPendingPaise += pendingPaise;
+          totalOverduePaise += overduePaise;
+
+          if (!classStats[classKey]) {
+            classStats[classKey] = {
+              className,
+              studentCount: 0,
+              fullyPaid: 0,
+              totalCollectedPaise: 0,
+              totalDuePaise: 0
+            };
+          }
+          classStats[classKey].studentCount++;
+          if (fullyPaid) classStats[classKey].fullyPaid++;
+          classStats[classKey].totalCollectedPaise += collectedPaise;
+          classStats[classKey].totalDuePaise += duePaise;
+
+          studentBatch.update(studentDoc.ref, {
+            totalPaidPaise: totalPaidPaise,
+            feeCollectedPaise: collectedPaise,
+            feePendingPaise: pendingPaise,
+            feeOverduePaise: overduePaise,
+            feeDaysOverdue: daysOverdue,
+            feeFullyPaid: fullyPaid,
+            feeDuePaise: duePaise
+          });
+          studentBatchCount++;
+
+          if (studentBatchCount >= 400) {
+            await studentBatch.commit();
+            studentBatchCount = 0;
+          }
+        }
+
+        if (studentBatchCount > 0) {
+          await studentBatch.commit();
+        }
+
+        const classBatch = db.batch();
+        for (const [ckey, stats] of Object.entries(classStats)) {
+          const classRef = db.collection("schools").doc(sid).collection("class_fee_summaries").doc(ckey);
+          classBatch.set(classRef, {
+            ...stats,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+        }
+        await classBatch.commit();
+
+        const schoolRef = db.collection("schools").doc(sid).collection("summaries").doc("fees");
+        await schoolRef.set({
+          collectedPaise: totalCollectedPaise,
+          pendingPaise: totalPendingPaise,
+          overduePaise: totalOverduePaise,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        results.push({ schoolId: sid, studentsProcessed: studentsSnap.size });
+      }
+
+      return { ok: true, results };
+    } catch (err) {
+      logger.error("[backfillFeeSummaries] failed", err);
+      throw new HttpsError("internal", err.message);
+    }
+  }
+);
+
+
+

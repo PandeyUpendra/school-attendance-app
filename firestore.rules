@@ -605,9 +605,10 @@ service cloud.firestore {
       ));
 
       allow update: if isRootAdmin() || (isSignedIn() && (
-        // Self update: status can transition to 'active', name/phone/designation can be updated, schoolId can switch
+        // Self update: status can transition to 'active', schoolId can switch (other fields require Cloud Functions)
         (userEmail() == email &&
          request.resource.data.role == resource.data.role &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['schoolId', 'status']) &&
          (request.resource.data.schoolId == resource.data.schoolId || 
           ('schoolIds' in resource.data && request.resource.data.schoolId in resource.data.schoolIds))) ||
         
@@ -1224,6 +1225,25 @@ service cloud.firestore {
           && resource.data.roll == userStudentRoll())
       );
       allow write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
+    }
+
+
+    // CLASS FEE SUMMARIES  (/schools/{sid}/class_fee_summaries/{classKey})
+    //
+    // Holds pre-aggregated class-wide fee metrics. Read-only for management.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/class_fee_summaries/{classKey} {
+      allow read: if isSignedIn() && inSchool(sid) && isManagement();
+      allow write: if false;
+    }
+
+    // SCHOOL SUMMARIES  (/schools/{sid}/summaries/{summaryId})
+    //
+    // Holds school-wide dashboard rollups (e.g. summaries/fees). Read-only for management.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/summaries/{summaryId} {
+      allow read: if isSignedIn() && inSchool(sid) && isManagement();
+      allow write: if false;
     }
 
 

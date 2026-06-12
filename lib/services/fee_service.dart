@@ -520,11 +520,56 @@ class FeeService extends BaseFirestoreService {
 
   /// Returns one [ClassFeeSummary] per entry in [classes].
   /// Fires parallel requests per class; each class fires parallel per-student requests.
+  /// Returns one [ClassFeeSummary] per entry in [classes].
+  /// Refactored to read pre-aggregated class summaries from Firestore in a single query (O(C) complexity).
+  /// Falls back to O(N) client-side aggregation if class summaries are not initialized.
   Future<List<ClassFeeSummary>> getClassSummaries({
     required List<String> classes,
   }) async {
     if (classes.isEmpty) return [];
 
+    try {
+      final summariesSnap = await schoolCollection(_sid, 'class_fee_summaries').get();
+      if (summariesSnap.docs.isNotEmpty) {
+        final Map<String, Map<String, dynamic>> summaryMap = {
+          for (final doc in summariesSnap.docs)
+            (doc.data()['className'] as String? ?? ''): doc.data()
+        };
+
+        final List<ClassFeeSummary> out = [];
+        for (final cls in classes) {
+          final data = summaryMap[cls];
+          if (data == null) {
+            final structure = await getFeeStructure(className: cls);
+            out.add(ClassFeeSummary(
+              className: cls,
+              studentCount: 0,
+              fullyPaid: 0,
+              totalDue: 0.0,
+              totalCollected: 0.0,
+              totalAnnualFee: structure.totalAnnualFee,
+            ));
+          } else {
+            final totalCollected = paiseToRupees((data['totalCollectedPaise'] as num?)?.toInt() ?? 0);
+            final totalDue = paiseToRupees((data['totalDuePaise'] as num?)?.toInt() ?? 0);
+            final totalAnnualFee = paiseToRupees((data['totalAnnualFeePaise'] as num?)?.toInt() ?? 0);
+            out.add(ClassFeeSummary(
+              className: cls,
+              studentCount: (data['studentCount'] as num?)?.toInt() ?? 0,
+              fullyPaid: (data['fullyPaid'] as num?)?.toInt() ?? 0,
+              totalDue: totalDue,
+              totalCollected: totalCollected,
+              totalAnnualFee: totalAnnualFee > 0 ? totalAnnualFee : totalDue / ((data['studentCount'] as num?)?.toInt() ?? 1),
+            ));
+          }
+        }
+        return out;
+      }
+    } catch (e) {
+      // Fallback to real-time calculation if any read error occurs
+    }
+
+    // ── FALLBACK REAL-TIME AGGREGATION ──
     // Load all students once
     final studentSnap = await schoolCollection(_sid, 'students').get();
     final byClass = <String, List<Map<String, dynamic>>>{};
@@ -535,11 +580,8 @@ class FeeService extends BaseFirestoreService {
       byClass.putIfAbsent(cls, () => []).add(data);
     }
 
-    // One collection-group query for ALL paid amounts (#25/#72) instead of a
-    // per-student fan-out; null → per-roll fallback inside _classPaid.
     final agg = await _aggregatePaidPaise(classes);
 
-    // Load structure + paid overview per class in parallel
     final futures = classes.map((cls) async {
       final studs = byClass[cls] ?? [];
       final rolls = studs
@@ -554,7 +596,6 @@ class FeeService extends BaseFirestoreService {
       final structure = results[0] as FeeStructure;
       final paidMap   = results[1] as Map<int, double>;
 
-      // Aggregate in integer paise to avoid floating-point drift (#31).
       final totalCollected = paiseToRupees(
           paidMap.values.fold<int>(0, (a, b) => a + rupeesToPaise(b)));
       final totalDue       =
@@ -581,8 +622,51 @@ class FeeService extends BaseFirestoreService {
 
   // ── School-wide summary ────────────────────────────────────────────────────
 
-  /// Aggregates fee data across all students.
+  /// Aggregates fee data across all students using server-side rollup summaries (O(1) complexity).
+  /// Falls back to real-time O(N) calculation if the rollup summary is not initialized.
   Future<Map<String, dynamic>> getFeesSummary() async {
+    try {
+      final summaryDoc = await schoolCollection(_sid, 'summaries').doc('fees').get();
+      if (summaryDoc.exists && summaryDoc.data() != null) {
+        final data = summaryDoc.data()!;
+        final collected = paiseToRupees((data['collectedPaise'] as num?)?.toInt() ?? 0);
+        final pending = paiseToRupees((data['pendingPaise'] as num?)?.toInt() ?? 0);
+        final overdue = paiseToRupees((data['overduePaise'] as num?)?.toInt() ?? 0);
+
+        // Fetch top 10 defaulters via indexed query
+        final defaultersSnap = await schoolCollection(_sid, 'students')
+            .where('promoted', isEqualTo: false)
+            .where('deletionPending', isEqualTo: false)
+            .where('feePendingPaise', isGreaterThan: 0)
+            .orderBy('feePendingPaise', descending: true)
+            .limit(10)
+            .get();
+
+        final defaulters = defaultersSnap.docs.map((doc) {
+          final sData = doc.data();
+          final pendingPaise = (sData['feePendingPaise'] as num?)?.toInt() ?? 0;
+          final days = (sData['feeDaysOverdue'] as num?)?.toInt() ?? 0;
+          return {
+            'name':      sData['name'] ?? '',
+            'className': sData['className'] ?? '',
+            'amount':    paiseToRupees(pendingPaise),
+            'daysOverdue': days,
+            'phone':     sData['parentPhone'] ?? sData['phone'] ?? '',
+          };
+        }).toList();
+
+        return {
+          'collected': collected,
+          'pending':   pending,
+          'overdue':   overdue,
+          'defaulters': defaulters,
+        };
+      }
+    } catch (e) {
+      // Fallback to real-time calculation if any error occurs
+    }
+
+    // ── FALLBACK REAL-TIME AGGREGATION ──
     final studentSnap = await schoolCollection(_sid, 'students').get();
 
     final byClass = <String, List<Map<String, dynamic>>>{};
@@ -593,16 +677,8 @@ class FeeService extends BaseFirestoreService {
       byClass.putIfAbsent(cls, () => []).add(data);
     }
 
-    // One collection-group query for ALL paid amounts (#25/#72); null → fallback.
     final agg = await _aggregatePaidPaise(byClass.keys.toList());
 
-    // Accumulate in integer paise (no float drift, #31) and convert once.
-    //   collected = actual cash received, capped per student at the amount due
-    //   pending   = total outstanding (due − paid) across all students
-    //   overdue   = the outstanding portion whose instalment due-date has passed
-    // Previously "collected" added the full due ONLY for fully-paid students, so
-    // partial payments contributed nothing and the figure never reconciled with
-    // the receipt ledger (#32); defaulters reported the wrong amount (#33).
     int collectedP = 0, pendingP = 0, overdueP = 0;
     final defaulters = <Map<String, dynamic>>[];
     final now = DateTime.now();
@@ -630,7 +706,6 @@ class FeeService extends BaseFirestoreService {
         if (roll <= 0) continue;
         final paidPaise = rupeesToPaise(paidMap[roll] ?? 0);
 
-        // Cash actually collected toward this student's fee, capped at the due.
         collectedP += paidPaise < duePaise ? paidPaise : duePaise;
 
         final shortfallPaise = duePaise - paidPaise;
@@ -653,7 +728,6 @@ class FeeService extends BaseFirestoreService {
     final pending   = paiseToRupees(pendingP);
     final overdue   = paiseToRupees(overdueP);
 
-    // num→double so a stored int amount can't throw on the cast (#158).
     defaulters.sort((a, b) =>
         (b['amount'] as num).toDouble().compareTo((a['amount'] as num).toDouble()));
 

@@ -320,6 +320,15 @@
         { "fieldPath": "schoolId",  "order": "ASCENDING" },
         { "fieldPath": "checkDate", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "students",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "promoted",        "order": "ASCENDING" },
+        { "fieldPath": "deletionPending", "order": "ASCENDING" },
+        { "fieldPath": "feePendingPaise", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
