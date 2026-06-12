@@ -631,8 +631,8 @@ service cloud.firestore {
     // SCHOOL ROOT DOCUMENT  (/schools/{sid})
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid} {
-      allow read:  if isSignedIn() && inSchool(sid);
-      allow write: if isSignedIn() && inSchool(sid) && isStrictAdmin();
+      allow read:  if isRootAdmin() || (isSignedIn() && inSchool(sid));
+      allow write: if isRootAdmin() || (isSignedIn() && inSchool(sid) && isStrictAdmin());
     }
 
 
