@@ -230,7 +230,7 @@ class _TodoTile extends StatelessWidget {
           context: context,
           builder: (ctx) => AlertDialog(
             title: Text(context.tr('deleteTaskTitle')),
-            content: Text('Delete "${item.title}"?'),
+            content: Text(context.tr('deleteItemTitleConfirm').replaceAll('{title}', item.title)),
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx, false),
@@ -499,7 +499,7 @@ class _AddTodoSheetState extends State<_AddTodoSheet> {
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to save task: $e'),
+          content: Text(context.tr('failedToSaveTaskError').replaceAll('{error}', e.toString())),
           backgroundColor: Colors.red.shade700,
         ));
       }
@@ -570,9 +570,9 @@ class _AddTodoSheetState extends State<_AddTodoSheet> {
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   isExpanded: true,
-                  hint: const Padding(
+                  hint: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('Choose a common task…',
+                    child: Text(context.tr('chooseCommonTaskHint'),
                         style: TextStyle(fontSize: 14)),
                   ),
                   value: _isCustom
@@ -585,13 +585,13 @@ class _AddTodoSheetState extends State<_AddTodoSheet> {
                           value: t,
                           child: Text(t, style: const TextStyle(fontSize: 14)),
                         )),
-                    const DropdownMenuItem(
+                    DropdownMenuItem(
                       value: _customKey,
                       child: Row(children: [
                         Icon(Icons.edit_outlined,
                             size: 16, color: AppTheme.primary),
                         SizedBox(width: 8),
-                        Text('Add custom task…',
+                        Text(context.tr('addCustomTaskHint'),
                             style: TextStyle(
                                 fontSize: 14,
                                 color: AppTheme.primary,
@@ -624,7 +624,7 @@ class _AddTodoSheetState extends State<_AddTodoSheet> {
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   labelText: context.tr('customTaskTitle'),
-                  hintText: 'e.g. Update school calendar',
+                  hintText: context.tr('customTaskHint'),
                   prefixIcon: const Icon(Icons.edit_outlined),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10)),
@@ -941,7 +941,7 @@ class _EditTodoSheetState extends State<_EditTodoSheet> {
                     context: context,
                     builder: (ctx) => AlertDialog(
                       title: Text(context.tr('deleteTaskTitle')),
-                      content: Text('Delete "${widget.item.title}"?'),
+                      content: Text(context.tr('deleteWidgetItemTitleConfirm').replaceAll('{title}', widget.item.title)),
                       actions: [
                         TextButton(
                             onPressed: () => Navigator.pop(ctx, false),

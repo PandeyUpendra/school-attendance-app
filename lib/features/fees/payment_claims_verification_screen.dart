@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -454,7 +455,7 @@ class _PaymentClaimsVerificationScreenState extends State<PaymentClaimsVerificat
                 Navigator.pop(ctx, true);
               }
             },
-            child: const Text('Reject Claim'),
+            child: Text(context.tr('rejectClaim')),
           ),
         ],
       ),

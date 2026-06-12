@@ -218,7 +218,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
         _loading         = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not load dashboard: $e'),
+        content: Text(context.tr('couldNotLoadDashboardError').replaceAll('{error}', e.toString())),
         backgroundColor: Colors.red.shade700,
         duration: const Duration(seconds: 8),
       ));
@@ -373,7 +373,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               _FeatureTile(
                 icon: Icons.summarize_outlined,
                 color: AppTheme.primary,
-                title: "Today's Digest",
+                title: context.tr('todaySDigest'),
                 subtitle: context.tr('subPrincipalDigestDesc'),
                 onTap: () => _navigate(const PrincipalDigestScreen()),
               ),
@@ -581,7 +581,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                       fontSize: 14, fontWeight: FontWeight.w700)),
               if (!s.marked) ...[
                 const SizedBox(width: 8),
-                Text('Not marked yet',
+                Text(context.tr('notMarkedYet'),
                     style: TextStyle(
                         fontSize: 11,
                         color: Colors.grey.shade400,

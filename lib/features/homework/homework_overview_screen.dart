@@ -60,7 +60,7 @@ class _HomeworkOverviewScreenState extends State<HomeworkOverviewScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: Text(context.tr('deleteHomeworkQ')),
-        content: Text('Delete "${hw.title}" posted by ${hw.teacherName}?'),
+        content: Text(context.tr('deleteHomeworkConfirm').replaceAll('{title}', hw.title).replaceAll('{teacher}', hw.teacherName)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -367,14 +367,14 @@ class _CoordHomeworkCard extends StatelessWidget {
               Icon(Icons.person_outline,
                   size: 13, color: Colors.grey.shade500),
               const SizedBox(width: 4),
-              Text('By ${hw.teacherName}',
+              Text(context.tr('homeworkPostedByTeacher').replaceAll('{teacher}', hw.teacherName),
                   style: TextStyle(
                       fontSize: 12, color: Colors.grey.shade500)),
               const Spacer(),
               Icon(Icons.event_outlined,
                   size: 13, color: Colors.grey.shade500),
               const SizedBox(width: 4),
-              Text('Due: $due',
+              Text(context.tr('homeworkDueWithDate').replaceAll('{due}', due),
                   style: TextStyle(
                       fontSize: 12, color: Colors.grey.shade500)),
               const SizedBox(width: 8),

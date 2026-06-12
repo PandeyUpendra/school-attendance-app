@@ -341,7 +341,7 @@ class _PromotionDryRunDialogState extends State<PromotionDryRunDialog> with Sing
     if (_error != null) {
       return AlertDialog(
         title: const Text("Dry-run Failed"),
-        content: Text("Error: $_error"),
+        content: Text(context.tr('errorWithDetailsState').replaceAll('{error}', _error.toString())),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -355,7 +355,7 @@ class _PromotionDryRunDialogState extends State<PromotionDryRunDialog> with Sing
     final skipped = _analysis.skipped;
 
     return AlertDialog(
-      title: const Text("Promotion Dry-Run Preview"),
+      title: Text(context.tr('promotionDryRunPreview')),
       content: SizedBox(
         width: double.maxFinite,
         height: 400,
@@ -387,7 +387,7 @@ class _PromotionDryRunDialogState extends State<PromotionDryRunDialog> with Sing
                 controller: _tabCtrl,
                 children: [
                   toPromote.isEmpty
-                      ? const Center(child: Text("No students to promote"))
+                      ? Center(child: Text(context.tr('noStudentsToPromote')))
                       : ListView.builder(
                           itemCount: toPromote.length,
                           itemBuilder: (context, idx) {
@@ -396,7 +396,7 @@ class _PromotionDryRunDialogState extends State<PromotionDryRunDialog> with Sing
                               dense: true,
                               leading: const Icon(Icons.check_circle_outline, color: Colors.green),
                               title: Text(s.name),
-                              subtitle: Text("Roll: ${s.roll} | Admission ID: ${s.admissionId}"),
+                              subtitle: Text(context.tr('rollAdmissionIdLabel').replaceAll('{roll}', s.roll.toString()).replaceAll('{admissionId}', s.admissionId)),
                             );
                           },
                         ),

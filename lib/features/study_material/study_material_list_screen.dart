@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/study_material.dart';
 import '../../services/study_material_service.dart';
 import '../../theme.dart';
+import '../../l10n/app_strings.dart';
 
 class StudyMaterialListScreen extends StatefulWidget {
   final String className;
@@ -74,7 +75,7 @@ class _StudyMaterialListScreenState extends State<StudyMaterialListScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cannot open file: $e'), backgroundColor: AppTheme.danger),
+        SnackBar(content: Text(context.tr('cannotOpenFile').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
       );
     }
   }
@@ -86,7 +87,7 @@ class _StudyMaterialListScreenState extends State<StudyMaterialListScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Text('Study Materials (Class ${widget.className}$sec)'),
+        title: Text(context.tr('studyMaterialsTitle').replaceAll('{class}', '${widget.className}$sec')),
         backgroundColor: AppTheme.primaryDark,
         elevation: 0,
         actions: [
@@ -118,7 +119,7 @@ class _StudyMaterialListScreenState extends State<StudyMaterialListScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: TextField(
         decoration: InputDecoration(
-          hintText: 'Search study resources...',
+          hintText: context.tr('searchStudyResources'),
           prefixIcon: const Icon(Icons.search),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
@@ -181,7 +182,7 @@ class _StudyMaterialListScreenState extends State<StudyMaterialListScreen> {
           Icon(Icons.library_books_outlined, size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isEmpty ? 'No study materials posted yet' : 'No matching materials found',
+            _searchQuery.isEmpty ? context.tr('noStudyMaterialsPosted') : context.tr('noMatchingMaterialsFound'),
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
           ),
         ],
@@ -257,7 +258,7 @@ class _StudyMaterialListScreenState extends State<StudyMaterialListScreen> {
                     ElevatedButton.icon(
                       onPressed: () => _openFile(mat.fileUrl),
                       icon: const Icon(Icons.download, size: 14),
-                      label: const Text('Download'),
+                      label: Text(context.tr('download')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
                         foregroundColor: Colors.white,

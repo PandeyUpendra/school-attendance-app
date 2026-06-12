@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import '../../models/datesheet.dart';
 import '../../models/exam.dart';
@@ -239,7 +240,7 @@ class _ExamDatesheetScreenState extends State<ExamDatesheetScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Exam Datesheets'),
+        title: Text(context.tr('examDatesheets')),
         backgroundColor: AppTheme.primaryDark,
         elevation: 0,
       ),
@@ -290,8 +291,8 @@ class _ExamDatesheetScreenState extends State<ExamDatesheetScreen> {
           if (_exams.isNotEmpty)
             DropdownButtonFormField<Exam>(
               value: _selectedExam,
-              decoration: const InputDecoration(
-                labelText: 'Active Exam',
+              decoration: InputDecoration(
+                labelText: context.tr('activeExam'),
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 isDense: true,
                 border: OutlineInputBorder(),
@@ -320,7 +321,7 @@ class _ExamDatesheetScreenState extends State<ExamDatesheetScreen> {
         children: [
           Icon(Icons.assignment_outlined, size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 16),
-          const Text('No exams created for this class', style: TextStyle(fontWeight: FontWeight.bold)),
+          Text(context.tr('noExamsCreated'), style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           const Text('Create an exam under Coordinator Dashboard → Exams first.', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
         ],
@@ -380,8 +381,8 @@ class _ExamDatesheetScreenState extends State<ExamDatesheetScreen> {
                     // Time Slot Picker
                     DropdownButtonFormField<String>(
                       value: _timeSelections[sub],
-                      decoration: const InputDecoration(
-                        labelText: 'Time Slot *',
+                      decoration: InputDecoration(
+                        labelText: context.tr('timeSlotRequired'),
                         prefixIcon: Icon(Icons.access_time, size: 18),
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -402,9 +403,9 @@ class _ExamDatesheetScreenState extends State<ExamDatesheetScreen> {
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _dateControllers['${sub}_custom_time'] ??= TextEditingController(),
-                        decoration: const InputDecoration(
-                          labelText: 'Custom Time Description *',
-                          hintText: 'e.g. 02:00 PM - 05:00 PM',
+                        decoration: InputDecoration(
+                          labelText: context.tr('customTimeRequired'),
+                          hintText: context.tr('timeSlotHint'),
                           border: OutlineInputBorder(),
                           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         ),

@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/expense.dart';
@@ -33,7 +34,7 @@ class _ExpenseLedgerScreenState extends State<ExpenseLedgerScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Expense Ledger'),
+        title: Text(context.tr('expenseLedger')),
         backgroundColor: AppTheme.primaryDark,
         elevation: 0,
       ),
@@ -85,7 +86,7 @@ class _ExpenseLedgerScreenState extends State<ExpenseLedgerScreen> {
         onPressed: () => _showAddExpenseBottomSheet(context),
         backgroundColor: AppTheme.primary,
         icon: const Icon(Icons.add),
-        label: const Text('Add Expense'),
+        label: Text(context.tr('addExpense')),
       ),
     );
   }

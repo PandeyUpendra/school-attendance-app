@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../models/student.dart';
@@ -81,7 +82,7 @@ class _StudentPerformanceChartsScreenState
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load performance data: $e'),
+            content: Text(context.tr('failedToLoadPerformanceDataError').replaceAll('{error}', e.toString())),
             backgroundColor: AppTheme.danger,
           ),
         );

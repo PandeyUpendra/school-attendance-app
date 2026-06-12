@@ -3,6 +3,7 @@ import '../../models/syllabus.dart';
 import '../../services/syllabus_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
+import '../../l10n/app_strings.dart';
 
 class SyllabusCoverageDashboardScreen extends StatefulWidget {
   const SyllabusCoverageDashboardScreen({super.key});
@@ -119,7 +120,7 @@ class _SyllabusCoverageDashboardScreenState extends State<SyllabusCoverageDashbo
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Syllabus Progress Dashboard'),
+        title: Text(context.tr('syllabusProgressDashboard')),
         backgroundColor: AppTheme.primaryDark,
         elevation: 0,
         actions: [
@@ -150,7 +151,7 @@ class _SyllabusCoverageDashboardScreenState extends State<SyllabusCoverageDashbo
       padding: const EdgeInsets.all(12),
       child: TextField(
         decoration: InputDecoration(
-          hintText: 'Search class or subject...',
+          hintText: context.tr('searchClassSubject'),
           prefixIcon: const Icon(Icons.search),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
@@ -173,7 +174,7 @@ class _SyllabusCoverageDashboardScreenState extends State<SyllabusCoverageDashbo
           Icon(Icons.assessment_outlined, size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isEmpty ? 'No syllabus templates configured' : 'No matching classes or subjects found',
+            _searchQuery.isEmpty ? context.tr('noSyllabusTemplates') : context.tr('noMatchingSyllabus'),
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
           ),
         ],
@@ -245,7 +246,7 @@ class _SyllabusCoverageDashboardScreenState extends State<SyllabusCoverageDashbo
                         if (sub.lastUpdated != null) ...[
                           const SizedBox(height: 4),
                           Text(
-                            'Updated by: ${sub.lastUpdatedBy.split('@')[0]}  ·  ${sub.lastUpdated!.day}/${sub.lastUpdated!.month}',
+                            '${context.tr('updatedByPrefix')}${sub.lastUpdatedBy.split('@')[0]}  ·  ${sub.lastUpdated!.day}/${sub.lastUpdated!.month}',
                             style: TextStyle(fontSize: 9, color: Colors.grey.shade400, fontStyle: FontStyle.italic),
                           ),
                         ],

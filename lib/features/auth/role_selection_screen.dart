@@ -54,7 +54,7 @@ class RoleSelectionScreen extends StatelessWidget {
               children: [
                 const Icon(Icons.school, size: 48, color: Colors.white),
                 const SizedBox(height: 16),
-                const Text('School App',
+                Text(context.tr('schoolApp'),
                     style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,

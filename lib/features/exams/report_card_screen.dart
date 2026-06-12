@@ -1,3 +1,5 @@
+import 'package:provider/provider.dart';
+import '../../shared/providers/locale_provider.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
@@ -172,6 +174,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
           student:  s,
           exam:     widget.exam,
           rank:     template.showRank ? _ranks[s.roll] : null,
+          languageCode: Provider.of<LocaleProvider>(context, listen: false).code,
         );
         await Printing.sharePdf(
           bytes: bytes,
@@ -197,6 +200,7 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
           students:  _students,
           exam:      widget.exam,
           ranks:     _ranks,
+          languageCode: Provider.of<LocaleProvider>(context, listen: false).code,
         );
         await Printing.sharePdf(
           bytes: bytes,

@@ -153,7 +153,7 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.danger));
+            SnackBar(content: Text(context.tr('errorWithDetails').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger));
         setState(() => _submitting = false);
       }
     }

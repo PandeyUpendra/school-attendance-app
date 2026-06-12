@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/parental_consent.dart';
@@ -143,11 +144,11 @@ class ConsentMissingBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         border:       Border.all(color: AppTheme.warning.withValues(alpha: 0.5)),
       ),
-      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.warning_amber_rounded,
             size: 11, color: AppTheme.warning),
         SizedBox(width: 3),
-        Text('No Consent',
+        Text(context.tr('noConsent'),
             style: TextStyle(
                 fontSize: 10,
                 color:  AppTheme.warning,
@@ -215,8 +216,8 @@ class _GuardianConsentSectionState extends State<GuardianConsentSection> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Consent withdrawn. School admin has been notified.'),
+        SnackBar(
+            content: Text(context.tr('consentWithdrawnNotice')),
             backgroundColor: AppTheme.warning),
       );
       await _load();
@@ -239,7 +240,7 @@ class _GuardianConsentSectionState extends State<GuardianConsentSection> {
     if (_error != null) {
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: Text('Could not load consents: $_error',
+        child: Text(context.tr('couldNotLoadConsentsError').replaceAll('{error}', _error.toString()),
             style: const TextStyle(color: Colors.red, fontSize: 12)),
       );
     }
@@ -256,7 +257,7 @@ class _GuardianConsentSectionState extends State<GuardianConsentSection> {
           const Icon(Icons.privacy_tip_outlined,
               color: AppTheme.primary, size: 18),
           const SizedBox(width: 8),
-          const Text('Privacy & Consent',
+          Text(context.tr('privacyAndConsent'),
               style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -329,7 +330,7 @@ class _GuardianConsentSectionState extends State<GuardianConsentSection> {
         for (final c in stale)  _ConsentCard(consent: c, onWithdraw: () => _withdraw(c), isStale: true),
         if (withdrawn.isNotEmpty) ...[
           const SizedBox(height: 8),
-          Text('Withdrawn Consents',
+          Text(context.tr('withdrawnConsents'),
               style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey.shade500,
@@ -374,7 +375,7 @@ class _EmptyConsentCard extends StatelessWidget {
         const Icon(Icons.lock_clock_outlined,
             color: AppTheme.warning, size: 36),
         const SizedBox(height: 8),
-        Text('No consent on file for $studentName.',
+        Text(context.tr('noConsentOnFileForStudent').replaceAll('{name}', studentName),
             textAlign: TextAlign.center,
             style: const TextStyle(
                 fontWeight: FontWeight.w600, color: AppTheme.warning)),
@@ -406,7 +407,7 @@ class _EmptyConsentCard extends StatelessWidget {
             });
           },
           icon: const Icon(Icons.verified_user_outlined),
-          label: const Text('Provide Consent Now'),
+          label: Text(context.tr('provideConsentNow')),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppTheme.primary,
             foregroundColor: Colors.white,
@@ -483,11 +484,11 @@ class _ConsentCard extends StatelessWidget {
                     fontSize: 10, color: Colors.grey.shade600)),
           ),
           const Spacer(),
-          Text('v${consent.consentVersion}',
+          Text(context.tr('consentVersionPrefix').replaceAll('{version}', consent.consentVersion.toString()),
               style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
         ]),
         const SizedBox(height: 10),
-        Text('Guardian: ${consent.guardianName}',
+        Text(context.tr('guardianConsentName').replaceAll('{name}', consent.guardianName),
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         Text(consent.guardianPhone,
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),

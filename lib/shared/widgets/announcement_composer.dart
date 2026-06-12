@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/announcement.dart';
@@ -159,16 +160,16 @@ class _AnnouncementComposerState extends State<AnnouncementComposer> {
         value: _selection,
         isExpanded: true,
         decoration: _dec('Announcement Title', Icons.title_outlined),
-        hint: const Text('Choose or write a title'),
+        hint: Text(context.tr('chooseOrWriteTitle')),
         items: [
           ..._knownTitles.map(
               (t) => DropdownMenuItem(value: t, child: Text(t))),
-          const DropdownMenuItem(
+          DropdownMenuItem(
             value: _kCustom,
             child: Row(children: [
               Icon(Icons.edit_outlined, size: 18, color: AppTheme.accent),
               SizedBox(width: 8),
-              Text('Write a custom title…'),
+              Text(context.tr('writeCustomTitleHint')),
             ]),
           ),
         ],
@@ -190,7 +191,7 @@ class _AnnouncementComposerState extends State<AnnouncementComposer> {
           contentPadding: EdgeInsets.zero,
           dense: true,
           activeColor: AppTheme.accent,
-          title: const Text('Save this title for later use',
+          title: Text(context.tr('saveTitleLater'),
               style: TextStyle(fontSize: 13)),
         ),
       ],
@@ -201,7 +202,7 @@ class _AnnouncementComposerState extends State<AnnouncementComposer> {
         maxLines: 3,
         textCapitalization: TextCapitalization.sentences,
         decoration: InputDecoration(
-          labelText: 'Message',
+          labelText: context.tr('message'),
           prefixIcon: const Padding(
             padding: EdgeInsets.only(bottom: 48),
             child: Icon(Icons.message_outlined),
@@ -213,8 +214,8 @@ class _AnnouncementComposerState extends State<AnnouncementComposer> {
       const SizedBox(height: 10),
       DropdownButtonFormField<String>(
         value: _target,
-        decoration: const InputDecoration(
-          labelText: 'Target Audience',
+        decoration: InputDecoration(
+          labelText: context.tr('targetAudience'),
           prefixIcon: Icon(Icons.group_outlined),
           isDense: true,
         ),

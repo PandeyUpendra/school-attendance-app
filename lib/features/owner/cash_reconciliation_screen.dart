@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
@@ -178,7 +179,7 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Cash Reconciliation'),
+        title: Text(context.tr('cashReconciliation')),
         backgroundColor: AppTheme.primaryDark,
         elevation: 0,
         actions: [

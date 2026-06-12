@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/teacher.dart';
@@ -273,13 +274,13 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     final name = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('New Bell'),
+        title: Text(context.tr('newBell')),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'Bell Name',
+          decoration: InputDecoration(
+            labelText: context.tr('bellName'),
             hintText: 'e.g. Bell 5, Diary Bell, Assembly…',
             border: OutlineInputBorder(),
           ),
@@ -357,7 +358,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     if (name.isEmpty) return;
     if (_classes.contains(name)) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Class already exists')));
+          SnackBar(content: Text(context.tr('classAlreadyExists'))));
       return;
     }
     setState(() => _classes.add(name));
@@ -384,8 +385,8 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     if (!mounted) return;
     setState(() => _settingsEditing = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('Settings saved ✓'),
+      SnackBar(
+          content: Text(context.tr('settingsSavedSuccess')),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 2)),
     );
@@ -466,8 +467,8 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   void _saveTimetableMode() {
     setState(() => _timetableEditing = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Timetable saved ✓'),
+      SnackBar(
+        content: Text(context.tr('timetableSavedSuccess')),
         backgroundColor: Colors.green,
         duration: Duration(seconds: 2),
       ),
@@ -544,7 +545,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
               : OutlinedButton.icon(
                   onPressed: () => setState(() => _settingsEditing = true),
                   icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Edit Settings',
+                  label: Text(context.tr('editSettings'),
                       style: TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w600)),
                   style: OutlinedButton.styleFrom(
@@ -565,7 +566,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       Row(children: [
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Bell Schedule',
+            Text(context.tr('bellSchedule'),
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             const SizedBox(height: 2),
             Text(
@@ -587,7 +588,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           TextButton.icon(
             onPressed: _addBell,
             icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add Bell'),
+            label: Text(context.tr('addBell')),
             style: TextButton.styleFrom(foregroundColor: AppTheme.primary),
           ),
       ]),
@@ -782,7 +783,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
         Center(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Text('No classes added',
+            child: Text(context.tr('noClassesAdded'),
                 style: TextStyle(color: Colors.grey.shade400)),
           ),
         )
@@ -881,7 +882,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
               ? ElevatedButton.icon(
                   onPressed: _saveTimetableMode,
                   icon: const Icon(Icons.save_outlined),
-                  label: const Text('Save Timetable',
+                  label: Text(context.tr('saveTimetable'),
                       style: TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
@@ -895,7 +896,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
               : OutlinedButton.icon(
                   onPressed: () => setState(() => _timetableEditing = true),
                   icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Edit Timetable',
+                  label: Text(context.tr('editTimetable'),
                       style: TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w600)),
                   style: OutlinedButton.styleFrom(
@@ -1349,7 +1350,7 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                       Icon(Icons.info_outline,
                           size: 13, color: Colors.orange.shade700),
                       const SizedBox(width: 5),
-                      Text('Partially assigned',
+                      Text(context.tr('partiallyAssigned'),
                           style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -1377,7 +1378,7 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Select days for new assignment',
+            Text(context.tr('selectDaysNewAssignment'),
                 style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -1505,7 +1506,7 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Subject for this slot',
+            Text(context.tr('subjectForThisSlot'),
                 style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -1514,7 +1515,7 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
             DropdownButtonFormField<String>(
               value: _selectedSubjectPreset,
               isExpanded: true,
-              hint: const Text('Select subject…'),
+              hint: Text(context.tr('selectSubjectHint')),
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.book_outlined, size: 20),
                 border: OutlineInputBorder(
@@ -1527,12 +1528,12 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                       value: s,
                       child: Text(s),
                     )),
-                const DropdownMenuItem(
+                DropdownMenuItem(
                   value: 'Custom...',
                   child: Row(children: [
                     Icon(Icons.add, size: 16, color: AppTheme.primary),
                     SizedBox(width: 6),
-                    Text('Add new subject…',
+                    Text(context.tr('addNewSubjectHint'),
                         style: TextStyle(color: AppTheme.primary)),
                   ]),
                 ),
@@ -1556,7 +1557,7 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                 autofocus: true,
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
-                  hintText: 'Type subject name…',
+                  hintText: context.tr('typeSubjectHint'),
                   prefixIcon: const Icon(Icons.edit_outlined, size: 20),
                   suffixIcon: _subjectCtrl.text.isNotEmpty
                       ? IconButton(
@@ -1738,8 +1739,8 @@ class _DurationDialogState extends State<_DurationDialog> {
             controller: _ctrl,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(
-              labelText: 'Duration in minutes',
+            decoration: InputDecoration(
+              labelText: context.tr('durationInMinutes'),
               suffixText: 'min',
               border: OutlineInputBorder(),
               hintText: 'e.g. 45',
@@ -1826,7 +1827,7 @@ class _LunchDialogState extends State<_LunchDialog> {
     }
 
     return AlertDialog(
-      title: const Text('Add Lunch Break'),
+      title: Text(context.tr('addLunchBreak')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1847,8 +1848,8 @@ class _LunchDialogState extends State<_LunchDialog> {
             controller: _durationCtrl,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: const InputDecoration(
-              labelText: 'Duration (minutes)',
+            decoration: InputDecoration(
+              labelText: context.tr('durationMinutes'),
               suffixText: 'min',
               border: OutlineInputBorder(),
               hintText: 'e.g. 30',

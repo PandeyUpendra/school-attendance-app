@@ -166,7 +166,7 @@ class _PrincipalMeetingRecordsScreenState
                 }
                 if (snap.hasError) {
                   return Center(
-                      child: Text('Error: ${snap.error}',
+                      child: Text(context.tr('errorWithDetailsSnap').replaceAll('{error}', snap.error.toString()),
                           style: TextStyle(color: Colors.grey.shade500)));
                 }
 

@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/calendar_event.dart';
 import '../../shared/providers/school_settings_provider.dart';
-import '../../services/calendar_service.dart';
 import '../../theme.dart';
+import '../../services/calendar_service.dart';
+import '../../l10n/app_strings.dart';
 
 class GuardianHolidayCalendarScreen extends StatefulWidget {
   const GuardianHolidayCalendarScreen({super.key});
@@ -140,13 +141,13 @@ class _GuardianHolidayCalendarScreenState extends State<GuardianHolidayCalendarS
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('School Calendar & Holidays'),
+        title: Text(context.tr('schoolCalendarHolidays')),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : allHolidays.isEmpty
-              ? const Center(
-                  child: Text('No holidays or events scheduled for this year.'),
+              ? Center(
+                  child: Text(context.tr('noHolidaysScheduled')),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),

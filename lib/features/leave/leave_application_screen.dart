@@ -185,7 +185,7 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
       if (!mounted) return;
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to submit: $e'),
+        content: Text(context.tr('failedToSubmitError').replaceAll('{error}', e.toString())),
         backgroundColor: Colors.red,
         duration: const Duration(seconds: 5),
       ));

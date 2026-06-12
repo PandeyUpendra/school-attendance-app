@@ -41,6 +41,27 @@ function escapeHtml(unsafe) {
     .replace(/'/g, "&#039;");
 }
 
+// ── Data retention / TTL (unbounded collection growth) ───────────────────────
+// notifications and audit_logs grow without bound. Rather than a per-school
+// scheduled purge (purgeOldData is onCall and won't be invoked across 10k
+// schools), every doc is stamped with an `expireAt` timestamp and a Firestore
+// TTL policy on that field deletes it automatically — free, no function runtime.
+// Windows match purgeOldData's defaults: notifications 90d, audit_logs 365d.
+// One-time setup (per database, NOT in this repo) — enable the TTL policies:
+//   gcloud firestore fields ttls update expireAt \
+//     --collection-group=notifications --enable-ttl
+//   gcloud firestore fields ttls update expireAt \
+//     --collection-group=audit_logs --enable-ttl
+const NOTIFICATION_RETENTION_DAYS = 90;
+const AUDIT_LOG_RETENTION_DAYS = 365;
+function expireAtAfterDays(days) {
+  return admin.firestore.Timestamp.fromMillis(
+    Date.now() + days * 24 * 60 * 60 * 1000);
+}
+function notificationExpireAt() {
+  return expireAtAfterDays(NOTIFICATION_RETENTION_DAYS);
+}
+
 // ── DPDP consent (SCALE-14) ──────────────────────────────────────────────────
 // Must stay in lock-step with kCurrentConsentVersion in
 // lib/models/parental_consent.dart.
@@ -770,6 +791,7 @@ exports.writeAudit = onCall(
     if (d.before && typeof d.before === "object") entry.before = d.before;
     if (d.after && typeof d.after === "object") entry.after = d.after;
     if (reason) entry.reason = reason;
+    entry.expireAt = expireAtAfterDays(AUDIT_LOG_RETENTION_DAYS); // TTL
 
     await db.collection("schools").doc(schoolId).collection("audit_logs").add(entry);
     return { ok: true };
@@ -1322,6 +1344,7 @@ exports.onAttendanceWritten = onDocumentWritten(
               audience: `guardian:${a.studentClass}:${a.roll}`,
               targetStudentId: a.studentDocId,
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              expireAt: notificationExpireAt(), // TTL — see retention note
             });
           }
           await batch.commit();

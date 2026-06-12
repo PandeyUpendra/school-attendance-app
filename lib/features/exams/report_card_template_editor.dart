@@ -1,3 +1,5 @@
+import 'package:provider/provider.dart';
+import '../../shared/providers/locale_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:printing/printing.dart';
@@ -560,6 +562,7 @@ class _ReportCardTemplateEditorState
         rank:     template.showRank ? 3 : null,
         totalPresent: template.showAttendance ? 182 : null,
         totalDays:    template.showAttendance ? 210 : null,
+        languageCode: Provider.of<LocaleProvider>(context, listen: false).code,
       );
 
       if (!mounted) return;

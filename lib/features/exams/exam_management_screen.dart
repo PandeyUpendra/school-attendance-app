@@ -341,7 +341,7 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14)),
         title: Text(context.tr('deleteExamQ')),
-        content: Text('Delete "${exam.name}"? All marks will be lost.'),
+        content: Text(context.tr('deleteExamNameConfirm').replaceAll('{name}', exam.name)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),

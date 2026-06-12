@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import '../../theme.dart';
 import '../../models/staff_task.dart';
@@ -273,7 +274,7 @@ class _AssignTabState extends State<_AssignTab> {
         builder: (_) => AlertDialog(
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16)),
-          title: const Text('Confirm Assignment'),
+          title: Text(context.tr('confirmAssignment')),
           content: Text(
             'This will create ${targets.length} tasks, '
             'one for each selected person.',
@@ -400,7 +401,7 @@ class _AssignTabState extends State<_AssignTab> {
               controller: _customTitleCtrl,
               decoration: _inputDec(hint: 'e.g. Prepare Annual Report')
                   .copyWith(
-                labelText: 'Custom Task Title',
+                labelText: context.tr('customTaskTitle'),
                 floatingLabelBehavior: FloatingLabelBehavior.always,
               ),
               textCapitalization: TextCapitalization.sentences,
@@ -546,7 +547,7 @@ class _AssignTabState extends State<_AssignTab> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── Quick-select group chips ────────────────────────────────
-        Text('Quick Select',
+        Text(context.tr('quickSelect'),
             style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
@@ -593,7 +594,7 @@ class _AssignTabState extends State<_AssignTab> {
         const SizedBox(height: 16),
 
         // ── Individual teacher chips ────────────────────────────────
-        Text('Individual Teachers',
+        Text(context.tr('individualTeachers'),
             style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
@@ -977,7 +978,7 @@ class _AllTasksTabState extends State<_AllTasksTab> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Task'),
-        content: Text('Delete "${task.title}"?'),
+        content: Text(context.tr('deleteTaskTitleConfirm').replaceAll('{title}', task.title)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),

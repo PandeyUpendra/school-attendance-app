@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -53,6 +54,7 @@ Future<Uint8List> buildReportCardPdf({
   int?    rank,
   int?    totalPresent,
   int?    totalDays,
+  String languageCode = 'en',
 }) async {
   final doc  = pw.Document();
   final fmt  = _pageFormat(template);
@@ -122,7 +124,7 @@ Future<Uint8List> buildReportCardPdf({
         pw.SizedBox(height: 8),
 
         // ── Subject table ────────────────────────────────────────────────────
-        _buildSubjectTable(template, result, exam),
+        _buildSubjectTable(template, result, exam, languageCode),
         pw.SizedBox(height: 8),
 
         // ── Summary strip ────────────────────────────────────────────────────
@@ -138,19 +140,19 @@ Future<Uint8List> buildReportCardPdf({
         if (template.showAttendance && totalPresent != null && totalDays != null)
           ...[
             pw.SizedBox(height: 6),
-            _buildAttendanceRow(totalPresent, totalDays),
+            _buildAttendanceRow(totalPresent, totalDays, languageCode),
           ],
 
         // ── Co-curricular placeholder ─────────────────────────────────────────
         if (template.showCoCurricular) ...[
           pw.SizedBox(height: 8),
-          _buildCoCurricularTable(),
+          _buildCoCurricularTable(languageCode),
         ],
 
         pw.Spacer(),
 
         // ── Footer ───────────────────────────────────────────────────────────
-        _buildFooter(template),
+        _buildFooter(template, languageCode),
       ],
     ),
   ));
@@ -169,6 +171,7 @@ Future<Uint8List> buildClassReportCardPdf({
   required List<Student>        students,
   required Exam                 exam,
   required Map<int, int>        ranks,
+  String languageCode = 'en',
 }) async {
   final doc = pw.Document();
   final fmt = _pageFormat(template);
@@ -223,7 +226,7 @@ Future<Uint8List> buildClassReportCardPdf({
       ),
     ),
     header: (ctx) => _buildHeader(template, exam),
-    footer: (ctx) => _buildFooter(template),
+    footer: (ctx) => _buildFooter(template, languageCode),
     build: (ctx) => [
       pw.SizedBox(height: 8),
       _buildClassStatsRow(results, exam),
@@ -361,6 +364,7 @@ pw.Widget _buildSubjectTable(
   ReportCardTemplate template,
   ExamResult         result,
   Exam               exam,
+  String             languageCode,
 ) {
   // Determine which extra columns to show (any subject needs it)
   final showGrade   = exam.subjects.any((s) =>
@@ -383,7 +387,7 @@ pw.Widget _buildSubjectTable(
   return pw.Column(
     crossAxisAlignment: pw.CrossAxisAlignment.stretch,
     children: [
-      pw.Text('Subject-wise Marks',
+      pw.Text(AppStrings.get(languageCode, 'subjectWiseMarks'),
           style: pw.TextStyle(
               fontSize: 9,
               fontWeight: pw.FontWeight.bold,
@@ -516,7 +520,7 @@ pw.Widget _summaryCol(String label, String value,
 
 // ─── Attendance row ───────────────────────────────────────────────────────────
 
-pw.Widget _buildAttendanceRow(int present, int total) {
+pw.Widget _buildAttendanceRow(int present, int total, String languageCode) {
   final pct  = total > 0 ? (present / total * 100).toStringAsFixed(1) : '—';
   final good = total > 0 && present / total >= 0.75;
   return pw.Container(
@@ -527,7 +531,7 @@ pw.Widget _buildAttendanceRow(int present, int total) {
       borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
     ),
     child: pw.Row(children: [
-      pw.Text('Attendance:',
+      pw.Text(AppStrings.get(languageCode, 'attendanceLabel'),
           style: pw.TextStyle(
               fontSize: 9, fontWeight: pw.FontWeight.bold)),
       pw.SizedBox(width: 6),
@@ -548,11 +552,11 @@ pw.Widget _buildAttendanceRow(int present, int total) {
 
 // ─── Co-curricular placeholder ────────────────────────────────────────────────
 
-pw.Widget _buildCoCurricularTable() {
+pw.Widget _buildCoCurricularTable(String languageCode) {
   return pw.Column(
     crossAxisAlignment: pw.CrossAxisAlignment.stretch,
     children: [
-      pw.Text('Co-Curricular Activities',
+      pw.Text(AppStrings.get(languageCode, 'coCurricularActivities'),
           style: pw.TextStyle(
               fontSize: 9,
               fontWeight: pw.FontWeight.bold,
@@ -585,7 +589,7 @@ pw.Widget _buildCoCurricularTable() {
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
-pw.Widget _buildFooter(ReportCardTemplate template) {
+pw.Widget _buildFooter(ReportCardTemplate template, String languageCode) {
   final now = DateTime.now();
   final timestampStr = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} '
       '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
@@ -608,7 +612,7 @@ pw.Widget _buildFooter(ReportCardTemplate template) {
                 ),
               ),
               pw.SizedBox(height: 3),
-              pw.Text('Class Teacher Signature', style: const pw.TextStyle(fontSize: 8, color: _kTextLight)),
+              pw.Text(AppStrings.get(languageCode, 'classTeacherSignature'), style: const pw.TextStyle(fontSize: 8, color: _kTextLight)),
             ],
           ),
           pw.Column(

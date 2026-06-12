@@ -34,10 +34,22 @@ class NotificationService extends BaseFirestoreService {
   CollectionReference<Map<String, dynamic>> get _coll =>
       schoolCollection(_sid, 'notifications');
 
+  /// Notification retention window (SCALE: unbounded `notifications` growth).
+  /// Every notification is stamped with `expireAt` = now + this; a Firestore TTL
+  /// policy on the `expireAt` field then deletes it automatically (free, no
+  /// function execution). Matches purgeOldData's 90-day notification window.
+  static const int notificationRetentionDays = 90;
+
   // Helper method to add a notification to Firestore and log it to CommunicationLogService.
   Future<void> _addAndLog(Map<String, dynamic> data) async {
     final audience = data['audience'] as String? ?? 'all';
     final type = data['type'] as String? ?? 'unknown';
+    // Stamp the TTL expiry once, centrally, for every client-written notice.
+    data.putIfAbsent(
+      'expireAt',
+      () => Timestamp.fromDate(
+          DateTime.now().add(const Duration(days: notificationRetentionDays))),
+    );
     try {
       await _coll.add(data);
       await CommunicationLogService().logSend(

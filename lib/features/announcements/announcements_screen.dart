@@ -472,7 +472,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14)),
         title: Text(context.tr('deleteAnnouncementQ')),
-        content: Text('Permanently delete "${a.title}"?'),
+        content: Text(context.tr('permanentlyDeleteAnnouncement').replaceAll('{title}', a.title)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),

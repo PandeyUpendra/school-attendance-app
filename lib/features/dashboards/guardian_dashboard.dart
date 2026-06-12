@@ -367,9 +367,9 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     const SizedBox(height: 40),
     Icon(Icons.wifi_off_outlined, size: 64, color: Colors.grey.shade400),
     const SizedBox(height: 20),
-    const Center(
-      child: Text('Could not load data',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+    Center(
+      child: Text(context.tr('couldNotLoadData'),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
     ),
     const SizedBox(height: 8),
     Center(
@@ -383,7 +383,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     ElevatedButton.icon(
       onPressed: _loadAll,
       icon: const Icon(Icons.refresh),
-      label: const Text('Try Again'),
+      label: Text(context.tr('tryAgain')),
     ),
   ];
 
@@ -492,8 +492,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.book_outlined,
       color: AppTheme.primary,
-      title: 'Daily Class Diary',
-      subtitle: 'Timeline of topics taught & homework logs',
+      title: context.tr('tileDailyClassDiary'),
+      subtitle: context.tr('subDailyClassDiary'),
       isLocked: !_hasConsent,
       onTap: () => _runGatedAction(() => Navigator.push(
         context,
@@ -509,8 +509,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.folder_open_outlined,
       color: AppTheme.primary,
-      title: 'Study Materials',
-      subtitle: 'Browse & download shared notes & worksheets',
+      title: context.tr('tileStudyMaterials'),
+      subtitle: context.tr('subStudyMaterials'),
       isLocked: !_hasConsent,
       onTap: () => _runGatedAction(() => Navigator.push(
         context,
@@ -526,8 +526,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.calendar_today_outlined,
       color: AppTheme.primary,
-      title: 'Exam Datesheets & Admit Cards',
-      subtitle: 'View class timetables & print hall tickets',
+      title: context.tr('tileExamDatesheets'),
+      subtitle: context.tr('subExamDatesheets'),
       isLocked: !_hasConsent,
       onTap: () => _runGatedAction(() => Navigator.push(
         context,
@@ -558,8 +558,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.trending_up_outlined,
       color: AppTheme.primary,
-      title: 'Performance Trends',
-      subtitle: 'Analyze your child\'s marks over time',
+      title: context.tr('tilePerformanceTrends'),
+      subtitle: context.tr('subPerformanceTrends'),
       isLocked: !_hasConsent,
       onTap: () => _runGatedAction(() => Navigator.push(
         context,
@@ -625,8 +625,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: Colors.green,
       title: context.tr('feeStatus'),
       subtitle: _feeStructure != null && _feeStructure!.totalAnnualFee > 0
-          ? ((_feeStructure!.totalAnnualFee - _totalPaid) < 1 ? 'Fully Paid' : 'Pending: ${CurrencyUtils.formatRupees(_feeStructure!.totalAnnualFee - _totalPaid)}')
-          : 'No fee info',
+          ? ((_feeStructure!.totalAnnualFee - _totalPaid) < 1 ? context.tr('fullyPaidLabel') : '${context.tr('pendingLabel')}: ${CurrencyUtils.formatRupees(_feeStructure!.totalAnnualFee - _totalPaid)}')
+          : context.tr('noFeeInfo'),
       isLocked: !_hasConsent,
       onTap: () => _runGatedAction(() => Navigator.push(
         context,
@@ -645,8 +645,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.receipt_long_outlined,
       color: Colors.green,
-      title: 'Fee Receipts',
-      subtitle: 'View and download previous fee receipts',
+      title: context.tr('tileFeeReceipts'),
+      subtitle: context.tr('subFeeReceipts'),
       isLocked: !_hasConsent,
       onTap: () => _runGatedAction(() => Navigator.push(
         context,
@@ -722,8 +722,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.calendar_today_outlined,
       color: AppTheme.primary,
-      title: 'School Holidays',
-      subtitle: 'View holiday list & calendar',
+      title: context.tr('tileSchoolHolidays'),
+      subtitle: context.tr('subSchoolHolidays'),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
@@ -748,8 +748,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.calendar_month_outlined,
       color: AppTheme.primary,
-      title: 'Parent-Teacher Meetings (PTM)',
-      subtitle: 'View scheduled PTM events',
+      title: context.tr('tilePtm'),
+      subtitle: context.tr('subPtm'),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
@@ -761,8 +761,8 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     _FeatureTile(
       icon: Icons.phone_callback_outlined,
       color: AppTheme.primary,
-      title: 'Contact School',
-      subtitle: 'Call student\'s class teacher',
+      title: context.tr('tileContactSchool'),
+      subtitle: context.tr('subContactSchool'),
       onTap: _callSchool,
     ),
 
@@ -844,7 +844,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     final phone = settings.schoolPhone;
     if (phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No school phone number configured')),
+        SnackBar(content: Text(context.tr('noSchoolPhoneConfigured'))),
       );
       return;
     }
@@ -854,7 +854,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     } else {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not dial number: $phone')),
+        SnackBar(content: Text(context.tr('couldNotDialNumber').replaceAll('{phone}', phone))),
       );
     }
   }
@@ -870,10 +870,10 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       color: AppTheme.surface,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 6),
-          child: Text('VIEWING',
-              style: TextStyle(
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 6),
+          child: Text(context.tr('viewing'),
+              style: const TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: Colors.grey,
@@ -1237,7 +1237,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                   style: TextStyle(
                       fontSize: 15, fontWeight: FontWeight.bold)),
               const Spacer(),
-              Text('${widget.examData.length} exam(s)',
+              Text(context.tr('examsCountLabel').replaceAll('{count}', widget.examData.length.toString()),
                   style: TextStyle(
                       fontSize: 12, color: Colors.grey.shade500)),
             ]),
@@ -1272,7 +1272,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                       color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text('Not Entered',
+                    child: Text(context.tr('notEntered'),
                         style: TextStyle(
                             fontSize: 10, color: Colors.grey.shade500)),
                   ),
@@ -1377,7 +1377,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                   child: Column(
                     children: [
                       // Column headers
-                      const Row(children: [
+                      Row(children: [
                         Expanded(
                             child: Text('Subject',
                                 style: TextStyle(
@@ -1386,7 +1386,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                                     color: Colors.black54))),
                         SizedBox(
                           width: 60,
-                          child: Text('Marks',
+                          child: Text(context.tr('marksLabel'),
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                   fontSize: 11,
@@ -1834,7 +1834,7 @@ class _AttendanceCalendarCard extends StatelessWidget {
             Padding(
               padding:
                   const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-              child: Text('No school days recorded in this month',
+              child: Text(context.tr('noSchoolDaysMonth'),
                   style: TextStyle(color: Colors.grey.shade500)),
             )
           else ...[
@@ -1845,19 +1845,19 @@ class _AttendanceCalendarCard extends StatelessWidget {
                 children: [
                   _StatCell(
                       value: '$workingDays',
-                      label: 'Days',
+                      label: context.tr('daysCapLabel'),
                       color: AppTheme.primary),
                   _StatCell(
                       value: '$present',
-                      label: 'Present',
+                      label: context.tr('presentLabel'),
                       color: Colors.green),
                   _StatCell(
                       value: '$absent',
-                      label: 'Absent',
+                      label: context.tr('absentLabel'),
                       color: AppTheme.danger),
                   _StatCell(
                       value: '$leave',
-                      label: 'Leave',
+                      label: context.tr('leaveLabel'),
                       color: AppTheme.warning),
                 ],
               ),
@@ -2126,8 +2126,8 @@ class _FeeStatusCard extends StatelessWidget {
                   color: Colors.green.shade700, size: 20),
             ),
             const SizedBox(width: 10),
-            const Text('Fee Status',
-                style: TextStyle(
+            Text(context.tr('feeStatus'),
+                style: const TextStyle(
                     fontSize: 15, fontWeight: FontWeight.bold)),
             const Spacer(),
             Container(
@@ -2140,7 +2140,7 @@ class _FeeStatusCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                isFullyPaid ? 'Fully Paid' : 'Pending',
+                isFullyPaid ? context.tr('fullyPaidLabel') : context.tr('pendingLabel'),
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
@@ -2167,16 +2167,16 @@ class _FeeStatusCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Paid: ${CurrencyUtils.formatRupees(totalPaid)}',
+              Text('${context.tr('feePaidPrefix')}${CurrencyUtils.formatRupees(totalPaid)}',
                   style: TextStyle(
                       fontSize: 12, color: Colors.green.shade700)),
-              Text('Due: ${CurrencyUtils.formatRupees(due)}',
+              Text('${context.tr('feeDuePrefix')}${CurrencyUtils.formatRupees(due)}',
                   style: TextStyle(
                       fontSize: 12,
                       color: due > 0
                           ? Colors.orange.shade700
                           : Colors.grey.shade500)),
-              Text('Total: ${CurrencyUtils.formatRupees(total)}',
+              Text('${context.tr('feeTotalPrefix')}${CurrencyUtils.formatRupees(total)}',
                   style: TextStyle(
                       fontSize: 12, color: Colors.grey.shade600)),
             ],
@@ -2389,7 +2389,7 @@ class _GuardianTimetableScreenState extends State<GuardianTimetableScreen> {
           children: [
             Icon(Icons.event_available_outlined, size: 48, color: Colors.grey.shade300),
             const SizedBox(height: 12),
-            Text('No classes scheduled for $day',
+            Text(context.tr('noClassesScheduledDay').replaceAll('{day}', day),
                 style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
           ],
         ),
@@ -2418,7 +2418,7 @@ class _GuardianTimetableScreenState extends State<GuardianTimetableScreen> {
               const SizedBox(width: 8),
               Text(time, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
               const SizedBox(width: 12),
-              Text('Lunch Break',
+              Text(context.tr('lunchBreak'),
                   style: TextStyle(
                       fontSize: 14,
                       color: Colors.orange.shade700,
@@ -2490,7 +2490,7 @@ class _GuardianTimetableScreenState extends State<GuardianTimetableScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Text('${widget.className} Timetable'),
+        title: Text(context.tr('classTimetableTitle').replaceAll('{class}', widget.className)),
       ),
       body: isEmpty
           ? Center(
@@ -2502,7 +2502,7 @@ class _GuardianTimetableScreenState extends State<GuardianTimetableScreen> {
                   Text('Timetable not set up yet',
                       style: TextStyle(fontSize: 16, color: Colors.grey.shade400, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
-                  Text('Please ask the coordinator to configure the schedule.',
+                  Text(context.tr('askCoordConfigureSchedule'),
                       style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
                 ],
               ),
@@ -2591,11 +2591,11 @@ class GuardianSubjectTeachersScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Text('$className Teachers'),
+        title: Text(context.tr('classTeachersTitle').replaceAll('{class}', className)),
       ),
       body: subjects.isEmpty
           ? Center(
-              child: Text('No subject teachers assigned yet',
+              child: Text(context.tr('noSubjectTeachersAssigned'),
                   style: TextStyle(color: Colors.grey.shade500)),
             )
           : ListView.builder(
@@ -2658,11 +2658,11 @@ class GuardianHomeworkScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Text('Homework — $className'),
+        title: Text(context.tr('homeworkClassTitle').replaceAll('{class}', className)),
       ),
       body: homeworkList.isEmpty
           ? Center(
-              child: Text('No homework assignments posted',
+              child: Text(context.tr('noHomeworkAssignmentsPosted'),
                   style: TextStyle(color: Colors.grey.shade500)),
             )
           : ListView.builder(
@@ -2709,7 +2709,7 @@ class GuardianHomeworkScreen extends StatelessWidget {
                         const SizedBox(height: 12),
                         const Divider(height: 1),
                         const SizedBox(height: 8),
-                        Text('Due Date: $due',
+                        Text(context.tr('dueDateWithDate').replaceAll('{date}', due),
                             style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
                       ],
                     ),
@@ -2754,7 +2754,7 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
       ),
       body: widget.examData.isEmpty
           ? Center(
-              child: Text('No exam results available',
+              child: Text(context.tr('noExamResultsAvailable'),
                   style: TextStyle(color: Colors.grey.shade500)),
             )
           : ListView.builder(
@@ -2778,7 +2778,7 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
                           color: Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text('Not Entered', style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
+                        child: Text(context.tr('notEntered'), style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
                       ),
                     ),
                   );
@@ -2846,9 +2846,9 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
                           ),
                           child: Column(
                             children: [
-                              const Row(children: [
+                              Row(children: [
                                 Expanded(child: Text('Subject', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                                SizedBox(width: 60, child: Text('Marks', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                                SizedBox(width: 60, child: Text(context.tr('marksLabel'), textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                                 SizedBox(width: 50, child: Text('%', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                               ]),
                               const Divider(height: 16),
@@ -3011,7 +3011,7 @@ class _GuardianAttendanceHistoryScreenState extends State<GuardianAttendanceHist
                     children: [
                       const Icon(Icons.error_outline, size: 48, color: Colors.red),
                       const SizedBox(height: 12),
-                      Text('Error: $_error'),
+                      Text(context.tr('errorWithDetailsState').replaceAll('{error}', _error.toString())),
                       const SizedBox(height: 16),
                       ElevatedButton(onPressed: _loadAttendance, child: const Text('Retry')),
                     ],
@@ -3115,7 +3115,7 @@ class GuardianFeeStatusScreen extends StatelessWidget {
                     backgroundColor: Colors.green.shade700,
                     foregroundColor: Colors.white,
                   ),
-                  label: const Text('Pay Outstanding Fees via UPI', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  label: Text(context.tr('payOutstandingFeesViaUpi'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -3185,7 +3185,7 @@ class GuardianFeeStatusScreen extends StatelessWidget {
                       child: const Icon(Icons.calendar_today_outlined, color: Colors.orange, size: 18),
                     ),
                     title: Text(inst.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('Due: $dateStr'),
+                    subtitle: Text(context.tr('feeDueWithDate').replaceAll('{date}', dateStr)),
                     trailing: Text(
                       CurrencyUtils.formatRupees(inst.amount),
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
@@ -3217,7 +3217,7 @@ class GuardianSchoolInfoScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('School Information'),
+        title: Text(context.tr('schoolInformation')),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -3232,7 +3232,7 @@ class GuardianSchoolInfoScreen extends StatelessWidget {
                     backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                     child: const Icon(Icons.phone, color: AppTheme.primary),
                   ),
-                  title: const Text('Call School'),
+                  title: Text(context.tr('callSchool')),
                   subtitle: Text(s.schoolPhone.trim()),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _launchUrlHelper('tel:${s.schoolPhone.trim()}'),
@@ -3244,7 +3244,7 @@ class GuardianSchoolInfoScreen extends StatelessWidget {
                     backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                     child: const Icon(Icons.email, color: AppTheme.primary),
                   ),
-                  title: const Text('Email School'),
+                  title: Text(context.tr('emailSchool')),
                   subtitle: Text(s.schoolEmail.trim()),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _launchUrlHelper('mailto:${s.schoolEmail.trim()}'),
@@ -3256,7 +3256,7 @@ class GuardianSchoolInfoScreen extends StatelessWidget {
                     backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                     child: const Icon(Icons.language, color: AppTheme.primary),
                   ),
-                  title: const Text('Visit Website'),
+                  title: Text(context.tr('visitWebsite')),
                   subtitle: Text(s.schoolWebsite.trim()),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
@@ -3330,7 +3330,7 @@ class GuardianConsentScreen extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'),
+                  child: Text(context.tr('close')),
                 ),
               ],
             );
@@ -3414,7 +3414,7 @@ class GuardianConsentScreen extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: () => _showPrivacyNoticeDialog(context),
                       icon: const Icon(Icons.info_outline, size: 16),
-                      label: const Text('Read Privacy Policy'),
+                      label: Text(context.tr('readPrivacyPolicy')),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppTheme.primary,
                         side: const BorderSide(color: AppTheme.primary),

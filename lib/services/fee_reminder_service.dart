@@ -121,6 +121,9 @@ class FeeReminderService {
       'body': body,
       'audience': guardianAudience ?? 'guardian:$studentId',
       'createdAt': FieldValue.serverTimestamp(),
+      // TTL: matches NotificationService.notificationRetentionDays (90 days).
+      'expireAt': Timestamp.fromDate(
+          DateTime.now().add(const Duration(days: 90))),
     });
 
     await logReminderSent(studentId, type, 'push');

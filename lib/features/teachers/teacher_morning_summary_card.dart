@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import '../../models/teacher.dart';
 import '../../services/student_service.dart';
@@ -378,7 +379,7 @@ class TeacherMorningSummaryCardState extends State<TeacherMorningSummaryCard> {
                 );
               },
               icon: const Icon(Icons.beach_access, size: 16),
-              label: const Text('My Leave Quota & Balances'),
+              label: Text(context.tr('myLeaveQuotaBalances')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white.withValues(alpha: 0.15),
                 foregroundColor: Colors.white,

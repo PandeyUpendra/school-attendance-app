@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -593,14 +594,14 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Cancel Deletion Request'),
+        title: Text(context.tr('cancelDeletionRequest')),
         content: Text(
             'Withdraw your deletion request for ${teacher.name}? '
             'The principal will no longer see it in their queue.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Keep Request')),
+              child: Text(context.tr('keepRequest'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.warning,
@@ -830,7 +831,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
           : FloatingActionButton.extended(
               onPressed: () => _openDialog(),
               icon: const Icon(Icons.person_add),
-              label: const Text('Add Teacher'),
+              label: Text(context.tr('addTeacher')),
               backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
             ),
@@ -855,11 +856,11 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                                 Icon(Icons.people_outline,
                                     size: 72, color: Colors.grey[300]),
                                 const SizedBox(height: 16),
-                                Text('No teachers yet',
+                                Text(context.tr('noTeachersYet'),
                                     style: TextStyle(
                                         fontSize: 16, color: Colors.grey[500])),
                                 const SizedBox(height: 6),
-                                const Text('Tap the button below to add one'),
+                                Text(context.tr('tapToAddTeacher')),
                               ],
                             ),
                           ),
@@ -1394,7 +1395,7 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
                     onPressed: widget.onDelete,
                     icon: const Icon(Icons.delete_outline,
                         color: Colors.red),
-                    label: const Text('Delete Teacher',
+                    label: Text(context.tr('deleteTeacher'),
                         style: TextStyle(
                             color: Colors.red,
                             fontWeight: FontWeight.w600)),
@@ -1604,7 +1605,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
     if (name.isEmpty) return;
     if (_classes.contains(name)) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Class already exists')));
+          .showSnackBar(SnackBar(content: Text(context.tr('classAlreadyExists'))));
       return;
     }
     final settings = await TimetableService.instance.getSettings();
@@ -1794,7 +1795,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                   prefixIcon: Icon(Icons.book_outlined),
                 ),
                 isExpanded: true,
-                hint: const Text('Select a subject'),
+                hint: Text(context.tr('selectASubject')),
                 items: _kSubjects.map((s) => DropdownMenuItem(
                   value: s,
                   child: Text(s, overflow: TextOverflow.ellipsis),
@@ -1811,8 +1812,8 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _subjectCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Specify Subject',
+                  decoration: InputDecoration(
+                    labelText: context.tr('specifySubject'),
                     prefixIcon: Icon(Icons.edit_outlined),
                   ),
                   textCapitalization: TextCapitalization.words,
@@ -1888,9 +1889,9 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
               // ── Designation ─────────────────────────────────────────────
               TextFormField(
                 controller: _designationCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Designation',
-                    hintText: 'e.g. Senior Teacher, HOD',
+                decoration: InputDecoration(
+                    labelText: context.tr('designation'),
+                    hintText: context.tr('designationHint'),
                     prefixIcon: Icon(Icons.badge_outlined),
                     counterText: ''),
                 textCapitalization: TextCapitalization.words,
@@ -1902,8 +1903,8 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
               // ── Qualification ───────────────────────────────────────────
               TextFormField(
                 controller: _qualificationCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Qualification',
+                decoration: InputDecoration(
+                    labelText: context.tr('qualification'),
                     hintText: 'e.g. M.Sc, B.Ed',
                     prefixIcon: Icon(Icons.school_outlined),
                     counterText: ''),
@@ -1918,7 +1919,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                 onTap: _pickJoiningDate,
                 child: InputDecorator(
                   decoration: InputDecoration(
-                    labelText: 'Joining Date',
+                    labelText: context.tr('joiningDate'),
                     prefixIcon: const Icon(Icons.event_available_outlined),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
@@ -2044,14 +2045,14 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                     DropdownButtonFormField<String>(
                       value: _classTeacherOf,
                       decoration: InputDecoration(
-                        labelText: 'Class Teacher of',
+                        labelText: context.tr('classTeacherOf'),
                         prefixIcon: const Icon(Icons.class_outlined),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10)),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 12),
                       ),
-                      hint: const Text('Select class'),
+                      hint: Text(context.tr('selectClass')),
                       items: _classes
                           .map((c) => DropdownMenuItem(
                               value: c, child: Text(c)))
@@ -2074,7 +2075,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                         child: TextField(
                           controller: _newClassCtrl,
                           decoration: InputDecoration(
-                            labelText: 'New class name',
+                            labelText: context.tr('newClassName'),
                             hintText: 'e.g. Class 6A',
                             prefixIcon: const Icon(
                                 Icons.add_circle_outline,

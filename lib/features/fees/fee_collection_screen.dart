@@ -864,7 +864,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
 
     doc.addPage(pw.Page(
       pageFormat: PdfPageFormat.a5,
-      build: (pw.Context context) => pw.Stack(
+      build: (pw.Context pdfCtx) => pw.Stack(
         children: [
           if (p.reversed)
             pw.Center(
@@ -937,7 +937,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Amount Paid',
+                  pw.Text(context.tr('amountPaid'),
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                   pw.Text('₹${CurrencyUtils.formatValues(p.amount)}',
                       style: pw.TextStyle(

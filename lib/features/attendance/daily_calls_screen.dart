@@ -155,7 +155,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
     final phoneRegex = RegExp(r'^\+?[0-9]{10,15}$');
     if (!phoneRegex.hasMatch(cleanPhone)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Invalid phone number format: ${s.phone}')),
+        SnackBar(content: Text(context.tr('invalidPhoneNumberFormat').replaceAll('{phone}', s.phone))),
       );
       return;
     }
@@ -165,7 +165,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
     } else {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not dial number: ${s.phone}')),
+        SnackBar(content: Text(context.tr('couldNotDialNumberPhone').replaceAll('{phone}', s.phone))),
       );
       return;
     }
@@ -179,7 +179,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
     final phoneRegex = RegExp(r'^\+?[0-9]{10,15}$');
     if (!phoneRegex.hasMatch(cleanPhone)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Invalid phone number format: ${s.phone}')),
+        SnackBar(content: Text(context.tr('invalidPhoneNumberFormat').replaceAll('{phone}', s.phone))),
       );
       return;
     }
@@ -196,7 +196,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
     } else {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open WhatsApp for: ${s.phone}')),
+        SnackBar(content: Text(context.tr('couldNotOpenWhatsappPhone').replaceAll('{phone}', s.phone))),
       );
       return;
     }
@@ -237,7 +237,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Call Notes — ${s.name}',
+          title: Text(context.tr('callNotesForStudent').replaceAll('{name}', s.name),
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -332,12 +332,12 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
       build: (ctx) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text('Daily Call Report',
+          pw.Text(context.tr('dailyCallReport'),
               style: pw.TextStyle(
                   fontSize: 20, fontWeight: pw.FontWeight.bold,
                   color: PdfTheme.primary)),
           pw.SizedBox(height: 4),
-          pw.Text('Class: ${widget.className}   Date: $dateStr',
+          pw.Text(context.tr('classDateHeader').replaceAll('{class}', widget.className).replaceAll('{date}', dateStr),
               style: const pw.TextStyle(fontSize: 12,
                   color: PdfColors.grey700)),
           pw.SizedBox(height: 4),

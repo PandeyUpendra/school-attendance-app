@@ -190,11 +190,11 @@ class _GuardianLeaveApplicationScreenState
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
               Icon(Icons.check_circle_outline, color: Colors.green),
               SizedBox(width: 8),
-              Text('Success'),
+              Text(context.tr('success')),
             ],
           ),
           content: Text(context.tr('leaveSubmittedToTeacher')),

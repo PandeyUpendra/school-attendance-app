@@ -330,7 +330,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
                 return _FeatureTile(
                   icon: Icons.fact_check_outlined,
                   color: AppTheme.success,
-                  title: 'Verify UPI Claims',
+                  title: context.tr('verifyUpiClaims'),
                   subtitle: 'Approve or reject parent UPI fee payment claims',
                   badge: pendingCount > 0 ? '$pendingCount' : null,
                   onTap: () => _navigate(const PaymentClaimsVerificationScreen()),
@@ -388,7 +388,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _FeatureTile(
               icon: Icons.picture_as_pdf_outlined,
               color: _cPurple,
-              title: 'School Timetable (PDF)',
+              title: context.tr('schoolTimetablePdf'),
               subtitle: context.tr('subViewTimetablesDesc'),
               onTap: () => _navigate(const MyTimetableScreen()),
             ),
@@ -474,7 +474,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             _FeatureTile(
               icon: Icons.swap_horiz_outlined,
               color: AppTheme.warning,
-              title: "Teacher's Free Bells",
+              title: context.tr('teacherSFreeBells'),
               subtitle: context.tr('subSubstitutionBellsDesc'),
               onTap: () => _navigate(const FreeBellsScreen()),
             ),
@@ -671,7 +671,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
                             fontSize: 14, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 1),
                     if (!s.marked)
-                      Text('Not marked yet',
+                      Text(context.tr('notMarkedYet'),
                           style: TextStyle(
                               fontSize: 11,
                               color: Colors.grey.shade400,
@@ -876,7 +876,7 @@ class _StudentRow extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.orange.shade200),
                     ),
-                    child: Text('$streak days',
+                    child: Text(context.tr('streakDaysCount').replaceAll('{count}', streak.toString()),
                         style: TextStyle(
                             fontSize: 10,
                             color: Colors.orange.shade800,

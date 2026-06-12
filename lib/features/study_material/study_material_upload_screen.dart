@@ -6,6 +6,7 @@ import '../../models/teacher.dart';
 import '../../services/study_material_service.dart';
 import '../../services/copy_check_service.dart';
 import '../../theme.dart';
+import '../../l10n/app_strings.dart';
 
 class StudyMaterialUploadScreen extends StatefulWidget {
   final Teacher teacher;
@@ -99,7 +100,7 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
         final file = result.files.first;
         if (file.size > 10 * 1024 * 1024) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('File size exceeds 10MB limit'), backgroundColor: AppTheme.danger),
+            SnackBar(content: Text(context.tr('fileSizeLimitError')), backgroundColor: AppTheme.danger),
           );
           return;
         }
@@ -110,7 +111,7 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking file: $e'), backgroundColor: AppTheme.danger),
+        SnackBar(content: Text(context.tr('errorPickingFile').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
       );
     }
   }
@@ -119,7 +120,7 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_pickedFile == null || _fileBytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please attach a study material file'), backgroundColor: AppTheme.danger),
+        SnackBar(content: Text(context.tr('attachFileError')), backgroundColor: AppTheme.danger),
       );
       return;
     }
@@ -159,7 +160,7 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Study material uploaded successfully!'), backgroundColor: AppTheme.success),
+          SnackBar(content: Text(context.tr('studyMaterialUploadSuccess')), backgroundColor: AppTheme.success),
         );
         setState(() {
           _pickedFile = null;
@@ -171,7 +172,7 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e'), backgroundColor: AppTheme.danger),
+        SnackBar(content: Text(context.tr('uploadFailed').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
       );
     } finally {
       if (mounted) setState(() => _uploading = false);
@@ -182,14 +183,14 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Material?'),
-        content: Text('Remove "${mat.title}" from the class repository? This also deletes the attached file.'),
+        title: Text(context.tr('deleteMaterialQuestion')),
+        content: Text(context.tr('deleteMaterialConfirm').replaceAll('{title}', mat.title)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
+            child: Text(context.tr('delete')),
           ),
         ],
       ),
@@ -211,7 +212,7 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Publish Study Materials'),
+        title: Text(context.tr('publishStudyMaterials')),
         backgroundColor: AppTheme.primaryDark,
         elevation: 0,
       ),
@@ -226,9 +227,9 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
                     children: [
                       _buildUploadFormCard(),
                       const SizedBox(height: 24),
-                      const Text(
-                        'MY UPLOAD HISTORY',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppTheme.textSecondary, letterSpacing: 0.8),
+                      Text(
+                        context.tr('myUploadHistory'),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppTheme.textSecondary, letterSpacing: 0.8),
                       ),
                       const SizedBox(height: 8),
                       _loadingHistory
@@ -251,15 +252,15 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
           children: [
             Icon(Icons.cloud_upload_outlined, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
-            const Text(
-              'No classes assigned',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
+            Text(
+              context.tr('noClassesAssignedToYou'),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'You need timetable or copy-checking class assignments to upload study materials.',
+            Text(
+              context.tr('studyMaterialNoClassesDesc'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
             ),
           ],
         ),
@@ -289,11 +290,11 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
               
               DropdownButtonFormField<String>(
                 value: _selectedClassKey,
-                decoration: const InputDecoration(
-                  labelText: 'Target Class & Subject',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: InputDecoration(
+                  labelText: context.tr('targetClassSubject'),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   isDense: true,
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                 ),
                 items: _classSubjectMap.entries.map((e) {
                   return DropdownMenuItem(
@@ -314,13 +315,13 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
 
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Title / Topic *',
-                  border: OutlineInputBorder(),
-                  hintText: 'e.g. Calculus Practice Questions',
+                decoration: InputDecoration(
+                  labelText: context.tr('titleTopicLabel'),
+                  border: const OutlineInputBorder(),
+                  hintText: context.tr('studyMaterialTitleHint'),
                 ),
                 validator: (val) {
-                  if (val == null || val.trim().isEmpty) return 'Please enter a title';
+                  if (val == null || val.trim().isEmpty) return context.tr('pleaseEnterTitle');
                   return null;
                 },
               ),
@@ -329,10 +330,10 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
               TextFormField(
                 controller: _descController,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Description / Instructions',
-                  border: OutlineInputBorder(),
-                  hintText: 'e.g. Try to solve questions 1 to 5 before Friday.',
+                decoration: InputDecoration(
+                  labelText: context.tr('descInstructionsLabel'),
+                  border: const OutlineInputBorder(),
+                  hintText: context.tr('studyMaterialDescHint'),
                 ),
               ),
               const SizedBox(height: 16),
@@ -353,14 +354,14 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
                       const Icon(Icons.attach_file, size: 28, color: AppTheme.primary),
                       const SizedBox(height: 8),
                       Text(
-                        _pickedFile == null ? 'Attach File (Max 10MB)' : _pickedFile!.name,
+                        _pickedFile == null ? context.tr('attachFileLabel') : _pickedFile!.name,
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _pickedFile == null ? AppTheme.textSecondary : AppTheme.primary),
                       ),
                       if (_pickedFile != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            'Size: ${(_pickedFile!.size / 1024).toStringAsFixed(1)} KB',
+                            context.tr('fileSizeLabel').replaceAll('{size}', '${(_pickedFile!.size / 1024).toStringAsFixed(1)} KB'),
                             style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary),
                           ),
                         ),
@@ -383,9 +384,9 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
                         width: 20,
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                       )
-                    : const Text(
-                        'Upload & Publish',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    : Text(
+                        context.tr('uploadPublish'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
               ),
             ],
@@ -402,10 +403,10 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
         side: const BorderSide(color: AppTheme.border),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Padding(
-        padding: EdgeInsets.all(24),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
         child: Center(
-          child: Text('No previous uploads found for this class.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+          child: Text(context.tr('noUploadsFound'), style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
         ),
       ),
     );
@@ -435,7 +436,7 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
               child: const Icon(Icons.description_outlined),
             ),
             title: Text(mat.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            subtitle: Text('${mat.fileName}\nPublished on $dateStr', style: const TextStyle(fontSize: 11)),
+            subtitle: Text('${mat.fileName}\n${context.tr('publishedOn')} $dateStr', style: const TextStyle(fontSize: 11)),
             isThreeLine: true,
             trailing: IconButton(
               icon: const Icon(Icons.delete_outline, color: AppTheme.danger),

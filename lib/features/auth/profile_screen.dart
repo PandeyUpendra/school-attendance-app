@@ -21,6 +21,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
+  bool _isDeletionPending = false;
 
   String _name = '';
   String _email = '';
@@ -123,6 +124,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             .collection('settings').doc('school').get();
         _schoolName = (s.data()?['name'] as String?)?.trim() ?? '';
       } catch (e, st) { AppLogger.e('ProfileScreen', 'Best-effort load failed', e, st); }
+
+      // Deletion request status (best-effort).
+      try {
+        final delDoc = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(sid)
+            .collection('account_deletion_requests')
+            .doc(email)
+            .get();
+        _isDeletionPending = delDoc.exists;
+      } catch (e, st) {
+        AppLogger.e('ProfileScreen', 'Best-effort load deletion pending status failed', e, st);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -208,7 +222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _languageRow(context),
 
                 // ── Privacy: account deletion (A4 / Play requirement) ─────
-                _section(context.tr('privacySection')),
+                _section(context.tr('dangerZone'), color: AppTheme.danger),
                 _deleteAccountRow(context),
 
                 const SizedBox(height: 24),
@@ -278,42 +292,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  String _getDeletionRecipient(BuildContext context) {
+    switch (_role.toLowerCase()) {
+      case 'owner':
+      case 'ownerprincipal':
+        return context.tr('deletionSentToSystemAdmin');
+      case 'principal':
+        return context.tr('role_owner');
+      default:
+        return context.tr('deletionSentToSchoolManagement');
+    }
+  }
+
   /// Self-service account-deletion request. Every signed-in role can INITIATE
   /// deletion here (Google Play requirement); the school processes the request
   /// through the existing deleteAccount cascade.
-  Widget _deleteAccountRow(BuildContext context) => InkWell(
-        onTap: _requestAccountDeletion,
-        child: Container(
-          color: AppTheme.surface,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(children: [
-            Icon(Icons.delete_forever_outlined,
-                size: 20, color: Colors.red.shade600),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(context.tr('deleteMyAccount'),
-                        style: TextStyle(
-                            fontSize: 15, color: Colors.red.shade600)),
+  Widget _deleteAccountRow(BuildContext context) {
+    final recipient = _getDeletionRecipient(context);
+    return InkWell(
+      onTap: _isDeletionPending ? null : _requestAccountDeletion,
+      child: Container(
+        color: AppTheme.surface,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(children: [
+          Icon(Icons.delete_forever_outlined,
+              size: 20, color: Colors.red.shade600),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(context.tr('deleteMyAccount'),
+                      style: TextStyle(
+                          fontSize: 15, color: Colors.red.shade600)),
+                  if (_isDeletionPending) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '${context.tr('deletionRequestSentTo')} $recipient (${context.tr('pendingLower')})',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.danger),
+                    ),
+                  ] else ...[
                     Text(context.tr('deleteMyAccountSubtitle'),
                         style: const TextStyle(
                             fontSize: 11, color: AppTheme.textSecondary)),
-                  ]),
-            ),
+                  ],
+                ]),
+          ),
+          if (!_isDeletionPending)
             const Icon(Icons.chevron_right, color: Colors.grey),
-          ]),
-        ),
-      );
+        ]),
+      ),
+    );
+  }
 
   Future<void> _requestAccountDeletion() async {
+    final recipient = _getDeletionRecipient(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(ctx.tr('deleteAccountConfirmTitle')),
-        content: Text(ctx.tr('deleteAccountConfirmBody')),
+        content: Text(
+          '${ctx.tr('deleteAccountConfirmBody')}\n\n${ctx.tr('deletionRequestSentTo')} $recipient',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -331,10 +375,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (ok != true || !mounted) return;
 
+    // Second confirmation before sending the request
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(ctx.tr('secondConfirmTitle')),
+        content: Text(ctx.tr('secondConfirmBody')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(ctx.tr('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(ctx.tr('confirmAction')),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
     String message;
     try {
       final created = await AuthService().requestAccountDeletion();
       if (!mounted) return;
+      if (created) {
+        setState(() {
+          _isDeletionPending = true;
+        });
+      }
       message = created
           ? context.tr('deletionRequestSent')
           : context.tr('deletionRequestPending');
@@ -373,13 +444,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (picked != null) await provider.setLanguage(picked);
   }
 
-  Widget _section(String title) => Padding(
+  Widget _section(String title, {Color color = Colors.grey}) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
         child: Text(title,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Colors.grey,
+                color: color,
                 letterSpacing: 0.8)),
       );
 

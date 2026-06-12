@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
@@ -88,7 +89,7 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
-        build: (pw.Context context) {
+        build: (pw.Context pdfCtx) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
@@ -157,7 +158,7 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
               pw.SizedBox(height: 24),
 
               // Instructions
-              pw.Text('Instructions to the Candidate:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+              pw.Text(context.tr('candidateInstructions'), style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 4),
               _buildInstructionBullet('1. Please carry a physical printout of this admit card to the examination hall.'),
               _buildInstructionBullet('2. Candidates must report at least 15 minutes before the scheduled start time.'),
@@ -174,7 +175,7 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
                     children: [
                       pw.Container(width: 100, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 4),
-                      pw.Text('Invigilator Signature', style: const pw.TextStyle(fontSize: 9)),
+                      pw.Text(context.tr('invigilatorSignature'), style: const pw.TextStyle(fontSize: 9)),
                     ],
                   ),
                   pw.Column(
@@ -237,7 +238,7 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Exam Datesheets & Admit Card'),
+        title: Text(context.tr('examDatesheetsAdmitCard')),
         backgroundColor: AppTheme.primaryDark,
         elevation: 0,
       ),
@@ -382,7 +383,7 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Print', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    child: Text(context.tr('print'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

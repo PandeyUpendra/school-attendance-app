@@ -4,7 +4,7 @@ import '../../models/teacher.dart';
 import '../../services/class_diary_service.dart';
 import '../../services/copy_check_service.dart';
 import '../../theme.dart';
-import 'package:provider/provider.dart';
+import '../../l10n/app_strings.dart';
 
 class ClassDiaryScreen extends StatefulWidget {
   final Teacher? teacher; // Null for Guardian view
@@ -143,7 +143,7 @@ class _ClassDiaryScreenState extends State<ClassDiaryScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Daily Class Diary'),
+        title: Text(context.tr('dailyClassDiary')),
         backgroundColor: AppTheme.primaryDark,
         elevation: 0,
       ),
@@ -165,7 +165,7 @@ class _ClassDiaryScreenState extends State<ClassDiaryScreen> {
               onPressed: () => _showAddEntrySheet(),
               backgroundColor: AppTheme.primary,
               icon: const Icon(Icons.rate_review),
-              label: const Text('Log Daily Lesson'),
+              label: Text(context.tr('logDailyLesson')),
             )
           : null,
     );
@@ -376,14 +376,14 @@ class _ClassDiaryScreenState extends State<ClassDiaryScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Entry?'),
-        content: Text('Are you sure you want to delete the diary entry for ${entry.subject}?'),
+        title: Text(context.tr('deleteEntryQuestion')),
+        content: Text(context.tr('deleteDiaryConfirm').replaceAll('{subject}', entry.subject)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
+            child: Text(context.tr('delete')),
           ),
         ],
       ),
@@ -507,13 +507,13 @@ class _AddDiaryEntryBottomSheetState extends State<_AddDiaryEntryBottomSheet> {
               TextFormField(
                 controller: _topicsController,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Topics/Lessons Covered Today *',
-                  border: OutlineInputBorder(),
-                  hintText: 'e.g. Completed Chapter 3 Quadratic Equations. Solved exercise 3.1 & 3.2.',
+                decoration: InputDecoration(
+                  labelText: context.tr('topicsCoveredLabel'),
+                  border: const OutlineInputBorder(),
+                  hintText: context.tr('diaryLessonHint'),
                 ),
                 validator: (val) {
-                  if (val == null || val.trim().isEmpty) return 'Please specify topics taught';
+                  if (val == null || val.trim().isEmpty) return context.tr('specifyTopicsError');
                   return null;
                 },
               ),
@@ -521,10 +521,10 @@ class _AddDiaryEntryBottomSheetState extends State<_AddDiaryEntryBottomSheet> {
               TextFormField(
                 controller: _homeworkController,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Homework Assigned',
-                  border: OutlineInputBorder(),
-                  hintText: 'e.g. Solve questions 4-8 on page 54.',
+                decoration: InputDecoration(
+                  labelText: context.tr('homeworkAssignedLabel'),
+                  border: const OutlineInputBorder(),
+                  hintText: context.tr('diaryHomeworkHint'),
                 ),
               ),
               const SizedBox(height: 24),
@@ -541,9 +541,9 @@ class _AddDiaryEntryBottomSheetState extends State<_AddDiaryEntryBottomSheet> {
                         width: 20,
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                       )
-                    : const Text(
-                        'Save Diary Entry',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    : Text(
+                        context.tr('saveDiaryEntry'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
             ],

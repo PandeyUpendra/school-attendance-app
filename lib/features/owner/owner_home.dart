@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -206,7 +207,7 @@ class _OwnerHomeState extends State<OwnerHome> {
           _FeatureTile(
             icon: Icons.dashboard_outlined,
             color: AppTheme.primary,
-            title: 'School Dashboard',
+            title: context.tr('schoolDashboard'),
             subtitle: 'Today\'s health, attendance & weekly trend',
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const _DashPage(),
@@ -228,7 +229,7 @@ class _OwnerHomeState extends State<OwnerHome> {
           _FeatureTile(
             icon: Icons.menu_book_outlined,
             color: AppTheme.primary,
-            title: 'Academics',
+            title: context.tr('academics'),
             subtitle: 'Recent tests & upcoming exam calendar',
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const _AcademicsPage(),
@@ -257,7 +258,7 @@ class _OwnerHomeState extends State<OwnerHome> {
           _FeatureTile(
             icon: Icons.receipt_long_outlined,
             color: AppTheme.primary,
-            title: 'Expense Ledger',
+            title: context.tr('expenseLedger'),
             subtitle: 'Log, filter and track operating outlays',
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const ExpenseLedgerScreen(),
@@ -275,7 +276,7 @@ class _OwnerHomeState extends State<OwnerHome> {
           _FeatureTile(
             icon: Icons.account_balance_wallet_outlined,
             color: AppTheme.primary,
-            title: 'Cash Reconciliation',
+            title: context.tr('cashReconciliation'),
             subtitle: 'Verify and deposit cash payments grouped by collector',
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const CashReconciliationScreen(),
@@ -556,7 +557,7 @@ class _DashPageState extends State<_DashPage> {
         backgroundColor: _primary,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text('School Dashboard'),
+        title: Text(context.tr('schoolDashboard')),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -748,7 +749,7 @@ class _StaffPageState extends State<_StaffPage> {
       await _svc.updateLeaveApplication('', id, status);
       await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('errorWithDetails').replaceAll('{error}', e.toString()))));
     }
   }
 
@@ -757,7 +758,7 @@ class _StaffPageState extends State<_StaffPage> {
     if (_loading) {
       return Scaffold(
         backgroundColor: AppTheme.background,
-        appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: const Text('Staff')),
+        appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: Text(context.tr('staff'))),
         body: _shimmerList(),
       );
     }
@@ -771,7 +772,7 @@ class _StaffPageState extends State<_StaffPage> {
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: const Text('Staff')),
+      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: Text(context.tr('staff'))),
       body: RefreshIndicator(
         onRefresh: _load,
         color: _primary,
@@ -950,7 +951,7 @@ class _AcademicsPageState extends State<_AcademicsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: const Text('Academics')),
+      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: Text(context.tr('academics'))),
       body: RefreshIndicator(
         onRefresh: _load,
         color: _primary,
@@ -1369,7 +1370,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
       ));
       await _loadUsers();
     } catch (e) {
-      if (mounted) messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) messenger.showSnackBar(SnackBar(content: Text(context.tr('errorWithDetails').replaceAll('{error}', e.toString()))));
     }
   }
 

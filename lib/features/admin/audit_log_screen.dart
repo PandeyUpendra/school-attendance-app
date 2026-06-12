@@ -222,7 +222,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           header: (_) => pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('Audit Log Report',
+              pw.Text(context.tr('auditLogReport'),
                   style: pw.TextStyle(
                       fontSize: 18, fontWeight: pw.FontWeight.bold,
                       color: PdfTheme.primary)),

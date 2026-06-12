@@ -364,7 +364,7 @@ class _BulkStudentImportScreenState extends State<BulkStudentImportScreen>
                 Navigator.pop(context); // go back to dashboard
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
-              child: const Text('Go to Dashboard', style: TextStyle(color: Colors.white)),
+              child: Text(context.tr('goToDashboard'), style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -390,7 +390,7 @@ class _BulkStudentImportScreenState extends State<BulkStudentImportScreen>
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Bulk Student CSV Import', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(context.tr('bulkStudentCsvImport'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             if (_fileName != null)
               Text(_fileName!, style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
@@ -494,7 +494,7 @@ class _BulkStudentImportScreenState extends State<BulkStudentImportScreen>
           ElevatedButton.icon(
             onPressed: _pickAndParseFile,
             icon: const Icon(Icons.file_open, color: Colors.white),
-            label: const Text('Select CSV File', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            label: Text(context.tr('selectCsvFile'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primary,
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -583,7 +583,7 @@ class _BulkStudentImportScreenState extends State<BulkStudentImportScreen>
                 ),
                 if (student.fatherName.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  Text('Father: ${student.fatherName}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  Text(context.tr('fatherNameLabel').replaceAll('{name}', student.fatherName), style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                 ],
               ],
             ),
@@ -736,7 +736,7 @@ class _BulkStudentImportScreenState extends State<BulkStudentImportScreen>
                     side: const BorderSide(color: AppTheme.primary),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Reset', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
+                  child: Text(context.tr('reset'), style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(width: 12),

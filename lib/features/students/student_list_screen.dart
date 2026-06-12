@@ -520,7 +520,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
         header: (_) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text('Student List Report',
+            pw.Text(context.tr('studentListReport'),
                 style: pw.TextStyle(
                     fontSize: 20, fontWeight: pw.FontWeight.bold,
                     color: PdfTheme.primary)),
@@ -2135,7 +2135,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                             child: ElevatedButton.icon(
                               icon: const FaIcon(FontAwesomeIcons.whatsapp,
                                   size: 15, color: AppTheme.whatsapp),
-                              label: const Text('WhatsApp', style: TextStyle(fontSize: 13)),
+                              label: Text(context.tr('whatsApp'), style: TextStyle(fontSize: 13)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.whatsapp.withValues(alpha: 0.1),
                                 foregroundColor: AppTheme.primary,

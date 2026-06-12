@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -149,7 +150,7 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to generate ID Cards: $e'),
+            content: Text(context.tr('failedToGenerateIdCardsError').replaceAll('{error}', e.toString())),
             backgroundColor: AppTheme.danger,
           ),
         );
@@ -380,7 +381,7 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Batch ID Card Generator'),
+        title: Text(context.tr('batchIdCardGenerator')),
         backgroundColor: AppTheme.primaryDark,
         elevation: 0,
       ),

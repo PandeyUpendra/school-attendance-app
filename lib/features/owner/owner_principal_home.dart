@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -100,7 +101,7 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
           _FeatureTile(
             icon: Icons.dashboard_outlined,
             color: AppTheme.primary,
-            title: 'School Dashboard',
+            title: context.tr('schoolDashboard'),
             subtitle: 'Today\'s health, attendance & weekly trend',
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _OPDashPage())),
           ),
@@ -118,7 +119,7 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
           _FeatureTile(
             icon: Icons.menu_book_outlined,
             color: AppTheme.primary,
-            title: 'Academics',
+            title: context.tr('academics'),
             subtitle: 'Recent tests & upcoming exam calendar',
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _OPAcademicsPage())),
           ),
@@ -322,7 +323,7 @@ class _OPDashPageState extends State<_OPDashPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: const Text('School Dashboard')),
+      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: Text(context.tr('schoolDashboard'))),
       body: RefreshIndicator(
         onRefresh: _load, color: _primary,
         child: _loading ? _opShimmer() : CustomScrollView(
@@ -450,7 +451,7 @@ class _OPStaffPageState extends State<_OPStaffPage> {
       await _svc.updateLeaveApplication('', id, status);
       await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('errorWithDetails').replaceAll('{error}', e.toString()))));
     }
   }
 
@@ -458,7 +459,7 @@ class _OPStaffPageState extends State<_OPStaffPage> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(backgroundColor: AppTheme.background,
-        appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: const Text('Staff')),
+        appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: Text(context.tr('staff'))),
         body: _opShimmer());
     }
     final activeCount  = _teachers.where((t) => staffStatusOf(t) == 'active').length;
@@ -470,7 +471,7 @@ class _OPStaffPageState extends State<_OPStaffPage> {
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: const Text('Staff')),
+      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: Text(context.tr('staff'))),
       body: RefreshIndicator(onRefresh: _load, color: _primary, child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
@@ -589,7 +590,7 @@ class _OPAcademicsPageState extends State<_OPAcademicsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: const Text('Academics')),
+      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: Text(context.tr('academics'))),
       body: RefreshIndicator(onRefresh: _load, color: _primary, child: _loading ? _opShimmer() : CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [

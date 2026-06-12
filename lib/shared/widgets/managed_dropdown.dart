@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 
 import '../../services/dropdown_options_service.dart';
@@ -87,12 +88,12 @@ class _ManagedDropdownState extends State<ManagedDropdown> {
       for (final o in _effective)
         DropdownMenuItem(value: o, child: Text(o)),
       if (widget.allowCustom)
-        const DropdownMenuItem(
+        DropdownMenuItem(
           value: _kAddSentinel,
           child: Row(children: [
             Icon(Icons.add, size: 16, color: AppTheme.primary),
             SizedBox(width: 6),
-            Text('Add custom…',
+            Text(context.tr('addCustomHint'),
                 style: TextStyle(color: AppTheme.primary)),
           ]),
         ),
@@ -171,7 +172,7 @@ class _ManagedDropdownState extends State<ManagedDropdown> {
               autofocus: true,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                labelText: 'New value',
+                labelText: context.tr('newValue'),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10)),
                 isDense: true,
@@ -185,9 +186,9 @@ class _ManagedDropdownState extends State<ManagedDropdown> {
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
               activeColor: AppTheme.primary,
-              title: const Text('Save to list',
+              title: Text(context.tr('saveToList'),
                   style: TextStyle(fontSize: 13)),
-              subtitle: const Text('Keep this option for next time',
+              subtitle: Text(context.tr('keepOptionNextTime'),
                   style: TextStyle(fontSize: 11)),
             ),
           ]),
@@ -259,9 +260,9 @@ class _ManagedDropdownState extends State<ManagedDropdown> {
                 const SizedBox(height: 12),
                 Flexible(
                   child: _options.isEmpty
-                      ? const Padding(
+                      ? Padding(
                           padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Text('No options yet — add one below.'),
+                          child: Text(context.tr('noOptionsYet')),
                         )
                       : ListView(
                           shrinkWrap: true,
@@ -292,7 +293,7 @@ class _ManagedDropdownState extends State<ManagedDropdown> {
                       controller: addCtrl,
                       textCapitalization: TextCapitalization.words,
                       decoration: InputDecoration(
-                        labelText: 'Add new option',
+                        labelText: context.tr('addNewOption'),
                         isDense: true,
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10)),

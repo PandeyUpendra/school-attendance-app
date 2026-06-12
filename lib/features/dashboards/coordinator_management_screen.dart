@@ -110,7 +110,7 @@ class _CoordinatorManagementScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(context.tr('errorWithDetails').replaceAll('{error}', e.toString())), backgroundColor: Colors.red),
         );
       }
     }
@@ -444,7 +444,7 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
       setState(() => _saving = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(context.tr('errorWithDetails').replaceAll('{error}', e.toString())), backgroundColor: Colors.red),
         );
       }
     }

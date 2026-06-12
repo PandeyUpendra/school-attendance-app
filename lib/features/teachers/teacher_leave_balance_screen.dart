@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../models/teacher.dart';
@@ -37,7 +38,7 @@ class _TeacherLeaveBalanceScreenState extends State<TeacherLeaveBalanceScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Leave Quota & Balances'),
+        title: Text(context.tr('leaveQuotaBalances')),
         backgroundColor: AppTheme.primaryDark,
         elevation: 0,
       ),

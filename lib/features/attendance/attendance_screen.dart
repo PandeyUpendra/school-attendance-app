@@ -178,13 +178,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Attendance Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+          title: Text(context.tr('attendanceSettings'), style: TextStyle(fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               SwitchListTile(
-                title: const Text('Auto-Mark Present'),
-                subtitle: const Text('Automatically mark student Present when swiping past them if unmarked'),
+                title: Text(context.tr('autoMarkPresent')),
+                subtitle: Text(context.tr('autoMarkPresentDesc')),
                 value: _autoMarkPresent,
                 activeColor: AppTheme.primary,
                 onChanged: (val) async {
@@ -195,7 +195,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
                 },
               ),
               SwitchListTile(
-                title: const Text('Sound Feedback'),
+                title: Text(context.tr('soundFeedback')),
                 value: _soundEnabled,
                 activeColor: AppTheme.primary,
                 onChanged: (val) async {
@@ -206,7 +206,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
                 },
               ),
               SwitchListTile(
-                title: const Text('Vibration Feedback'),
+                title: Text(context.tr('vibrationFeedback')),
                 value: _vibrationEnabled,
                 activeColor: AppTheme.primary,
                 onChanged: (val) async {
@@ -221,7 +221,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
+              child: Text(context.tr('close')),
             ),
           ],
         ),
@@ -278,7 +278,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
       if (synced > 0 && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✓ Synced $synced offline record${synced > 1 ? "s" : ""} to server'),
+            content: Text(context.tr('syncedOfflineRecordsSuccess').replaceAll('{count}', synced.toString())),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
@@ -594,12 +594,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Confirm Attendance Save', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(context.tr('confirmAttendanceSave'), style: TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Please verify the attendance summary before saving:'),
+            Text(context.tr('verifyAttendanceSummaryBeforeSave')),
             const SizedBox(height: 16),
             _SummaryRow('Total Students', '$_total', Colors.grey),
             _SummaryRow('Present', '$_present', AppTheme.success),
@@ -927,7 +927,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(hintText: 'Enter Roll Number'),
+          decoration: InputDecoration(hintText: context.tr('enterRollNumberHint')),
           autofocus: true,
         ),
         actions: [
@@ -1207,7 +1207,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
                 if (mounted && synced > 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('✓ Synced $synced record${synced > 1 ? "s" : ""}'),
+                      content: Text(context.tr('syncedRecordsSuccess').replaceAll('{count}', synced.toString())),
                       backgroundColor: Colors.green,
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -1404,7 +1404,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
         child: Icon(Icons.group_add_outlined, size: 44, color: Colors.grey.shade400),
       ),
       const SizedBox(height: 20),
-      Text('No students in $_className',
+      Text(context.tr('noStudentsInClassName').replaceAll('{class}', _className),
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600,
               color: Colors.grey.shade500)),
       const SizedBox(height: 6),
@@ -2190,10 +2190,10 @@ class _NotifyRow extends StatelessWidget {
                 color: AppTheme.whatsapp,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(FontAwesomeIcons.whatsapp, color: Colors.white, size: 14),
                 SizedBox(width: 4),
-                Text('WhatsApp',
+                Text(context.tr('whatsApp'),
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,

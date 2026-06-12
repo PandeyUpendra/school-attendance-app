@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
@@ -104,7 +105,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
 
     doc.addPage(pw.Page(
       pageFormat: PdfPageFormat.a5,
-      build: (pw.Context context) => pw.Stack(
+      build: (pw.Context pdfCtx) => pw.Stack(
         children: [
           if (p.reversed)
             pw.Center(
@@ -187,7 +188,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Amount Paid', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  pw.Text(context.tr('amountPaid'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                   pw.Text('₹${CurrencyUtils.formatValues(p.amount)}', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfTheme.accent)),
                 ],
               ),

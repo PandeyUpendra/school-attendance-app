@@ -4,6 +4,7 @@ import '../../models/teacher.dart';
 import '../../services/syllabus_service.dart';
 import '../../services/copy_check_service.dart';
 import '../../theme.dart';
+import '../../l10n/app_strings.dart';
 
 class SyllabusTrackerScreen extends StatefulWidget {
   final Teacher teacher;
@@ -103,7 +104,7 @@ class _SyllabusTrackerScreenState extends State<SyllabusTrackerScreen> {
       await _syllabusService.saveCoverage(newCoverage);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update syllabus: $e'), backgroundColor: AppTheme.danger),
+        SnackBar(content: Text(context.tr('syllabusUpdateFailed').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
       );
       // Revert state
       _loadSyllabusData();
@@ -115,7 +116,7 @@ class _SyllabusTrackerScreenState extends State<SyllabusTrackerScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Syllabus Coverage Tracker'),
+        title: Text(context.tr('syllabusCoverageTracker')),
         backgroundColor: AppTheme.primaryDark,
         elevation: 0,
       ),
@@ -130,7 +131,7 @@ class _SyllabusTrackerScreenState extends State<SyllabusTrackerScreen> {
                       child: _loadingSyllabus
                           ? const Center(child: CircularProgressIndicator())
                           : _template == null || _coverage == null
-                              ? const Center(child: Text('Failed to load syllabus configuration'))
+                              ? Center(child: Text(context.tr('syllabusLoadFailed')))
                               : _buildTrackerBody(),
                     ),
                   ],
@@ -147,15 +148,15 @@ class _SyllabusTrackerScreenState extends State<SyllabusTrackerScreen> {
           children: [
             Icon(Icons.assignment_turned_in_outlined, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
-            const Text(
-              'No classes assigned',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
+            Text(
+              context.tr('noClassesAssignedToYou'),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'You need timetable or copy-checking class assignments to track syllabus.',
+            Text(
+              context.tr('syllabusNoClassesDesc'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
             ),
           ],
         ),
@@ -172,11 +173,11 @@ class _SyllabusTrackerScreenState extends State<SyllabusTrackerScreen> {
           Expanded(
             child: DropdownButtonFormField<String>(
               value: _selectedClassKey,
-              decoration: const InputDecoration(
-                labelText: 'Class & Subject',
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: InputDecoration(
+                labelText: context.tr('classSubjectLabel'),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 isDense: true,
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
               ),
               items: _classSubjectMap.entries.map((e) {
                 return DropdownMenuItem(
@@ -302,7 +303,7 @@ class _SyllabusTrackerScreenState extends State<SyllabusTrackerScreen> {
                     decoration: isDone ? TextDecoration.lineThrough : null,
                   ),
                 ),
-                subtitle: Text('${chapter.topics.length} topics', style: const TextStyle(fontSize: 11)),
+                subtitle: Text(context.tr('topicsCount').replaceAll('{count}', chapter.topics.length.toString()), style: const TextStyle(fontSize: 11)),
                 children: [
                   const Divider(height: 1),
                   Container(
