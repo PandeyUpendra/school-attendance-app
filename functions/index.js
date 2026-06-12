@@ -312,10 +312,10 @@ exports.deleteAccount = onCall(
       // writes, instead of a fully serial getUserByEmail+delete per member —
       // a large school previously risked exceeding the function timeout and
       // leaving the school half-deleted (#113).
-      const memberUids = members.docs.map((d) => d.id);
+      const memberEmails = members.docs.map((d) => d.id);
       const authChunk = 25;
-      for (let i = 0; i < memberUids.length; i += authChunk) {
-        await Promise.all(memberUids.slice(i, i + authChunk).map(deleteAuthUid));
+      for (let i = 0; i < memberEmails.length; i += authChunk) {
+        await Promise.all(memberEmails.slice(i, i + authChunk).map(deleteAuth));
       }
       const docChunk = 450; // under Firestore's 500-op batch limit
       for (let i = 0; i < members.docs.length; i += docChunk) {
