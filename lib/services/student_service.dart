@@ -800,19 +800,14 @@ class StudentService extends BaseFirestoreService {
     // class/section/roll so the guardian's cached session points to the
     // correct class after promotion.
     try {
-      final db = FirebaseFirestore.instance;
-      final docRef = db.collection('allowed_users').doc(uid);
-      final snap = await docRef.get();
-      if (snap.exists) {
-        await docRef.update({
-          'studentClass':   className,
-          'studentRoll':    roll,
-          'studentSection': section,
-          if (admissionId != null && admissionId.isNotEmpty)
-            'studentAdmissionId': admissionId,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
+      await appFunctions.httpsCallable('updateUserMetadata').call(<String, dynamic>{
+        'email': email.toLowerCase().trim(),
+        'studentClass': className,
+        'studentRoll': roll,
+        'studentSection': section,
+        if (admissionId != null && admissionId.isNotEmpty)
+          'studentAdmissionId': admissionId,
+      });
     } catch (e) {
       AppLogger.e('StudentService',
           '_upsertGuardianAccount allowed_users update failed (non-fatal): $e', e);

@@ -145,6 +145,12 @@ function db(uid) {
     email: user.email.toLowerCase(),
     ...(user.role ? { role: user.role } : {}),
     ...(user.schoolId ? { schoolId: user.schoolId } : {}),
+    ...(user.classIds ? { classIds: user.classIds } : {}),
+    ...(user.studentClass ? { studentClass: user.studentClass } : {}),
+    ...(user.studentRoll ? { studentRoll: user.studentRoll } : {}),
+    ...(user.studentSection ? { studentSection: user.studentSection } : {}),
+    ...(user.studentAdmissionId ? { studentAdmissionId: user.studentAdmissionId } : {}),
+    ...(uid === UID.rootAdmin ? { isRootAdmin: true } : {}),
   } : {};
   return testEnv.authenticatedContext(uid, customClaims).firestore();
 }
@@ -182,9 +188,9 @@ beforeEach(async () => {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const adb = ctx.firestore();
 
-    // allowed_users (keyed by UID)
-    for (const [uid, data] of Object.entries(USERS)) {
-      await setDoc(doc(adb, 'allowed_users', uid), data);
+    // allowed_users (keyed by lowercased email)
+    for (const data of Object.values(USERS)) {
+      await setDoc(doc(adb, 'allowed_users', data.email.toLowerCase()), data);
     }
 
     // Seed Teachers (needed for dynamic lookup of teacher ID -> email)
@@ -367,7 +373,7 @@ describe('Firestore Security Rules', () => {
   describe('4. Role escalation prevention', () => {
     test('DENY — CRITICAL: teacher cannot escalate own role', async () => {
       await assertFails(
-        updateDoc(doc(db(UID.teacher9A), 'allowed_users', UID.teacher9A), {
+        updateDoc(doc(db(UID.teacher9A), 'allowed_users', USERS[UID.teacher9A].email.toLowerCase()), {
           role: 'coordinator',
         }),
       );
@@ -375,7 +381,7 @@ describe('Firestore Security Rules', () => {
 
     test('DENY — user cannot change their own schoolId', async () => {
       await assertFails(
-        updateDoc(doc(db(UID.teacher9A), 'allowed_users', UID.teacher9A), {
+        updateDoc(doc(db(UID.teacher9A), 'allowed_users', USERS[UID.teacher9A].email.toLowerCase()), {
           schoolId: 'evil_school',
         }),
       );
@@ -383,7 +389,7 @@ describe('Firestore Security Rules', () => {
 
     test('DENY — teacher cannot create a user document (no user provisioning)', async () => {
       await assertFails(
-        setDoc(doc(db(UID.teacher9A), 'allowed_users', 'brand-new-uid'), {
+        setDoc(doc(db(UID.teacher9A), 'allowed_users', 'brand-new@school.test'), {
           role: 'admin', schoolId: SCHOOL_ID,
           name: 'Fake Admin', email: 'brand-new@school.test',
           classIds: [], studentIds: [], status: 'active',
@@ -391,9 +397,9 @@ describe('Firestore Security Rules', () => {
       );
     });
 
-    test('ALLOW — teacher can create a guardian allowed_users document in their own school', async () => {
-      await assertSucceeds(
-        setDoc(doc(db(UID.teacher9A), 'allowed_users', 'new-guardian-uid'), {
+    test('DENY — teacher cannot create a guardian allowed_users document directly', async () => {
+      await assertFails(
+        setDoc(doc(db(UID.teacher9A), 'allowed_users', 'new-guardian@school.test'), {
           role: 'guardian', schoolId: SCHOOL_ID,
           name: 'New Guardian', email: 'new-guardian@school.test',
           studentClass: 'Class 9-A', studentRoll: 42,
@@ -402,21 +408,10 @@ describe('Firestore Security Rules', () => {
       );
     });
 
-    test('DENY — teacher cannot create a guardian allowed_users document in a different school', async () => {
-      await assertFails(
-        setDoc(doc(db(UID.teacher9A), 'allowed_users', 'new-guardian-other-uid'), {
-          role: 'guardian', schoolId: 'other_school',
-          name: 'New Guardian Other', email: 'new-guardian-other@school.test',
-          studentClass: 'Class 9-A', studentRoll: 42,
-          status: 'pending',
-        }),
-      );
-    });
-
-    test('ALLOW — teacher can update a guardian allowed_users document in their own school', async () => {
+    test('DENY — teacher cannot update a guardian allowed_users document directly', async () => {
       // Seed a guardian first
       await testEnv.withSecurityRulesDisabled(async (ctx) => {
-        await setDoc(doc(ctx.firestore(), 'allowed_users', 'existing-guardian-uid'), {
+        await setDoc(doc(ctx.firestore(), 'allowed_users', 'existing-guardian@school.test'), {
           role: 'guardian', schoolId: SCHOOL_ID,
           name: 'Existing Guardian', email: 'existing-guardian@school.test',
           studentClass: 'Class 9-A', studentRoll: 42,
@@ -424,45 +419,32 @@ describe('Firestore Security Rules', () => {
         });
       });
 
-      await assertSucceeds(
-        updateDoc(doc(db(UID.teacher9A), 'allowed_users', 'existing-guardian-uid'), {
+      await assertFails(
+        updateDoc(doc(db(UID.teacher9A), 'allowed_users', 'existing-guardian@school.test'), {
           studentRoll: 43,
         }),
       );
     });
 
-    test('DENY — teacher cannot update a guardian allowed_users document to a different role', async () => {
-      // Seed a guardian first
-      await testEnv.withSecurityRulesDisabled(async (ctx) => {
-        await setDoc(doc(ctx.firestore(), 'allowed_users', 'existing-guardian-escalate-uid'), {
-          role: 'guardian', schoolId: SCHOOL_ID,
-          name: 'Existing Guardian', email: 'existing-guardian-escalate@school.test',
-          studentClass: 'Class 9-A', studentRoll: 42,
-          status: 'pending',
-        });
-      });
-
+    test('DENY — user cannot update their own allowed_users fields directly', async () => {
       await assertFails(
-        updateDoc(doc(db(UID.teacher9A), 'allowed_users', 'existing-guardian-escalate-uid'), {
-          role: 'teacher',
-        }),
-      );
-    });
-
-    test('ALLOW — user can update their own non-privileged fields', async () => {
-      // Must pass role and schoolId unchanged; otherwise the rule rejects.
-      await assertSucceeds(
-        updateDoc(doc(db(UID.teacher9A), 'allowed_users', UID.teacher9A), {
+        updateDoc(doc(db(UID.teacher9A), 'allowed_users', USERS[UID.teacher9A].email.toLowerCase()), {
           name: 'Ms. Nair Updated',
-          role: USERS[UID.teacher9A].role,        // 'teacher' — unchanged
-          schoolId: USERS[UID.teacher9A].schoolId, // unchanged
         }),
       );
     });
 
-    test('ALLOW — admin can upgrade a user\'s role', async () => {
+    test('DENY — normal admin cannot write directly to allowed_users', async () => {
+      await assertFails(
+        updateDoc(doc(db(UID.admin), 'allowed_users', USERS[UID.teacher9A].email.toLowerCase()), {
+          role: 'coordinator',
+        }),
+      );
+    });
+
+    test('ALLOW — root admin can write to allowed_users directly', async () => {
       await assertSucceeds(
-        updateDoc(doc(db(UID.admin), 'allowed_users', UID.teacher9A), {
+        updateDoc(doc(db(UID.rootAdmin), 'allowed_users', USERS[UID.teacher9A].email.toLowerCase()), {
           role: 'coordinator',
         }),
       );
@@ -471,7 +453,7 @@ describe('Firestore Security Rules', () => {
     test('DENY — coordinator cannot read a user from a different school', async () => {
       // Seed a user from another school
       await testEnv.withSecurityRulesDisabled(async (ctx) => {
-        await setDoc(doc(ctx.firestore(), 'allowed_users', 'out-other-uid'), {
+        await setDoc(doc(ctx.firestore(), 'allowed_users', 'out@other.test'), {
           role: 'teacher', schoolId: 'school_other',
           name: 'Outsider', email: 'out@other.test',
           classIds: [], studentIds: [], status: 'active',
@@ -479,7 +461,7 @@ describe('Firestore Security Rules', () => {
       });
 
       await assertFails(
-        getDoc(doc(db(UID.coordinator), 'allowed_users', 'out-other-uid')),
+        getDoc(doc(db(UID.coordinator), 'allowed_users', 'out@other.test')),
       );
     });
   });

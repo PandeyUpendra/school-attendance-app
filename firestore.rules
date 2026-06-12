@@ -1126,7 +1126,7 @@ service cloud.firestore {
           && resource.data.className == userStudentClass())
       );
 
-      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+      allow write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
     }
 
 
@@ -1144,7 +1144,7 @@ service cloud.firestore {
         (isRole('guardian') && classId == userStudentClass().replace(' ', '_'))
       );
 
-      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+      allow write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
 
       // Intermediate student node — lets management LIST the students that have
       // payments under a class (PrincipalDigestService fans out across
@@ -1158,7 +1158,7 @@ service cloud.firestore {
             && classId == userStudentClass().replace(' ', '_')
             && roll == string(userStudentRoll()))
         );
-        allow write: if isSignedIn() && inSchool(sid) && isManagement();
+        allow write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
       }
 
       // (fee_meta counter rule is defined as a sibling match below.)
@@ -1177,7 +1177,7 @@ service cloud.firestore {
           && resource.data.className == userStudentClass()
           && resource.data.roll == userStudentRoll())
       );
-      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+      allow write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
     }
 
 
@@ -1188,7 +1188,7 @@ service cloud.firestore {
     // FeeService.addPayment). Management only.
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/fee_meta/{docId} {
-      allow read, write: if isSignedIn() && inSchool(sid) && isManagement();
+      allow read, write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
     }
 
 

@@ -88,12 +88,6 @@ class _HomeScreenState extends State<HomeScreen> {
       RoleGuard.verify(context, ['teacher', 'subjectTeacher']);
     });
     _initStreams();
-    // Self-heal allowed_users.classIds so the class-teacher firestore rules
-    // pass for this teacher's own class (fixes student/attendance/homework
-    // permission-denied for teachers provisioned before classIds stamping).
-    if (widget.teacher != null) {
-      TimetableService.instance.syncTeacherClassIds(widget.teacher!);
-    }
   }
 
   @override

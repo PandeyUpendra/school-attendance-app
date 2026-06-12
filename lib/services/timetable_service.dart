@@ -239,62 +239,17 @@ class TimetableService extends BaseFirestoreService {
   Future<void> updateTeacher(String schoolId, Teacher teacher) async {
     await _teachers.doc(teacher.id).set(teacher.toJson());
 
-    // Keep allowed_users in sync (email is not the doc ID so lookup by query).
-    // classIds is re-stamped here so changing a teacher's class assignment
-    // immediately propagates to the rule-evaluation path; otherwise edits
-    // would silently fail to grant/revoke per-class access.
     final normEmail = teacher.email.trim().toLowerCase();
     if (normEmail.isEmpty || !normEmail.contains('@')) return;
     try {
-      final query = await _allowedUsers.where('email', isEqualTo: normEmail).limit(1).get();
-      if (query.docs.isNotEmpty) {
-        await query.docs.first.reference.update({
-          'name':     teacher.name,
-          'classIds': _classIdsFor(teacher),
-        });
-      }
-    } catch (_) {}
-  }
-
-  /// Self-heal a teacher's own `allowed_users.classIds` from their
-  /// authoritative `teachers/{id}` record.
-  ///
-  /// WHY: the firestore.rules `isClassTeacher(cls)` predicate reads
-  /// `allowed_users.classIds[]`. Teachers provisioned before classIds was
-  /// stamped — or whose class assignment changed without a re-stamp — end up
-  /// with empty/stale classIds and hit `permission-denied` when creating
-  /// students / attendance / homework for their OWN class. Calling this on
-  /// teacher login (HomeScreen) repairs the doc transparently.
-  ///
-  /// This is a SELF-update: the rules permit a user to update their own
-  /// allowed_users doc as long as `role` and `schoolId` are unchanged. We only
-  /// touch `classIds` (+ `teacherId`), so the write is allowed. Idempotent —
-  /// skips the write when the doc is already in sync.
-  Future<void> syncTeacherClassIds(Teacher teacher) async {
-    final normEmail = teacher.email.trim().toLowerCase();
-    if (normEmail.isEmpty || !normEmail.contains('@')) return;
-    final desired = _classIdsFor(teacher);
-    if (desired.isEmpty) return; // nothing to grant (e.g. unassigned teacher)
-    try {
-      final query = await _allowedUsers.where('email', isEqualTo: normEmail).limit(1).get();
-      if (query.docs.isEmpty) return;
-      final docRef = query.docs.first.reference;
-      final snap = query.docs.first;
-      final data = snap.data();
-      final current = (data['classIds'] as List?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          const <String>[];
-      final inSync = current.length == desired.length &&
-          desired.every(current.contains) &&
-          data['teacherId'] == teacher.id;
-      if (inSync) return;
-      await docRef.update({
-        'classIds':  desired,
+      await appFunctions.httpsCallable('updateUserMetadata').call(<String, dynamic>{
+        'email': normEmail,
+        'name': teacher.name,
+        'classIds': _classIdsFor(teacher),
         'teacherId': teacher.id,
       });
-    } catch (_) {
-      // Non-fatal — if it fails, the original permission-denied still surfaces.
+    } catch (e) {
+      AppLogger.e('TimetableService', 'updateTeacher allowed_users update failed: $e', e);
     }
   }
 
@@ -706,92 +661,37 @@ class TimetableService extends BaseFirestoreService {
       }
     }
 
-    // Purge any stale Auth record before creating
-    await _purgeStaleAuthRecord(normEmail);
-
-    // 1. Create Firebase Auth account via REST (doesn't sign out current user).
-    //    Use caller's password if provided, otherwise generate a secure temp one.
-    final authPass = password.isNotEmpty ? password : generateSecurePassword();
-    String? uid;
+    // Call the Cloud Function createAllowedUser to securely provision the user
     try {
-      final res = await http.post(
-        Uri.parse(
-            'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$_firebaseApiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email':             normEmail,
-          'password':          authPass,
-          'returnSecureToken': false,
-        }),
-      );
-      final body    = jsonDecode(res.body) as Map<String, dynamic>;
-      final errCode = (body['error'] as Map?)?['message'] as String? ?? '';
-      if (body['localId'] != null) {
-        uid = body['localId'] as String;
-      } else if (errCode == 'EMAIL_EXISTS') {
-        if (existingDoc != null && existingDoc.exists) {
-          uid = existingDoc.id;
-        } else {
-          final query = await _allowedUsers.where('email', isEqualTo: normEmail).limit(1).get();
-          if (query.docs.isNotEmpty) {
-            uid = query.docs.first.id;
-          }
-        }
-      } else {
-        throw Exception('Firebase Auth creation failed for $normEmail: $errCode');
+      final result = await appFunctions.httpsCallable('createAllowedUser').call(<String, dynamic>{
+        'email': normEmail,
+        'password': password,
+        'role': role,
+        'name': name,
+        'schoolId': schoolId,
+        if (studentClass != null) 'studentClass': studentClass,
+        if (studentRoll != null) 'studentRoll': studentRoll,
+        if (studentSection != null) 'studentSection': studentSection,
+        if (studentAdmissionId != null) 'studentAdmissionId': studentAdmissionId,
+        if (assignedClasses != null) 'assignedClasses': assignedClasses,
+      });
+
+      final uid = (result.data as Map)['uid'] as String;
+
+      // Send invitation / password-setup email via Firebase Auth.
+      try {
+        await AuthService().sendPasswordEmailViaFunction(normEmail, invite: true);
+      } catch (_) {}
+
+      return uid;
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == 'already-exists') {
+        throw RoleConflictException(normEmail, role, role);
       }
+      throw Exception('Failed to add allowed user: ${e.message}');
     } catch (e) {
-      if (existingDoc != null && existingDoc.exists) {
-        uid = existingDoc.id;
-      } else {
-        final query = await _allowedUsers.where('email', isEqualTo: normEmail).limit(1).get();
-        if (query.docs.isNotEmpty) {
-          uid = query.docs.first.id;
-        } else {
-          throw Exception('Firebase Auth creation failed and no existing account found: $e');
-        }
-      }
+      throw Exception('Failed to add allowed user: $e');
     }
-
-    if (uid == null) {
-      throw Exception('Failed to resolve user UID.');
-    }
-
-    // 2. Write to allowed_users — keyed by UID.
-    final data = <String, dynamic>{
-      'role':      role,
-      'email':     normEmail,
-      'status':    'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-      if (name           != null && name.isNotEmpty)     'name':          name,
-      if (schoolId       != null && schoolId.isNotEmpty) 'schoolId':      schoolId,
-      if (createdByEmail != null) 'createdByEmail': createdByEmail,
-      if (createdByRole  != null) 'createdByRole':  createdByRole,
-    };
-    if (role == 'guardian' && studentClass != null && studentRoll != null) {
-      data['studentClass'] = studentClass;
-      data['studentRoll']  = studentRoll;
-      if (studentSection != null) {
-        data['studentSection'] = studentSection;
-      }
-      // Stable identity for the #39 'guardian_adm:{admissionId}' rule branch.
-      if (studentAdmissionId != null && studentAdmissionId.isNotEmpty) {
-        data['studentAdmissionId'] = studentAdmissionId;
-      }
-    }
-    if (role == 'coordinator' || role == 'principal' || role == 'owner') {
-      data['assignedClasses'] = assignedClasses ?? [];
-    }
-    await _allowedUsers.doc(uid).set(data);
-
-    // 3. Send invitation / password-setup email via Firebase Auth.
-    try {
-      await AuthService().sendPasswordEmailViaFunction(normEmail, invite: true);
-    } catch (_) {
-      // Non-fatal; admin can resend from the user management screen.
-    }
-
-    return uid;
   }
 
   /// Returns users created by the given creator email.
