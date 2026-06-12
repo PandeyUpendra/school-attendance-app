@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../l10n/app_strings.dart';
 import '../../theme.dart';
@@ -107,6 +108,26 @@ class _AdminScreenState extends State<AdminScreen> {
       // 'school_1', which is why every owner was seeing the same school.
       final schoolId =
           'school_${DateTime.now().millisecondsSinceEpoch}_${email.hashCode.abs()}';
+      // Materialise the schools/{schoolId} PARENT DOC at creation. Without it
+      // the school only ever exists as a phantom parent of its subcollections —
+      // invisible to `collection('schools').get()`, which breaks every
+      // "iterate all schools" admin/maintenance tool (they'd need
+      // listDocuments() workarounds). Shape matches School.fromJson; the owner
+      // fills in name/address later via school settings. Written BEFORE the
+      // owner account so a partial failure leaves an ownerless school doc
+      // (harmless, retried by re-adding) rather than an owner whose school is
+      // a phantom.
+      await FirebaseFirestore.instance.collection('schools').doc(schoolId).set({
+        'name': '',
+        'address': '',
+        'contactNumber': '',
+        'email': email,
+        'logoUrl': '',
+        'createdAt': FieldValue.serverTimestamp(),
+        'subscriptionPlan': 'free',
+        'isActive': true,
+        'brandName': '',
+      });
       // No password needed — a secure temp is generated automatically and a
       // setup link is sent to the user's email via Firebase Auth.
       await _service.addAllowedUser(email, '', _role, schoolId: schoolId);

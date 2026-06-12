@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -87,7 +88,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   List<Map<String, dynamic>> _latestNotifs = [];
 
   StreamSubscription? _studentSub;
-  Set<String> _knownStudentIds = {};
+  Map<String, int>? _knownClassTotals;
 
   @override
   void initState() {
@@ -97,16 +98,19 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     });
     _loadAll();
     _initBadgeStreams();
-    // Re-run summaries whenever the student roster changes (add/delete).
-    _studentSub = StudentService.instance.watchStudents().listen(
-      (students) {
-        final ids = students.map((s) => '${s.className}_${s.roll}').toSet();
-        if (_knownStudentIds.isNotEmpty && ids != _knownStudentIds) {
+    // Re-run summaries whenever the roster changes (add/delete/class move).
+    // SCALE-03: listen to the tiny per-class `class_stats` counters (one doc
+    // per class, server-maintained) instead of a capped 500-student window —
+    // O(#classes) listener cost, and exact at any school size.
+    _studentSub = StudentService.instance.watchClassStatsTotals().listen(
+      (totals) {
+        final known = _knownClassTotals;
+        if (known != null && !mapEquals(known, totals)) {
           _loadAll();
         }
-        _knownStudentIds = ids;
+        _knownClassTotals = totals;
       },
-      onError: (e) => AppLogger.e('PrincipalDashboard', 'student stream error: $e', e),
+      onError: (e) => AppLogger.e('PrincipalDashboard', 'class stats stream error: $e', e),
     );
   }
 

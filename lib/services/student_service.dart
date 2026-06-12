@@ -217,6 +217,18 @@ class StudentService extends BaseFirestoreService {
   Stream<List<Student>> watchStudents({String? schoolId}) =>
       _repo.watchAll().map(_visibleOnly);
 
+  /// Roster-change signal for dashboards (SCALE-03): live per-class visible
+  /// enrolment totals from the tiny `class_stats` collection (one doc per
+  /// class, maintained server-side by the syncClassStats trigger on every
+  /// student create/delete/visibility/class change). Listening to this instead
+  /// of [watchStudents] costs O(#classes) docs instead of a 500-student
+  /// window, and is EXACT — no cap to outgrow.
+  Stream<Map<String, int>> watchClassStatsTotals() =>
+      schoolCollection(_schoolId, 'class_stats').snapshots().map((snap) => {
+            for (final d in snap.docs)
+              d.id: ((d.data()['total'] as num?)?.toInt() ?? 0),
+          });
+
   /// Returns a single student by class + section + roll (used by Guardian Portal).
   /// Returns null for students marked for deletion so no role can open their
   /// details. Internal flows (`removeStudent`, `setGuardianEmail`) read the

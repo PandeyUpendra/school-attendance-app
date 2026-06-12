@@ -192,7 +192,7 @@ function resolveCallerRole(callerEmail, snap) {
  *     (Accounts they created are intentionally kept — they belong to the school.)
  */
 exports.deleteAccount = onCall(
-  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: false },
   async (request) => {
     const db = admin.firestore();
 
@@ -376,7 +376,7 @@ exports.deleteAccount = onCall(
  * Securely provisions a new user account (handles Auth signup, creates the allowed_users document, and triggers custom claims sync).
  */
 exports.createAllowedUser = onCall(
-  { cors: true, region: "asia-south1", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", enforceAppCheck: false },
   async (request) => {
     const db = admin.firestore();
     
@@ -500,7 +500,7 @@ exports.createAllowedUser = onCall(
  * Securely updates a user's permissions, class assignments, or guardian mapping.
  */
 exports.updateUserMetadata = onCall(
-  { cors: true, region: "asia-south1", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", enforceAppCheck: false },
   async (request) => {
     const db = admin.firestore();
 
@@ -858,7 +858,7 @@ async function performStudentDeleteCascade(db, schoolId, className, section, rol
 }
 
 exports.deleteStudent = onCall(
-  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: false },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -892,7 +892,7 @@ exports.deleteStudent = onCall(
 );
 
 exports.approveDeletionRequest = onCall(
-  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: false },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -960,7 +960,7 @@ exports.approveDeletionRequest = onCall(
  * server-verified actor.
  */
 exports.writeAudit = onCall(
-  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: false },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -1066,7 +1066,7 @@ exports.writeAudit = onCall(
 const PURGE_ROLES = ["admin", "owner", "ownerPrincipal"];
 
 exports.purgeOldData = onCall(
-  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: false },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -1692,7 +1692,7 @@ exports.onAttendanceWritten = onDocumentWritten(
  * re-run. Restricted to admin/owner of the school (root admin may target any).
  */
 exports.backfillStudentAttendance = onCall(
-  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: false },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -1782,7 +1782,7 @@ exports.backfillStudentAttendance = onCall(
  * target any). Mirrors backfillStudentAttendance's auth.
  */
 exports.backfillCommsConsent = onCall(
-  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: false },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -1836,7 +1836,7 @@ exports.backfillCommsConsent = onCall(
  * overwrites totals with the freshly counted values. admin/owner-gated.
  */
 exports.backfillClassStats = onCall(
-  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: false },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -1907,7 +1907,7 @@ exports.backfillClassStats = onCall(
  * admin/owner-gated.
  */
 exports.backfillAttendanceSummary = onCall(
-  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: false },
   async (request) => {
     const db = admin.firestore();
     if (!request.auth || !request.auth.token || !request.auth.token.email) {
@@ -2056,7 +2056,7 @@ async function authorizeFeeCaller(db, request, schoolId) {
  * { ok, receiptNo }.
  */
 exports.recordPayment = onCall(
-  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: false },
   async (request) => {
     const db = admin.firestore();
     const d = request.data || {};
@@ -2204,7 +2204,7 @@ exports.recordPayment = onCall(
  * FeeService.deletePayment). Money records are never hard-deleted.
  */
 exports.reversePayment = onCall(
-  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: true },
+  { cors: true, region: "asia-south1", invoker: "public", enforceAppCheck: false },
   async (request) => {
     const db = admin.firestore();
     const d = request.data || {};
