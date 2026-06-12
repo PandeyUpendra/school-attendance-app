@@ -514,11 +514,11 @@ class TimetableService extends BaseFirestoreService {
   /// Returns the assigned classes for a coordinator/principal, or null if not set.
   Future<({List<String>? assignedClasses, String? schoolId})> getAssignedClasses(
       String email) async {
-    final query = await _allowedUsers.where('email', isEqualTo: email.toLowerCase().trim()).limit(1).get();
-    if (query.docs.isEmpty) {
+    final docSnap = await _allowedUsers.doc(email.toLowerCase().trim()).get();
+    if (!docSnap.exists || docSnap.data() == null) {
       return (assignedClasses: null, schoolId: null);
     }
-    final data     = query.docs.first.data();
+    final data     = docSnap.data()!;
     final raw      = data['assignedClasses'];
     final schoolId = data['schoolId'] as String?;
     List<String>? classes;
