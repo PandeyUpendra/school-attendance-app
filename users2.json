@@ -1,0 +1,462 @@
+{"users": [
+{
+  "localId": "02yrvpTxKkbrMbuxYmNMqLgf43O2",
+  "email": "parent@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "CyBzV2wFwoitYRlyoAtMx/UXbUaZL6GbiBy1qS0uUnbcPysoOYhW1n9Kk6vUB4flg0YoI1vO5kbzc0B8dP8nmw==",
+  "salt": "NR2I2+Ui3SUIiw==",
+  "lastSignedInAt": "1781269659461",
+  "createdAt": "1781269659461",
+  "providerUserInfo": []
+},
+{
+  "localId": "0i6dhhR0h6dmVSeL5yoyB6lWwAt2",
+  "lastSignedInAt": "1778603602379",
+  "createdAt": "1778603602379"
+},
+{
+  "localId": "1pwx5smRIRaIZewsee5POEwQVgc2",
+  "lastSignedInAt": "1779106261173",
+  "createdAt": "1779106261173"
+},
+{
+  "localId": "1q60x0IwupQOqdns8jleGfF2sGI3",
+  "email": "pandeybhushan194@gmail.comq",
+  "emailVerified": false,
+  "passwordHash": "pc8qj4fIcy2LJQBFK2g6YHoQb8CuTUqgC2ILL0/T8b31QmUbteGikXpdCIOx4DZGjrTPtUwEtJJkwYjf0kGQxw==",
+  "salt": "esqewUQF515gCw==",
+  "lastSignedInAt": "1780646255555",
+  "createdAt": "1780646255555",
+  "providerUserInfo": []
+},
+{
+  "localId": "22Ntt62ghnMecr2jT8MBJZrcy8y2",
+  "lastSignedInAt": "1778636461599",
+  "createdAt": "1778636461599"
+},
+{
+  "localId": "2CYLB4BJkuWBXbLqEY33YD1tRCT2",
+  "email": "quantumclasses32@gmail.com",
+  "emailVerified": true,
+  "passwordHash": "JzwCU30m+44K6AZ5o0e2ovUFu4UL0wzb5rLsF1iTCgNZdnwezAVmK65AlhakzOLojbnYzXgDH/2VhAzuFRMzQw==",
+  "salt": "E245S4vQHPtJpA==",
+  "lastSignedInAt": "1781282632799",
+  "createdAt": "1779153551660",
+  "customAttributes": "{\"role\":\"owner\",\"schoolId\":\"school_1781281587355_301879429\",\"classIds\":[],\"studentClass\":null,\"studentRoll\":null,\"studentSection\":null,\"studentAdmissionId\":null}",
+  "providerUserInfo": []
+},
+{
+  "localId": "2dKelev3xAS6myW7jCeTFzHDjf52",
+  "email": "pooja.mishra@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "87W1Z2HRkSir/OOVG5tZSqFUXyNMWh3DaZCXTVAd/fkEaj8V50ybIea3ZwQ+dAbraObidiAEjtDWA1PmWSFyYQ==",
+  "salt": "jRPwoa/ZyoCxqQ==",
+  "lastSignedInAt": "1780804117976",
+  "createdAt": "1780804117976",
+  "providerUserInfo": []
+},
+{
+  "localId": "3tgrNsoMtieSbbFCKauc3AYUjtX2",
+  "lastSignedInAt": "1778721226113",
+  "createdAt": "1778721226113"
+},
+{
+  "localId": "647tvwp8QRc42VaYAdP0GWmCRVV2",
+  "lastSignedInAt": "1778636936864",
+  "createdAt": "1778636936864"
+},
+{
+  "localId": "6B2LVeFQzjNuM4SUu5DCJlAxSia2",
+  "email": "ritika.sen@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "lGmkAUU8hj/TIyyh3IkdxJRtnUWdk/rcXtjQPaBMaGjs2YMqfLWIzb9rxndy8wMrk1xqXusZWdJxDG/jA5cSYQ==",
+  "salt": "iZUvBsmmQnl09Q==",
+  "lastSignedInAt": "1780804142431",
+  "createdAt": "1780804142431",
+  "providerUserInfo": []
+},
+{
+  "localId": "6cYFAH2Mk3NlgLd9S6XiQYCGVZE2",
+  "lastSignedInAt": "1778759743226",
+  "createdAt": "1778759743226"
+},
+{
+  "localId": "7ZzXctny4NcAitrZTzfpUPdM9tC3",
+  "lastSignedInAt": "1778721108174",
+  "createdAt": "1778721108174"
+},
+{
+  "localId": "8FCc3bc0hSNxNQaRNeemEFClcVT2",
+  "email": "manish.tiwari@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "qCf4GP7MrzxKKo/PquBak7FIkvdA5eLYDOnIONWD/QnVivM6/9gmweKeZTvew6+hZN93uX7DHafEvU38gmNlsg==",
+  "salt": "uWwxUuGSaSmYdw==",
+  "lastSignedInAt": "1780804128187",
+  "createdAt": "1780804128187",
+  "providerUserInfo": []
+},
+{
+  "localId": "CTnuij1VNRUeHUOTozLHy2RQgYI3",
+  "email": "badmash7233@gmail.com",
+  "emailVerified": true,
+  "passwordHash": "Kq0X0h8L5+RGMim4FcBlcb/aRwZH++gPDhRX5PEJY/KDx77zQbzqY8+JMFEIqTOmIMrVdTcAqH17SOdx5uZOFw==",
+  "salt": "5S/pUby9uFuX2Q==",
+  "lastSignedInAt": "1780804301615",
+  "createdAt": "1780804301615",
+  "providerUserInfo": []
+},
+{
+  "localId": "DkL9ZrSK43gewz8zyTOxe7wqREi1",
+  "email": "sanjay.rao@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "gzUnaY24ma8lhv1Yyx0Xq4Qxb5nw0xY4z07D6sZwgJmJRDpW7SjR8h3BILASyxJTVLsg9Uypt/q4qHGDlPBdvQ==",
+  "salt": "2ai+RzVEgt2aZQ==",
+  "lastSignedInAt": "1780804135655",
+  "createdAt": "1780804135655",
+  "providerUserInfo": []
+},
+{
+  "localId": "FfTYGg0VRvhcN3vVyxC2wMFrGj32",
+  "lastSignedInAt": "1778619424442",
+  "createdAt": "1778619424442"
+},
+{
+  "localId": "IIJazckS9dfgRPzDA7vcgak4CZc2",
+  "email": "alice@parent.com",
+  "emailVerified": false,
+  "passwordHash": "9F3xw76SMZSK2OI/hYNVqtl4opooCQJ7uy3WONMsxwOnOPgf5FoG3usSF4zfI995LCPcnqsUVZTHJh+cpNOwwg==",
+  "salt": "Tt9kLP0u1Rdvxw==",
+  "lastSignedInAt": "1781269665498",
+  "createdAt": "1781269665498",
+  "providerUserInfo": []
+},
+{
+  "localId": "IPq8gxNtIvMNmHQpzoVv1fFlMkF2",
+  "email": "pandeybhushan194@gmail.com",
+  "emailVerified": true,
+  "passwordHash": "FT7xnjreSyvPEIYXha+uURVuvgK2hr0bnx0Iu6unQYp2urM14x9LxlUJCSBtFR/GhZopJGlD383ekpoXFuyj7g==",
+  "salt": "ujC2B0AZTooYdw==",
+  "lastSignedInAt": "1781171868492",
+  "createdAt": "1780599757258",
+  "customAttributes": "{}",
+  "providerUserInfo": []
+},
+{
+  "localId": "Ij8V38ehnSU2FUsqEGycrNuzoFE2",
+  "lastSignedInAt": "1778858444872",
+  "createdAt": "1778858444872"
+},
+{
+  "localId": "JIZaF0d2cNfnWErgefFizk5PJ5U2",
+  "email": "mandvishal@gmail.com",
+  "emailVerified": true,
+  "passwordHash": "nCHvrgQMQPwQt5jNIwlSqcKcieczhOfxTuj7SJn2nRzVMPbZ1zMT8FepiEylC48uXkK+8qjsIJz4drcrCILJsw==",
+  "salt": "FI07ufbpwC4l9Q==",
+  "lastSignedInAt": "1781282695503",
+  "createdAt": "1779152055170",
+  "providerUserInfo": []
+},
+{
+  "localId": "M0ys1tcvOWaMJdXrSaM6D7PLUE72",
+  "email": "aarav.sharma@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "J+NWY0IVujV9nDy6WttEgq7xY5xN7hgtf3btoS1F2z8nxh8aO4DzTF7yOzikdLaLBWkzGaRyStcyT0Asza8ySQ==",
+  "salt": "/8xlAuOuxl09jg==",
+  "lastSignedInAt": "1780804103823",
+  "createdAt": "1780804103823",
+  "providerUserInfo": []
+},
+{
+  "localId": "NUSohbXwFlQbR4efsW8zTyNtOCF2",
+  "lastSignedInAt": "1780147484156",
+  "createdAt": "1780147484156"
+},
+{
+  "localId": "O38T57RWs4YMK5jEzANIxfGMLKq2",
+  "email": "rohan.singh@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "PcCT4irDL5VGCbOSzZpBZqHHrtPx4x6irqrNsP9eCO+GUNcZJYRh3qSfgy+RTUmbpUzhU/CHy6FQRZvoXjlCGg==",
+  "salt": "rFJDXxfP9TTy9w==",
+  "lastSignedInAt": "1780804108931",
+  "createdAt": "1780804108931",
+  "providerUserInfo": []
+},
+{
+  "localId": "QvfzYcBfVNeHohXY7re9nrvRhTI3",
+  "lastSignedInAt": "1778783200966",
+  "createdAt": "1778783200966"
+},
+{
+  "localId": "R95N0roXWOUJR6X46eU14lmjJSr2",
+  "lastSignedInAt": "1778691905749",
+  "createdAt": "1778691905749"
+},
+{
+  "localId": "SxHHroEFdhW2U4L8qJx3OXaSAvh2",
+  "lastSignedInAt": "1778688845525",
+  "createdAt": "1778688845525"
+},
+{
+  "localId": "TEt4uNZspFc216QoCKTUiOCS3va2",
+  "lastSignedInAt": "1778863105726",
+  "createdAt": "1778863105726"
+},
+{
+  "localId": "TJudazfKJ9U4hYTBYGMl3xyc2v12",
+  "email": "aditya.mehra@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "XiFkcLMXhKWBoBMf024CuuI1gRWJOst0LYLChgDg0AxIX6SSDPxrbHbGgtwC0V44rsIh/Lb7xxYdSTptrjeupQ==",
+  "salt": "+EEQicbP9pnMfg==",
+  "lastSignedInAt": "1780804116228",
+  "createdAt": "1780804116228",
+  "providerUserInfo": []
+},
+{
+  "localId": "TR6sj1H881cTRygJ55OD2Cl6vf72",
+  "lastSignedInAt": "1778719857028",
+  "createdAt": "1778719857028"
+},
+{
+  "localId": "UCkAU9uRWwXCvigfYWWghT4JtDr2",
+  "email": "sneha.kapoor@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "yF/THqajOgd+/4k5yinkOmws/o5qYkP+JCmCwW45APQDyWaOpXMl52uJnI7Vf7JV7eaZ1/N7pYVOZLPRbVkONg==",
+  "salt": "1EzxpRjHPe19fg==",
+  "lastSignedInAt": "1780804114428",
+  "createdAt": "1780804114428",
+  "providerUserInfo": []
+},
+{
+  "localId": "WEjc2AawX5fwrEJwrcz8QRe3k3r1",
+  "lastSignedInAt": "1778671027233",
+  "createdAt": "1778671027233"
+},
+{
+  "localId": "WHd47Ah61JeJKlWn10tCCfomalU2",
+  "lastSignedInAt": "1778607744536",
+  "createdAt": "1778607744536"
+},
+{
+  "localId": "X6kMdmbk3JWLSPnvGE7FcPWGpct2",
+  "lastSignedInAt": "1778606776952",
+  "createdAt": "1778606776952"
+},
+{
+  "localId": "YeFCcnvYrDWlArGjFH9wOijbhnH3",
+  "email": "karan.malhotra@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "utNFb0yugQRyOCZbWfFZ8dM9Hkoc9wVqsYtQXuwNfbmAyRiT5GBKyxyTq9s2VOw//xoZOAeA1G47DCjrYrDisg==",
+  "salt": "kaVvH+KmyWo9WQ==",
+  "lastSignedInAt": "1780804119670",
+  "createdAt": "1780804119670",
+  "providerUserInfo": []
+},
+{
+  "localId": "YsUHgtgVoGbyP9LJx619tgsPItj1",
+  "lastSignedInAt": "1778642379504",
+  "createdAt": "1778642379504"
+},
+{
+  "localId": "YsWYFrhvWWVVgzGznQGTgWYnVhO2",
+  "email": "vishal7233887505@gmail.com",
+  "emailVerified": true,
+  "passwordHash": "SD6tyefu1KjtB4HSKZuYP+Dw09wr4rObn/l8C5nRLHh/l35TGQ2cnrsoz+1tJeudEiHJcuKr9864f8NeQ87C1Q==",
+  "salt": "Y1/1+m68ndylpw==",
+  "lastSignedInAt": "1781282771043",
+  "createdAt": "1781282709014",
+  "disabled": false,
+  "customAttributes": "{\"role\":\"owner\",\"schoolId\":\"school_1781282705068_208500927\",\"classIds\":[],\"studentClass\":null,\"studentRoll\":null,\"studentSection\":null,\"studentAdmissionId\":null}",
+  "providerUserInfo": []
+},
+{
+  "localId": "b5vNBIluGGe7UTiLnfzqg04hhEI3",
+  "lastSignedInAt": "1778721904860",
+  "createdAt": "1778721904860"
+},
+{
+  "localId": "bfX0SORdArbp31WWQSra417ZEtf2",
+  "email": "rahul.nair@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "TG6tTO9blWrho7CT0hxnaWVuF0S9FKk0OqiiGWI0Ix71K1M0TTbosRoU/2LMvyJG9VMrzS7RpLUmBnzaM+5C3w==",
+  "salt": "C4NroAXUriGcyQ==",
+  "lastSignedInAt": "1780804123541",
+  "createdAt": "1780804123541",
+  "providerUserInfo": []
+},
+{
+  "localId": "dh3NpJ2RltO6qvT4BD6aOL6hfhx2",
+  "email": "mandvishal1@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "qVr/vIBVyxgKrcjohSvkWDlkUhYEEBPJaFDsfWVNsW0WGJfM1mUEdJpf93fJEKWuwgEb53g7UZ1ydDinhpbwRQ==",
+  "salt": "TLqdk7wXhGM0HQ==",
+  "lastSignedInAt": "1780086389741",
+  "createdAt": "1780086389741",
+  "providerUserInfo": []
+},
+{
+  "localId": "gmg0H4ZQ1rh15O9A8nINyF0tyj83",
+  "email": "aiuse7233@gmail.com",
+  "emailVerified": true,
+  "passwordHash": "0A4siRblLg3ol4kJ79PxTCKwt2qa57n2YGylYHr7djBtKtajuV34CaVT2ALptMs/xMYbTUWcq2DfCFqreGjneg==",
+  "salt": "FEW8JQYVMviV7w==",
+  "lastSignedInAt": "1781266691646",
+  "createdAt": "1780677001151",
+  "customAttributes": "{}",
+  "providerUserInfo": []
+},
+{
+  "localId": "i84oic43doOnr25DyghKo2uS1bH3",
+  "email": "deepak.yadav@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "MuPMoXAlexqdIj2FrbRNI7UmfcNkyLZSgHFk0rrkqOblJwUGlvzC8I8MPYtwzBi7qyO5IReA6JVLrHSiMy0SXw==",
+  "salt": "pvQYLieIhZ3mbQ==",
+  "lastSignedInAt": "1780804131928",
+  "createdAt": "1780804131928",
+  "providerUserInfo": []
+},
+{
+  "localId": "jMEeE7UDrIZmbiwZI38ZvtNNtLm2",
+  "email": "arjun.patel@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "+fZxskCtrwOV4iICgGlxxrbvyCfUN5dkX60yMugkVfcurHudHLQVn3pxt2rSj9yxnTY6EaJMIVXJnSMpkticvg==",
+  "salt": "LWXmEC5tOcWEVg==",
+  "lastSignedInAt": "1780804140611",
+  "createdAt": "1780804140611",
+  "providerUserInfo": []
+},
+{
+  "localId": "kWCPPBy1XQhxrWRqLeSNgXYSHmp1",
+  "lastSignedInAt": "1778636254070",
+  "createdAt": "1778636254070"
+},
+{
+  "localId": "mrCG6v3sMBUFiuvdFfnr5UsHKO73",
+  "email": "isha.chawla@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "T85CTtdeC5VS86ilkyO+GlbCQdFBwnxXFHy35p7iDVMsBC/gpBU+DLtv8WJxWx1af6t+UInIa1yCfQCFR/dsmQ==",
+  "salt": "pFiyQfyJBpnOkA==",
+  "lastSignedInAt": "1780804130139",
+  "createdAt": "1780804130139",
+  "providerUserInfo": []
+},
+{
+  "localId": "nAjH6MVfLrf8euDu4r0Lv1S7uPi2",
+  "lastSignedInAt": "1778640549730",
+  "createdAt": "1778640549730"
+},
+{
+  "localId": "pFlyPP8ABRTdKzOrbquNijzijuF3",
+  "email": "viralvishal7233@gmail.com",
+  "emailVerified": true,
+  "passwordHash": "aUquC1bqE5MMc/YSdG5AzP5+JpAZOyobehnbzywHd1k2DwMqEbVtKJaZXuX2dfeBEwQxMiAawBgk/1LRiP23CA==",
+  "salt": "chvR1P6mhMfGvg==",
+  "lastSignedInAt": "1781021175917",
+  "createdAt": "1780827416624",
+  "providerUserInfo": []
+},
+{
+  "localId": "qcfxu6OwCHOnicVs06mNUj7tO122",
+  "email": "kavya.bansal@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "fZ7APqBqrwvSj8PhubHeWkV5PUWfpYW/E6uxwemaz83nERy2JXz9W0tPorKd1tBi5iwvhqKOSnjvffjWi4sLfg==",
+  "salt": "3tb8W0m1eQTvcQ==",
+  "lastSignedInAt": "1780804138449",
+  "createdAt": "1780804138449",
+  "providerUserInfo": []
+},
+{
+  "localId": "qhxTOFi3y9gLz7jNXrMhwh0BcYb2",
+  "lastSignedInAt": "1779101353820",
+  "createdAt": "1779101353820"
+},
+{
+  "localId": "sAIvpHZPrbTG9VvbZMOi4tbDAU52",
+  "lastSignedInAt": "1778804897786",
+  "createdAt": "1778804897786"
+},
+{
+  "localId": "t4OFId6KZFZokvJ5kig8UA30Tyg1",
+  "email": "priya.verma@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "AS9jryJgo8DjUs5eAmAWRM3md6unF9sv5PU4QwT41VT0lsSeZJJE4wEUuN9qlEUFc7J2gUUTEe55+Gvy4786yw==",
+  "salt": "yQkrLRpZX7K0VQ==",
+  "lastSignedInAt": "1780804106066",
+  "createdAt": "1780804106066",
+  "providerUserInfo": []
+},
+{
+  "localId": "tuTiFDMO7dXxObyD9BlIfiwdiUX2",
+  "lastSignedInAt": "1778783179199",
+  "createdAt": "1778783179199"
+},
+{
+  "localId": "ua2tOfJKdzUmDL5SuJdV6kzrS2k1",
+  "email": "meera.sethi@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "6ayFhL1pgDcAgWvhPw0tUZcatR+WqCR92OjVssXYtjZ12RBJzlGZIAgkWrldrgBhCIsVQSUcAGrsvQ6P4aX7dA==",
+  "salt": "jhaMGhQ/0GPP6Q==",
+  "lastSignedInAt": "1780804133866",
+  "createdAt": "1780804133866",
+  "providerUserInfo": []
+},
+{
+  "localId": "uqWRtkIK9WYBEQaMsQB7aR2YU1H3",
+  "email": "neha.gupta@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "pMu0nD144Wu6veIIsGFE/QkpwWXjE01gDxZcdcH8DVqLwovyFKfwf11afBBX7ci4jH0LM4vz7h6cqam2o9RMMQ==",
+  "salt": "EyqI1NIFyghk1A==",
+  "lastSignedInAt": "1780804110642",
+  "createdAt": "1780804110642",
+  "providerUserInfo": []
+},
+{
+  "localId": "vALnwO6kbBhwaSqSSM4pCXb5PzE2",
+  "email": "simran.kaur@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "c/RWgFi2nFCpHXU86rVCWG5sNUOu85pxNaX08s4Mz0VctOCqXIkNnk3W2CWzi5ne5/XTFlRznQSHvaZr+Swegg==",
+  "salt": "TqdKDN/QiVHYog==",
+  "lastSignedInAt": "1780804121524",
+  "createdAt": "1780804121524",
+  "providerUserInfo": []
+},
+{
+  "localId": "vXrZOFlMW0W1aKHyyy7RMQskhVE2",
+  "lastSignedInAt": "1778805090152",
+  "createdAt": "1778805090152"
+},
+{
+  "localId": "w4dxWtVbXMcgT7HM78kPb3r71cE3",
+  "lastSignedInAt": "1778858250080",
+  "createdAt": "1778858250080"
+},
+{
+  "localId": "xBgKJIlGIpgELqdG1NxLlWNcZm43",
+  "email": "anjali.desai@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "SLVdHtx80NOm7FRQldrsiRBQ7YS4v4yHm24L2SuGj7su+LT5c8jTRxPwZD8WsL+7xrHdMv4jM74CO9IaGt+3zA==",
+  "salt": "ezJ7zvwkACkGKA==",
+  "lastSignedInAt": "1780804125472",
+  "createdAt": "1780804125472",
+  "providerUserInfo": []
+},
+{
+  "localId": "yKzo2IYzrWNuSadgVUqTRupSrrI3",
+  "email": "vishalai7233@gmail.com",
+  "emailVerified": true,
+  "passwordHash": "1KbRVBraHTqT9r/6bl5wo/AneVmn4wr1DIKoDnaFkpCqKYzGUAxx6qsPfAO86IqUbBJEdSZGSwFTCDpk3gQJhg==",
+  "salt": "CLEg0oJd0wiDVg==",
+  "lastSignedInAt": "1781262230668",
+  "createdAt": "1779246225840",
+  "customAttributes": "{}",
+  "providerUserInfo": []
+},
+{
+  "localId": "zoBPTaWPh0aIUEJoSSkrnLHVdIu1",
+  "email": "vikram.joshi@schoolsample.edu.in",
+  "emailVerified": false,
+  "passwordHash": "XIvqgEd7jrsDDKR8hZJgh0HH5Q5VpLkBOR3L2Oyt40TIYfnwnTePVy6nCJKifkJJGCeuWtR+Lpz8Z6aGFLQPiA==",
+  "salt": "6a0kp/JCg52cEg==",
+  "lastSignedInAt": "1780804112543",
+  "createdAt": "1780804112543",
+  "providerUserInfo": []
+}]}

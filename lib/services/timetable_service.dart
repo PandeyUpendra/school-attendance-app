@@ -661,6 +661,8 @@ class TimetableService extends BaseFirestoreService {
         if (studentSection != null) 'studentSection': studentSection,
         if (studentAdmissionId != null) 'studentAdmissionId': studentAdmissionId,
         if (assignedClasses != null) 'assignedClasses': assignedClasses,
+        if (createdByEmail != null) 'createdByEmail': createdByEmail,
+        if (createdByRole != null) 'createdByRole': createdByRole,
       });
 
       final uid = (result.data as Map)['uid'] as String;

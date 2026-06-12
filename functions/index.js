@@ -477,6 +477,8 @@ exports.createAllowedUser = onCall(
       schoolId: schoolId,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       name: name || "",
+      createdByEmail: request.data.createdByEmail ? String(request.data.createdByEmail).trim().toLowerCase() : callerEmail,
+      createdByRole: request.data.createdByRole ? String(request.data.createdByRole).trim() : (callerRole || ""),
     };
     if (role === "guardian") {
       data.studentClass = studentClass || null;
