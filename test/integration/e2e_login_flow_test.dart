@@ -16,8 +16,13 @@ import 'package:school_app/services/staff_task_service.dart';
 import 'package:school_app/services/meeting_service.dart';
 import 'package:school_app/services/substitution_history_service.dart';
 import 'package:school_app/services/todo_service.dart';
+import 'package:school_app/services/student_service.dart';
+import 'package:school_app/services/birthday_service.dart';
+import 'package:school_app/services/copy_check_service.dart';
+import 'package:school_app/services/fee_service.dart';
 import 'package:school_app/shared/providers/locale_provider.dart';
 import 'package:school_app/shared/widgets/email_text_form_field.dart';
+import '../test_helpers.dart';
 
 class MockAuthService extends Mock implements AuthService {}
 class MockTimetableService extends Mock implements TimetableService {}
@@ -28,6 +33,10 @@ class MockStaffTaskService extends Mock implements StaffTaskService {}
 class MockMeetingService extends Mock implements MeetingService {}
 class MockSubstitutionHistoryService extends Mock implements SubstitutionHistoryService {}
 class MockTodoService extends Mock implements TodoService {}
+class MockStudentService extends Mock implements StudentService {}
+class MockBirthdayService extends Mock implements BirthdayService {}
+class MockCopyCheckService extends Mock implements CopyCheckService {}
+class MockFeeService extends Mock implements FeeService {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -51,8 +60,13 @@ void main() {
   late MockMeetingService mockMeetingService;
   late MockSubstitutionHistoryService mockSubstitutionHistoryService;
   late MockTodoService mockTodoService;
+  late MockStudentService mockStudentService;
+  late MockBirthdayService mockBirthdayService;
+  late MockCopyCheckService mockCopyCheckService;
+  late MockFeeService mockFeeService;
 
   setUp(() {
+    setupFirebaseMocks();
     SharedPreferences.setMockInitialValues({});
     BaseFirestoreService.currentSchoolId = 'test_school';
     mockAuthService = MockAuthService();
@@ -64,6 +78,10 @@ void main() {
     mockMeetingService = MockMeetingService();
     mockSubstitutionHistoryService = MockSubstitutionHistoryService();
     mockTodoService = MockTodoService();
+    mockStudentService = MockStudentService();
+    mockBirthdayService = MockBirthdayService();
+    mockCopyCheckService = MockCopyCheckService();
+    mockFeeService = MockFeeService();
 
     when(() => mockUserCredential.user).thenReturn(mockUser);
     when(() => mockUser.email).thenReturn('teacher@school.test');
@@ -89,6 +107,8 @@ void main() {
 
     when(() => mockStaffTaskService.streamPendingCountForTeacher(any()))
         .thenAnswer((_) => Stream.value(0));
+    when(() => mockStaffTaskService.streamAllIncompleteCount())
+        .thenAnswer((_) => Stream.value(0));
 
     when(() => mockMeetingService.streamPendingTaskCountForTeacher(any()))
         .thenAnswer((_) => Stream.value(0));
@@ -96,15 +116,43 @@ void main() {
     when(() => mockTimetableService.syncTeacherClassIds(any()))
         .thenAnswer((_) async {});
 
+    when(() => mockTimetableService.getAssignedClasses(any()))
+        .thenAnswer((_) async => (assignedClasses: ['Class 9-A', 'Class 9-B'], schoolId: 'test_school'));
+
     when(() => mockTimetableService.streamPendingStudentLeaveCount(
           studentClass: any(named: 'studentClass'),
           studentSection: any(named: 'studentSection'),
         )).thenAnswer((_) => Stream.value(0));
+    when(() => mockTimetableService.streamPendingLeaveCount())
+        .thenAnswer((_) => Stream.value(0));
+    when(() => mockTimetableService.getTodayAbsentTeachersInfo())
+        .thenAnswer((_) async => <String, int>{});
+    when(() => mockTimetableService.getStudentLeaveApplications(
+          studentClass: any(named: 'studentClass'),
+          status: any(named: 'status'),
+        )).thenAnswer((_) async => []);
+    when(() => mockTimetableService.getTodayDuties())
+        .thenAnswer((_) async => <String, String>{});
 
     when(() => mockSubstitutionHistoryService.streamSubstitutions(any()))
         .thenAnswer((_) => Stream.empty());
 
     when(() => mockTodoService.streamTodayReminders(any()))
+        .thenAnswer((_) => Stream.empty());
+
+    when(() => mockStudentService.watchStudents())
+        .thenAnswer((_) => Stream.value([]));
+    when(() => mockStudentService.loadTodayFullSummary(classes: any(named: 'classes')))
+        .thenAnswer((_) async => []);
+    when(() => mockStudentService.loadConsecutiveAbsenceDays(any()))
+        .thenAnswer((_) async => <int, int>{});
+
+    when(() => mockBirthdayService.getUpcomingStudentBirthdays(any(), className: any(named: 'className')))
+        .thenAnswer((_) async => []);
+    when(() => mockCopyCheckService.getChecks(teacherId: any(named: 'teacherId')))
+        .thenAnswer((_) async => []);
+
+    when(() => mockFeeService.streamPendingPaymentClaims())
         .thenAnswer((_) => Stream.empty());
 
     AuthService.mockInstance = mockAuthService;
@@ -114,6 +162,10 @@ void main() {
     MeetingService.mockInstance = mockMeetingService;
     SubstitutionHistoryService.mockInstance = mockSubstitutionHistoryService;
     TodoService.mockInstance = mockTodoService;
+    StudentService.mockInstance = mockStudentService;
+    BirthdayService.mockInstance = mockBirthdayService;
+    CopyCheckService.mockInstance = mockCopyCheckService;
+    FeeService.mockInstance = mockFeeService;
   });
 
   tearDown(() {
@@ -125,6 +177,10 @@ void main() {
     MeetingService.mockInstance = null;
     SubstitutionHistoryService.mockInstance = null;
     TodoService.mockInstance = null;
+    StudentService.mockInstance = null;
+    BirthdayService.mockInstance = null;
+    CopyCheckService.mockInstance = null;
+    FeeService.mockInstance = null;
   });
 
   Widget createLoginScreen() {
@@ -221,6 +277,9 @@ void main() {
 
       when(() => mockTimetableService.getSettings())
           .thenAnswer((_) async => {'classes': ['Class 9-A', 'Class 9-B']});
+
+      when(() => mockTimetableService.getAssignedClasses('coord@school.test'))
+          .thenAnswer((_) async => (assignedClasses: ['Class 9-A', 'Class 9-B'], schoolId: 'test_school'));
 
       await tester.pumpWidget(createLoginScreen());
       await tester.pumpAndSettle();

@@ -15,6 +15,7 @@ import 'package:school_app/services/base_firestore_service.dart';
 import 'package:school_app/services/auth_service.dart';
 import 'package:school_app/services/consent_service.dart';
 import 'package:school_app/shared/providers/locale_provider.dart';
+import '../test_helpers.dart';
 
 class MockStudentService extends Mock implements StudentService {}
 class MockTimetableService extends Mock implements TimetableService {}
@@ -39,6 +40,7 @@ void main() {
   });
 
   setUp(() {
+    setupFirebaseMocks();
     SharedPreferences.setMockInitialValues({});
     BaseFirestoreService.currentSchoolId = 'test_school';
     mockStudentService = MockStudentService();
@@ -127,6 +129,13 @@ void main() {
     );
 
     testWidgets('Mark attendance online writes directly to database', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1200, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
       // 1. Stub list students and leaves
       when(() => mockStudentService.getStudentsByClass(
             className: 'Class 9-A',
@@ -163,25 +172,44 @@ void main() {
       await tester.tap(find.text('Take Attendance for Today'));
       await tester.pumpAndSettle();
 
-      // Verify students rendered
+      // Verify student 1 rendered on page 0
       expect(find.text('Alice'), findsOneWidget);
+
+      // Scroll to page 1
+      final PageController controller = tester.widget<PageView>(find.byType(PageView)).controller!;
+      controller.jumpToPage(1);
+      await tester.pumpAndSettle();
+
+      // Verify student 2 rendered on page 1
       expect(find.text('Bob'), findsOneWidget);
 
-      // Verify the check/cross status is toggleable
-      // By default students are Present ( ✓ ). Tap to toggle status.
-      // Wait, let's look at the AttendanceScreen toggles: Present / Absent / Leave.
-      // Let's verify we can find the save button and save.
-      await tester.tap(find.text('Save'));
+      // Scroll to page 2 (Summary Card)
+      controller.jumpToPage(2);
+      await tester.pumpAndSettle();
+
+      // Tap Save
+      await tester.tap(find.text('SAVE ATTENDANCE'));
+      await tester.pumpAndSettle();
+
+      // Tap 'Save' in confirmation dialog
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Save'));
       await tester.pumpAndSettle();
 
       // Verify database write was triggered
       verify(() => mockStudentService.saveAttendance(
-            className: 'Class 9-A',
+            className: 'Class 9-A A',
             attendance: any(named: 'attendance'),
-          )).called(1);
+          )).called(2);
     });
 
     testWidgets('Mark attendance offline enqueues locally, then syncs when online', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1200, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
       // 1. Stub list students and leaves
       when(() => mockStudentService.getStudentsByClass(
             className: 'Class 9-A',
@@ -216,8 +244,17 @@ void main() {
       await tester.tap(find.text('Take Attendance for Today'));
       await tester.pumpAndSettle();
 
+      // Scroll to page 2 (Summary Card)
+      final PageController controller = tester.widget<PageView>(find.byType(PageView)).controller!;
+      controller.jumpToPage(2);
+      await tester.pumpAndSettle();
+
       // Tap Save
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('SAVE ATTENDANCE'));
+      await tester.pumpAndSettle();
+
+      // Tap 'Save' in confirmation dialog
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Save'));
       await tester.pumpAndSettle();
 
       // Verify NO database write was triggered because we are offline
@@ -245,7 +282,7 @@ void main() {
 
       // Verify it synced to database and queue is empty
       verify(() => mockStudentService.saveAttendanceForDate(
-            className: 'Class 9-A',
+            className: 'Class 9-A A',
             attendance: any(named: 'attendance'),
             date: any(named: 'date'),
           )).called(1);

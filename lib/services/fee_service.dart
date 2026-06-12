@@ -711,4 +711,11 @@ class FeeService extends BaseFirestoreService {
       },
     );
   }
+
+  // ── Stream pending payment claims for coordinator dashboard ──────────────
+  Stream<QuerySnapshot<Map<String, dynamic>>> streamPendingPaymentClaims() {
+    return schoolCollection(_sid, 'payment_claims')
+        .where('status', isEqualTo: 'pending')
+        .snapshots();
+  }
 }

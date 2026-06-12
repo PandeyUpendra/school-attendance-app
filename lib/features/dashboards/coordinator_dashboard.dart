@@ -6,9 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme.dart';
 import '../../l10n/app_strings.dart';
 import '../auth/profile_screen.dart';
-import '../../services/student_service.dart';
-import '../../services/timetable_service.dart';
-import '../../services/notification_service.dart';
+import 'package:school_app/services/student_service.dart';
+import 'package:school_app/services/timetable_service.dart';
+import 'package:school_app/services/notification_service.dart';
+import 'package:school_app/services/fee_service.dart';
 import '../teachers/teacher_management_screen.dart';
 import '../timetable/timetable_settings_screen.dart';
 import '../timetable/assign_duties_screen.dart';
@@ -20,7 +21,7 @@ import '../substitution/substitution_history_screen.dart';
 import '../leave/leave_requests_screen.dart';
 import '../attendance/attendance_history_screen.dart';
 import '../attendance/class_picker_screen.dart';
-import '../../services/auth_service.dart';
+import 'package:school_app/services/auth_service.dart';
 import '../announcements/announcements_screen.dart';
 import '../announcements/notifications_screen.dart';
 import '../fees/fee_structure_screen.dart';
@@ -34,7 +35,7 @@ import '../students/staff_remarks_screen.dart';
 import '../students/deleted_students_screen.dart';
 import '../tasks/unified_staff_task_screen.dart';
 import '../substitution/absent_teachers_screen.dart';
-import '../../services/staff_task_service.dart';
+import 'package:school_app/services/staff_task_service.dart';
 import '../../shared/utils/role_guard.dart';
 import '../exams/exam_datesheet_screen.dart';
 import '../syllabus/syllabus_coverage_dashboard_screen.dart';
@@ -337,12 +338,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
             const _Divider(),
             StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('schools')
-                  .doc(AuthService.currentSchoolId)
-                  .collection('payment_claims')
-                  .where('status', isEqualTo: 'pending')
-                  .snapshots(),
+              stream: FeeService().streamPendingPaymentClaims(),
               builder: (context, snapshot) {
                 final pendingCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
                 return _FeatureTile(
