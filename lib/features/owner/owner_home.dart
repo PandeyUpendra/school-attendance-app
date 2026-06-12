@@ -49,6 +49,22 @@ class OwnerHome extends StatefulWidget {
 }
 
 class _OwnerHomeState extends State<OwnerHome> {
+  final GlobalKey _heroKey = GlobalKey();
+  double _heroHeight = 260.0;
+
+  void _measureHeroHeight() {
+    if (!mounted) return;
+    final RenderBox? renderBox = _heroKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox != null) {
+      final height = renderBox.size.height;
+      if (height != _heroHeight) {
+        setState(() {
+          _heroHeight = height;
+        });
+      }
+    }
+  }
+
   String _myEmail = '';
   String _myRole = 'owner';
   bool _loaded = false;
@@ -239,6 +255,7 @@ class _OwnerHomeState extends State<OwnerHome> {
     if (!_loaded) {
       return const Scaffold(body: LoadingState());
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureHeroHeight());
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -250,11 +267,11 @@ class _OwnerHomeState extends State<OwnerHome> {
       ),
       child: Scaffold(
       backgroundColor: AppTheme.background,
-      body: Column(
+      body: Stack(
         children: [
-          _buildHero(),
-          Expanded(
+          Positioned.fill(
             child: RefreshIndicator(
+              edgeOffset: _heroHeight,
               onRefresh: () async {
                 await _init();
                 await _loadStats();
@@ -262,7 +279,7 @@ class _OwnerHomeState extends State<OwnerHome> {
               color: AppTheme.primary,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
+                padding: EdgeInsets.only(top: _heroHeight),
                 children: [
                   const SizedBox(height: 4),
                   if (!_statsLoading)
@@ -396,9 +413,15 @@ class _OwnerHomeState extends State<OwnerHome> {
           ),
 
           const SizedBox(height: 32),
-              ],
+                ],
+              ),
             ),
           ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _buildHero(),
           ),
         ],
       ),
@@ -417,6 +440,7 @@ class _OwnerHomeState extends State<OwnerHome> {
     final logoUrl = settingsProvider.schoolLogo;
 
     return ClipPath(
+      key: _heroKey,
       clipper: _WaveClipper(),
       child: Container(
         decoration: const BoxDecoration(
