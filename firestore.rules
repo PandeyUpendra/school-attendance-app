@@ -43,6 +43,23 @@ service cloud.firestore {
       return request.auth != null && request.auth.token != null && 'email' in request.auth.token;
     }
 
+    /// Replaces spaces with underscores. Since Firestore rules do not support
+    /// native string replacement (e.g. .replace()), we split and concatenate.
+    function replaceSpaces(str) {
+      let parts = str == null ? [] : str.split(' ');
+      return str == null ? null : (
+        parts.size() == 1
+          ? str
+          : (parts.size() == 2
+              ? parts[0] + '_' + parts[1]
+              : (parts.size() == 3
+                  ? parts[0] + '_' + parts[1] + '_' + parts[2]
+                  : (parts.size() == 4
+                      ? parts[0] + '_' + parts[1] + '_' + parts[2] + '_' + parts[3]
+                      : str)))
+      );
+    }
+
     function userEmail() {
       return isSignedIn() ? request.auth.token.email.lower() : '';
     }
