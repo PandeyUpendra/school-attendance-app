@@ -217,39 +217,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _row(Icons.child_care_outlined, '', c)),
                 ],
 
-                // ── Preferences: language ─────────────────────────────────
+                // ── Preferences: language & logout ─────────────────────────
                 _section(context.tr('preferences')),
                 _languageRow(context),
+                _logoutRow(context),
 
-                // ── Privacy: account deletion (A4 / Play requirement) ─────
+                const SizedBox(height: 32),
+
+                // ── Privacy: account deletion (Danger Zone) ────────────────
                 _section(context.tr('dangerZone'), color: AppTheme.danger),
                 _deleteAccountRow(context),
 
-                const SizedBox(height: 24),
-
-                // ── Logout Button ─────────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.shade600,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: _logout,
-                    icon: const Icon(Icons.logout),
-                    label: Text(
-                      context.tr('logOut'),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
                 const SizedBox(height: 40),
               ],
             ),
@@ -272,6 +250,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       onTap: () => _pickLanguage(context),
       child: Container(
         color: AppTheme.surface,
+        margin: const EdgeInsets.only(bottom: 1),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(children: [
           const Icon(Icons.language_outlined, size: 20, color: AppTheme.primary),
@@ -285,6 +264,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: const TextStyle(
                       fontSize: 15, color: AppTheme.textPrimary)),
             ]),
+          ),
+          const Icon(Icons.chevron_right, color: Colors.grey),
+        ]),
+      ),
+    );
+  }
+
+  /// Tappable row to log out.
+  Widget _logoutRow(BuildContext context) {
+    return InkWell(
+      onTap: _logout,
+      child: Container(
+        color: AppTheme.surface,
+        margin: const EdgeInsets.only(bottom: 1),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(children: [
+          const Icon(Icons.logout_outlined, size: 20, color: AppTheme.primary),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              context.tr('logOut'),
+              style: const TextStyle(
+                fontSize: 15,
+                color: AppTheme.textPrimary,
+              ),
+            ),
           ),
           const Icon(Icons.chevron_right, color: Colors.grey),
         ]),

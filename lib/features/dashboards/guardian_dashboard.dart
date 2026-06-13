@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../fees/guardian_fee_receipts_screen.dart';
@@ -970,10 +972,11 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     );
   }
 
-  Color _getAvatarBgColor(String name) {
+  Color _getAvatarBgColor(Student student) {
+    final String name = student.name;
     if (name.isEmpty) return AppTheme.primary;
-    final int hash = name.hashCode;
-    final List<Color> colors = [
+    
+    final List<Color> palette = [
       const Color(0xFF1E88E5), // Blue
       const Color(0xFF43A047), // Green
       const Color(0xFFE53935), // Red
@@ -983,7 +986,44 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       const Color(0xFF00ACC1), // Cyan
       const Color(0xFF3949AB), // Indigo
     ];
-    return colors[hash.abs() % colors.length];
+
+    // Find all children starting with the same letter
+    final String letter = name[0].toUpperCase();
+    final sameLetterChildren = _children.where((c) => 
+      c.name.isNotEmpty && c.name[0].toUpperCase() == letter
+    ).toList();
+    
+    // Sort them by name and a unique identifier to ensure deterministic ordering
+    sameLetterChildren.sort((a, b) {
+      final cmp = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      if (cmp != 0) return cmp;
+      return Student.buildDocId(a.roll, a.className, a.section)
+          .compareTo(Student.buildDocId(b.roll, b.className, b.section));
+    });
+
+    if (sameLetterChildren.length <= 1) {
+      // Keep default hash color
+      final int hash = name.hashCode;
+      return palette[hash.abs() % palette.length];
+    }
+
+    // If there are multiple, assign distinct colors by index in the sorted list
+    final int index = sameLetterChildren.indexWhere((c) =>
+      c.roll == student.roll && 
+      c.className == student.className && 
+      c.section == student.section
+    );
+    
+    // If not found in _children (shouldn't happen, but fallback), use default hash
+    if (index == -1) {
+      final int hash = name.hashCode;
+      return palette[hash.abs() % palette.length];
+    }
+    
+    // Spread them out using a step size of 3 for good differentiation
+    final baseHash = letter.hashCode;
+    final colorIndex = (baseHash.abs() + index * 3) % palette.length;
+    return palette[colorIndex];
   }
 
   void _showProfileSwitcherDialog(BuildContext context) {
@@ -1051,15 +1091,22 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                       children: [
                         CircleAvatar(
                           radius: 24,
-                          backgroundColor: _getAvatarBgColor(_student!.name),
-                          child: Text(
-                            _student!.name.isNotEmpty ? _student!.name[0].toUpperCase() : 'G',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          backgroundColor: _getAvatarBgColor(_student!),
+                          backgroundImage: _student!.photoUrl != null
+                              ? CachedNetworkImageProvider(_student!.photoUrl!)
+                              : (_student!.photoPath != null
+                                  ? FileImage(File(_student!.photoPath!))
+                                  : null) as ImageProvider?,
+                          child: (_student!.photoUrl == null && _student!.photoPath == null)
+                              ? Text(
+                                  _student!.name.isNotEmpty ? _student!.name[0].toUpperCase() : 'G',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                              : null,
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -1129,15 +1176,22 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                             children: [
                               CircleAvatar(
                                 radius: 20,
-                                backgroundColor: _getAvatarBgColor(child.name),
-                                child: Text(
-                                  child.name.isNotEmpty ? child.name[0].toUpperCase() : 'C',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                backgroundColor: _getAvatarBgColor(child),
+                                backgroundImage: child.photoUrl != null
+                                    ? CachedNetworkImageProvider(child.photoUrl!)
+                                    : (child.photoPath != null
+                                        ? FileImage(File(child.photoPath!))
+                                        : null) as ImageProvider?,
+                                child: (child.photoUrl == null && child.photoPath == null)
+                                    ? Text(
+                                        child.name.isNotEmpty ? child.name[0].toUpperCase() : 'C',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      )
+                                    : null,
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -1266,12 +1320,14 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _GuardianHeroCard(
+                  student:          _student,
                   studentName:      _student?.name ?? '',
                   studentClass:     _activeClass,
                   studentRoll:      _activeRoll,
                   todayStatus:      _todayStatus,
                   loading:          _loading,
                   unreadNotifCount: _unreadNotifCount,
+                  avatarBgColor:    _student != null ? _getAvatarBgColor(_student!) : AppTheme.primary,
                   onNotifTap: () async {
                     await Navigator.push(
                       context,
@@ -1302,41 +1358,29 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
 // ─── Guardian hero wave card ─────────────────────────────────────────────────
 
 class _GuardianHeroCard extends StatelessWidget {
+  final Student? student;
   final String  studentName;
   final String  studentClass;
   final int     studentRoll;
   final String? todayStatus;
   final bool    loading;
   final int     unreadNotifCount;
+  final Color   avatarBgColor;
   final VoidCallback onNotifTap;
   final VoidCallback onProfileTap;
 
   const _GuardianHeroCard({
+    this.student,
     required this.studentName,
     required this.studentClass,
     required this.studentRoll,
     required this.todayStatus,
     required this.loading,
     required this.unreadNotifCount,
+    required this.avatarBgColor,
     required this.onNotifTap,
     required this.onProfileTap,
   });
-
-  Color _getAvatarBgColor(String name) {
-    if (name.isEmpty) return AppTheme.primary;
-    final int hash = name.hashCode;
-    final List<Color> colors = [
-      const Color(0xFF1E88E5), // Blue
-      const Color(0xFF43A047), // Green
-      const Color(0xFFE53935), // Red
-      const Color(0xFF8E24AA), // Purple
-      const Color(0xFFD81B60), // Pink
-      const Color(0xFFF4511E), // Orange
-      const Color(0xFF00ACC1), // Cyan
-      const Color(0xFF3949AB), // Indigo
-    ];
-    return colors[hash.abs() % colors.length];
-  }
 
   Color _statusColor(String? s) {
     switch (s) {
@@ -1431,15 +1475,22 @@ class _GuardianHeroCard extends StatelessWidget {
                         ),
                         child: CircleAvatar(
                           radius: 12,
-                          backgroundColor: _getAvatarBgColor(studentName),
-                          child: Text(
-                            studentName.isNotEmpty ? studentName[0].toUpperCase() : 'G',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          backgroundColor: avatarBgColor,
+                          backgroundImage: student?.photoUrl != null
+                              ? CachedNetworkImageProvider(student!.photoUrl!)
+                              : (student?.photoPath != null
+                                  ? FileImage(File(student!.photoPath!))
+                                  : null) as ImageProvider?,
+                          child: (student?.photoUrl == null && student?.photoPath == null)
+                              ? Text(
+                                  studentName.isNotEmpty ? studentName[0].toUpperCase() : 'G',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                              : null,
                         ),
                       ),
                     ),
