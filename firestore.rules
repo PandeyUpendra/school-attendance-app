@@ -174,8 +174,8 @@ service cloud.firestore {
     /// access to subcollections that carry no className/roll fields.
     function guardianStudentId() {
       return userStudentSection() == '' || userStudentSection() == null
-        ? userStudentClass().replace(' ', '_') + '_' + string(userStudentRoll())
-        : userStudentClass().replace(' ', '_') + '_' + userStudentSection().replace(' ', '_') + '_' + string(userStudentRoll());
+        ? replaceSpaces(userStudentClass()) + '_' + string(userStudentRoll())
+        : replaceSpaces(userStudentClass()) + '_' + replaceSpaces(userStudentSection()) + '_' + string(userStudentRoll());
     }
 
     /// True when caller's role exactly equals r.
@@ -229,8 +229,8 @@ service cloud.firestore {
              resource != null && 'targetStudentId' in resource.data &&
              resource.data.targetStudentId == (
                !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
-                 ? userData.studentClass.replace(' ', '_') + '_' + string(userData.studentRoll)
-                 : userData.studentClass.replace(' ', '_') + '_' + userData.studentSection.replace(' ', '_') + '_' + string(userData.studentRoll)
+                 ? replaceSpaces(userData.studentClass) + '_' + string(userData.studentRoll)
+                 : replaceSpaces(userData.studentClass) + '_' + replaceSpaces(userData.studentSection) + '_' + string(userData.studentRoll)
              )) ||
             ('studentAdmissionId' in userData && userData.studentAdmissionId != null &&
              audience.matches('guardian_adm:.*') &&
@@ -260,8 +260,8 @@ service cloud.firestore {
            targetStudentId != null &&
            targetStudentId == (
              !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
-               ? userData.studentClass.replace(' ', '_') + '_' + string(userData.studentRoll)
-               : userData.studentClass.replace(' ', '_') + '_' + userData.studentSection.replace(' ', '_') + '_' + string(userData.studentRoll)
+               ? replaceSpaces(userData.studentClass) + '_' + string(userData.studentRoll)
+               : replaceSpaces(userData.studentClass) + '_' + replaceSpaces(userData.studentSection) + '_' + string(userData.studentRoll)
            )
           )
         )
@@ -284,8 +284,8 @@ service cloud.firestore {
            'studentClass' in userData && 'studentRoll' in userData &&
            studentId == (
              !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
-               ? userData.studentClass.replace(' ', '_') + '_' + string(userData.studentRoll)
-               : userData.studentClass.replace(' ', '_') + '_' + userData.studentSection.replace(' ', '_') + '_' + string(userData.studentRoll)
+               ? replaceSpaces(userData.studentClass) + '_' + string(userData.studentRoll)
+               : replaceSpaces(userData.studentClass) + '_' + replaceSpaces(userData.studentSection) + '_' + string(userData.studentRoll)
            )
           )
         )
@@ -696,6 +696,18 @@ service cloud.firestore {
           // Write: management or class teacher for attendance docs
           allow write: if isSignedIn() && inSchool(sid) && (isManagement() || (isAnyTeacher() && isAttendanceClassTeacher(request.resource.id)));
         }
+
+      // Explicit PTM events nested under class (so guardians can read class PTM info)
+      match /ptm/{ptmId} {
+        allow read: if isSignedIn() && inSchool(sid) && (
+          isAnyStaff() ||
+          (isRole('guardian') && classId == replaceSpaces(userStudentClass()))
+        );
+        allow write: if isSignedIn() && inSchool(sid) && (
+          isManagement() ||
+          (isAnyTeacher() && classId in userClassIds())
+        );
+      }
     }
 
 
@@ -1205,7 +1217,7 @@ service cloud.firestore {
       // {classId} is the underscored class name (e.g. "Class_9-A").
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isRole('guardian') && classId == userStudentClass().replace(' ', '_'))
+        (isRole('guardian') && classId == replaceSpaces(userStudentClass()))
       );
 
       allow write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
@@ -1219,7 +1231,7 @@ service cloud.firestore {
         allow read: if isSignedIn() && inSchool(sid) && (
           isManagement() ||
           (isRole('guardian')
-            && classId == userStudentClass().replace(' ', '_')
+            && classId == replaceSpaces(userStudentClass())
             && roll == string(userStudentRoll()))
         );
         allow write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
@@ -1660,6 +1672,22 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['status']))
       );
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // PTM EVENTS  (/schools/{sid}/ptm_events/{eventId})
+    //
+    // Parent-Teacher Meeting events scheduled for a class.
+    // Read: Any staff member OR guardians whose child is in the target class.
+    // Write: Any staff member.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/ptm_events/{eventId} {
+      allow read: if isSignedIn() && inSchool(sid) && (
+        isAnyStaff() ||
+        (isRole('guardian') && resource.data.className == userStudentClass())
+      );
+      allow write: if isSignedIn() && inSchool(sid) && isAnyStaff();
     }
 
 
