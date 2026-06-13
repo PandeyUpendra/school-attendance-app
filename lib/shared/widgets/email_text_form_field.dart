@@ -1,5 +1,7 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:account_picker/account_picker.dart';
 import '../utils/validators.dart';
 
 /// A wrapper around [TextFormField] specifically for email inputs.
@@ -43,6 +45,7 @@ class EmailTextFormField extends StatefulWidget {
 class _EmailTextFormFieldState extends State<EmailTextFormField> {
   late final FocusNode _focusNode;
   bool _touched = false;
+  bool _hasAutoPrompted = false;
 
   @override
   void initState() {
@@ -59,7 +62,23 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
   }
 
   void _onFocusChange() {
-    if (!_focusNode.hasFocus) {
+    if (_focusNode.hasFocus) {
+      if (widget.controller.text.isEmpty &&
+          Platform.isAndroid &&
+          widget.enabled &&
+          !widget.readOnly &&
+          !_hasAutoPrompted) {
+        _hasAutoPrompted = true;
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted && _focusNode.hasFocus && widget.controller.text.isEmpty) {
+            _showDeviceEmailPicker();
+          }
+        });
+      }
+    } else {
+      if (widget.controller.text.isEmpty) {
+        _hasAutoPrompted = false;
+      }
       if (!_touched) {
         setState(() {
           _touched = true;
@@ -68,8 +87,39 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
     }
   }
 
+  Future<void> _showDeviceEmailPicker() async {
+    if (!Platform.isAndroid) return;
+    if (Platform.environment.containsKey('FLUTTER_TEST')) return;
+    try {
+      final emailResult = await AccountPicker.emailHint();
+      if (emailResult != null && emailResult.email != null) {
+        widget.controller.text = emailResult.email!;
+        if (widget.onChanged != null) {
+          widget.onChanged!(emailResult.email!);
+        }
+        // Move cursor to the end
+        widget.controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: emailResult.email!.length),
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to pick email: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bool showPickerIcon = Platform.isAndroid && widget.enabled && !widget.readOnly;
+    final updatedDecoration = widget.decoration.copyWith(
+      suffixIcon: showPickerIcon
+          ? IconButton(
+              icon: const Icon(Icons.account_circle_outlined),
+              tooltip: 'Select email from device',
+              onPressed: _showDeviceEmailPicker,
+            )
+          : widget.decoration.suffixIcon,
+    );
+
     return TextFormField(
       controller: widget.controller,
       focusNode: _focusNode,
@@ -91,7 +141,7 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
       autovalidateMode: _touched ? AutovalidateMode.always : AutovalidateMode.disabled,
       validator: widget.validator ??
           (widget.isOptional ? Validators.optionalEmail : Validators.email),
-      decoration: widget.decoration,
+      decoration: updatedDecoration,
     );
   }
 }
