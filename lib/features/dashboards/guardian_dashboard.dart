@@ -11,6 +11,7 @@ import '../../shared/providers/school_settings_provider.dart';
 import '../../theme.dart';
 import '../../l10n/app_strings.dart';
 import '../auth/profile_screen.dart';
+import '../auth/role_selection_screen.dart';
 import '../../models/exam.dart';
 import '../../models/student.dart';
 import '../../models/fee.dart';
@@ -94,6 +95,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   late String _activeClass;
   late int    _activeRoll;
   late String _activeSection;
+  String      _parentEmail = '';
   // Active child's STABLE admission id (#39). Drives the 'guardian_adm:' notif
   // subscription. SAFETY: set ONLY when the active child's admissionId equals
   // the guardian's PROVISIONED id (`_sessionAdmissionId`, == the top-level
@@ -180,6 +182,11 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   Future<void> _loadChildren() async {
     try {
       final session = await AuthService().getSession();
+      if (session != null) {
+        setState(() {
+          _parentEmail = session['email'] as String? ?? '';
+        });
+      }
       final linkStrings = session?['studentLinks'] as List<String>?;
       if (linkStrings == null || linkStrings.length < 2) return;
 
@@ -911,56 +918,293 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     }
   }
 
+  Future<void> _logout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(context.tr('logOut')),
+        content: Text(context.tr('logoutConfirm')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              context.tr('logOut'),
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await AuthService().clearSession();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      (route) => false,
+    );
+  }
+
+  Color _getAvatarBgColor(String name) {
+    if (name.isEmpty) return AppTheme.primary;
+    final int hash = name.hashCode;
+    final List<Color> colors = [
+      const Color(0xFF1E88E5), // Blue
+      const Color(0xFF43A047), // Green
+      const Color(0xFFE53935), // Red
+      const Color(0xFF8E24AA), // Purple
+      const Color(0xFFD81B60), // Pink
+      const Color(0xFFF4511E), // Orange
+      const Color(0xFF00ACC1), // Cyan
+      const Color(0xFF3949AB), // Indigo
+    ];
+    return colors[hash.abs() % colors.length];
+  }
+
+  void _showProfileSwitcherDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          elevation: 10,
+          backgroundColor: AppTheme.surface,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.close, color: AppTheme.textSecondary, size: 20),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    Text(
+                      context.tr('guardianAccount') ?? 'Guardian Account',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 48),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (_parentEmail.isNotEmpty) ...[
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.background,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _parentEmail,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (_student != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15), width: 1.5),
+                      color: AppTheme.primary.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: _getAvatarBgColor(_student!.name),
+                          child: Text(
+                            _student!.name.isNotEmpty ? _student!.name[0].toUpperCase() : 'G',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _student!.name,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${_student!.className}${_student!.section.isNotEmpty ? "-${_student!.section}" : ""}  ·  Roll ${_student!.roll}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppTheme.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.check_circle,
+                          color: AppTheme.primary,
+                          size: 24,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                if (_children.length > 1) ...[
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Text(
+                      'Other Profiles',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textSecondary,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  ..._children.where((c) =>
+                      c.className != _activeClass ||
+                      c.roll != _activeRoll ||
+                      c.section != _activeSection
+                  ).map((child) {
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _switchChild(child);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 20,
+                                backgroundColor: _getAvatarBgColor(child.name),
+                                child: Text(
+                                  child.name.isNotEmpty ? child.name[0].toUpperCase() : 'C',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      child.name,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${child.className}${child.section.isNotEmpty ? "-${child.section}" : ""}  ·  Roll ${child.roll}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                ],
+                const Divider(color: AppTheme.border, height: 1),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                        );
+                      },
+                      icon: const Icon(Icons.manage_accounts_outlined, color: AppTheme.primary, size: 20),
+                      label: Text(
+                        context.tr('myProfile') ?? 'My Profile',
+                        style: const TextStyle(
+                          color: AppTheme.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    Container(height: 24, width: 1, color: AppTheme.border),
+                    TextButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await _logout();
+                      },
+                      icon: const Icon(Icons.logout_outlined, color: AppTheme.danger, size: 20),
+                      label: Text(
+                        context.tr('logOut') ?? 'Log Out',
+                        style: const TextStyle(
+                          color: AppTheme.danger,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
 
 
   /// Horizontal chips to switch between this guardian's children. Hidden when
   /// there's only one child linked to the email.
   Widget _childSwitcher() {
-    if (_children.length < 2) return const SizedBox.shrink();
-    return Container(
-      width: double.infinity,
-      color: AppTheme.surface,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 6),
-          child: Text(context.tr('viewing'),
-              style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey,
-                  letterSpacing: 0.8)),
-        ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: _children.map((c) {
-              final selected = c.className == _activeClass &&
-                  c.roll == _activeRoll &&
-                  c.section == _activeSection;
-              final sec = c.section.isNotEmpty ? '-${c.section}' : '';
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  selected: selected,
-                  onSelected: (_) => _switchChild(c),
-                  label: Text('${c.name}  ·  ${c.className}$sec'),
-                  labelStyle: TextStyle(
-                    fontSize: 12,
-                    color: selected ? Colors.white : AppTheme.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  selectedColor: AppTheme.primary,
-                  backgroundColor: AppTheme.background,
-                  side: BorderSide(
-                      color: selected ? AppTheme.primary : AppTheme.border),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ]),
-    );
+    return const SizedBox.shrink();
   }
 
   @override
@@ -1022,6 +1266,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                     );
                     _refreshLastSeen();
                   },
+                  onProfileTap: () => _showProfileSwitcherDialog(context),
                 ),
                 _childSwitcher(),
               ],
@@ -1043,6 +1288,7 @@ class _GuardianHeroCard extends StatelessWidget {
   final bool    loading;
   final int     unreadNotifCount;
   final VoidCallback onNotifTap;
+  final VoidCallback onProfileTap;
 
   const _GuardianHeroCard({
     required this.studentName,
@@ -1052,7 +1298,24 @@ class _GuardianHeroCard extends StatelessWidget {
     required this.loading,
     required this.unreadNotifCount,
     required this.onNotifTap,
+    required this.onProfileTap,
   });
+
+  Color _getAvatarBgColor(String name) {
+    if (name.isEmpty) return AppTheme.primary;
+    final int hash = name.hashCode;
+    final List<Color> colors = [
+      const Color(0xFF1E88E5), // Blue
+      const Color(0xFF43A047), // Green
+      const Color(0xFFE53935), // Red
+      const Color(0xFF8E24AA), // Purple
+      const Color(0xFFD81B60), // Pink
+      const Color(0xFFF4511E), // Orange
+      const Color(0xFF00ACC1), // Cyan
+      const Color(0xFF3949AB), // Indigo
+    ];
+    return colors[hash.abs() % colors.length];
+  }
 
   Color _statusColor(String? s) {
     switch (s) {
@@ -1135,15 +1398,29 @@ class _GuardianHeroCard extends StatelessWidget {
                         ),
                       ),
                   ]),
-                  IconButton(
-                    icon: const Icon(Icons.account_circle_outlined,
-                        color: Colors.white, size: 22),
-                    padding: const EdgeInsets.all(8),
-                    constraints: const BoxConstraints(),
-                    tooltip: 'My Profile',
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  GestureDetector(
+                    onTap: onProfileTap,
+                    child: Tooltip(
+                      message: 'Switch Profile / View Account',
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white70, width: 1.5),
+                        ),
+                        child: CircleAvatar(
+                          radius: 12,
+                          backgroundColor: _getAvatarBgColor(studentName),
+                          child: Text(
+                            studentName.isNotEmpty ? studentName[0].toUpperCase() : 'G',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 4),
