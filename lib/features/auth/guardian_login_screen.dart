@@ -9,7 +9,6 @@ import '../../services/base_firestore_service.dart';
 import '../../shared/utils/validators.dart';
 import '../../shared/widgets/email_text_form_field.dart';
 import '../dashboards/guardian_dashboard.dart';
-import '../students/student_selection_screen.dart';
 import './forgot_password_screen.dart';
 import './role_selection_screen.dart';
 import './login_screen.dart';
@@ -115,27 +114,17 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
 
       if (!mounted) return;
 
-      if (sessionLinks.length == 1) {
-        final parts = sessionLinks.first.split('|');
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => GuardianDashboard(
-              studentClass: parts[0],
-              studentRoll:  int.tryParse(parts[1]) ?? 0,
-              studentSection: parts.length > 3 ? parts[3] : '',
-            ),
+      final parts = sessionLinks.first.split('|');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuardianDashboard(
+            studentClass: parts[0],
+            studentRoll:  int.tryParse(parts[1]) ?? 0,
+            studentSection: parts.length > 3 ? parts[3] : '',
           ),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) =>
-                StudentSelectionScreen(schoolId: schoolId, links: sessionLinks),
-          ),
-        );
-      }
+        ),
+      );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
