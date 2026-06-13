@@ -225,17 +225,14 @@ service cloud.firestore {
           // Guardian path
           (role == 'guardian' && (
             audience == 'guardians' ||
-            (audience.matches('guardian:.*:.*') &&
-             resource != null && 'targetStudentId' in resource.data && (
-               ('studentIds' in userData && resource.data.targetStudentId in userData.studentIds) ||
+            (audience.matches('guardian:.*:.*') && (
+               ('studentIds' in userData && (
+                  audience.split(':')[1] + '_' + audience.split(':')[2] in userData.studentIds ||
+                  replaceSpaces(audience.split(':')[1]) + '_' + audience.split(':')[2] in userData.studentIds
+               )) ||
                ('studentClass' in userData && audience.split(':')[1] == userData.studentClass &&
-                'studentRoll' in userData && audience.split(':')[2] == string(userData.studentRoll) &&
-                resource.data.targetStudentId == (
-                  !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
-                    ? replaceSpaces(userData.studentClass) + '_' + string(userData.studentRoll)
-                    : replaceSpaces(userData.studentClass) + '_' + replaceSpaces(userData.studentSection) + '_' + string(userData.studentRoll)
-                ))
-             )) ||
+                'studentRoll' in userData && audience.split(':')[2] == string(userData.studentRoll))
+            )) ||
             ('studentAdmissionId' in userData && userData.studentAdmissionId != null &&
              audience.matches('guardian_adm:.*') &&
              audience.split(':')[1] == userData.studentAdmissionId) ||
@@ -1220,12 +1217,14 @@ service cloud.firestore {
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
         // Guardian reads the fee structure for their child's class only.
-        (isRole('guardian') && resource.data != null
-          && (resource.data.className == userStudentClass() ||
-              ('classIds' in getUserData() && (
-                 resource.data.className in getUserData().classIds ||
-                 replaceSpaces(resource.data.className) in getUserData().classIds
-              ))))
+        (isRole('guardian') && (
+          resource == null ||
+          resource.data.className == userStudentClass() ||
+          ('classIds' in getUserData() && (
+             resource.data.className in getUserData().classIds ||
+             replaceSpaces(resource.data.className) in getUserData().classIds
+          ))
+        ))
       );
 
       allow write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
