@@ -130,7 +130,9 @@ service cloud.firestore {
 
     /// Caller's assigned studentIds array (for guardians).
     function userStudentIds() {
-      return getUserData() != null && 'studentIds' in getUserData() ? getUserData().studentIds : [];
+      return isSignedIn() && 'studentIds' in request.auth.token && request.auth.token.studentIds.size() > 0
+        ? request.auth.token.studentIds
+        : (getUserData() != null && 'studentIds' in getUserData() ? getUserData().studentIds : []);
     }
 
     /// Guardian linkage fields actually stamped on allowed_users by the app
@@ -224,19 +226,23 @@ service cloud.firestore {
           (role == 'guardian' && (
             audience == 'guardians' ||
             (audience.matches('guardian:.*:.*') &&
-             'studentClass' in userData && audience.split(':')[1] == userData.studentClass &&
-             'studentRoll' in userData && audience.split(':')[2] == string(userData.studentRoll) &&
-             resource != null && 'targetStudentId' in resource.data &&
-             resource.data.targetStudentId == (
-               !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
-                 ? replaceSpaces(userData.studentClass) + '_' + string(userData.studentRoll)
-                 : replaceSpaces(userData.studentClass) + '_' + replaceSpaces(userData.studentSection) + '_' + string(userData.studentRoll)
+             resource != null && 'targetStudentId' in resource.data && (
+               ('studentIds' in userData && resource.data.targetStudentId in userData.studentIds) ||
+               ('studentClass' in userData && audience.split(':')[1] == userData.studentClass &&
+                'studentRoll' in userData && audience.split(':')[2] == string(userData.studentRoll) &&
+                resource.data.targetStudentId == (
+                  !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
+                    ? replaceSpaces(userData.studentClass) + '_' + string(userData.studentRoll)
+                    : replaceSpaces(userData.studentClass) + '_' + replaceSpaces(userData.studentSection) + '_' + string(userData.studentRoll)
+                ))
              )) ||
             ('studentAdmissionId' in userData && userData.studentAdmissionId != null &&
              audience.matches('guardian_adm:.*') &&
              audience.split(':')[1] == userData.studentAdmissionId) ||
-            (audience.matches('class:.*') &&
-             'studentClass' in userData && audience.split(':')[1] == userData.studentClass)
+            (audience.matches('class:.*') && (
+             ('classIds' in userData && audience.split(':')[1] in userData.classIds) ||
+             ('studentClass' in userData && audience.split(':')[1] == userData.studentClass)
+            ))
           ))
         )
       );
@@ -255,15 +261,17 @@ service cloud.firestore {
           role in ['teacher', 'subjectTeacher', 'coordinator', 'principal', 'admin', 'owner', 'ownerPrincipal'] ||
           
           // Guardian: only their own child's result
-          (role == 'guardian' &&
-           'studentRoll' in userData && roll == string(userData.studentRoll) &&
-           targetStudentId != null &&
-           targetStudentId == (
-             !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
-               ? replaceSpaces(userData.studentClass) + '_' + string(userData.studentRoll)
-               : replaceSpaces(userData.studentClass) + '_' + replaceSpaces(userData.studentSection) + '_' + string(userData.studentRoll)
-           )
-          )
+          (role == 'guardian' && (
+            (targetStudentId != null && 'studentIds' in userData && targetStudentId in userData.studentIds) ||
+            ('studentRoll' in userData && roll == string(userData.studentRoll) &&
+             targetStudentId != null &&
+             targetStudentId == (
+               !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
+                 ? replaceSpaces(userData.studentClass) + '_' + string(userData.studentRoll)
+                 : replaceSpaces(userData.studentClass) + '_' + replaceSpaces(userData.studentSection) + '_' + string(userData.studentRoll)
+             )
+            )
+           ))
         )
       );
     }
@@ -280,14 +288,16 @@ service cloud.firestore {
       return isRootAdmin() || (
         userData != null && schoolId == sid && (
           role in ['teacher', 'subjectTeacher', 'coordinator', 'principal', 'admin', 'owner', 'ownerPrincipal'] ||
-          (role == 'guardian' &&
-           'studentClass' in userData && 'studentRoll' in userData &&
-           studentId == (
-             !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
-               ? replaceSpaces(userData.studentClass) + '_' + string(userData.studentRoll)
-               : replaceSpaces(userData.studentClass) + '_' + replaceSpaces(userData.studentSection) + '_' + string(userData.studentRoll)
-           )
-          )
+          (role == 'guardian' && (
+             ('studentIds' in userData && studentId in userData.studentIds) ||
+             ('studentClass' in userData && 'studentRoll' in userData &&
+              studentId == (
+                !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
+                  ? replaceSpaces(userData.studentClass) + '_' + string(userData.studentRoll)
+                  : replaceSpaces(userData.studentClass) + '_' + replaceSpaces(userData.studentSection) + '_' + string(userData.studentRoll)
+              )
+             )
+          ))
         )
       );
     }
@@ -701,7 +711,10 @@ service cloud.firestore {
       match /ptm/{ptmId} {
         allow read: if isSignedIn() && inSchool(sid) && (
           isAnyStaff() ||
-          (isRole('guardian') && classId == replaceSpaces(userStudentClass()))
+          (isRole('guardian') && (
+             classId == replaceSpaces(userStudentClass()) ||
+             ('classIds' in getUserData() && classId in getUserData().classIds)
+          ))
         );
         allow write: if isSignedIn() && inSchool(sid) && (
           isManagement() ||
@@ -722,11 +735,6 @@ service cloud.firestore {
 
       allow read: if isSignedIn() && ((isAnyStaff() && inSchool(sid)) || (
         inSchool(sid) && isRole('guardian')
-        // Own child — matched on real student fields (className/section/roll),
-        // since the app does not populate studentIds[] on allowed_users.
-        && resource.data.className == userStudentClass()
-        && resource.data.section == userStudentSection()
-        && resource.data.roll == userStudentRoll()
         && 'guardianEmail' in resource.data
         && resource.data.guardianEmail.lower() == request.auth.token.email.lower()
       ));
@@ -742,9 +750,8 @@ service cloud.firestore {
       allow update: if isSignedIn() && inSchool(sid) && (
         // Guardian: only guardianDetails / guardianEmail, for their OWN child.
         (isRole('guardian')
-          && resource.data.className == userStudentClass()
-          && resource.data.section == userStudentSection()
-          && resource.data.roll == userStudentRoll()
+          && 'guardianEmail' in resource.data
+          && resource.data.guardianEmail.lower() == request.auth.token.email.lower()
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['guardianDetails', 'guardianEmail'])) ||
         isManagement() ||
@@ -767,7 +774,10 @@ service cloud.firestore {
         (isAnyStaff() && inSchool(sid)) ||
         // Own child — studentId is "{class}_{section}_{roll}". Remark docs carry
         // no className/roll fields, so match the parent doc ID instead.
-        (inSchool(sid) && isRole('guardian') && studentId == guardianStudentId())
+        (inSchool(sid) && isRole('guardian') && (
+           studentId == guardianStudentId() ||
+           ('studentIds' in getUserData() && studentId in getUserData().studentIds)
+        ))
       );
 
       allow update, delete: if isSignedIn() && inSchool(sid) && (
@@ -789,7 +799,10 @@ service cloud.firestore {
     match /schools/{sid}/students/{studentId}/consents/{consentId} {
       allow read, create, update: if isSignedIn() && (
         (isAnyStaff() && inSchool(sid)) ||
-        (inSchool(sid) && isRole('guardian') && studentId == guardianStudentId())
+        (inSchool(sid) && isRole('guardian') && (
+           studentId == guardianStudentId() ||
+           ('studentIds' in getUserData() && studentId in getUserData().studentIds)
+        ))
       );
       allow delete: if isSignedIn() && inSchool(sid) && isManagement();
     }
@@ -810,10 +823,16 @@ service cloud.firestore {
     match /schools/{sid}/students/{studentId}/guardianProvidedDetails/{detailId} {
       allow read: if isSignedIn() && (
         (isAnyStaff() && inSchool(sid)) ||
-        (inSchool(sid) && isRole('guardian') && studentId == guardianStudentId())
+        (inSchool(sid) && isRole('guardian') && (
+           studentId == guardianStudentId() ||
+           ('studentIds' in getUserData() && studentId in getUserData().studentIds)
+        ))
       );
       allow create: if isSignedIn() && inSchool(sid)
-        && isRole('guardian') && studentId == guardianStudentId();
+        && isRole('guardian') && (
+           studentId == guardianStudentId() ||
+           ('studentIds' in getUserData() && studentId in getUserData().studentIds)
+        );
       allow update: if isSignedIn() && inSchool(sid) && isManagement();
       allow delete: if isSignedIn() && inSchool(sid) && isManagement();
     }
@@ -821,7 +840,10 @@ service cloud.firestore {
     match /schools/{sid}/students/{studentId}/schoolProvidedDetails/{detailId} {
       allow read: if isSignedIn() && (
         (isAnyStaff() && inSchool(sid)) ||
-        (inSchool(sid) && isRole('guardian') && studentId == guardianStudentId())
+        (inSchool(sid) && isRole('guardian') && (
+           studentId == guardianStudentId() ||
+           ('studentIds' in getUserData() && studentId in getUserData().studentIds)
+        ))
       );
       allow create, update: if isSignedIn() && inSchool(sid)
         && (isManagement() || isAnyTeacher());
@@ -1199,7 +1221,11 @@ service cloud.firestore {
         isManagement() ||
         // Guardian reads the fee structure for their child's class only.
         (isRole('guardian') && resource.data != null
-          && resource.data.className == userStudentClass())
+          && (resource.data.className == userStudentClass() ||
+              ('classIds' in getUserData() && (
+                 resource.data.className in getUserData().classIds ||
+                 replaceSpaces(resource.data.className) in getUserData().classIds
+              ))))
       );
 
       allow write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
@@ -1217,7 +1243,10 @@ service cloud.firestore {
       // {classId} is the underscored class name (e.g. "Class_9-A").
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isRole('guardian') && classId == replaceSpaces(userStudentClass()))
+        (isRole('guardian') && (
+           classId == replaceSpaces(userStudentClass()) ||
+           ('classIds' in getUserData() && classId in getUserData().classIds)
+        ))
       );
 
       allow write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
@@ -1230,9 +1259,10 @@ service cloud.firestore {
       match /students/{roll} {
         allow read: if isSignedIn() && inSchool(sid) && (
           isManagement() ||
-          (isRole('guardian')
-            && classId == replaceSpaces(userStudentClass())
-            && roll == string(userStudentRoll()))
+          (isRole('guardian') && (
+             (classId == replaceSpaces(userStudentClass()) && roll == string(userStudentRoll())) ||
+             ('studentIds' in getUserData() && classId + '_' + roll in getUserData().studentIds)
+          ))
         );
         allow write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
       }
@@ -1249,9 +1279,14 @@ service cloud.firestore {
     match /schools/{sid}/payments/{paymentId} {
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isRole('guardian')
-          && resource.data.className == userStudentClass()
-          && resource.data.roll == userStudentRoll())
+        (isRole('guardian') && (
+           ('studentId' in resource.data && 'studentIds' in getUserData() && resource.data.studentId in getUserData().studentIds) ||
+           (resource.data.className == userStudentClass() && resource.data.roll == userStudentRoll()) ||
+           ('studentIds' in getUserData() && (
+              (replaceSpaces(resource.data.className) + '_' + string(resource.data.roll) in getUserData().studentIds) ||
+              (replaceSpaces(resource.data.className) + '_' + replaceSpaces(resource.data.section) + '_' + string(resource.data.roll) in getUserData().studentIds)
+           ))
+        ))
       );
       allow write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
     }
@@ -1685,7 +1720,13 @@ service cloud.firestore {
     match /schools/{sid}/ptm_events/{eventId} {
       allow read: if isSignedIn() && inSchool(sid) && (
         isAnyStaff() ||
-        (isRole('guardian') && resource.data.className == userStudentClass())
+        (isRole('guardian') && (
+           resource.data.className == userStudentClass() ||
+           ('classIds' in getUserData() && (
+              resource.data.className in getUserData().classIds ||
+              replaceSpaces(resource.data.className) in getUserData().classIds
+           ))
+        ))
       );
       allow write: if isSignedIn() && inSchool(sid) && isAnyStaff();
     }
@@ -1750,9 +1791,15 @@ service cloud.firestore {
         isManagement() ||
         (isRole('guardian')
           && request.resource.data.status == 'pending'
-          && request.resource.data.className == userStudentClass()
-          && request.resource.data.section == userStudentSection()
-          && request.resource.data.roll == userStudentRoll()
+          && (
+             (request.resource.data.className == userStudentClass()
+              && request.resource.data.section == userStudentSection()
+              && request.resource.data.roll == userStudentRoll()) ||
+             ('studentIds' in getUserData() && (
+                replaceSpaces(request.resource.data.className) + '_' + string(request.resource.data.roll) in getUserData().studentIds ||
+                replaceSpaces(request.resource.data.className) + '_' + replaceSpaces(request.resource.data.section) + '_' + string(request.resource.data.roll) in getUserData().studentIds
+             ))
+          )
           && request.resource.data.submittedBy == userEmail())
       );
 

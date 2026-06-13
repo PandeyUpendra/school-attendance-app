@@ -117,6 +117,28 @@ exports.syncUserClaims = onDocumentWritten(
         return;
       }
       const d = after.data() || {};
+
+      // Auto-backfill studentIds and classIds for guardians if missing or outdated
+      if (d.role === "guardian") {
+        const links = d.studentLinks || [];
+        const studentIds = links.map((l) => studentDocId(l.studentClass, l.studentSection, l.studentRoll));
+        const classIds = [...new Set(links.map((l) => {
+          const cls = l.studentClass || "";
+          const sec = l.studentSection || "";
+          return sec ? `${cls}-${sec}` : cls;
+        }))];
+
+        const hasIds = Array.isArray(d.studentIds) && d.studentIds.length === studentIds.length;
+        const hasClassIds = Array.isArray(d.classIds) && d.classIds.length === classIds.length;
+        if (!hasIds || !hasClassIds) {
+          await after.ref.update({
+            studentIds: studentIds,
+            classIds: classIds
+          });
+          return;
+        }
+      }
+
       const claims = {
         role: d.role ? String(d.role) : null,
         schoolId: d.schoolId ? String(d.schoolId) : null,
@@ -125,6 +147,7 @@ exports.syncUserClaims = onDocumentWritten(
         studentRoll: d.studentRoll ? Number(d.studentRoll) : null,
         studentSection: d.studentSection ? String(d.studentSection) : null,
         studentAdmissionId: d.studentAdmissionId ? String(d.studentAdmissionId) : null,
+        studentIds: d.studentIds ? d.studentIds : [],
       };
       await admin.auth().setCustomUserClaims(user.uid, claims);
     } catch (err) {
@@ -485,6 +508,24 @@ exports.createAllowedUser = onCall(
       data.studentRoll = studentRoll || null;
       data.studentSection = studentSection || null;
       data.studentAdmissionId = studentAdmissionId || null;
+
+      const links = [];
+      const studentIds = [];
+      const classIds = [];
+      if (studentClass && studentRoll !== null) {
+        links.push({
+          studentClass: studentClass,
+          studentRoll: studentRoll,
+          studentSection: studentSection || "",
+          studentAdmissionId: studentAdmissionId || "",
+          studentName: "",
+        });
+        studentIds.push(studentDocId(studentClass, studentSection, studentRoll));
+        classIds.push(studentSection ? `${studentClass}-${studentSection}` : studentClass);
+      }
+      data.studentLinks = links;
+      data.studentIds = studentIds;
+      data.classIds = classIds;
     }
     if (["coordinator", "principal", "owner"].includes(role)) {
       data.assignedClasses = assignedClasses || [];
@@ -714,7 +755,17 @@ async function performStudentDeleteCascade(db, schoolId, className, section, rol
           }
         } else {
           // Update links
-          await guardianRef.update({ studentLinks: links });
+          const studentIds = links.map((l) => studentDocId(l.studentClass, l.studentSection, l.studentRoll));
+          const classIds = [...new Set(links.map((l) => {
+            const cls = l.studentClass || "";
+            const sec = l.studentSection || "";
+            return sec ? `${cls}-${sec}` : cls;
+          }))];
+          await guardianRef.update({
+            studentLinks: links,
+            studentIds: studentIds,
+            classIds: classIds
+          });
         }
       }
     } catch (err) {

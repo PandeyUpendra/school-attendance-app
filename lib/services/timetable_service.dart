@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../firebase_options.dart';
+import '../models/student.dart';
 import '../models/teacher.dart';
 import '../models/timetable_entry.dart';
 import '../shared/utils/app_logger.dart';
@@ -1601,10 +1602,25 @@ class TimetableService extends BaseFirestoreService {
       });
     }
 
+    final studentIds = links.map((l) {
+      final cls = l['studentClass'] as String;
+      final roll = l['studentRoll'] as int;
+      final sec = l['studentSection'] as String? ?? '';
+      return Student.buildDocId(roll, cls, sec);
+    }).toList();
+
+    final classIds = links.map((l) {
+      final cls = l['studentClass'] as String;
+      final sec = l['studentSection'] as String? ?? '';
+      return sec.isEmpty ? cls : '$cls-$sec';
+    }).toSet().toList();
+
     await docRef.set({
       'role':         data['role'] ?? 'guardian',
       'email':        normEmail,
       'studentLinks': links,
+      'studentIds':   studentIds,
+      'classIds':     classIds,
       'studentClass': studentClass,  // legacy compat
       'studentRoll':  studentRoll,   // legacy compat
       'studentSection': studentSection,
@@ -1639,7 +1655,24 @@ class TimetableService extends BaseFirestoreService {
         l['studentRoll'] == studentRoll &&
         (l['studentSection'] ?? '') == studentSection);
 
-    await docRef.update({'studentLinks': links});
+    final studentIds = links.map((l) {
+      final cls = l['studentClass'] as String;
+      final roll = l['studentRoll'] as int;
+      final sec = l['studentSection'] as String? ?? '';
+      return Student.buildDocId(roll, cls, sec);
+    }).toList();
+
+    final classIds = links.map((l) {
+      final cls = l['studentClass'] as String;
+      final sec = l['studentSection'] as String? ?? '';
+      return sec.isEmpty ? cls : '$cls-$sec';
+    }).toSet().toList();
+
+    await docRef.update({
+      'studentLinks': links,
+      'studentIds':   studentIds,
+      'classIds':     classIds,
+    });
   }
 
   /// Returns coordinators for the given school.

@@ -41,6 +41,7 @@ const SCHOOL_ID  = 'school_1';
 const UID = {
   guardian:    'uid-guardian-1',   // Parent of Class_9-A_A_42
   guardian2:   'uid-guardian-2',   // Parent of Class_10-B_B_15
+  guardianMulti: 'uid-guardian-multi', // Parent of both Class_9-A_A_42 and Class_10-B_B_15
   teacher9A:   'uid-teacher-9a',   // Class teacher of "Class 9-A"
   teacher10B:  'uid-teacher-10b',  // Class teacher of "Class 10-B"
   coordinator: 'uid-coordinator',
@@ -59,6 +60,18 @@ const USERS = {
     role: 'guardian', schoolId: SCHOOL_ID,
     name: 'Parent One', email: 'parent1@school.test',
     studentClass: 'Class 9-A', studentSection: 'A', studentRoll: 42,
+    status: 'active',
+  },
+  [UID.guardianMulti]: {
+    role: 'guardian', schoolId: SCHOOL_ID,
+    name: 'Parent Multi', email: 'parentmulti@school.test',
+    studentClass: 'Class 9-A', studentSection: 'A', studentRoll: 42,
+    studentLinks: [
+      { studentClass: 'Class 9-A', studentRoll: 42, studentSection: 'A', studentName: 'Alice Sharma', studentAdmissionId: 'adm-1' },
+      { studentClass: 'Class 10-B', studentRoll: 15, studentSection: 'B', studentName: 'Bob Verma', studentAdmissionId: 'adm-2' },
+    ],
+    studentIds: ['Class_9-A_A_42', 'Class_10-B_B_15'],
+    classIds: ['Class 9-A', 'Class 10-B', 'Class 9-A-A', 'Class 10-B-B'],
     status: 'active',
   },
   [UID.guardian2]: {
@@ -321,6 +334,27 @@ describe('Firestore Security Rules', () => {
       );
     });
 
+    test('ALLOW — guardian with multiple children can read all their student records', async () => {
+      // Set guardian email for both students to parentmulti@school.test
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        const adb = ctx.firestore();
+        await updateDoc(doc(adb, schoolPath('students', STUDENT_ID_9A)), {
+          guardianEmail: 'parentmulti@school.test',
+        });
+        await updateDoc(doc(adb, schoolPath('students', STUDENT_ID_10B)), {
+          guardianEmail: 'parentmulti@school.test',
+        });
+      });
+
+      // Assert guardianMulti can read both child student documents
+      await assertSucceeds(
+        getDoc(doc(db(UID.guardianMulti), schoolPath('students', STUDENT_ID_9A))),
+      );
+      await assertSucceeds(
+        getDoc(doc(db(UID.guardianMulti), schoolPath('students', STUDENT_ID_10B))),
+      );
+    });
+
     test('ALLOW — can update guardianDetails for own child', async () => {
       await assertSucceeds(
         updateDoc(doc(db(UID.guardian), schoolPath('students', STUDENT_ID_9A)), {
@@ -542,6 +576,15 @@ describe('Firestore Security Rules', () => {
     test('DENY — H2: guardian cannot read another student\'s attendance mirror', async () => {
       await assertFails(
         getDoc(doc(db(UID.guardian), schoolPath('student_attendance', 'Class_10-B_B_15'))),
+      );
+    });
+
+    test('ALLOW — H2: guardian with multiple children can read attendance mirrors for all children', async () => {
+      await assertSucceeds(
+        getDoc(doc(db(UID.guardianMulti), schoolPath('student_attendance', 'Class_9-A_A_42'))),
+      );
+      await assertSucceeds(
+        getDoc(doc(db(UID.guardianMulti), schoolPath('student_attendance', 'Class_10-B_B_15'))),
       );
     });
 
