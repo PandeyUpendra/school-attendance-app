@@ -56,6 +56,7 @@ class StudentSelectionScreen extends StatelessWidget {
                 final sRoll = parts[1];
                 final sName =
                     parts.length > 2 ? parts[2] : context.tr('studentLabel');
+                final sSection = parts.length > 3 ? parts[3] : '';
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -70,6 +71,7 @@ class StudentSelectionScreen extends StatelessWidget {
                           builder: (_) => GuardianDashboard(
                             studentClass: sClass,
                             studentRoll: int.tryParse(sRoll) ?? 0,
+                            studentSection: sSection,
                           ),
                         ),
                       );

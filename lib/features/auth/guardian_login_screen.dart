@@ -90,14 +90,24 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
 
       final sessionLinks = links
           .map((l) =>
-              '${l['studentClass']}|${l['studentRoll']}|${l['studentName'] ?? ''}')
+              '${l['studentClass']}|${l['studentRoll']}|${l['studentName'] ?? ''}|${l['studentSection'] ?? ''}')
           .toList();
+
+      // Extract first child's class/roll/section for session persistence so
+      // auto-login (main.dart) can reconstruct the GuardianDashboard.
+      final firstLink = links.first;
+      final firstClass   = firstLink['studentClass'] as String?;
+      final firstRoll    = (firstLink['studentRoll'] as num?)?.toInt();
+      final firstSection = firstLink['studentSection'] as String? ?? '';
 
       await AuthService().saveSession(
         email:        email,
         role:         'guardian',
         name:         name,
         schoolId:     schoolId,
+        studentClass:   firstClass,
+        studentRoll:    firstRoll,
+        studentSection: firstSection,
         studentLinks: sessionLinks,
         // Provisioned stable id (#39) for the safe guardian_adm subscription.
         studentAdmissionId: userData['studentAdmissionId'] as String?,
@@ -113,6 +123,7 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
             builder: (_) => GuardianDashboard(
               studentClass: parts[0],
               studentRoll:  int.tryParse(parts[1]) ?? 0,
+              studentSection: parts.length > 3 ? parts[3] : '',
             ),
           ),
         );

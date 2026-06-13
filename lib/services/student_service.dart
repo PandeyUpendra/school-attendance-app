@@ -801,6 +801,7 @@ class StudentService extends BaseFirestoreService {
       schoolId:     effectiveSchoolId,
       studentClass: className,
       studentRoll:  roll,
+      studentSection: section,
       studentAdmissionId: admissionId,
     );
     await svc.linkGuardianEmail(
@@ -808,6 +809,7 @@ class StudentService extends BaseFirestoreService {
       email:        email,
       studentClass: className,
       studentRoll:  roll,
+      studentSection: section,
       studentName:  name,
       studentAdmissionId: admissionId,
     );

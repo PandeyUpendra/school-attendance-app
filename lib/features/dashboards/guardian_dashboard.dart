@@ -171,14 +171,31 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   }
 
   /// Finds every student that shares this guardian's email so a parent with
-  /// more than one child can switch between them. Falls back silently to the
-  /// single child passed in if the lookup fails or finds nothing.
+  /// more than one child can switch between them. Uses the session's
+  /// studentLinks (populated at login from the allowed_users doc) rather than
+  /// a Firestore query, because the guardian read rule is scoped to a single
+  /// student and a collection-wide `where('guardianEmail', …)` query would
+  /// be rejected. Falls back silently to the single child passed in if the
+  /// lookup fails or finds nothing.
   Future<void> _loadChildren() async {
     try {
       final session = await AuthService().getSession();
-      final email = (session?['email'] as String? ?? '').trim();
-      if (email.isEmpty) return;
-      final kids = await _service.getStudentsByGuardianEmail(email);
+      final linkStrings = session?['studentLinks'] as List<String>?;
+      if (linkStrings == null || linkStrings.length < 2) return;
+
+      // Load each child individually (single doc get — passes guardian rules).
+      final futures = linkStrings.map((link) {
+        final parts = link.split('|');
+        if (parts.length < 2) return Future<Student?>.value(null);
+        final cls     = parts[0];
+        final roll    = int.tryParse(parts[1]) ?? 0;
+        final section = parts.length > 3 ? parts[3] : '';
+        return _service.getStudentByRoll(cls, roll, section: section)
+            .catchError((_) => null as Student?);
+      }).toList();
+      final results = await Future.wait(futures);
+      final kids = results.whereType<Student>().toList()
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
       if (!mounted || kids.length < 2) return;
       setState(() => _children = kids);
     } catch (_) {/* keep single-child view */}
