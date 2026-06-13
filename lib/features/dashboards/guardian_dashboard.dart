@@ -1168,12 +1168,6 @@ class _GuardianHeroCard extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         height: 1.1),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$studentClass  ·  Roll $studentRoll',
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 13),
-                  ),
                   const SizedBox(height: 14),
                   // ── Stats glass card (mirrors the teacher dashboard) ──
                   Container(
