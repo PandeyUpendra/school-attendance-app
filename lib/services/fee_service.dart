@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../shared/utils/app_logger.dart';
 import '../models/fee.dart';
 import 'audit_log_service.dart';
 import 'auth_service.dart';
@@ -372,8 +374,16 @@ class FeeService extends BaseFirestoreService {
     final payments = await getPayments(className: className, roll: roll);
     final paise = payments.fold<int>(0, (acc, p) => acc + p.amountPaise);
     
-    // Save to metadata document for future instant loads
-    await studentFeeDocRef.set({'totalPaidPaise': paise}, SetOptions(merge: true));
+    // Save to metadata document for future instant loads, but only if not a guardian
+    final prefs = await SharedPreferences.getInstance();
+    final role = prefs.getString('auth_role');
+    if (role != 'guardian') {
+      try {
+        await studentFeeDocRef.set({'totalPaidPaise': paise}, SetOptions(merge: true));
+      } catch (e) {
+        AppLogger.w('FeeService', 'Failed to write fee cache doc: $e');
+      }
+    }
     return paiseToRupees(paise);
   }
 

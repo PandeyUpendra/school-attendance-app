@@ -226,9 +226,15 @@ service cloud.firestore {
           (role == 'guardian' && (
             audience == 'guardians' ||
             (audience.matches('guardian:.*:.*') && (
+               (resource != null && 'targetStudentId' in resource.data && 'studentIds' in userData && resource.data.targetStudentId in userData.studentIds) ||
                ('studentIds' in userData && (
                   audience.split(':')[1] + '_' + audience.split(':')[2] in userData.studentIds ||
-                  replaceSpaces(audience.split(':')[1]) + '_' + audience.split(':')[2] in userData.studentIds
+                  replaceSpaces(audience.split(':')[1]) + '_' + audience.split(':')[2] in userData.studentIds ||
+                  replaceSpaces(audience.split(':')[1]) + '_A_' + audience.split(':')[2] in userData.studentIds ||
+                  replaceSpaces(audience.split(':')[1]) + '_B_' + audience.split(':')[2] in userData.studentIds ||
+                  replaceSpaces(audience.split(':')[1]) + '_C_' + audience.split(':')[2] in userData.studentIds ||
+                  replaceSpaces(audience.split(':')[1]) + '_D_' + audience.split(':')[2] in userData.studentIds ||
+                  replaceSpaces(audience.split(':')[1]) + '_E_' + audience.split(':')[2] in userData.studentIds
                )) ||
                ('studentClass' in userData && audience.split(':')[1] == userData.studentClass &&
                 'studentRoll' in userData && audience.split(':')[2] == string(userData.studentRoll))
@@ -1244,7 +1250,14 @@ service cloud.firestore {
         isManagement() ||
         (isRole('guardian') && (
            classId == replaceSpaces(userStudentClass()) ||
-           ('classIds' in getUserData() && classId in getUserData().classIds)
+           ('classIds' in getUserData() && (
+              classId in getUserData().classIds ||
+              classId + '-A' in getUserData().classIds ||
+              classId + '-B' in getUserData().classIds ||
+              classId + '-C' in getUserData().classIds ||
+              classId + '-D' in getUserData().classIds ||
+              classId + '-E' in getUserData().classIds
+           ))
         ))
       );
 
@@ -1260,7 +1273,14 @@ service cloud.firestore {
           isManagement() ||
           (isRole('guardian') && (
              (classId == replaceSpaces(userStudentClass()) && roll == string(userStudentRoll())) ||
-             ('studentIds' in getUserData() && classId + '_' + roll in getUserData().studentIds)
+             ('studentIds' in getUserData() && (
+                classId + '_' + roll in getUserData().studentIds ||
+                classId + '_A_' + roll in getUserData().studentIds ||
+                classId + '_B_' + roll in getUserData().studentIds ||
+                classId + '_C_' + roll in getUserData().studentIds ||
+                classId + '_D_' + roll in getUserData().studentIds ||
+                classId + '_E_' + roll in getUserData().studentIds
+             ))
           ))
         );
         allow write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
