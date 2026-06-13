@@ -1545,7 +1545,8 @@ class TimetableService extends BaseFirestoreService {
     return [{
       'studentClass': cls,
       'studentRoll':  roll,
-      'studentName':  '',
+      'studentSection': data['studentSection'] ?? '',
+      'studentName':  data['name'] ?? '',
       if (data['studentAdmissionId'] != null)
         'studentAdmissionId': data['studentAdmissionId'],
     }];

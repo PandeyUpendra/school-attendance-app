@@ -857,6 +857,7 @@ class StudentService extends BaseFirestoreService {
         email:        oldEmail,
         studentClass: className,
         studentRoll:  roll,
+        studentSection: section,
       );
     }
 
@@ -1073,6 +1074,7 @@ class StudentService extends BaseFirestoreService {
             email: guardianEmail,
             studentClass: className,
             studentRoll: roll,
+            studentSection: section,
           );
           final remaining = await svc.getGuardianLinks(guardianEmail);
           if (remaining == null || remaining.isEmpty) {
