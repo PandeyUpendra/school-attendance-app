@@ -118,20 +118,53 @@ exports.syncUserClaims = onDocumentWritten(
       }
       const d = after.data() || {};
 
-      // Auto-backfill studentIds and classIds for guardians if missing or outdated
+      // Auto-backfill studentLinks, studentIds, and classIds for guardians if missing or outdated
       if (d.role === "guardian") {
-        const links = d.studentLinks || [];
-        const studentIds = links.map((l) => studentDocId(l.studentClass, l.studentSection, l.studentRoll));
-        const classIds = [...new Set(links.map((l) => {
+        const db = admin.firestore();
+        const schoolId = d.schoolId || "";
+        let finalLinks = d.studentLinks || [];
+        if (schoolId) {
+          const studentsQuery = await db.collection("schools").doc(schoolId).collection("students")
+            .where("guardianEmail", "==", email)
+            .get();
+          if (studentsQuery.docs.length > 0) {
+            const matchedLinks = studentsQuery.docs.map(doc => {
+              const s = doc.data();
+              return {
+                studentClass: s.className || "",
+                studentRoll: typeof s.roll === "number" ? s.roll : 0,
+                studentSection: s.section || "",
+                studentName: s.name || "",
+                studentAdmissionId: s.admissionId || ""
+              };
+            });
+            const seen = new Set();
+            const merged = [];
+            [...finalLinks, ...matchedLinks].forEach(l => {
+              const key = `${l.studentClass}|${l.studentRoll}|${l.studentSection}`;
+              if (!seen.has(key) && l.studentClass && l.studentRoll !== undefined) {
+                seen.add(key);
+                merged.push(l);
+              }
+            });
+            finalLinks = merged;
+          }
+        }
+
+        const studentIds = finalLinks.map((l) => studentDocId(l.studentClass, l.studentSection, l.studentRoll));
+        const classIds = [...new Set(finalLinks.map((l) => {
           const cls = l.studentClass || "";
           const sec = l.studentSection || "";
           return sec ? `${cls}-${sec}` : cls;
         }))];
 
+        const hasLinks = Array.isArray(d.studentLinks) && d.studentLinks.length === finalLinks.length;
         const hasIds = Array.isArray(d.studentIds) && d.studentIds.length === studentIds.length;
         const hasClassIds = Array.isArray(d.classIds) && d.classIds.length === classIds.length;
-        if (!hasIds || !hasClassIds) {
+        
+        if (!hasLinks || !hasIds || !hasClassIds) {
           await after.ref.update({
+            studentLinks: finalLinks,
             studentIds: studentIds,
             classIds: classIds
           });

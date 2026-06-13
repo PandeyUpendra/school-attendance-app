@@ -173,38 +173,59 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   }
 
   /// Finds every student that shares this guardian's email so a parent with
-  /// more than one child can switch between them. Uses the session's
-  /// studentLinks (populated at login from the allowed_users doc) rather than
-  /// a Firestore query, because the guardian read rule is scoped to a single
-  /// student and a collection-wide `where('guardianEmail', …)` query would
-  /// be rejected. Falls back silently to the single child passed in if the
-  /// lookup fails or finds nothing.
+  /// more than one child can switch between them.
+  /// Queries TimetableService.getGuardianLinks directly from the database
+  /// to ensure the list of linked children is always fresh.
   Future<void> _loadChildren() async {
     try {
       final session = await AuthService().getSession();
-      if (session != null) {
-        setState(() {
-          _parentEmail = session['email'] as String? ?? '';
-        });
-      }
-      final linkStrings = session?['studentLinks'] as List<String>?;
-      if (linkStrings == null || linkStrings.length < 2) return;
+      final email = session?['email'] as String?;
+      if (email == null) return;
+      
+      setState(() {
+        _parentEmail = email;
+      });
+
+      // Fetch fresh links from the database directly!
+      final links = await TimetableService.instance.getGuardianLinks(email);
+      if (links == null || links.isEmpty) return;
+
+      // Reconstruct session links to keep the SharedPreferences cache updated.
+      final sessionLinks = links
+          .map((l) =>
+              '${l['studentClass']}|${l['studentRoll']}|${l['studentName'] ?? ''}|${l['studentSection'] ?? ''}')
+          .toList();
 
       // Load each child individually (single doc get — passes guardian rules).
-      final futures = linkStrings.map((link) {
-        final parts = link.split('|');
-        if (parts.length < 2) return Future<Student?>.value(null);
-        final cls     = parts[0];
-        final roll    = int.tryParse(parts[1]) ?? 0;
-        final section = parts.length > 3 ? parts[3] : '';
+      final futures = links.map((l) {
+        final cls     = l['studentClass'] as String;
+        final roll    = l['studentRoll'] as int;
+        final section = l['studentSection'] as String? ?? '';
         return _service.getStudentByRoll(cls, roll, section: section)
             .catchError((_) => null as Student?);
       }).toList();
+      
       final results = await Future.wait(futures);
       final kids = results.whereType<Student>().toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-      if (!mounted || kids.length < 2) return;
-      setState(() => _children = kids);
+      
+      if (!mounted) return;
+      setState(() {
+        _children = kids;
+      });
+
+      // Silently save back to session so subsequent app launches have it pre-cached.
+      await AuthService().saveSession(
+        email:        email,
+        role:         'guardian',
+        name:         session?['name'] as String? ?? email.split('@').first,
+        schoolId:     session?['schoolId'] as String? ?? '',
+        studentClass:   _activeClass,
+        studentRoll:    _activeRoll,
+        studentSection: _activeSection,
+        studentLinks: sessionLinks,
+        studentAdmissionId: session?['studentAdmissionId'] as String?,
+      );
     } catch (_) {/* keep single-child view */}
   }
 
