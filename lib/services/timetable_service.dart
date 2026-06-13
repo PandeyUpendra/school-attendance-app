@@ -1536,7 +1536,10 @@ class TimetableService extends BaseFirestoreService {
     // Support both old single-link and new multi-link format
     final links = data['studentLinks'];
     if (links is List) {
-      return links.whereType<Map<String, dynamic>>().toList();
+      return links
+          .map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
+          .whereType<Map<String, dynamic>>()
+          .toList();
     }
     // Fall back to single link format
     final cls  = data['studentClass'] as String?;
@@ -1583,10 +1586,13 @@ class TimetableService extends BaseFirestoreService {
         ? Map<String, dynamic>.from(doc.data()!)
         : <String, dynamic>{};
 
-    final links = List<Map<String, dynamic>>.from(
-        (data['studentLinks'] as List?)
-            ?.whereType<Map<String, dynamic>>()
-            .toList() ?? []);
+    final rawLinks = data['studentLinks'] as List?;
+    final links = rawLinks != null
+        ? rawLinks
+            .map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
+            .whereType<Map<String, dynamic>>()
+            .toList()
+        : <Map<String, dynamic>>[];
 
     final exists = links.any((l) =>
         l['studentClass'] == studentClass &&
@@ -1647,10 +1653,13 @@ class TimetableService extends BaseFirestoreService {
     final doc = query.docs.first;
 
     final data  = Map<String, dynamic>.from(doc.data());
-    final links = List<Map<String, dynamic>>.from(
-        (data['studentLinks'] as List?)
-            ?.whereType<Map<String, dynamic>>()
-            .toList() ?? []);
+    final rawLinks = data['studentLinks'] as List?;
+    final links = rawLinks != null
+        ? rawLinks
+            .map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
+            .whereType<Map<String, dynamic>>()
+            .toList()
+        : <Map<String, dynamic>>[];
     links.removeWhere((l) =>
         l['studentClass'] == studentClass &&
         l['studentRoll'] == studentRoll &&
