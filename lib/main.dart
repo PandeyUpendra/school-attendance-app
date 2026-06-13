@@ -218,7 +218,7 @@ class _SplashGateState extends State<_SplashGate> {
   }
 
   Future<void> _checkSession() async {
-    final session = await AuthService().getSession();
+    var session = await AuthService().getSession();
 
     if (!mounted) return;
 
@@ -327,11 +327,10 @@ class _SplashGateState extends State<_SplashGate> {
         readFailed = true;
       }
       if (!mounted) return;
-      if (!readFailed) {
-        final liveRole   = (live?['role']   as String?) ?? '';
-        final liveStatus = (live?['status'] as String?) ?? '';
-        final revoked = live == null
-            || liveRole != role
+      if (!readFailed && live != null) {
+        final liveRole   = (live['role']   as String?) ?? '';
+        final liveStatus = (live['status'] as String?) ?? '';
+        final revoked = liveRole != role
             || liveStatus == 'suspended'
             || liveStatus == 'disabled';
         if (revoked) {
@@ -339,6 +338,36 @@ class _SplashGateState extends State<_SplashGate> {
           if (!mounted) return;
           _go(const LoginScreen());
           return;
+        }
+
+        // Auto-refresh the guardian session metadata on app launch so that
+        // class promotions, section assignments, or teacher corrections apply immediately
+        // without requiring a manual logout/login.
+        if (role == 'guardian') {
+          final links = await TimetableService.instance.getGuardianLinks(email);
+          if (links != null && links.isNotEmpty) {
+            final sessionLinks = links
+                .map((l) =>
+                    '${l['studentClass']}|${l['studentRoll']}|${l['studentName'] ?? ''}|${l['studentSection'] ?? ''}')
+                .toList();
+            final firstLink = links.first;
+            final firstClass   = firstLink['studentClass'] as String?;
+            final firstRoll    = (firstLink['studentRoll'] as num?)?.toInt();
+            final firstSection = firstLink['studentSection'] as String? ?? '';
+
+            await AuthService().saveSession(
+              email:        email,
+              role:         'guardian',
+              name:         live['name'] as String? ?? email.split('@').first,
+              schoolId:     live['schoolId'] as String? ?? '',
+              studentClass:   firstClass,
+              studentRoll:    firstRoll,
+              studentSection: firstSection,
+              studentLinks: sessionLinks,
+              studentAdmissionId: live['studentAdmissionId'] as String?,
+            );
+            session = (await AuthService().getSession()) ?? session;
+          }
         }
       }
     }
