@@ -49,6 +49,8 @@
 	<string>Photos are saved when downloading gallery.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Microphone is used for voice attendance.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Location is used to autofill the address of your school, student, or teacher.</string>
 	<key>FirebaseMessagingAutoInitEnabled</key>
 	<false/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>

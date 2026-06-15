@@ -159,7 +159,42 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
   bool _init = false;
 
   static const _types = ['Private', 'Government', 'Government-Aided'];
-  static const _boards = ['CBSE', 'ICSE', 'State Board', 'IGCSE', 'Other'];
+  static const _boards = [
+    'CBSE',
+    'ICSE',
+    'IGCSE',
+    'IB (International Baccalaureate)',
+    'NIOS',
+    'State Board',
+    'Andhra Pradesh State Board (BSEAP)',
+    'Assam State Board (SEBA/AHSEC)',
+    'Bihar State Board (BSEB)',
+    'Chhattisgarh State Board (CGBSE)',
+    'Goa State Board (GBSHSE)',
+    'Gujarat State Board (GSEB)',
+    'Haryana State Board (BSEH)',
+    'Himachal Pradesh State Board (HPBOSE)',
+    'Jammu & Kashmir State Board (JKBOSE)',
+    'Jharkhand State Board (JAC)',
+    'Karnataka State Board (KSEAB)',
+    'Kerala State Board (KBPE)',
+    'Madhya Pradesh State Board (MPBSE)',
+    'Maharashtra State Board (MSBSHSE)',
+    'Manipur State Board (BSEM/COHSEM)',
+    'Meghalaya State Board (MBOSE)',
+    'Mizoram State Board (MBSE)',
+    'Nagaland State Board (NBSE)',
+    'Odisha State Board (BSE/CHSE)',
+    'Punjab State Board (PSEB)',
+    'Rajasthan State Board (BSER)',
+    'Tamil Nadu State Board',
+    'Telangana State Board (BSE/TSBIE)',
+    'Tripura State Board (TBSE)',
+    'Uttar Pradesh State Board (UPMSP)',
+    'Uttarakhand State Board (UBSE)',
+    'West Bengal State Board (WBBSE/WBCHSE)',
+    'Other',
+  ];
 
   @override
   void didChangeDependencies() {
