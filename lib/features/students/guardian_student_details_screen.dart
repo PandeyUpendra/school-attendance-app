@@ -15,6 +15,7 @@ import '../../theme.dart';
 import '../../shared/utils/validators.dart';
 import '../../shared/utils/image_utils.dart';
 import '../auth/guardian_email_request_screen.dart';
+import './guardian_document_upload_screen.dart';
 
 /// Localised label for a gender value (stored value stays English).
 String _localizedGender(BuildContext c, String g) => switch (g) {
@@ -529,6 +530,30 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
               // ── TRANSPORT ──
               _buildSectionTitle(context.tr('othersSection')),
               _buildTextField(_transportController, context.tr('modeOfTransport'), Icons.directions_bus),
+
+              const SizedBox(height: 16),
+              _buildSectionTitle('VERIFICATION DOCUMENTS'),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.cloud_upload_outlined),
+                  label: const Text('Upload Birth Certificate / Aadhaar'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primary,
+                    side: const BorderSide(color: AppTheme.primary),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => GuardianDocumentUploadScreen(student: widget.student),
+                      ),
+                    );
+                  },
+                ),
+              ),
 
               const SizedBox(height: 32),
               ElevatedButton(

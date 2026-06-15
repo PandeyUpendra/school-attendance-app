@@ -196,43 +196,48 @@ class FirestoreService {
     required String schoolId,
     required String classId,
   }) async {
-    final dates =
-        await getAttendanceDates(schoolId: schoolId, classId: classId);
-    final Map<int, int> presentCount = {};
-    final Map<int, int> absentCount = {};
-    final Map<int, int> leaveCount = {};
+    try {
+      final snap = await _attendanceCol(schoolId, classId).get();
+      final Map<int, int> presentCount = {};
+      final Map<int, int> absentCount = {};
+      final Map<int, int> leaveCount = {};
+      final int totalDays = snap.docs.length;
 
-    final attDocs = await Future.wait(
-      dates.map((date) =>
-          loadAttendance(schoolId: schoolId, classId: classId, date: date)),
-    );
-    for (final att in attDocs) {
-      if (att == null) continue;
-      for (final e in att.entries) {
-        if (e.value.isPresent) {
-          presentCount[e.key] = (presentCount[e.key] ?? 0) + 1;
-        } else if (e.value.isLeave) {
-          leaveCount[e.key] = (leaveCount[e.key] ?? 0) + 1;
-        } else {
-          absentCount[e.key] = (absentCount[e.key] ?? 0) + 1;
-        }
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        if (data == null) continue;
+        data.forEach((k, v) {
+          final roll = int.tryParse(k);
+          if (roll != null) {
+            final status = AttendanceStatus.fromValue(v);
+            if (status.isPresent) {
+              presentCount[roll] = (presentCount[roll] ?? 0) + 1;
+            } else if (status.isLeave) {
+              leaveCount[roll] = (leaveCount[roll] ?? 0) + 1;
+            } else {
+              absentCount[roll] = (absentCount[roll] ?? 0) + 1;
+            }
+          }
+        });
       }
-    }
 
-    final allRolls = {
-      ...presentCount.keys,
-      ...absentCount.keys,
-      ...leaveCount.keys
-    };
-    return {
-      for (final roll in allRolls)
-        roll: {
-          'present': presentCount[roll] ?? 0,
-          'absent': absentCount[roll] ?? 0,
-          'leave': leaveCount[roll] ?? 0,
-          'total': dates.length,
-        }
-    };
+      final allRolls = {
+        ...presentCount.keys,
+        ...absentCount.keys,
+        ...leaveCount.keys
+      };
+      return {
+        for (final roll in allRolls)
+          roll: {
+            'present': presentCount[roll] ?? 0,
+            'absent': absentCount[roll] ?? 0,
+            'leave': leaveCount[roll] ?? 0,
+            'total': totalDays,
+          }
+      };
+    } catch (_) {
+      return {};
+    }
   }
 
   // ── Analytics ─────────────────────────────────────────────────────────────
@@ -243,23 +248,27 @@ class FirestoreService {
     required String classId,
   }) async {
     try {
-      final dates =
-          await getAttendanceDates(schoolId: schoolId, classId: classId);
-      if (dates.isEmpty) return {'totalDays': 0, 'presentRate': 0.0};
+      final snap = await _attendanceCol(schoolId, classId).get();
+      if (snap.docs.isEmpty) return {'totalDays': 0, 'presentRate': 0.0};
 
       int totalPresent = 0, totalRecords = 0;
-      final attDocs = await Future.wait(
-        dates.map((date) =>
-            loadAttendance(schoolId: schoolId, classId: classId, date: date)),
-      );
-      for (final att in attDocs) {
-        if (att == null) continue;
-        totalPresent += att.values.where((v) => v.isPresent).length;
-        totalRecords += att.length;
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        if (data == null) continue;
+        data.forEach((k, v) {
+          final roll = int.tryParse(k);
+          if (roll != null) {
+            final status = AttendanceStatus.fromValue(v);
+            if (status.isPresent) {
+              totalPresent++;
+            }
+            totalRecords++;
+          }
+        });
       }
 
       return {
-        'totalDays': dates.length,
+        'totalDays': snap.docs.length,
         'presentRate':
             totalRecords > 0 ? totalPresent / totalRecords : 0.0,
       };
@@ -276,25 +285,26 @@ class FirestoreService {
     required String classId,
     required int studentRoll,
   }) async {
-    final dates =
-        await getAttendanceDates(schoolId: schoolId, classId: classId);
-    final List<Map<String, dynamic>> history = [];
+    try {
+      final snap = await _attendanceCol(schoolId, classId).get();
+      final sortedDocs = snap.docs.toList()..sort((a, b) => a.id.compareTo(b.id));
+      final List<Map<String, dynamic>> history = [];
 
-    // Fetch every date's attendance in parallel; Future.wait preserves the
-    // input order, so the resulting history stays chronologically ordered.
-    final attDocs = await Future.wait(
-      dates.map((date) =>
-          loadAttendance(schoolId: schoolId, classId: classId, date: date)),
-    );
-    for (var i = 0; i < dates.length; i++) {
-      final att = attDocs[i];
-      if (att == null) continue;
-      final status = att[studentRoll];
-      if (status != null) {
-        history.add({'date': dates[i], 'status': status});
+      for (final doc in sortedDocs) {
+        final data = doc.data();
+        if (data == null) continue;
+        final val = data[studentRoll.toString()];
+        if (val != null) {
+          history.add({
+            'date': doc.id,
+            'status': AttendanceStatus.fromValue(val),
+          });
+        }
       }
+      return history;
+    } catch (_) {
+      return [];
     }
-    return history;
   }
 
   // ── Student Profiles ─────────────────────────────────────────────────────

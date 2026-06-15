@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../shared/utils/app_functions.dart';
 import 'package:uuid/uuid.dart';
@@ -370,6 +371,14 @@ class StudentService extends BaseFirestoreService {
   /// insertions — the previous microsecond-based suffix was not truly random.
   static const _uuid = Uuid();
   static String _newAdmissionId() => 'STU-${_uuid.v4()}';
+  
+  static String _generateParentInviteCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final rnd = math.Random();
+    final code = String.fromCharCodes(Iterable.generate(
+        6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
+    return 'INV-$code';
+  }
 
   String _toTitleCase(String text) {
     if (text.trim().isEmpty) return text;
@@ -401,6 +410,9 @@ class StudentService extends BaseFirestoreService {
     // 2. Stamp stable admissionId
     if (sanitized.admissionId.trim().isEmpty) {
       sanitized = sanitized.copyWith(admissionId: _newAdmissionId());
+    }
+    if (sanitized.parentInviteCode == null || sanitized.parentInviteCode!.isEmpty) {
+      sanitized = sanitized.copyWith(parentInviteCode: _generateParentInviteCode());
     }
 
     // 3. Atomically add student checking duplicates
@@ -531,6 +543,9 @@ class StudentService extends BaseFirestoreService {
       // Stamp stable admissionId
       if (sanitized.admissionId.trim().isEmpty) {
         sanitized = sanitized.copyWith(admissionId: _newAdmissionId());
+      }
+      if (sanitized.parentInviteCode == null || sanitized.parentInviteCode!.isEmpty) {
+        sanitized = sanitized.copyWith(parentInviteCode: _generateParentInviteCode());
       }
 
       final docId = Student.buildDocId(sanitized.roll, sanitized.className, sanitized.section);
@@ -1534,10 +1549,14 @@ class StudentService extends BaseFirestoreService {
   Future<Map<int, int>> loadRecentAbsenceDays(
       {required String className, int days = 14}) async {
     final now    = SchoolClock.now();
+    final dates = List.generate(days, (i) => now.subtract(Duration(days: i)));
+
+    await _preloadDaysForDates(className, dates);
 
     final datas = await Future.wait(
-      List.generate(days, (i) {
-        final date = now.subtract(Duration(days: i));
+      dates.asMap().entries.map((e) {
+        final i    = e.key;
+        final date = e.value;
         final key  = _attendanceDocKey(className, date);
         return _dayDocData(key, cacheable: i != 0); // i==0 is today
       }),
@@ -1584,6 +1603,85 @@ class StudentService extends BaseFirestoreService {
     return out;
   }
 
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _loadMonthDocs({
+    required String className,
+    required int year,
+    required int month,
+  }) async {
+    final prefix = className.replaceAll(' ', '_');
+    final paddedPrefix = '${prefix}_$year-${month.toString().padLeft(2, '0')}-';
+    
+    final List<Future<QuerySnapshot<Map<String, dynamic>>>> queries = [
+      _attendance
+          .where(FieldPath.documentId, isGreaterThanOrEqualTo: paddedPrefix)
+          .where(FieldPath.documentId, isLessThanOrEqualTo: '$paddedPrefix\uf8ff')
+          .get()
+    ];
+    
+    if (month < 10) {
+      final legacyPrefix = '${prefix}_$year-$month-';
+      queries.add(
+        _attendance
+            .where(FieldPath.documentId, isGreaterThanOrEqualTo: legacyPrefix)
+            .where(FieldPath.documentId, isLessThanOrEqualTo: '$legacyPrefix\uf8ff')
+            .get()
+      );
+    }
+    
+    final snaps = await Future.wait(queries);
+    final allDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+    for (final snap in snaps) {
+      allDocs.addAll(snap.docs);
+    }
+    
+    final seenIds = <String>{};
+    final uniqueDocs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+    final now = SchoolClock.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    for (final doc in allDocs) {
+      if (seenIds.add(doc.id)) {
+        uniqueDocs.add(doc);
+        
+        // Populate cache for past days
+        final parts = doc.id.split('_');
+        if (parts.isNotEmpty) {
+          final dateStr = parts.last;
+          final dateParts = dateStr.split('-');
+          if (dateParts.length == 3) {
+            final y = int.tryParse(dateParts[0]);
+            final m = int.tryParse(dateParts[1]);
+            final d = int.tryParse(dateParts[2]);
+            if (y != null && m != null && d != null) {
+              final date = DateTime(y, m, d);
+              if (date.isBefore(today)) {
+                final cacheKey = '$_schoolId/${doc.id}';
+                _dayDocCache[cacheKey] = _DayDocEntry(doc.data(), DateTime.now());
+              }
+            }
+          }
+        }
+      }
+    }
+    return uniqueDocs;
+  }
+
+  Future<void> _preloadDaysForDates(String className, List<DateTime> dates) async {
+    final monthsToFetch = <String, MapEntry<int, int>>{};
+    for (final date in dates) {
+      final key = '${date.year}_${date.month}';
+      monthsToFetch[key] = MapEntry(date.year, date.month);
+    }
+    
+    await Future.wait(
+      monthsToFetch.values.map((entry) => _loadMonthDocs(
+        className: className,
+        year: entry.key,
+        month: entry.value,
+      ))
+    );
+  }
+
   /// Loads every attendance document for a class in a given month.
   /// Returns: { day → { roll → status } }
   Future<Map<int, Map<int, String>>> loadMonthAttendance(
@@ -1591,28 +1689,28 @@ class StudentService extends BaseFirestoreService {
       required int year,
       required int month,
       String? schoolId}) async {
-    final daysInMonth = DateTime(year, month + 1, 0).day;
-    final now         = SchoolClock.now();
-    final today       = DateTime(now.year, now.month, now.day);
-
-    final datas = await Future.wait(
-      List.generate(daysInMonth, (i) {
-        final day = i + 1;
-        // Cache strictly-past days only; today (and any future day in the
-        // current month) is always read fresh.
-        final cacheable = DateTime(year, month, day).isBefore(today);
-        final key = _attendanceDocKey(className, DateTime(year, month, day));
-        return _dayDocData(key, cacheable: cacheable);
-      }),
+    final docs = await _loadMonthDocs(
+      className: className,
+      year: year,
+      month: month,
     );
 
     final result = <int, Map<int, String>>{};
-    for (var i = 0; i < datas.length; i++) {
-      final data = datas[i];
-      if (data == null) continue;
-      final rolls = Map<String, dynamic>.from((data['rolls'] as Map?) ?? {});
+    for (final doc in docs) {
+      final key = doc.id;
+      final parts = key.split('_');
+      if (parts.isEmpty) continue;
+      final dateStr = parts.last;
+      final dateParts = dateStr.split('-');
+      if (dateParts.length != 3) continue;
+      final y = int.tryParse(dateParts[0]);
+      final m = int.tryParse(dateParts[1]);
+      final d = int.tryParse(dateParts[2]);
+      if (y != year || m != month || d == null) continue;
+
+      final rolls = Map<String, dynamic>.from((doc.data()['rolls'] as Map?) ?? {});
       if (rolls.isEmpty) continue;
-      result[i + 1] = _parseRolls(rolls);
+      result[d] = _parseRolls(rolls);
     }
     return result;
   }
@@ -1712,6 +1810,9 @@ class StudentService extends BaseFirestoreService {
     // Future.wait preserves order so the streak walk below sees days
     // newest → oldest.
     final dates = List.generate(maxDays, (i) => now.subtract(Duration(days: i)));
+
+    await _preloadDaysForDates(className, dates);
+
     final datas = await Future.wait(
       dates.asMap().entries.map((e) {
         final i    = e.key;

@@ -28,6 +28,8 @@ import '../../services/homework_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/timetable_service.dart';
 import '../../services/base_firestore_service.dart';
+import '../../services/transport_service.dart';
+import '../../models/transport_route.dart';
 import '../../shared/utils/role_guard.dart';
 import '../../shared/utils/app_transitions.dart';
 import '../../shared/utils/currency_utils.dart';
@@ -515,6 +517,15 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         },
       ),
     ),
+    if (_student != null && _student!.transportRouteId != null && _student!.transportRouteId!.isNotEmpty) ...[
+      const SizedBox(height: 12),
+      FadeInUp(
+        delay: const Duration(milliseconds: 100),
+        child: _GuardianBusTrackingCard(
+          routeId: _student!.transportRouteId!,
+        ),
+      ),
+    ],
 
     _SectionHeader(context.tr('secAcademics')),
     _FeatureTile(
@@ -4049,6 +4060,245 @@ class _GuardianMorningSummaryCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _GuardianBusTrackingCard extends StatelessWidget {
+  final String routeId;
+
+  const _GuardianBusTrackingCard({required this.routeId});
+
+  Future<void> _callDriver(String phone) async {
+    final uri = Uri.parse('tel:$phone');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final transportService = TransportService.instance;
+
+    return StreamBuilder<TransportRoute?>(
+      stream: transportService.watchRoute(routeId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+
+        final route = snapshot.data;
+        if (route == null) {
+          return const SizedBox.shrink();
+        }
+
+        final currentStopName = route.currentStopIndex >= 0 &&
+                route.currentStopIndex < route.stops.length
+            ? route.stops[route.currentStopIndex].name
+            : 'Not Started';
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              )
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppTheme.primary, AppTheme.primaryMid],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.directions_bus_outlined, color: Colors.white, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            route.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            route.isActive ? 'Active Transit Live' : 'Scheduled / Inactive',
+                            style: TextStyle(
+                              color: route.isActive
+                                  ? Colors.greenAccent.shade100
+                                  : Colors.white70,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (route.isActive)
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.greenAccent,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+              // Content Body
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Current Location',
+                              style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              currentStopName,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (route.driverPhone.isNotEmpty)
+                          ElevatedButton.icon(
+                            onPressed: () => _callDriver(route.driverPhone),
+                            icon: const Icon(Icons.phone, size: 14),
+                            label: const Text('Call Driver'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade50,
+                              foregroundColor: Colors.blue.shade800,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Stops Timeline',
+                      style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: List.generate(route.stops.length, (idx) {
+                          final stop = route.stops[idx];
+                          final isReached = idx <= route.currentStopIndex;
+                          final isCurrent = idx == route.currentStopIndex;
+
+                          return Row(
+                            children: [
+                              Column(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 12,
+                                    backgroundColor: isCurrent
+                                        ? AppTheme.primary
+                                        : isReached
+                                            ? Colors.green
+                                            : Colors.grey.shade200,
+                                    child: Icon(
+                                      isCurrent
+                                          ? Icons.location_on
+                                          : isReached
+                                              ? Icons.check
+                                              : Icons.radio_button_unchecked,
+                                      size: 12,
+                                      color: isReached || isCurrent ? Colors.white : Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    stop.name,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                      color: isCurrent
+                                          ? AppTheme.primary
+                                          : isReached
+                                              ? Colors.black87
+                                              : Colors.grey,
+                                    ),
+                                  ),
+                                  Text(
+                                    stop.expectedTime,
+                                    style: const TextStyle(fontSize: 9, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                              if (idx < route.stops.length - 1)
+                                Container(
+                                  width: 40,
+                                  height: 2,
+                                  color: idx < route.currentStopIndex
+                                      ? Colors.green
+                                      : Colors.grey.shade200,
+                                ),
+                            ],
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

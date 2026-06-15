@@ -802,4 +802,36 @@ class FeeService extends BaseFirestoreService {
         .where('status', isEqualTo: 'pending')
         .snapshots();
   }
+
+  /// Exports the entire school's fee payments ledger to Tally ERP compatible CSV.
+  Future<String> exportLedgerToCsv() async {
+    final snap = await _paymentsCol()
+        .orderBy('dateTime', descending: true)
+        .get();
+
+    final csv = StringBuffer();
+    // Headers
+    csv.writeln('Date,Voucher Type,Voucher No,Debit Account,Credit Account,Amount,Narration');
+    
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      final dt = (data['dateTime'] as Timestamp?)?.toDate() ?? DateTime.now();
+      final dateStr = '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.year}';
+      final vNo = data['receiptNumber']?.toString() ?? doc.id;
+      final method = data['paymentMethod']?.toString() ?? 'Cash';
+      
+      final debit = (method.toLowerCase() == 'cash') ? 'Cash in Hand' : 'Bank Account';
+      final credit = 'Fee Collection A/c';
+      final amount = ((data['amountPaise'] as num?)?.toDouble() ?? 0.0) / 100.0;
+      
+      final student = data['studentName'] ?? 'Student';
+      final cls = data['className'] ?? '';
+      final roll = data['studentRoll']?.toString() ?? '';
+      final narration = 'Fee collection from $student (Class $cls, Roll $roll) via $method';
+
+      csv.writeln('"$dateStr","Receipt","$vNo","$debit","$credit",$amount,"$narration"');
+    }
+    
+    return csv.toString();
+  }
 }

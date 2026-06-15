@@ -12,6 +12,7 @@ import '../dashboards/guardian_dashboard.dart';
 import './forgot_password_screen.dart';
 import './role_selection_screen.dart';
 import './login_screen.dart';
+import './guardian_register_screen.dart';
 import '../../shared/utils/app_transitions.dart';
 
 class GuardianLoginScreen extends StatefulWidget {
@@ -334,6 +335,21 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
                   ),
                 ),
 
+                const SizedBox(height: 16),
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const GuardianRegisterScreen()),
+                      );
+                    },
+                    child: const Text(
+                      'Have an Invite Code? Register here',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 28),
 
                 // Back to staff login

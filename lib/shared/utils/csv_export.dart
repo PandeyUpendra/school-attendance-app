@@ -26,4 +26,18 @@ abstract class CsvExport {
     await Share.shareXFiles([XFile(file.path)], text: shareText);
     return true;
   }
+
+  /// Exports raw text [content] as `[filename]` and opens the share sheet.
+  static Future<bool> shareRaw({
+    required String filename,
+    required String content,
+    String? shareText,
+  }) async {
+    final dir = await getTemporaryDirectory();
+    final safeName = filename.endsWith('.csv') ? filename : '$filename.csv';
+    final file = File('${dir.path}/$safeName');
+    await file.writeAsString(content);
+    await Share.shareXFiles([XFile(file.path)], text: shareText);
+    return true;
+  }
 }

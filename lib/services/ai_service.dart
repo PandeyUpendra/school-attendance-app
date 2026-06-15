@@ -32,7 +32,7 @@ class AIService extends BaseFirestoreService {
     if (sid == null) return null;
 
     try {
-      final settingsDoc = await db.collection('schools').doc(sid).collection('settings').doc('main').get();
+      final settingsDoc = await db.collection('schools').doc(sid).collection('settings').doc('keys').get();
       if (settingsDoc.exists) {
         final data = settingsDoc.data();
         if (data != null && data['geminiApiKey'] != null && data['geminiApiKey'].toString().isNotEmpty) {

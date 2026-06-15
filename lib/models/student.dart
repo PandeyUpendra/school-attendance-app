@@ -40,6 +40,7 @@ class Student {
   final String? bloodGroup;
   final String? allergies;
   final String? transportMode;
+  final String? transportRouteId;
   /// True while a teacher-filed deletion request for this student is awaiting
   /// principal approval. The student is shown as deactivated (greyed out) and
   /// cannot be re-selected for deletion until the request is approved (record
@@ -53,6 +54,7 @@ class Student {
 
   /// The tenant school ID (Issue 30).
   final String schoolId;
+  final String? parentInviteCode;
 
   const Student({
     this.id = '',
@@ -83,9 +85,11 @@ class Student {
     this.bloodGroup,
     this.allergies,
     this.transportMode,
+    this.transportRouteId,
     this.deletionPending = false,
     this.promoted = false,
     this.schoolId = '',
+    this.parentInviteCode,
   });
 
   Map<String, dynamic> toJson() => {
@@ -117,9 +121,11 @@ class Student {
         if (bloodGroup != null) 'bloodGroup': bloodGroup,
         if (allergies != null) 'allergies': allergies,
         if (transportMode != null) 'transportMode': transportMode,
+        if (transportRouteId != null) 'transportRouteId': transportRouteId,
         if (deletionPending) 'deletionPending': true,
         if (promoted) 'promoted': true,
         'schoolId': schoolId,
+        if (parentInviteCode != null) 'parentInviteCode': parentInviteCode,
       };
 
   static String _toTitleCase(String text) {
@@ -185,9 +191,11 @@ class Student {
         bloodGroup: json['bloodGroup']?.toString(),
         allergies: json['allergies']?.toString(),
         transportMode: json['transportMode']?.toString(),
+        transportRouteId: json['transportRouteId']?.toString(),
         deletionPending: json['deletionPending'] == true,
         promoted: json['promoted'] == true,
         schoolId: json['schoolId']?.toString() ?? '',
+        parentInviteCode: json['parentInviteCode']?.toString(),
       );
     } catch (e) {
       // Return a minimal fallback student to prevent roster crashes
@@ -231,9 +239,11 @@ class Student {
     String? bloodGroup,
     String? allergies,
     String? transportMode,
+    String? transportRouteId,
     bool? deletionPending,
     bool? promoted,
     String? schoolId,
+    String? parentInviteCode,
   }) =>
       Student(
         id: id ?? this.id,
@@ -264,8 +274,10 @@ class Student {
         bloodGroup: bloodGroup ?? this.bloodGroup,
         allergies: allergies ?? this.allergies,
         transportMode: transportMode ?? this.transportMode,
+        transportRouteId: transportRouteId ?? this.transportRouteId,
         deletionPending: deletionPending ?? this.deletionPending,
         promoted: promoted ?? this.promoted,
         schoolId: schoolId ?? this.schoolId,
+        parentInviteCode: parentInviteCode ?? this.parentInviteCode,
       );
 }

@@ -36,6 +36,7 @@ import '../../shared/widgets/refreshable_data.dart';
 import './expense_ledger_screen.dart';
 import './profit_loss_screen.dart';
 import './cash_reconciliation_screen.dart';
+import './transport_driver_screen.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Owner Home — menu-list entry point
@@ -383,6 +384,13 @@ class _OwnerHomeState extends State<OwnerHome> {
             title: 'Government Reports (UDISE+)',
             subtitle: 'Export UDISE+ CSV',
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GovernmentReportScreen())),
+          ),
+          _FeatureTile(
+            icon: Icons.directions_bus_outlined,
+            color: AppTheme.primary,
+            title: 'Transport Tracking',
+            subtitle: 'Manage bus routes, drivers, and update stops',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransportDriverScreen())),
           ),
           _FeatureTile(
             icon: Icons.person_add_outlined,

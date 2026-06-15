@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../shared/utils/school_clock.dart';
@@ -23,6 +24,35 @@ class OfflineQueueService {
   factory OfflineQueueService() => _instance;
   OfflineQueueService._();
 
+  final List<Future<dynamic> Function()> _syncQueue = [];
+  bool _syncRunning = false;
+
+  Future<T> synchronized<T>(Future<T> Function() action) {
+    final completer = Completer<T>();
+    _syncQueue.add(() async {
+      try {
+        final result = await action();
+        completer.complete(result);
+      } catch (e, st) {
+        completer.completeError(e, st);
+      }
+    });
+    _runSyncQueue();
+    return completer.future;
+  }
+
+  void _runSyncQueue() async {
+    if (_syncRunning) return;
+    _syncRunning = true;
+    while (_syncQueue.isNotEmpty) {
+      final task = _syncQueue.removeAt(0);
+      try {
+        await task();
+      } catch (_) {}
+    }
+    _syncRunning = false;
+  }
+
   // ── Attendance Enqueue ──────────────────────────────────────────────────────
 
   /// Queues attendance for [className] on [date] (defaults to today).
@@ -30,30 +60,32 @@ class OfflineQueueService {
     required String className,
     required Map<int, String> attendance,
     DateTime? date,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw   = prefs.getString(_queueKey);
-    final list  = raw != null
-        ? List<Map<String, dynamic>>.from(
-            (jsonDecode(raw) as List).map((e) =>
-                Map<String, dynamic>.from(e as Map)))
-        : <Map<String, dynamic>>[];
+  }) {
+    return synchronized(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final raw   = prefs.getString(_queueKey);
+      final list  = raw != null
+          ? List<Map<String, dynamic>>.from(
+              (jsonDecode(raw) as List).map((e) =>
+                  Map<String, dynamic>.from(e as Map)))
+          : <Map<String, dynamic>>[];
 
-    final dateKey = _dateKey(date ?? SchoolClock.now());
+      final dateKey = _dateKey(date ?? SchoolClock.now());
 
-    // Replace existing entry for same class+day (last write wins)
-    list.removeWhere((e) =>
-        e['className'] == className && e['dateKey'] == dateKey);
+      // Replace existing entry for same class+day (last write wins)
+      list.removeWhere((e) =>
+          e['className'] == className && e['dateKey'] == dateKey);
 
-    list.add({
-      'className': className,
-      'dateKey':   dateKey,
-      'rolls':     attendance.map((k, v) => MapEntry(k.toString(), v)),
-      'queuedAt':  DateTime.now().millisecondsSinceEpoch,
-      'attempts':  0,
+      list.add({
+        'className': className,
+        'dateKey':   dateKey,
+        'rolls':     attendance.map((k, v) => MapEntry(k.toString(), v)),
+        'queuedAt':  DateTime.now().millisecondsSinceEpoch,
+        'attempts':  0,
+      });
+
+      await prefs.setString(_queueKey, jsonEncode(list));
     });
-
-    await prefs.setString(_queueKey, jsonEncode(list));
   }
 
   // ── Exam Results Enqueue ────────────────────────────────────────────────────
@@ -62,29 +94,31 @@ class OfflineQueueService {
   Future<void> enqueueExamResult({
     required String examId,
     required ExamResult result,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw   = prefs.getString(_marksQueueKey);
-    final list  = raw != null
-        ? List<Map<String, dynamic>>.from(
-            (jsonDecode(raw) as List).map((e) =>
-                Map<String, dynamic>.from(e as Map)))
-        : <Map<String, dynamic>>[];
+  }) {
+    return synchronized(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final raw   = prefs.getString(_marksQueueKey);
+      final list  = raw != null
+          ? List<Map<String, dynamic>>.from(
+              (jsonDecode(raw) as List).map((e) =>
+                  Map<String, dynamic>.from(e as Map)))
+          : <Map<String, dynamic>>[];
 
-    // Replace existing entry for same student+exam (last write wins)
-    list.removeWhere((e) =>
-        e['examId'] == examId && e['roll'] == result.roll && e['className'] == result.className);
+      // Replace existing entry for same student+exam (last write wins)
+      list.removeWhere((e) =>
+          e['examId'] == examId && e['roll'] == result.roll && e['className'] == result.className);
 
-    list.add({
-      'examId': examId,
-      'roll': result.roll,
-      'className': result.className,
-      'result': result.toJson(),
-      'queuedAt': DateTime.now().millisecondsSinceEpoch,
-      'attempts': 0,
+      list.add({
+        'examId': examId,
+        'roll': result.roll,
+        'className': result.className,
+        'result': result.toJson(),
+        'queuedAt': DateTime.now().millisecondsSinceEpoch,
+        'attempts': 0,
+      });
+
+      await prefs.setString(_marksQueueKey, jsonEncode(list));
     });
-
-    await prefs.setString(_marksQueueKey, jsonEncode(list));
   }
 
   // ── Homework Enqueue ────────────────────────────────────────────────────────
@@ -93,23 +127,25 @@ class OfflineQueueService {
   Future<void> enqueueHomework({
     required String schoolId,
     required Homework homework,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw   = prefs.getString(_homeworkQueueKey);
-    final list  = raw != null
-        ? List<Map<String, dynamic>>.from(
-            (jsonDecode(raw) as List).map((e) =>
-                Map<String, dynamic>.from(e as Map)))
-        : <Map<String, dynamic>>[];
+  }) {
+    return synchronized(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final raw   = prefs.getString(_homeworkQueueKey);
+      final list  = raw != null
+          ? List<Map<String, dynamic>>.from(
+              (jsonDecode(raw) as List).map((e) =>
+                  Map<String, dynamic>.from(e as Map)))
+          : <Map<String, dynamic>>[];
 
-    list.add({
-      'schoolId': schoolId,
-      'homework': _serializeHomeworkForQueue(homework),
-      'queuedAt': DateTime.now().millisecondsSinceEpoch,
-      'attempts': 0,
+      list.add({
+        'schoolId': schoolId,
+        'homework': _serializeHomeworkForQueue(homework),
+        'queuedAt': DateTime.now().millisecondsSinceEpoch,
+        'attempts': 0,
+      });
+
+      await prefs.setString(_homeworkQueueKey, jsonEncode(list));
     });
-
-    await prefs.setString(_homeworkQueueKey, jsonEncode(list));
   }
 
   // ── Queue sizes ────────────────────────────────────────────────────────────
@@ -169,139 +205,145 @@ class OfflineQueueService {
     return synced;
   }
 
-  Future<int> _syncAttendanceQueue() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw   = prefs.getString(_queueKey);
-    if (raw == null || raw.isEmpty) return 0;
+  Future<int> _syncAttendanceQueue() {
+    return synchronized(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final raw   = prefs.getString(_queueKey);
+      if (raw == null || raw.isEmpty) return 0;
 
-    final list = List<Map<String, dynamic>>.from(
-        (jsonDecode(raw) as List).map((e) =>
-            Map<String, dynamic>.from(e as Map)));
+      final list = List<Map<String, dynamic>>.from(
+          (jsonDecode(raw) as List).map((e) =>
+              Map<String, dynamic>.from(e as Map)));
 
-    int synced = 0;
-    final failed = <Map<String, dynamic>>[];
-    final nowMs  = DateTime.now().millisecondsSinceEpoch;
+      int synced = 0;
+      final failed = <Map<String, dynamic>>[];
+      final nowMs  = DateTime.now().millisecondsSinceEpoch;
 
-    for (final entry in list) {
-      try {
-        final className = entry['className'] as String;
-        final rollsRaw  = Map<String, dynamic>.from(
-            entry['rolls'] as Map? ?? {});
-        final attendance = <int, String>{};
-        rollsRaw.forEach((k, v) {
-          final r = int.tryParse(k);
-          if (r != null) {
-            attendance[r] = v as String;
+      for (final entry in list) {
+        try {
+          final className = entry['className'] as String;
+          final rollsRaw  = Map<String, dynamic>.from(
+              entry['rolls'] as Map? ?? {});
+          final attendance = <int, String>{};
+          rollsRaw.forEach((k, v) {
+            final r = int.tryParse(k);
+            if (r != null) {
+              attendance[r] = v as String;
+            }
+          });
+
+          final dateKey = entry['dateKey'] as String;
+          final parts   = dateKey.split('-');
+          final year    = parts.isNotEmpty ? (int.tryParse(parts[0]) ?? SchoolClock.now().year) : SchoolClock.now().year;
+          final month   = parts.length > 1 ? (int.tryParse(parts[1]) ?? SchoolClock.now().month) : SchoolClock.now().month;
+          final day     = parts.length > 2 ? (int.tryParse(parts[2]) ?? SchoolClock.now().day) : SchoolClock.now().day;
+          final date    = DateTime(year, month, day);
+
+          await StudentService.instance.saveAttendanceForDate(
+            className: className, attendance: attendance, date: date);
+          synced++;
+        } catch (_) {
+          final attempts = ((entry['attempts'] as num?)?.toInt() ?? 0) + 1;
+          final queuedAt = (entry['queuedAt'] as num?)?.toInt() ?? nowMs;
+          final ageDays  = (nowMs - queuedAt) / (24 * 60 * 60 * 1000);
+          if (attempts < _maxAttempts && ageDays <= _maxAgeDays) {
+            failed.add({...entry, 'attempts': attempts});
           }
-        });
-
-        final dateKey = entry['dateKey'] as String;
-        final parts   = dateKey.split('-');
-        final year    = parts.isNotEmpty ? (int.tryParse(parts[0]) ?? SchoolClock.now().year) : SchoolClock.now().year;
-        final month   = parts.length > 1 ? (int.tryParse(parts[1]) ?? SchoolClock.now().month) : SchoolClock.now().month;
-        final day     = parts.length > 2 ? (int.tryParse(parts[2]) ?? SchoolClock.now().day) : SchoolClock.now().day;
-        final date    = DateTime(year, month, day);
-
-        await StudentService.instance.saveAttendanceForDate(
-          className: className, attendance: attendance, date: date);
-        synced++;
-      } catch (_) {
-        final attempts = ((entry['attempts'] as num?)?.toInt() ?? 0) + 1;
-        final queuedAt = (entry['queuedAt'] as num?)?.toInt() ?? nowMs;
-        final ageDays  = (nowMs - queuedAt) / (24 * 60 * 60 * 1000);
-        if (attempts < _maxAttempts && ageDays <= _maxAgeDays) {
-          failed.add({...entry, 'attempts': attempts});
         }
       }
-    }
 
-    if (failed.isEmpty) {
-      await prefs.remove(_queueKey);
-    } else {
-      await prefs.setString(_queueKey, jsonEncode(failed));
-    }
+      if (failed.isEmpty) {
+        await prefs.remove(_queueKey);
+      } else {
+        await prefs.setString(_queueKey, jsonEncode(failed));
+      }
 
-    return synced;
+      return synced;
+    });
   }
 
-  Future<int> _syncMarksQueue() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw   = prefs.getString(_marksQueueKey);
-    if (raw == null || raw.isEmpty) return 0;
+  Future<int> _syncMarksQueue() {
+    return synchronized(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final raw   = prefs.getString(_marksQueueKey);
+      if (raw == null || raw.isEmpty) return 0;
 
-    final list = List<Map<String, dynamic>>.from(
-        (jsonDecode(raw) as List).map((e) =>
-            Map<String, dynamic>.from(e as Map)));
+      final list = List<Map<String, dynamic>>.from(
+          (jsonDecode(raw) as List).map((e) =>
+              Map<String, dynamic>.from(e as Map)));
 
-    int synced = 0;
-    final failed = <Map<String, dynamic>>[];
-    final nowMs  = DateTime.now().millisecondsSinceEpoch;
+      int synced = 0;
+      final failed = <Map<String, dynamic>>[];
+      final nowMs  = DateTime.now().millisecondsSinceEpoch;
 
-    for (final entry in list) {
-      try {
-        final examId = entry['examId'] as String;
-        final resultData = Map<String, dynamic>.from(entry['result'] as Map);
-        final result = ExamResult.fromDoc(resultData);
+      for (final entry in list) {
+        try {
+          final examId = entry['examId'] as String;
+          final resultData = Map<String, dynamic>.from(entry['result'] as Map);
+          final result = ExamResult.fromDoc(resultData);
 
-        await ExamService().saveResult(examId: examId, result: result);
-        synced++;
-      } catch (_) {
-        final attempts = ((entry['attempts'] as num?)?.toInt() ?? 0) + 1;
-        final queuedAt = (entry['queuedAt'] as num?)?.toInt() ?? nowMs;
-        final ageDays  = (nowMs - queuedAt) / (24 * 60 * 60 * 1000);
-        if (attempts < _maxAttempts && ageDays <= _maxAgeDays) {
-          failed.add({...entry, 'attempts': attempts});
+          await ExamService().saveResult(examId: examId, result: result);
+          synced++;
+        } catch (_) {
+          final attempts = ((entry['attempts'] as num?)?.toInt() ?? 0) + 1;
+          final queuedAt = (entry['queuedAt'] as num?)?.toInt() ?? nowMs;
+          final ageDays  = (nowMs - queuedAt) / (24 * 60 * 60 * 1000);
+          if (attempts < _maxAttempts && ageDays <= _maxAgeDays) {
+            failed.add({...entry, 'attempts': attempts});
+          }
         }
       }
-    }
 
-    if (failed.isEmpty) {
-      await prefs.remove(_marksQueueKey);
-    } else {
-      await prefs.setString(_marksQueueKey, jsonEncode(failed));
-    }
+      if (failed.isEmpty) {
+        await prefs.remove(_marksQueueKey);
+      } else {
+        await prefs.setString(_marksQueueKey, jsonEncode(failed));
+      }
 
-    return synced;
+      return synced;
+    });
   }
 
-  Future<int> _syncHomeworkQueue() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw   = prefs.getString(_homeworkQueueKey);
-    if (raw == null || raw.isEmpty) return 0;
+  Future<int> _syncHomeworkQueue() {
+    return synchronized(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final raw   = prefs.getString(_homeworkQueueKey);
+      if (raw == null || raw.isEmpty) return 0;
 
-    final list = List<Map<String, dynamic>>.from(
-        (jsonDecode(raw) as List).map((e) =>
-            Map<String, dynamic>.from(e as Map)));
+      final list = List<Map<String, dynamic>>.from(
+          (jsonDecode(raw) as List).map((e) =>
+              Map<String, dynamic>.from(e as Map)));
 
-    int synced = 0;
-    final failed = <Map<String, dynamic>>[];
-    final nowMs  = DateTime.now().millisecondsSinceEpoch;
+      int synced = 0;
+      final failed = <Map<String, dynamic>>[];
+      final nowMs  = DateTime.now().millisecondsSinceEpoch;
 
-    for (final entry in list) {
-      try {
-        final schoolId = entry['schoolId'] as String;
-        final hwData = Map<String, dynamic>.from(entry['homework'] as Map);
-        final homework = _deserializeHomeworkFromQueue(hwData);
+      for (final entry in list) {
+        try {
+          final schoolId = entry['schoolId'] as String;
+          final hwData = Map<String, dynamic>.from(entry['homework'] as Map);
+          final homework = _deserializeHomeworkFromQueue(hwData);
 
-        await HomeworkService().postHomework(schoolId, homework);
-        synced++;
-      } catch (_) {
-        final attempts = ((entry['attempts'] as num?)?.toInt() ?? 0) + 1;
-        final queuedAt = (entry['queuedAt'] as num?)?.toInt() ?? nowMs;
-        final ageDays  = (nowMs - queuedAt) / (24 * 60 * 60 * 1000);
-        if (attempts < _maxAttempts && ageDays <= _maxAgeDays) {
-          failed.add({...entry, 'attempts': attempts});
+          await HomeworkService().postHomework(schoolId, homework);
+          synced++;
+        } catch (_) {
+          final attempts = ((entry['attempts'] as num?)?.toInt() ?? 0) + 1;
+          final queuedAt = (entry['queuedAt'] as num?)?.toInt() ?? nowMs;
+          final ageDays  = (nowMs - queuedAt) / (24 * 60 * 60 * 1000);
+          if (attempts < _maxAttempts && ageDays <= _maxAgeDays) {
+            failed.add({...entry, 'attempts': attempts});
+          }
         }
       }
-    }
 
-    if (failed.isEmpty) {
-      await prefs.remove(_homeworkQueueKey);
-    } else {
-      await prefs.setString(_homeworkQueueKey, jsonEncode(failed));
-    }
+      if (failed.isEmpty) {
+        await prefs.remove(_homeworkQueueKey);
+      } else {
+        await prefs.setString(_homeworkQueueKey, jsonEncode(failed));
+      }
 
-    return synced;
+      return synced;
+    });
   }
 
   // ── Load cached attendance ─────────────────────────────────────────────────
@@ -335,11 +377,13 @@ class OfflineQueueService {
 
   // ── Clear queues ───────────────────────────────────────────────────────────
 
-  Future<void> clearAll() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_queueKey);
-    await prefs.remove(_marksQueueKey);
-    await prefs.remove(_homeworkQueueKey);
+  Future<void> clearAll() {
+    return synchronized(() async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_queueKey);
+      await prefs.remove(_marksQueueKey);
+      await prefs.remove(_homeworkQueueKey);
+    });
   }
 
   String _dateKey(DateTime d) => SchoolClock.dateKey(d);

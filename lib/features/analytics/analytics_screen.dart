@@ -2092,7 +2092,7 @@ class _AiInsightsTabState extends State<_AiInsightsTab>
     try {
       final keyCheck = await _aiService.db.collection('schools')
           .doc(BaseFirestoreService.currentSchoolId ?? 'default_school')
-          .collection('settings').doc('main').get();
+          .collection('settings').doc('keys').get();
       if (keyCheck.exists && keyCheck.data()?['geminiApiKey'] != null) {
         _apiKeyConfigured = keyCheck.data()?['geminiApiKey'].toString().isNotEmpty == true;
       }

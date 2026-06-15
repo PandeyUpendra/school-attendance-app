@@ -88,12 +88,18 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
           ],
         ),
         actions: [
-          if (_summaries.isNotEmpty)
+          if (_summaries.isNotEmpty) ...[
             IconButton(
               icon: const Icon(Icons.download_outlined),
               tooltip: context.tr('exportToCsv'),
               onPressed: _exportCSV,
             ),
+            IconButton(
+              icon: const Icon(Icons.account_balance_wallet_outlined),
+              tooltip: 'Export to Tally',
+              onPressed: _exportTallyLedger,
+            ),
+          ],
           // Coordinator can jump straight to fee structure config
           if (widget.role == 'coordinator')
             IconButton(
@@ -192,6 +198,22 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Export failed: $e')));
+    }
+  }
+
+  /// Exports Tally import-compatible ledger to CSV and shares it.
+  Future<void> _exportTallyLedger() async {
+    try {
+      final csvContent = await _feeService.exportLedgerToCsv();
+      await CsvExport.shareRaw(
+        filename: 'tally_ledger_import.csv',
+        content: csvContent,
+        shareText: 'Tally ERP Ledger Import',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Tally export failed: $e')));
     }
   }
 

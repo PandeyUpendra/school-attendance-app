@@ -662,8 +662,8 @@ service cloud.firestore {
       ));
 
       allow delete: if isRootAdmin() || (isSignedIn() && (
-        // Management delete in same school
-        (isStrictAdmin() && resource.data.schoolId == userSchoolId()) ||
+        // Management delete in same school (with strict rank checking)
+        (isStrictAdmin() && resource.data.schoolId == userSchoolId() && !(resource.data.role in ['admin', 'owner', 'ownerPrincipal'])) ||
         (isRole('principal') && resource.data.schoolId == userSchoolId() && resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian']) ||
         (isRole('coordinator') && resource.data.schoolId == userSchoolId() && resource.data.role in ['teacher', 'subjectTeacher', 'guardian'])
       ));
@@ -1581,7 +1581,10 @@ service cloud.firestore {
     // SETTINGS  (/schools/{sid}/settings/{docId})
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/settings/{docId} {
-      allow read:  if isSignedIn() && inSchool(sid) && (docId != 'smtp' || isManagement());
+      allow read:  if isSignedIn() && inSchool(sid) && (
+        (docId != 'smtp' || isStrictAdmin()) &&
+        (docId != 'keys' || isManagement())
+      );
       allow write: if isSignedIn() && inSchool(sid) && isManagement();
 
       match /entries/{entryId} {

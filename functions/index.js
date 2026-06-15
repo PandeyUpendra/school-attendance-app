@@ -2756,7 +2756,117 @@ exports.backfillFeeSummaries = onCall(
     } catch (err) {
       logger.error("[backfillFeeSummaries] failed", err);
       throw new HttpsError("internal", err.message);
+  }
+);
+
+/**
+ * Callable: registerGuardianWithInviteCode({ email, password, name, inviteCode })
+ *
+ * Registers a new guardian account using a 6-character student parentInviteCode.
+ */
+exports.registerGuardianWithInviteCode = onCall(
+  { cors: true, region: "asia-south1", enforceAppCheck: false },
+  async (request) => {
+    const db = admin.firestore();
+    const email = String(request.data && request.data.email ? request.data.email : "").trim().toLowerCase();
+    const password = String(request.data && request.data.password ? request.data.password : "").trim();
+    const name = String(request.data && request.data.name ? request.data.name : "").trim();
+    const inviteCode = String(request.data && request.data.inviteCode ? request.data.inviteCode : "").trim().toUpperCase();
+
+    if (!EMAIL_RE.test(email)) {
+      throw new HttpsError("invalid-argument", "A valid email address is required.");
     }
+    if (!inviteCode) {
+      throw new HttpsError("invalid-argument", "Invite code is required.");
+    }
+    if (password.length < 6) {
+      throw new HttpsError("invalid-argument", "Password must be at least 6 characters.");
+    }
+
+    // Search for student with matching parentInviteCode
+    const studentSnap = await db.collectionGroup("students")
+      .where("parentInviteCode", "==", inviteCode)
+      .limit(1)
+      .get();
+
+    if (studentSnap.empty) {
+      throw new HttpsError("not-found", "Invalid invite code. Please check with your school.");
+    }
+
+    const studentDoc = studentSnap.docs[0];
+    const studentData = studentDoc.data();
+    const schoolId = studentData.schoolId || studentDoc.ref.parent.parent.id;
+
+    // Check allowed_users for role conflict
+    const userQuery = await db.collection("allowed_users").doc(email).get();
+    if (userQuery.exists) {
+      const existingRole = userQuery.data().role;
+      if (existingRole !== "guardian") {
+        throw new HttpsError("already-exists", `This email is already registered with role: ${existingRole}.`);
+      }
+    }
+
+    // Create Firebase Auth user
+    let userRecord;
+    try {
+      userRecord = await admin.auth().createUser({
+        email: email,
+        password: password,
+        displayName: name || studentData.fatherName || "Guardian",
+      });
+    } catch (err) {
+      if (err.code === "auth/email-already-in-use") {
+        userRecord = await admin.auth().getUserByEmail(email);
+      } else {
+        throw new HttpsError("internal", err.message);
+      }
+    }
+
+    // Set custom user claims
+    await admin.auth().setCustomUserClaims(userRecord.uid, {
+      role: "guardian",
+      schoolId: schoolId,
+    });
+
+    // Write allowed_users doc
+    const allowedUserRef = db.collection("allowed_users").doc(email);
+    const link = {
+      studentClass: studentData.className,
+      studentRoll: studentData.roll,
+      studentName: studentData.name,
+      studentSection: studentData.section || "",
+      studentAdmissionId: studentData.admissionId || studentDoc.id,
+    };
+
+    if (userQuery.exists) {
+      const existingLinks = userQuery.data().studentLinks || [];
+      const linkExists = existingLinks.some(
+        (l) => l.studentClass === link.studentClass && l.studentRoll === link.studentRoll
+      );
+      if (!linkExists) {
+        existingLinks.push(link);
+      }
+      await allowedUserRef.update({
+        studentLinks: existingLinks,
+      });
+    } else {
+      await allowedUserRef.set({
+        uid: userRecord.uid,
+        email: email,
+        role: "guardian",
+        name: name || studentData.fatherName || "Guardian",
+        schoolId: schoolId,
+        studentLinks: [link],
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Link student's guardianEmail
+    await studentDoc.ref.update({
+      guardianEmail: email,
+    });
+
+    return { uid: userRecord.uid, schoolId: schoolId };
   }
 );
 

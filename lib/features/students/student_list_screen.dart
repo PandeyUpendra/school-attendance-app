@@ -2063,6 +2063,37 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
 
             // ── Guardian Portal Access ─────────────────────────────────────
             _SectionHeader(context.tr('secGuardianPortal')),
+            if (_student.parentInviteCode != null && _student.parentInviteCode!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.vpn_key_outlined, size: 16, color: Colors.orange),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Invite Code: ',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        _student.parentInviteCode!,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.orange),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => _copyToClipboard(_student.parentInviteCode!),
+                        child: const Icon(Icons.copy_outlined, size: 16, color: Colors.orange),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             if (_student.guardianEmail == null || _student.guardianEmail!.isEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),

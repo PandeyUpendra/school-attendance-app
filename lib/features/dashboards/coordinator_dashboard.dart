@@ -49,6 +49,8 @@ import '../todo/todo_reminder_banner.dart';
 import '../exams/report_card_template_editor.dart';
 import '../fees/payment_claims_verification_screen.dart';
 import '../students/bulk_student_import_screen.dart';
+import '../admin/admission_crm_screen.dart';
+import '../owner/transport_driver_screen.dart';
 
 const _cPurple    = AppTheme.primary;
 const _cPurpleMid = AppTheme.primaryMid;
@@ -459,6 +461,22 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               title: context.tr('importFromCsv'),
               subtitle: 'Batch import student rosters from a CSV file',
               onTap: () => _navigate(const BulkStudentImportScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.assignment_ind_outlined,
+              color: _cPurple,
+              title: 'Admission CRM',
+              subtitle: 'Manage enrollment pipeline leads and follow-ups',
+              onTap: () => _navigate(const AdmissionCrmScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.directions_bus_outlined,
+              color: _cPurple,
+              title: 'Transport Tracking',
+              subtitle: 'Manage bus routes, drivers, and update stops',
+              onTap: () => _navigate(const TransportDriverScreen()),
             ),
             const _Divider(),
             _FeatureTile(

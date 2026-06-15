@@ -115,7 +115,8 @@ class AuthService {
   static String get currentSchoolId {
     final id = BaseFirestoreService.currentSchoolId;
     if (id == null) {
-      throw StateError('currentSchoolId is not initialized.');
+      AppLogger.w('AuthService', 'currentSchoolId is null. Falling back to school_1.');
+      return 'school_1';
     }
     return id;
   }
