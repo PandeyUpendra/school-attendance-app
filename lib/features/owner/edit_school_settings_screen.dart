@@ -19,6 +19,7 @@ import '../../shared/widgets/email_text_form_field.dart';
 import '../../shared/widgets/index_building_notice.dart';
 import '../../shared/widgets/managed_dropdown.dart';
 import '../../shared/utils/app_transitions.dart';
+import 'social_media_settings_screen.dart';
 
 class EditSchoolSettingsScreen extends StatefulWidget {
   const EditSchoolSettingsScreen({super.key});
@@ -1281,6 +1282,65 @@ class _CommunicationTabState extends State<_CommunicationTab>
               activeColor: AppTheme.primary,
               onChanged: widget.editing ? (v) => setState(() => _routes = v.round()) : null),
         ],
+        const SizedBox(height: 24),
+        const Divider(),
+        const SizedBox(height: 12),
+        Card(
+          elevation: 0,
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: const BorderSide(color: AppTheme.border),
+          ),
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SocialMediaSettingsScreen(),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: AppTheme.primaryLight.withValues(alpha: 0.2),
+                    child: const Icon(Icons.share_outlined, color: AppTheme.primary, size: 20),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          context.tr('socialMediaLinksTitle'),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          context.tr('socialMediaSubtitle'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
+                ],
+              ),
+            ),
+          ),
+        ),
         const SizedBox(height: 20),
         if (widget.editing) _saveBtn(context, _saving, _save),
         const SizedBox(height: 16),
@@ -1483,6 +1543,16 @@ String _translateField(BuildContext context, String field) {
       return context.tr('stateLabel');
     case 'pinCode':
       return context.tr('pinCodeLabel');
+    case 'facebookUrl':
+      return context.tr('facebookLabel');
+    case 'instagramUrl':
+      return context.tr('instagramLabel');
+    case 'twitterUrl':
+      return context.tr('twitterLabel');
+    case 'youtubeUrl':
+      return context.tr('youtubeLabel');
+    case 'linkedinUrl':
+      return context.tr('linkedinLabel');
     default:
       return field;
   }
