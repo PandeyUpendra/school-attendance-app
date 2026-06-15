@@ -43,6 +43,7 @@ import '../todo/todo_reminder_banner.dart';
 import '../fees/fee_overview_screen.dart';
 import '../admin/audit_log_screen.dart';
 import '../substitution/absent_teachers_screen.dart';
+import '../../shared/widgets/social_media_links_screen.dart';
 
 /// The Principal Portal — school-wide overview dashboard.
 class PrincipalDashboard extends StatefulWidget {
@@ -536,6 +537,16 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   userId: _principalEmail,
                   role: _sessionRole,
                 )),
+              ),
+
+              // ── Social Media Links ─────────────────────────────────────
+              _SectionHeader(context.tr('socialMediaLinksTitle')),
+              _FeatureTile(
+                icon: Icons.share_outlined,
+                color: AppTheme.primary,
+                title: context.tr('socialMediaLinksTitle'),
+                subtitle: context.tr('socialMediaSubtitle'),
+                onTap: () => _navigate(const SocialMediaLinksScreen()),
               ),
 
               // ── Today's Attendance (shown last) ────────────────────────

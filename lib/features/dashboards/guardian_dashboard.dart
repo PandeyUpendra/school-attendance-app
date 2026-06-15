@@ -48,6 +48,7 @@ import '../study_material/study_material_list_screen.dart';
 import '../exams/guardian_datesheet_screen.dart';
 import '../exams/student_performance_charts_screen.dart';
 import '../../shared/widgets/payment_gateway_simulator.dart';
+import '../../shared/widgets/social_media_links_screen.dart';
 
 /// The Guardian Portal — shows a single student's attendance to their parent.
 /// Guardian is linked to {studentClass, studentRoll} in allowed_users.
@@ -586,6 +587,19 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
               context,
               MaterialPageRoute(
                 builder: (_) => const GuardianHolidayCalendarScreen(),
+              ),
+            ),
+          ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.share_outlined,
+            color: AppTheme.primary,
+            title: context.tr('socialMediaLinksTitle'),
+            subtitle: context.tr('socialMediaSubtitle'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const SocialMediaLinksScreen(),
               ),
             ),
           ),

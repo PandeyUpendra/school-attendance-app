@@ -2,6 +2,8 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:account_picker/account_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../theme.dart';
 import '../utils/validators.dart';
 
 /// A wrapper around [TextFormField] specifically for email inputs.
@@ -78,6 +80,8 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
     } else {
       if (widget.controller.text.isEmpty) {
         _hasAutoPrompted = false;
+      } else {
+        _saveEmail(widget.controller.text);
       }
       if (!_touched) {
         setState(() {
@@ -87,24 +91,194 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
     }
   }
 
+  Future<List<String>> _getSavedEmails() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final recent = prefs.getStringList('recent_emails') ?? [];
+      final lastEmail = prefs.getString('auth_email');
+      final cachedAdmins = prefs.getStringList('cached_root_admins') ?? [];
+      
+      final allEmails = <String>{};
+      
+      // 1. Last logged-in email
+      if (lastEmail != null && lastEmail.isNotEmpty) {
+        allEmails.add(lastEmail.trim().toLowerCase());
+      }
+      // 2. Recent emails
+      for (var e in recent) {
+        final clean = e.trim().toLowerCase();
+        if (clean.isNotEmpty) {
+          allEmails.add(clean);
+        }
+      }
+      // 3. Cached admins
+      for (var e in cachedAdmins) {
+        final clean = e.trim().toLowerCase();
+        if (clean.isNotEmpty) {
+          allEmails.add(clean);
+        }
+      }
+      return allEmails.toList();
+    } catch (e) {
+      debugPrint('Error loading saved emails: $e');
+      return [];
+    }
+  }
+
+  Future<void> _saveEmail(String email) async {
+    final clean = email.trim().toLowerCase();
+    if (clean.isEmpty || !clean.contains('@')) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final recent = prefs.getStringList('recent_emails') ?? [];
+      
+      // Remove if already exists so we can move it to the top
+      recent.remove(clean);
+      recent.insert(0, clean);
+      
+      // Limit to top 8 recent emails
+      if (recent.length > 8) {
+        recent.removeRange(8, recent.length);
+      }
+      await prefs.setStringList('recent_emails', recent);
+    } catch (e) {
+      debugPrint('Error saving email: $e');
+    }
+  }
+
   Future<void> _showDeviceEmailPicker() async {
     if (!Platform.isAndroid) return;
     if (Platform.environment.containsKey('FLUTTER_TEST')) return;
     try {
-      final emailResult = await AccountPicker.emailHint();
-      if (emailResult != null && emailResult.email != null) {
-        widget.controller.text = emailResult.email!;
-        if (widget.onChanged != null) {
-          widget.onChanged!(emailResult.email!);
-        }
-        // Move cursor to the end
-        widget.controller.selection = TextSelection.fromPosition(
-          TextPosition(offset: emailResult.email!.length),
-        );
+      final emails = await _getSavedEmails();
+      if (emails.isEmpty) {
+        await _triggerNativePicker();
+      } else {
+        if (!mounted) return;
+        await _showThemedEmailSheet(emails);
       }
     } catch (e) {
       debugPrint('Failed to pick email: $e');
     }
+  }
+
+  Future<void> _triggerNativePicker() async {
+    final emailResult = await AccountPicker.emailHint();
+    if (emailResult != null) {
+      final selectedEmail = emailResult.email;
+      _selectEmail(selectedEmail);
+      await _saveEmail(selectedEmail);
+    }
+  }
+
+  void _selectEmail(String email) {
+    widget.controller.text = email;
+    if (widget.onChanged != null) {
+      widget.onChanged!(email);
+    }
+    // Move cursor to the end
+    widget.controller.selection = TextSelection.fromPosition(
+      TextPosition(offset: email.length),
+    );
+  }
+
+  Future<void> _showThemedEmailSheet(List<String> emails) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Container(
+          color: Colors.white,
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Text(
+                    'Choose an account',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                ),
+                const Divider(),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: emails.length,
+                    itemBuilder: (context, index) {
+                      final email = emails[index];
+                      return ListTile(
+                        leading: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.alternate_email,
+                            color: AppTheme.primary,
+                            size: 18,
+                          ),
+                        ),
+                        title: Text(
+                          email,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        onTap: () {
+                          _selectEmail(email);
+                          _saveEmail(email);
+                          Navigator.pop(context);
+                        },
+                      );
+                    },
+                  ),
+                ),
+                const Divider(),
+                ListTile(
+                  leading: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppTheme.accent.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.account_box_outlined,
+                      color: AppTheme.accent,
+                      size: 20,
+                    ),
+                  ),
+                  title: const Text(
+                    'Choose from device accounts',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.accent,
+                    ),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await Future.delayed(const Duration(milliseconds: 150));
+                    await _triggerNativePicker();
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override

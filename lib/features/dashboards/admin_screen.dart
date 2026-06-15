@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../l10n/app_strings.dart';
 import '../../theme.dart';
 import '../../shared/widgets/email_text_form_field.dart';
@@ -17,29 +18,24 @@ class AdminScreen extends StatefulWidget {
 }
 
 class _AdminScreenState extends State<AdminScreen> {
-  final _service   = TimetableService.instance;
+  final _service    = TimetableService.instance;
   final _emailCtrl  = TextEditingController();
+  final _searchCtrl = TextEditingController();
 
-  // Admin can only create Owner accounts — the role is fixed (no picker).
   static const _role = 'owner';
 
   List<Map<String, dynamic>> _users = [];
+  Map<String, Map<String, dynamic>> _schoolsMap = {};
   bool _loading  = true;
   bool _saving   = false;
+  String _searchQuery = '';
+  String _filterStatus = 'all'; // 'all', 'active', 'suspended'
 
-  // Role → accent colour (all purple-family now, semantic distinction by shade/hue)
-  static const _roleColors = {
-    'teacher':     AppTheme.primary,
-    'coordinator': AppTheme.primaryMid,
-    'principal':   AppTheme.primaryDark,
-    'guardian':    AppTheme.accent,
-    'owner':       AppTheme.ownerGray,
-  };
+
 
   @override
   void initState() {
     super.initState();
-    // Guard: only a signed-in Firebase user with the admin role may stay here.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       RoleGuard.verify(context, ['admin']);
     });
@@ -49,6 +45,7 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   void dispose() {
     _emailCtrl.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
@@ -57,17 +54,19 @@ class _AdminScreenState extends State<AdminScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      // Automatically clean up any orphaned users or school databases left from previous deletions
       await _service.cleanOrphanedSchools();
-
-      // Admin sees only Owner accounts. Query owners directly with
-      // where('role' == 'owner') — an unscoped allowed_users read is rejected
-      // by the security rules (non-owner managers may only read docs in their
-      // own school), whereas the owner-scoped query satisfies the owner rule.
       final owners = await _service.getAllowedOwners();
+      
+      final schoolsSnap = await FirebaseFirestore.instance.collection('schools').get();
+      final Map<String, Map<String, dynamic>> schools = {};
+      for (final doc in schoolsSnap.docs) {
+        schools[doc.id] = doc.data();
+      }
+
       if (!mounted) return;
       setState(() {
         _users   = owners;
+        _schoolsMap = schools;
         _loading = false;
       });
     } catch (e) {
@@ -75,6 +74,7 @@ class _AdminScreenState extends State<AdminScreen> {
       if (!mounted) return;
       setState(() {
         _users   = [];
+        _schoolsMap = {};
         _loading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -83,6 +83,34 @@ class _AdminScreenState extends State<AdminScreen> {
         duration: const Duration(seconds: 8),
       ));
     }
+  }
+
+  // ── Filtered Users ─────────────────────────────────────────────────────────
+
+  List<Map<String, dynamic>> get _filteredUsers {
+    return _users.where((user) {
+      final email = (user['email'] as String).toLowerCase();
+      final schoolId = (user['schoolId'] as String?) ?? '';
+      final school = _schoolsMap[schoolId];
+      final schoolName = ((school?['name'] as String?) ?? '').toLowerCase();
+      final brandName = ((school?['brandName'] as String?) ?? '').toLowerCase();
+      
+      final matchesSearch = email.contains(_searchQuery) ||
+          schoolId.toLowerCase().contains(_searchQuery) ||
+          schoolName.contains(_searchQuery) ||
+          brandName.contains(_searchQuery);
+          
+      if (!matchesSearch) return false;
+      
+      final isActive = school?['isActive'] ?? true;
+      if (_filterStatus == 'active') {
+        return isActive == true;
+      } else if (_filterStatus == 'suspended') {
+        return isActive == false;
+      }
+      
+      return true;
+    }).toList();
   }
 
   // ── Add ────────────────────────────────────────────────────────────────────
@@ -102,21 +130,8 @@ class _AdminScreenState extends State<AdminScreen> {
 
     setState(() => _saving = true);
     try {
-      // Each owner runs an independent school. Stamp a unique schoolId on the
-      // account so two owners never share data — without this the account is
-      // written with no schoolId and login falls back to the default
-      // 'school_1', which is why every owner was seeing the same school.
       final schoolId =
           'school_${DateTime.now().millisecondsSinceEpoch}_${email.hashCode.abs()}';
-      // Materialise the schools/{schoolId} PARENT DOC at creation. Without it
-      // the school only ever exists as a phantom parent of its subcollections —
-      // invisible to `collection('schools').get()`, which breaks every
-      // "iterate all schools" admin/maintenance tool (they'd need
-      // listDocuments() workarounds). Shape matches School.fromJson; the owner
-      // fills in name/address later via school settings. Written BEFORE the
-      // owner account so a partial failure leaves an ownerless school doc
-      // (harmless, retried by re-adding) rather than an owner whose school is
-      // a phantom.
       await FirebaseFirestore.instance.collection('schools').doc(schoolId).set({
         'name': '',
         'address': '',
@@ -128,8 +143,6 @@ class _AdminScreenState extends State<AdminScreen> {
         'isActive': true,
         'brandName': '',
       });
-      // No password needed — a secure temp is generated automatically and a
-      // setup link is sent to the user's email via Firebase Auth.
       await _service.addAllowedUser(email, '', _role, schoolId: schoolId);
       _emailCtrl.clear();
       if (!mounted) return;
@@ -156,10 +169,6 @@ class _AdminScreenState extends State<AdminScreen> {
   // ── Remove ─────────────────────────────────────────────────────────────────
 
   Future<void> _remove(String email) async {
-    // Deleting an owner cascades to the owner's ENTIRE school (every account,
-    // student, attendance, fee record — see the deleteAccount Cloud Function).
-    // That is irreversible, so require the admin to type the exact email to
-    // confirm rather than a single tap.
     final confirmCtrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
@@ -213,9 +222,6 @@ class _AdminScreenState extends State<AdminScreen> {
         },
       ),
     );
-    // Dispose after the dialog's close animation finishes. Disposing the
-    // controller synchronously while its TextField is still unmounting trips
-    // framework.dart's `_dependents.isEmpty` assertion (red error screen).
     Future.delayed(const Duration(milliseconds: 350), confirmCtrl.dispose);
     if (ok != true) return;
     try {
@@ -237,6 +243,127 @@ class _AdminScreenState extends State<AdminScreen> {
       ));
     }
     _load();
+  }
+
+  // ── Plan & Suspension Management ──────────────────────────────────────────
+
+  Future<void> _changePlan(String schoolId, String currentPlan) async {
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Change Subscription Plan'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: ['free', 'basic', 'pro', 'enterprise'].map((plan) {
+            final isCurrent = plan == currentPlan;
+            return ListTile(
+              leading: Icon(
+                Icons.stars_rounded,
+                color: _getPlanColor(plan),
+              ),
+              title: Text(
+                plan.toUpperCase(),
+                style: TextStyle(
+                  fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                  color: isCurrent ? AppTheme.primary : AppTheme.textPrimary,
+                ),
+              ),
+              trailing: isCurrent
+                  ? const Icon(Icons.check_circle, color: AppTheme.primary)
+                  : null,
+              onTap: () => Navigator.pop(ctx, plan),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+    
+    if (selected == null || selected == currentPlan) return;
+    
+    setState(() => _loading = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .update({'subscriptionPlan': selected});
+      
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Updated plan to ${selected.toUpperCase()}'),
+        backgroundColor: Colors.green.shade700,
+      ));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to update plan: $e'),
+        backgroundColor: Colors.red.shade700,
+      ));
+    }
+    _load();
+  }
+
+  Future<void> _toggleSuspension(String schoolId, bool currentActive) async {
+    final nextActive = !currentActive;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(nextActive ? 'Activate School System?' : 'Suspend School System?'),
+        content: Text(
+          nextActive
+              ? 'This will restore access for all staff and guardians of this school system.'
+              : 'WARNING: This will immediately block all owners, staff, and guardians of this school system from logging in or using the app.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: nextActive ? Colors.green : Colors.red,
+            ),
+            child: Text(nextActive ? 'Activate' : 'Suspend'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _loading = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .update({'isActive': nextActive});
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(nextActive ? 'School system activated.' : 'School system suspended.'),
+        backgroundColor: nextActive ? Colors.green.shade700 : Colors.orange.shade800,
+      ));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to update status: $e'),
+        backgroundColor: Colors.red.shade700,
+      ));
+    }
+    _load();
+  }
+
+  Color _getPlanColor(String plan) {
+    switch (plan.toLowerCase().trim()) {
+      case 'free':
+        return Colors.grey.shade600;
+      case 'basic':
+        return Colors.blue.shade600;
+      case 'pro':
+        return Colors.indigo.shade600;
+      case 'enterprise':
+        return Colors.teal.shade600;
+      default:
+        return Colors.grey.shade600;
+    }
   }
 
   // ── Logout ───────────────────────────────────────────────────────────────────
@@ -273,18 +400,7 @@ class _AdminScreenState extends State<AdminScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(msg)));
 
-  Color _roleColor(String role) =>
-      _roleColors[role] ?? Colors.grey;
 
-  IconData _roleIcon(String role) {
-    switch (role) {
-      case 'coordinator': return Icons.admin_panel_settings_outlined;
-      case 'principal':   return Icons.business_outlined;
-      case 'guardian':    return Icons.family_restroom_outlined;
-      case 'owner':       return Icons.stars_outlined;
-      default:            return Icons.person_outline;
-    }
-  }
 
   BoxDecoration get _cardDecoration => BoxDecoration(
         color: Colors.white,
@@ -328,6 +444,8 @@ class _AdminScreenState extends State<AdminScreen> {
                   const SizedBox(height: 16),
                   _buildInfoBanner(),
                   const SizedBox(height: 22),
+                  _buildSearchAndFilter(),
+                  const SizedBox(height: 16),
                   Row(children: [
                     _fieldLabel(context.tr('registeredOwners')),
                     const SizedBox(width: 8),
@@ -338,7 +456,7 @@ class _AdminScreenState extends State<AdminScreen> {
                         color: AppTheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Text('${_users.length}',
+                      child: Text('${_filteredUsers.length}',
                           style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -353,6 +471,93 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // ── Search & Filter ────────────────────────────────────────────────────────
+
+  Widget _buildSearchAndFilter() {
+    return Column(
+      children: [
+        TextField(
+          controller: _searchCtrl,
+          decoration: InputDecoration(
+            hintText: 'Search schools, owners, or IDs...',
+            prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, color: AppTheme.textSecondary),
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      setState(() {
+                        _searchQuery = '';
+                      });
+                    },
+                  )
+                : null,
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+            ),
+          ),
+          onChanged: (val) {
+            setState(() {
+              _searchQuery = val.trim().toLowerCase();
+            });
+          },
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            _filterChip('all', 'All Tenants'),
+            const SizedBox(width: 8),
+            _filterChip('active', 'Active'),
+            const SizedBox(width: 8),
+            _filterChip('suspended', 'Suspended'),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _filterChip(String status, String label) {
+    final isSelected = _filterStatus == status;
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? Colors.white : AppTheme.textSecondary,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      selected: isSelected,
+      selectedColor: AppTheme.primary,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isSelected ? AppTheme.primary : Colors.grey.shade300,
+        ),
+      ),
+      onSelected: (val) {
+        if (val) {
+          setState(() {
+            _filterStatus = status;
+          });
+        }
+      },
     );
   }
 
@@ -483,96 +688,215 @@ class _AdminScreenState extends State<AdminScreen> {
         child: Center(child: CircularProgressIndicator()),
       );
     }
-    if (_users.isEmpty) {
+    final filtered = _filteredUsers;
+    if (filtered.isEmpty) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 44),
         alignment: Alignment.center,
         child: Column(children: [
           Icon(Icons.group_outlined, size: 54, color: Colors.grey.shade300),
           const SizedBox(height: 12),
-          Text(context.tr('noOwnersRegistered'),
-              style: TextStyle(fontSize: 14.5, color: Colors.grey.shade400)),
-          const SizedBox(height: 4),
-          Text(context.tr('addEmailToInvite'),
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+          Text(
+            _searchQuery.isNotEmpty || _filterStatus != 'all'
+                ? 'No matching tenants found'
+                : context.tr('noOwnersRegistered'),
+            style: TextStyle(fontSize: 14.5, color: Colors.grey.shade400),
+          ),
+          if (_searchQuery.isEmpty && _filterStatus == 'all') ...[
+            const SizedBox(height: 4),
+            Text(context.tr('addEmailToInvite'),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+          ]
         ]),
       );
     }
-    return Column(children: [for (final u in _users) _buildUserCard(u)]);
+    return Column(children: [for (final u in filtered) _buildUserCard(u)]);
   }
 
   Widget _buildUserCard(Map<String, dynamic> user) {
     final email    = user['email'] as String;
-    final role     = user['role'] as String;
     final schoolId = (user['schoolId'] as String?) ?? '';
-    final color    = _roleColor(role);
+
+    final schoolDoc = _schoolsMap[schoolId];
+    final schoolName = schoolDoc?['name'] as String? ?? '';
+    final brandName  = schoolDoc?['brandName'] as String? ?? '';
+    final plan       = schoolDoc?['subscriptionPlan'] as String? ?? 'free';
+    final isActive   = schoolDoc?['isActive'] as bool? ?? true;
+    final createdAt  = schoolDoc?['createdAt'] as Timestamp?;
+
+    final formattedDate = createdAt != null
+        ? '${createdAt.toDate().day}/${createdAt.toDate().month}/${createdAt.toDate().year}'
+        : 'Unknown';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.fromLTRB(12, 12, 6, 12),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration,
-      child: Row(children: [
-        Container(
-          width: 46, height: 46,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(_roleIcon(role), color: color, size: 22),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(email,
-                  style: const TextStyle(
-                      fontSize: 13.5, fontWeight: FontWeight.w600),
-                  overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 6),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: color.withValues(alpha: 0.3)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      schoolName.isNotEmpty ? schoolName : 'Setup Pending',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        fontStyle: schoolName.isNotEmpty ? FontStyle.normal : FontStyle.italic,
+                        color: schoolName.isNotEmpty ? AppTheme.textPrimary : Colors.grey.shade500,
+                      ),
+                    ),
+                    if (brandName.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        brandName,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                child: Text(context.trRole(role),
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: color)),
               ),
-              if (schoolId.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Row(children: [
-                  Icon(Icons.school_outlined,
-                      size: 12, color: Colors.grey.shade400),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(schoolId,
-                        style: TextStyle(
-                            fontSize: 10.5, color: Colors.grey.shade500),
-                        overflow: TextOverflow.ellipsis),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _getPlanColor(plan).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _getPlanColor(plan).withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  plan.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: _getPlanColor(plan),
                   ),
-                ]),
-              ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: (isActive ? AppTheme.success : AppTheme.danger).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: (isActive ? AppTheme.success : AppTheme.danger).withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  isActive ? 'ACTIVE' : 'SUSPENDED',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: isActive ? AppTheme.success : AppTheme.danger,
+                  ),
+                ),
+              ),
             ],
           ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.delete_outline,
-              color: AppTheme.danger, size: 20),
-          onPressed: () => _remove(email),
-          tooltip: context.tr('removeAction'),
-        ),
-      ]),
+          const Divider(height: 20, thickness: 0.8),
+          Row(
+            children: [
+              Icon(Icons.email_outlined, size: 14, color: Colors.grey.shade400),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  email,
+                  style: const TextStyle(fontSize: 12.5, color: AppTheme.textPrimary, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          InkWell(
+            onTap: () {
+              if (schoolId.isNotEmpty) {
+                Clipboard.setData(ClipboardData(text: schoolId));
+                _snack('School ID copied to clipboard');
+              }
+            },
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Icon(Icons.vpn_key_outlined, size: 14, color: Colors.grey.shade400),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'ID: $schoolId',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                        color: Colors.grey.shade600,
+                        decoration: TextDecoration.underline,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.copy, size: 12, color: Colors.grey.shade400),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.calendar_today_outlined, size: 14, color: Colors.grey.shade400),
+              const SizedBox(width: 6),
+              Text(
+                'Registered: $formattedDate',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+          const Divider(height: 20, thickness: 0.8),
+          Row(
+            children: [
+              OutlinedButton.icon(
+                onPressed: schoolId.isNotEmpty ? () => _changePlan(schoolId, plan) : null,
+                icon: const Icon(Icons.tune_outlined, size: 14),
+                label: const Text('Plan', style: TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: schoolId.isNotEmpty ? () => _toggleSuspension(schoolId, isActive) : null,
+                icon: Icon(isActive ? Icons.block_outlined : Icons.check_circle_outline, size: 14),
+                label: Text(isActive ? 'Suspend' : 'Activate', style: const TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: isActive ? AppTheme.danger : AppTheme.success,
+                  side: BorderSide(color: isActive ? AppTheme.danger : AppTheme.success),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: AppTheme.danger, size: 18),
+                onPressed: () => _remove(email),
+                tooltip: context.tr('removeAction'),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
-
-// ── Wave hero header (matches the dashboard hero pattern) ──────────────────────
 
 class _AdminHero extends StatelessWidget {
   final VoidCallback onBack;

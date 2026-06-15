@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -330,9 +331,24 @@ class _SplashGateState extends State<_SplashGate> {
       if (!readFailed && live != null) {
         final liveRole   = (live['role']   as String?) ?? '';
         final liveStatus = (live['status'] as String?) ?? '';
+        final liveSchoolId = (live['schoolId'] as String?) ?? '';
+        
+        bool schoolSuspended = false;
+        if (liveSchoolId.isNotEmpty && liveRole != 'admin') {
+          try {
+            final schoolDoc = await FirebaseFirestore.instance.collection('schools').doc(liveSchoolId).get();
+            if (schoolDoc.exists && schoolDoc.data()?['isActive'] == false) {
+              schoolSuspended = true;
+            }
+          } catch (_) {
+            // Keep cached routing if Firestore check fails (offline tolerance)
+          }
+        }
+
         final revoked = liveRole != role
             || liveStatus == 'suspended'
-            || liveStatus == 'disabled';
+            || liveStatus == 'disabled'
+            || schoolSuspended;
         if (revoked) {
           await AuthService().clearSession();
           if (!mounted) return;

@@ -40,6 +40,7 @@ import '../birthdays/birthdays_screen.dart';
 import '../todo/todo_list_screen.dart';
 import '../todo/todo_reminder_banner.dart';
 import '../teachers/teacher_morning_summary_card.dart';
+import '../../shared/widgets/social_media_links_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -757,6 +758,21 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          // ── Social Media Links ───────────────────────────────────────
+          _SectionHeader(context.tr('socialMediaLinksTitle')),
+          _FeatureTile(
+            icon: Icons.share_outlined,
+            color: AppTheme.primary,
+            title: context.tr('socialMediaLinksTitle'),
+            subtitle: context.tr('socialMediaSubtitle'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const SocialMediaLinksScreen(),
+              ),
+            ),
+          ),
+
           const SizedBox(height: 32),
               ],
             ),
@@ -1088,6 +1104,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 userId: teacher?.id ?? teacher?.email ?? '',
                 role: 'teacher',
               ),
+            ),
+          ),
+        ),
+
+        // ── Social Media Links ───────────────────────────────────────
+        _SectionHeader(context.tr('socialMediaLinksTitle')),
+        _FeatureTile(
+          icon: Icons.share_outlined,
+          color: AppTheme.primary,
+          title: context.tr('socialMediaLinksTitle'),
+          subtitle: context.tr('socialMediaSubtitle'),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const SocialMediaLinksScreen(),
             ),
           ),
         ),

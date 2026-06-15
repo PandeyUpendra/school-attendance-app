@@ -51,6 +51,7 @@ import '../fees/payment_claims_verification_screen.dart';
 import '../students/bulk_student_import_screen.dart';
 import '../admin/admission_crm_screen.dart';
 import '../owner/transport_driver_screen.dart';
+import '../../shared/widgets/social_media_links_screen.dart';
 
 const _cPurple    = AppTheme.primary;
 const _cPurpleMid = AppTheme.primaryMid;
@@ -628,6 +629,16 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
                 userId: _coordEmail,
                 role: 'coordinator',
               )),
+            ),
+
+            // ── Social Media Links ─────────────────────────────────────────
+            _SectionHeader(context.tr('socialMediaLinksTitle')),
+            _FeatureTile(
+              icon: Icons.share_outlined,
+              color: _cPurple,
+              title: context.tr('socialMediaLinksTitle'),
+              subtitle: context.tr('socialMediaSubtitle'),
+              onTap: () => _navigate(const SocialMediaLinksScreen()),
             ),
 
             // ── Today's Attendance ─────────────────────────────────────────

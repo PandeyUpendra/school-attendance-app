@@ -1604,6 +1604,7 @@ class AppStrings {
     'tabAddress':              {'en': 'Address',              'hi': 'पता'},
     'tabCommunication':        {'en': 'Communication',        'hi': 'सम्पर्क'},
     'tabSocialMedia':          {'en': 'Social Media',         'hi': 'सोशल मीडिया'},
+    'noSocialMediaLinks':      {'en': 'No social media links added yet', 'hi': 'अभी तक कोई सोशल मीडिया लिंक नहीं जोड़ा गया'},
     'viewOnlyWarning':         {'en': 'View only — tap Edit to make changes', 'hi': 'केवल देखने के लिए — बदलाव करने के लिए एडिट दबाएँ'},
     'schoolNameRequiredLabel': {'en': 'School Name *',        'hi': 'स्कूल का नाम *'},
     'phoneLabel':              {'en': 'Phone',                'hi': 'फ़ोन'},

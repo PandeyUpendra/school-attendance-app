@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -97,6 +98,28 @@ class _LoginScreenState extends State<LoginScreen> {
               : 'Your account has been suspended. Contact your administrator.';
         });
         return;
+      }
+
+      // Block if the school/tenant itself is suspended
+      if (schoolId.isNotEmpty && role != 'admin') {
+        try {
+          final schoolSnap = await FirebaseFirestore.instance.collection('schools').doc(schoolId).get();
+          if (schoolSnap.exists && schoolSnap.data()?['isActive'] == false) {
+            await AuthService().signOut();
+            setState(() {
+              _loading = false;
+              _error = 'This school system has been suspended. Contact your administrator.';
+            });
+            return;
+          }
+        } catch (e) {
+          await AuthService().signOut();
+          setState(() {
+            _loading = false;
+            _error = 'Could not verify school status: $e';
+          });
+          return;
+        }
       }
 
       // Mark account active on first successful login.
