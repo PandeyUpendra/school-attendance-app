@@ -289,12 +289,6 @@ class _OwnerHomeState extends State<OwnerHome> {
                       absentStudents: _absentStudents,
                       teachersAbsent: _teachersAbsent,
                       pendingLeaves: _pendingLeaves,
-                      onViewSettings: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const EditSchoolSettingsScreen(),
-                        ),
-                      ),
                     ),
                   const _SectionHeader('OVERVIEW'),
           _FeatureTile(
@@ -1962,14 +1956,12 @@ class _OwnerMorningSummaryCard extends StatelessWidget {
   final int absentStudents;
   final int teachersAbsent;
   final int pendingLeaves;
-  final VoidCallback onViewSettings;
 
   const _OwnerMorningSummaryCard({
     required this.totalStudents,
     required this.absentStudents,
     required this.teachersAbsent,
     required this.pendingLeaves,
-    required this.onViewSettings,
   });
 
   @override
@@ -2020,7 +2012,7 @@ class _OwnerMorningSummaryCard extends StatelessWidget {
 
           // Main content grid
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
               children: [
                 Row(
@@ -2067,26 +2059,6 @@ class _OwnerMorningSummaryCard extends StatelessWidget {
                   ],
                 ),
               ],
-            ),
-          ),
-
-          // Action Button
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: ElevatedButton.icon(
-              onPressed: onViewSettings,
-              icon: const Icon(Icons.tune_outlined, size: 16),
-              label: const Text('Manage School Settings'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white.withValues(alpha: 0.15),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: const BorderSide(color: Colors.white24),
-                ),
-              ),
             ),
           ),
         ],
