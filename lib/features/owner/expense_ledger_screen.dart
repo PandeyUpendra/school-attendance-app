@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../../theme.dart';
 import '../../shared/utils/currency_utils.dart';
 import '../../shared/utils/app_logger.dart';
+import '../../shared/widgets/premium_feature_gate.dart';
 
 class ExpenseLedgerScreen extends StatefulWidget {
   const ExpenseLedgerScreen({super.key});
@@ -31,8 +32,10 @@ class _ExpenseLedgerScreenState extends State<ExpenseLedgerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
+    return PremiumFeatureGate(
+      feature: 'expense_tracking',
+      child: Scaffold(
+        backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Text(context.tr('expenseLedger')),
         backgroundColor: AppTheme.primaryDark,
@@ -88,7 +91,7 @@ class _ExpenseLedgerScreenState extends State<ExpenseLedgerScreen> {
         icon: const Icon(Icons.add),
         label: Text(context.tr('addExpense')),
       ),
-    );
+    ),);
   }
 
   Widget _buildSummaryCard(double total, int count) {

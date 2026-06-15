@@ -56,6 +56,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
   String? _bloodGroup;
   String? _transportMode;
   bool _saving = false;
+  bool _saveAndAddAnother = false;
 
   bool get _isEdit => widget.existing != null;
 
@@ -83,6 +84,29 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       _gender               = s.gender;
       _bloodGroup           = s.bloodGroup;
       _transportMode        = s.transportMode;
+    } else {
+      _autoFillNextRoll();
+    }
+  }
+
+  /// Fetches existing students for the class/section and sets the roll number
+  /// controller to max(existing rolls) + 1. Falls back to '1' if none exist.
+  Future<void> _autoFillNextRoll() async {
+    try {
+      final students = await StudentService.instance.getStudentsByClass(
+        className: widget.className,
+        section: widget.section,
+      );
+      if (!mounted) return;
+      if (students.isEmpty) {
+        _rollCtrl.text = '1';
+      } else {
+        final maxRoll = students.map((s) => s.roll).reduce((a, b) => a > b ? a : b);
+        _rollCtrl.text = '${maxRoll + 1}';
+      }
+    } catch (e) {
+      AppLogger.e('AddStudent', 'Failed to auto-fill roll number', e);
+      // Don't block the form — leave the field empty for manual entry.
     }
   }
 
@@ -393,7 +417,17 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
           }
         }
 
-        if (mounted) Navigator.pop(context, student);
+        if (mounted) {
+          if (_saveAndAddAnother) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(context.tr('studentSavedAddAnother')),
+              backgroundColor: AppTheme.success,
+            ));
+            _resetFormForNextStudent();
+          } else {
+            Navigator.pop(context, student);
+          }
+        }
       }
     } catch (e) {
       // Surface BOTH which step failed and the caller context so the next
@@ -425,8 +459,40 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         backgroundColor: Colors.red,
         duration: const Duration(seconds: 12),
       ));
-      setState(() => _saving = false);
+      setState(() {
+        _saving = false;
+        _saveAndAddAnother = false;
+      });
     }
+  }
+
+  /// Resets all form controllers for adding another student, but preserves
+  /// class, section, and teacherId. Auto-fills the next roll number.
+  void _resetFormForNextStudent() {
+    _rollCtrl.clear();
+    _nameCtrl.clear();
+    _fatherCtrl.clear();
+    _motherCtrl.clear();
+    _phoneCtrl.clear();
+    _parentPhoneCtrl.clear();
+    _guardianEmailCtrl.clear();
+    _addressCtrl.clear();
+    _prevSchoolCtrl.clear();
+    _emergencyCtrl.clear();
+    _allergiesCtrl.clear();
+    _feeAmountCtrl.clear();
+    setState(() {
+      _photoPath = null;
+      _dateOfBirth = null;
+      _gender = null;
+      _bloodGroup = null;
+      _transportMode = null;
+      _feeStatus = 'Pending';
+      _feeDueDate = null;
+      _saving = false;
+      _saveAndAddAnother = false;
+    });
+    _autoFillNextRoll();
   }
 
   @override
@@ -503,6 +569,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               icon: Icons.tag,
               keyboard: TextInputType.number,
               enabled: !_isEdit,
+              autofocus: !_isEdit,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return context.tr('validationRequired');
@@ -850,6 +917,32 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                         fontSize: 16, fontWeight: FontWeight.w600)),
               ),
             ),
+            if (!_isEdit) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: _saving
+                      ? null
+                      : () {
+                          _saveAndAddAnother = true;
+                          _save();
+                        },
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primary,
+                      side: const BorderSide(color: AppTheme.primary),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10))),
+                  child: Text(
+                      _saving && _saveAndAddAnother
+                          ? context.tr('savingEllipsis')
+                          : context.tr('saveAndAddAnother'),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
           ]),
         ),
       ),
@@ -865,6 +958,7 @@ class _Field extends StatelessWidget {
   final TextCapitalization caps;
   final String? Function(String?)? validator;
   final bool enabled;
+  final bool autofocus;
   final List<TextInputFormatter>? inputFormatters;
   final int? maxLength;
 
@@ -876,6 +970,7 @@ class _Field extends StatelessWidget {
     this.caps = TextCapitalization.none,
     this.validator,
     this.enabled = true,
+    this.autofocus = false,
     this.inputFormatters,
     this.maxLength,
   });
@@ -904,6 +999,7 @@ class _Field extends StatelessWidget {
     return TextFormField(
       controller: controller,
       enabled: enabled,
+      autofocus: autofocus,
       keyboardType: keyboard,
       autocorrect: true,
       enableSuggestions: true,

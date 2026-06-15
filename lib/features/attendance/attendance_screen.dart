@@ -17,6 +17,7 @@ import 'package:school_app/services/student_service.dart';
 import 'package:school_app/services/timetable_service.dart';
 import 'package:school_app/services/notification_service.dart';
 import 'package:school_app/services/offline_queue_service.dart';
+import 'package:school_app/services/sms_gateway_simulator.dart';
 import '../../shared/utils/phone_utils.dart';
 import '../../l10n/app_strings.dart';
 import 'package:school_app/services/consent_service.dart';
@@ -72,6 +73,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
   bool   _isMarking      = false; // user is actively marking attendance
   bool   _noAssignment   = false; // teacher has no assigned class/section
   bool   _saving         = false; // a _save() is in flight (guards double-tap)
+  bool   _loadingPrevious = false;
   Set<String> _consentedIds = {};
   bool _consentLoaded = false;
 
@@ -559,6 +561,111 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
   void _setStatus(int roll, String status) =>
       setState(() { _attendance[roll] = status; _dirty = true; });
 
+  void _markAllPresent() {
+    setState(() {
+      for (final s in _students) {
+        _attendance[s.roll] = 'Present';
+      }
+      _dirty = true;
+      _isMarking = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.tr('allMarkedPresent')),
+        backgroundColor: AppTheme.success,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<Map<int, String>?> _loadPreviousAttendance() async {
+    final baseDate = widget.date ?? SchoolClock.today();
+    final futures = List.generate(7, (index) {
+      final targetDate = baseDate.subtract(Duration(days: index + 1));
+      return _service.loadAttendanceForDate(
+        className: _attendanceKey,
+        date: targetDate,
+      ).then((raw) => (date: targetDate, data: raw));
+    });
+
+    final results = await Future.wait(futures);
+    results.sort((a, b) => b.date.compareTo(a.date));
+
+    for (final result in results) {
+      if (result.data != null) {
+        final rolls = Map<String, dynamic>.from((result.data!['rolls'] as Map?) ?? {});
+        if (rolls.isNotEmpty) {
+          final Map<int, String> copied = {};
+          rolls.forEach((k, v) {
+            final roll = int.tryParse(k);
+            if (roll != null) {
+              if (v is bool) {
+                copied[roll] = v ? 'Present' : 'Absent';
+              } else {
+                copied[roll] = v as String;
+              }
+            }
+          });
+          return copied;
+        }
+      }
+    }
+    return null;
+  }
+
+  Future<void> _copyPreviousAttendance() async {
+    setState(() {
+      _loadingPrevious = true;
+    });
+    try {
+      final prev = await _loadPreviousAttendance();
+      if (prev == null || prev.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No previous attendance records found in the last 7 days'),
+              backgroundColor: AppTheme.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+      setState(() {
+        prev.forEach((roll, status) {
+          _attendance[roll] = status;
+        });
+        _dirty = true;
+        _isMarking = true;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Copied attendance from previous day'),
+            backgroundColor: AppTheme.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      AppLogger.e('Attendance', 'Error copying previous attendance: $e', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to copy previous attendance: $e'),
+            backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _loadingPrevious = false;
+      });
+    }
+  }
+
   Future<void> _saveQuietly() async {
     if (_isLocked) return; // edit lock (#34)
     if (!_dirty) return;
@@ -915,6 +1022,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
           : null,
       title: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       actions: [
+        if (_isMarking && _students.isNotEmpty && !_isLocked)
+          IconButton(
+            icon: const Icon(Icons.done_all, color: Colors.white),
+            onPressed: _markAllPresent,
+            tooltip: context.tr('markAllPresent'),
+          ),
         if (_students.isNotEmpty && _currentIndex < _students.length)
           IconButton(
             icon: const Icon(Icons.search, color: Colors.white),
@@ -1167,6 +1280,49 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
                 elevation: 2,
               ),
             ),
+            if (!_isLocked) ...[
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: _markAllPresent,
+                icon: const Icon(Icons.done_all, size: 20),
+                label: Text(
+                  context.tr('markAllPresent'),
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.success,
+                  minimumSize: const Size(double.infinity, 50),
+                  side: const BorderSide(color: AppTheme.success, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: _loadingPrevious ? null : _copyPreviousAttendance,
+                icon: _loadingPrevious
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppTheme.primaryMid,
+                        ),
+                      )
+                    : const Icon(Icons.copy_outlined, size: 20),
+                label: const Text(
+                  'Copy Previous Day\'s Attendance',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.primaryMid,
+                  minimumSize: const Size(double.infinity, 50),
+                  side: const BorderSide(color: AppTheme.primaryMid, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ],
             if (!_isOnline) ...[
               const SizedBox(height: 16),
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [

@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/exam.dart';
@@ -37,6 +39,108 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
   // changes are attributable (previously saved as an empty string).
   String _enteredBy = '';
 
+  String get _draftKey => 'draft_marks_${widget.exam.id}_${widget.section}';
+
+  Future<void> _saveDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final Map<String, Map<String, String>> data = {};
+    _controllers.forEach((roll, subMap) {
+      final Map<String, String> marks = {};
+      subMap.forEach((sub, ctrl) {
+        marks[sub] = ctrl.text;
+      });
+      data[roll.toString()] = marks;
+    });
+    await prefs.setString(_draftKey, jsonEncode(data));
+  }
+
+  Future<void> _clearDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_draftKey);
+  }
+
+  Future<Map<int, Map<String, String>>?> _loadDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonStr = prefs.getString(_draftKey);
+    if (jsonStr == null) return null;
+    try {
+      final decoded = jsonDecode(jsonStr) as Map;
+      final Map<int, Map<String, String>> result = {};
+      decoded.forEach((k, v) {
+        final roll = int.tryParse(k.toString());
+        if (roll != null && v is Map) {
+          final Map<String, String> marks = {};
+          v.forEach((subKey, val) {
+            marks[subKey.toString()] = val.toString();
+          });
+          result[roll] = marks;
+        }
+      });
+      return result;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _fillColumnDialog(String sub) {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Fill Column: $sub'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Enter a value to set for all students in this subject (max ${widget.exam.maxMarks}):'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              autofocus: true,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.aAbB]')),
+              ],
+              decoration: const InputDecoration(
+                hintText: 'e.g. 100, AB, A',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr('cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final txt = ctrl.text.trim().toUpperCase();
+              if (txt.isNotEmpty && txt != 'AB' && txt != 'A') {
+                final val = double.tryParse(txt);
+                if (val == null || val < 0 || val > widget.exam.maxMarks) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Marks must be between 0 and ${widget.exam.maxMarks}'),
+                    backgroundColor: Colors.red.shade700,
+                  ));
+                  return;
+                }
+              }
+              setState(() {
+                for (final s in _students) {
+                  _controllers[s.roll]?[sub]?.text = txt;
+                }
+              });
+              _saveDraft();
+              Navigator.pop(ctx);
+            },
+            child: const Text('Fill All'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -72,9 +176,11 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       final subjectCtrls = <String, TextEditingController>{};
       for (final sub in exam.subjects) {
         final saved = savedMap[s.roll]?.marks[sub];
-        subjectCtrls[sub] = TextEditingController(
+        final ctrl = TextEditingController(
           text: saved == -1.0 ? 'AB' : (saved != null ? saved.toStringAsFixed(0) : ''),
         );
+        ctrl.addListener(_saveDraft);
+        subjectCtrls[sub] = ctrl;
       }
       ctrlMap[s.roll] = subjectCtrls;
     }
@@ -83,6 +189,42 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
     setState(() {
       _students      = students;
       _controllers   = ctrlMap;
+    });
+
+    final draft = await _loadDraft();
+    if (draft != null && draft.isNotEmpty && mounted) {
+      final restore = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Restore Unsaved Draft?'),
+          content: const Text('We found unsaved draft marks on this device. Do you want to restore them?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Ignore'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Restore'),
+            ),
+          ],
+        ),
+      ) ?? false;
+
+      if (restore) {
+        setState(() {
+          draft.forEach((roll, subMap) {
+            subMap.forEach((sub, val) {
+              _controllers[roll]?[sub]?.text = val;
+            });
+          });
+        });
+      } else {
+        await _clearDraft();
+      }
+    }
+
+    setState(() {
       _loading       = false;
     });
   }
@@ -143,6 +285,7 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
       }
     }
     await Future.wait(futures);
+    await _clearDraft();
     if (!mounted) return;
     setState(() => _saving = false);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -218,15 +361,30 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
                       child: Row(children: [
                         const SizedBox(width: 110),
                         ...exam.subjects.map((sub) => Expanded(
-                              child: Text(
-                                sub,
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primary),
+                              child: GestureDetector(
+                                onLongPress: () => _fillColumnDialog(sub),
+                                onTap: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Long-press column header to fill all cells with a value'),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  color: Colors.transparent,
+                                  child: Text(
+                                    sub,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primary),
+                                  ),
+                                ),
                               ),
                             )),
                         const SizedBox(width: 50), // total column
@@ -293,10 +451,14 @@ class _StudentMarksRow extends StatefulWidget {
 
 class _StudentMarksRowState extends State<_StudentMarksRow> {
   double _total = 0;
+  late final Map<String, FocusNode> _focusNodes;
 
   @override
   void initState() {
     super.initState();
+    _focusNodes = {
+      for (final sub in widget.exam.subjects) sub: FocusNode(),
+    };
     _recalc();
     for (final ctrl in widget.controllers.values) {
       ctrl.addListener(_recalc);
@@ -325,6 +487,9 @@ class _StudentMarksRowState extends State<_StudentMarksRow> {
   void dispose() {
     for (final ctrl in widget.controllers.values) {
       ctrl.removeListener(_recalc);
+    }
+    for (final node in _focusNodes.values) {
+      node.dispose();
     }
     super.dispose();
   }
@@ -362,47 +527,65 @@ class _StudentMarksRowState extends State<_StudentMarksRow> {
             ),
           ),
           // Per-subject fields
-          ...exam.subjects.map((sub) => Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: TextField(
-                    controller: widget.controllers[sub],
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                          RegExp(r'[0-9.aAbB]')),
-                    ],
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 13),
-                    decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 8),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(
-                          color: _isInvalid(sub)
-                              ? Colors.red
-                              : Colors.grey.shade300,
-                        ),
+          ...exam.subjects.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final sub = entry.value;
+            final isLast = idx == exam.subjects.length - 1;
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: TextField(
+                  controller: widget.controllers[sub],
+                  focusNode: _focusNodes[sub],
+                  keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true),
+                  textInputAction:
+                      isLast ? TextInputAction.done : TextInputAction.next,
+                  onSubmitted: (_) {
+                    if (isLast) {
+                      // Last subject in the row – just unfocus.
+                      FocusScope.of(context).unfocus();
+                    } else {
+                      // Advance to the next subject field in this row.
+                      final nextSub = exam.subjects[idx + 1];
+                      _focusNodes[nextSub]?.requestFocus();
+                    }
+                  },
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                        RegExp(r'[0-9.aAbB]')),
+                  ],
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13),
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 8),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: _isInvalid(sub)
+                            ? Colors.red
+                            : Colors.grey.shade300,
                       ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(
-                          color: _isInvalid(sub)
-                              ? Colors.red
-                              : AppTheme.primary,
-                        ),
-                      ),
-                      hintText: '—',
-                      hintStyle:
-                          TextStyle(color: Colors.grey.shade300),
                     ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: _isInvalid(sub)
+                            ? Colors.red
+                            : AppTheme.primary,
+                      ),
+                    ),
+                    hintText: '—',
+                    hintStyle:
+                        TextStyle(color: Colors.grey.shade300),
                   ),
                 ),
-              )),
+              ),
+            );
+          }),
           // Total + %
           SizedBox(
             width: 50,

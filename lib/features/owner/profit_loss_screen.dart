@@ -12,6 +12,7 @@ import '../../theme.dart';
 import '../../shared/utils/app_logger.dart';
 import '../../shared/utils/currency_utils.dart';
 import '../../shared/utils/pdf_theme.dart';
+import '../../shared/widgets/premium_feature_gate.dart';
 
 class ProfitLossScreen extends StatefulWidget {
   const ProfitLossScreen({super.key});
@@ -164,43 +165,46 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: const Text('Profit & Loss Summary'),
-        backgroundColor: AppTheme.primaryDark,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? _buildErrorState()
-              : _monthsData.isEmpty
-                  ? _buildEmptyState()
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildMonthSelector(),
-                      const SizedBox(height: 16),
-                      if (_selectedMonth != null) ...[
-                        _buildSummaryMetrics(_selectedMonth!),
+    return PremiumFeatureGate(
+      feature: 'profit_loss',
+      child: Scaffold(
+        backgroundColor: AppTheme.background,
+        appBar: AppBar(
+          title: const Text('Profit & Loss Summary'),
+          backgroundColor: AppTheme.primaryDark,
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadData,
+            ),
+          ],
+        ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage != null
+                ? _buildErrorState()
+                : _monthsData.isEmpty
+                    ? _buildEmptyState()
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildMonthSelector(),
                         const SizedBox(height: 16),
-                        _buildBreakdownSection(_selectedMonth!),
-                        const SizedBox(height: 16),
+                        if (_selectedMonth != null) ...[
+                          _buildSummaryMetrics(_selectedMonth!),
+                          const SizedBox(height: 16),
+                          _buildBreakdownSection(_selectedMonth!),
+                          const SizedBox(height: 16),
+                        ],
+                        _buildTrendSection(),
+                        const SizedBox(height: 80),
                       ],
-                      _buildTrendSection(),
-                      const SizedBox(height: 80),
-                    ],
+                    ),
                   ),
-                ),
+      ),
     );
   }
 

@@ -190,7 +190,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
         'Dear All,\n\n[Write your announcement here. Replace this text with the actual notice content.]\n\nFor any queries or further information, please contact the school office.\n\nRegards,\nSchool Management',
   };
 
-  Future<void> _openComposer({Announcement? editing}) async {
+  Future<void> _openComposer({Announcement? editing, bool isDuplicate = false}) async {
     final formKey = GlobalKey<FormState>();
 
     final presetTitles = _titleTemplates.keys.toList();
@@ -249,7 +249,11 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    editing == null ? 'New Announcement' : 'Edit Announcement',
+                    editing == null
+                        ? 'New Announcement'
+                        : isDuplicate
+                            ? 'Duplicate Announcement'
+                            : 'Edit Announcement',
                     style: const TextStyle(
                         fontSize: 17, fontWeight: FontWeight.bold),
                   ),
@@ -425,7 +429,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                               final body = bodyCtrl.text.trim();
                               setS(() => saving = true);
                               final ann = Announcement(
-                                id: editing?.id ?? '',
+                                id: (editing != null && !isDuplicate) ? editing.id : '',
                                 title: title,
                                 body: body,
                                 postedBy: widget.posterName ?? 'School',
@@ -433,7 +437,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                                 audience: audience,
                                 isPinned: pinned,
                               );
-                              if (editing == null) {
+                              if (editing == null || isDuplicate) {
                                 await _service.postAnnouncement(ann);
                                 await NotificationService()
                                     .addAnnouncementNotice(
@@ -448,7 +452,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                               if (ctx.mounted) Navigator.pop(ctx, true);
                             },
                       icon: const Icon(Icons.send_outlined, size: 18),
-                      label: Text(editing == null ? 'Post' : 'Save'),
+                      label: Text((editing == null || isDuplicate) ? 'Post' : 'Save'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
                         foregroundColor: Colors.white,
@@ -596,6 +600,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                     onPin:    () => _togglePin(_items[i]),
                     onEdit:   () => _openComposer(editing: _items[i]),
                     onDelete: () => _confirmDelete(_items[i]),
+                    onDuplicate: () => _openComposer(editing: _items[i], isDuplicate: true),
                   ),
                 ),
     );
@@ -695,6 +700,9 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
                           onDelete: _logSelectMode
                               ? null
                               : () => _confirmDelete(a),
+                          onDuplicate: _logSelectMode
+                              ? null
+                              : () => _openComposer(editing: a, isDuplicate: true),
                         ),
                       );
                     },
@@ -819,7 +827,7 @@ class _Card extends StatelessWidget {
   final Announcement announcement;
   final bool         canManage;
   final bool         canPin;
-  final VoidCallback onPin, onEdit, onDelete;
+  final VoidCallback onPin, onEdit, onDelete, onDuplicate;
 
   const _Card({
     required this.announcement,
@@ -828,6 +836,7 @@ class _Card extends StatelessWidget {
     required this.onPin,
     required this.onEdit,
     required this.onDelete,
+    required this.onDuplicate,
   });
 
   @override
@@ -929,6 +938,15 @@ class _Card extends StatelessWidget {
                       const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
               IconButton(
+                icon: const Icon(Icons.content_copy_outlined,
+                    size: 18, color: Colors.grey),
+                onPressed: onDuplicate,
+                tooltip: 'Duplicate',
+                padding: EdgeInsets.zero,
+                constraints:
+                    const BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+              IconButton(
                 icon: const Icon(Icons.edit_outlined,
                     size: 18, color: Colors.grey),
                 onPressed: onEdit,
@@ -962,6 +980,7 @@ class _LogCard extends StatelessWidget {
   final bool          selectionMode;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final VoidCallback? onDuplicate;
 
   const _LogCard({
     required this.announcement,
@@ -969,6 +988,7 @@ class _LogCard extends StatelessWidget {
     required this.selectionMode,
     this.onEdit,
     this.onDelete,
+    this.onDuplicate,
   });
 
   @override
@@ -1098,6 +1118,16 @@ class _LogCard extends StatelessWidget {
               ),
               const Spacer(),
               if (!selectionMode && onEdit != null) ...[
+                if (onDuplicate != null)
+                  IconButton(
+                    icon: const Icon(Icons.content_copy_outlined,
+                        size: 17, color: Colors.grey),
+                    onPressed: onDuplicate,
+                    tooltip: 'Duplicate',
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
                 IconButton(
                   icon: const Icon(Icons.edit_outlined,
                       size: 17, color: Colors.grey),

@@ -135,6 +135,7 @@ class SchoolSettingsProvider extends ChangeNotifier {
   String get schoolTagline => _school['tagline'] as String? ?? '';
   String get schoolWebsite => _school['website'] as String? ?? '';
   String get establishedYear => _school['establishedYear'] as String? ?? '';
+  String get subscriptionPlan => _school['subscriptionPlan'] as String? ?? 'free';
 
   // ── Academic ─────────────────────────────────────────────────────────────
   int get classesFrom => _academic['classesFrom'] as int? ?? 6;

@@ -622,7 +622,11 @@ class _AddTodoSheetState extends State<_AddTodoSheet> {
                 controller: _customCtrl,
                 autofocus: true,
                 maxLength: 120,
+                textInputAction: TextInputAction.done,
                 onChanged: (_) => setState(() {}),
+                onSubmitted: (_) {
+                  if (!_saving && _effectiveTitle != null) _save();
+                },
                 decoration: InputDecoration(
                   labelText: context.tr('customTaskTitle'),
                   hintText: context.tr('customTaskHint'),

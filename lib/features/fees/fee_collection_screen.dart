@@ -10,6 +10,7 @@ import '../../models/fee.dart';
 import '../../models/student.dart';
 import '../../services/auth_service.dart';
 import '../../services/fee_service.dart';
+import '../../services/recent_selections_service.dart';
 import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../shared/widgets/refreshable_data.dart';
@@ -51,9 +52,17 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
     setState(() { _classes = classes; });
 
     // Pre-select from argument or default to first
-    final initial = widget.initialClass != null && classes.contains(widget.initialClass)
+    var initial = widget.initialClass != null && classes.contains(widget.initialClass)
         ? widget.initialClass!
         : (classes.isNotEmpty ? classes.first : null);
+
+    // If no explicit initial class, restore last-selected class from memory
+    if (widget.initialClass == null && classes.isNotEmpty) {
+      final remembered = await RecentSelectionsService().getLastClass();
+      if (remembered != null && classes.contains(remembered)) {
+        initial = remembered;
+      }
+    }
 
     if (initial != null) await _selectClass(initial);
     setState(() => _loading = false);
@@ -61,6 +70,8 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
 
   Future<void> _selectClass(String cls) async {
     setState(() { _selectedClass = cls; _loading = true; _selectedSection = 'All'; });
+    // Persist the selection so other screens can restore it
+    RecentSelectionsService().saveClassSection(cls, '');
     final results = await Future.wait([
       _studentService.getStudentsByClass(className: cls),
       _feeService.getFeeStructure(className: cls),
@@ -100,6 +111,182 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
       ),
     );
     _refreshStudent(student.roll);
+  }
+
+  Future<void> _openQuickPayDialog(Student s, double studentDue) async {
+    final formKey      = GlobalKey<FormState>();
+    final amountCtrl   = TextEditingController(
+        text: studentDue > 0 ? studentDue.toStringAsFixed(0) : '');
+    String mode        = 'Cash';
+    bool saving = false;
+
+    final clientTxnId = '${DateTime.now().microsecondsSinceEpoch}_${s.roll}';
+
+    final added = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => Padding(
+          padding: EdgeInsets.only(
+            left: 18, right: 18, top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 18,
+          ),
+          child: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text('Quick Collect — ${s.name}',
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Outstanding Due: ₹${CurrencyUtils.formatValues(studentDue)}',
+                    style: TextStyle(
+                        fontSize: 13, color: Colors.red.shade700),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Amount
+                  TextFormField(
+                    controller: amountCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*\.?\d{0,2}')),
+                    ],
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: context.tr('amountRupees'),
+                      prefixIcon: const Icon(Icons.currency_rupee),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return context.tr('errEnterAmount');
+                      final n = double.tryParse(v.trim());
+                      if (n == null || n <= 0) {
+                        return context.tr('errInvalidAmount');
+                      }
+                      final total = _structure?.totalAnnualFee ?? 0;
+                      if (total > 0 && n > studentDue) {
+                        return 'Cannot exceed outstanding due of ₹${CurrencyUtils.formatValues(studentDue)}';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Payment mode
+                  Text(context.tr('paymentMode'),
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: ['Cash', 'UPI', 'Card', 'Bank'].map((m) {
+                      final isSel = mode == m;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(m),
+                          selected: isSel,
+                          selectedColor: AppTheme.primary,
+                          labelStyle: TextStyle(
+                              color: isSel ? Colors.white : null,
+                              fontWeight: isSel
+                                  ? FontWeight.bold
+                                  : FontWeight.normal),
+                          onSelected: (_) => setS(() => mode = m),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Actions
+                  Row(children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: Text(context.tr('cancel')),
+                    ),
+                    const Spacer(),
+                    ElevatedButton.icon(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              if (!formKey.currentState!.validate()) {
+                                return;
+                              }
+                              final amt = double.tryParse(
+                                      amountCtrl.text.trim()) ??
+                                  0;
+                              setS(() => saving = true);
+                              final payment = Payment(
+                                id:              '',
+                                amount:          amt,
+                                paidOn:          DateTime.now(),
+                                mode:            mode,
+                                receiptNo:       '',
+                                installmentName: null,
+                                note:            'Quick Pay',
+                              );
+                              try {
+                                await _feeService.addPayment(
+                                  className:   s.className,
+                                  roll:        s.roll,
+                                  payment:     payment,
+                                  clientTxnId: clientTxnId,
+                                  studentId:   s.id,
+                                );
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx, true);
+                                }
+                              } catch (e) {
+                                setS(() => saving = false);
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                                    content: Text(e is FeeOverpaymentException
+                                        ? e.message
+                                        : 'Could not record payment. Please try again.'),
+                                    backgroundColor: Colors.red,
+                                  ));
+                                }
+                              }
+                            },
+                      icon: const Icon(Icons.check, size: 18),
+                      label: Text(context.tr('savePayment')),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (added == true) {
+      _refreshStudent(s.roll);
+    }
   }
 
   Color _statusColor(double paid, double total) {
@@ -344,31 +531,51 @@ class _FeeCollectionScreenState extends State<FeeCollectionScreen> {
                                     ),
                                     isThreeLine: _structure != null &&
                                         _structure!.installments.isNotEmpty,
-                                    trailing: Column(
+                                    trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
                                       children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 3),
-                                          decoration: BoxDecoration(
-                                            color: color.withAlpha(30),
-                                            borderRadius:
-                                                BorderRadius.circular(20),
-                                          ),
-                                          child: Text(
-                                            _statusLabel(p, total),
-                                            style: TextStyle(
-                                                fontSize: 11,
-                                                color: color,
-                                                fontWeight: FontWeight.bold),
-                                          ),
+                                        Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: color.withAlpha(30),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: Text(
+                                                _statusLabel(p, total),
+                                                style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: color,
+                                                    fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              total > 0 && due > 0 ? 'Collect' : 'View',
+                                              style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: AppTheme.primary,
+                                                  fontWeight: FontWeight.w600),
+                                            ),
+                                          ],
                                         ),
-                                        const SizedBox(height: 2),
-                                        Icon(Icons.chevron_right,
-                                            color: Colors.grey.shade400,
-                                            size: 16),
+                                        const SizedBox(width: 8),
+                                        if (total > 0 && due > 0)
+                                          IconButton(
+                                            icon: const Icon(Icons.add_card, color: AppTheme.primary),
+                                            onPressed: () => _openQuickPayDialog(s, due),
+                                            tooltip: 'Quick Pay',
+                                          )
+                                        else
+                                          Icon(Icons.chevron_right,
+                                              color: Colors.grey.shade400,
+                                              size: 16),
                                       ],
                                     ),
                                     onTap: () => _openStudentDetail(s),

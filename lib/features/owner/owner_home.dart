@@ -527,14 +527,99 @@ class _OwnerHomeState extends State<OwnerHome> {
                   ),
                 ]),
                 const SizedBox(height: 3),
-                Text(_myEmail,
-                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(_myEmail,
+                        style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _getPlanColor(settingsProvider.subscriptionPlan),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        settingsProvider.subscriptionPlan.toUpperCase(),
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.tune_outlined, color: Colors.white60, size: 12),
+                    const SizedBox(width: 6),
+                    const Text('SIMULATE PLAN (TEST): ', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 8),
+                    Theme(
+                      data: Theme.of(context).copyWith(
+                        canvasColor: AppTheme.primaryDark,
+                      ),
+                      child: DropdownButton<String>(
+                        value: ['free', 'basic', 'pro', 'enterprise'].contains(settingsProvider.subscriptionPlan) 
+                            ? settingsProvider.subscriptionPlan 
+                            : 'free',
+                        isDense: true,
+                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        iconEnabledColor: Colors.white,
+                        underline: const SizedBox(),
+                        items: ['free', 'basic', 'pro', 'enterprise'].map((p) {
+                          return DropdownMenuItem(
+                            value: p,
+                            child: Text(p.toUpperCase()),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            _changeSchoolPlan(val);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  Color _getPlanColor(String plan) {
+    switch (plan.toLowerCase().trim()) {
+      case 'free':
+        return Colors.grey.shade600;
+      case 'basic':
+        return Colors.blue.shade600;
+      case 'pro':
+        return Colors.indigo.shade600;
+      case 'enterprise':
+        return Colors.teal.shade600;
+      default:
+        return Colors.grey.shade600;
+    }
+  }
+
+  Future<void> _changeSchoolPlan(String plan) async {
+    try {
+      final sid = AuthService.currentSchoolId;
+      await FirebaseFirestore.instance.collection('schools').doc(sid).set({
+        'subscriptionPlan': plan,
+      }, SetOptions(merge: true));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Plan changed to $plan successfully!'), backgroundColor: AppTheme.success),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to change plan: $e'), backgroundColor: AppTheme.danger),
+        );
+      }
+    }
   }
 }
 

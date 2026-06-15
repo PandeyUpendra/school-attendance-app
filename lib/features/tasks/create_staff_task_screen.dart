@@ -62,6 +62,7 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
   final _checkpointCtrl = TextEditingController();
 
   bool _loading = true;
+  String _searchQuery = '';
 
   bool get _isEdit => widget.existing != null;
 
@@ -235,10 +236,34 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
         ),
         const SizedBox(height: 12),
         Text(context.tr('specificStaff'), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(height: 6),
+        TextField(
+          decoration: InputDecoration(
+            hintText: 'Search staff by name or email...',
+            prefixIcon: const Icon(Icons.search, size: 20),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          ),
+          onChanged: (val) {
+            setState(() {
+              _searchQuery = val.toLowerCase().trim();
+            });
+          },
+        ),
+        const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           children: [
-            ..._allCoordinators.map((c) {
+            ..._allCoordinators.where((c) {
+              final email = (c['email'] as String? ?? '').toLowerCase().trim();
+              final name = (c['name'] as String? ?? email).toLowerCase();
+              final isSelected = _selectedUserIds.contains(email);
+              if (isSelected) return true;
+              if (_searchQuery.isEmpty) return true;
+              return name.contains(_searchQuery) || email.contains(_searchQuery);
+            }).map((c) {
               final email = (c['email'] as String? ?? '').toLowerCase().trim();
               final name = c['name'] as String? ?? email;
               final isSelected = _selectedUserIds.contains(email);
@@ -263,7 +288,14 @@ class _CreateStaffTaskScreenState extends State<CreateStaffTaskScreen> {
                 },
               );
             }),
-            ..._allTeachers.map((t) {
+            ..._allTeachers.where((t) {
+              final email = t.email.toLowerCase().trim();
+              final name = t.name.toLowerCase();
+              final isSelected = _selectedUserIds.contains(email);
+              if (isSelected) return true;
+              if (_searchQuery.isEmpty) return true;
+              return name.contains(_searchQuery) || email.contains(_searchQuery);
+            }).map((t) {
               final email = t.email.toLowerCase().trim();
               final isSelected = _selectedUserIds.contains(email);
               return FilterChip(

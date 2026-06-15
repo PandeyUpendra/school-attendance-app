@@ -8,6 +8,7 @@ import '../../services/homework_service.dart';
 import '../../services/copy_check_service.dart'; // for getClassesForTeacher
 import '../../services/base_firestore_service.dart';
 import '../../services/offline_queue_service.dart';
+import '../../services/recent_selections_service.dart';
 import '../../theme.dart';
 import '../../shared/widgets/refreshable_data.dart';
 import '../../shared/utils/app_transitions.dart';
@@ -45,9 +46,17 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
       final key = a.section.isEmpty ? a.className : '${a.className} ${a.section}';
       map[key] = a.subject;
     }
+
+    // Restore last-selected class if it exists in this teacher's class map
+    String? initial = map.keys.isNotEmpty ? map.keys.first : null;
+    final remembered = await RecentSelectionsService().getLastClass();
+    if (remembered != null && map.containsKey(remembered)) {
+      initial = remembered;
+    }
+
     setState(() {
       _classSubjectMap = map;
-      _selectedClass   = map.keys.isNotEmpty ? map.keys.first : null;
+      _selectedClass   = initial;
     });
     await _loadHomework();
   }
@@ -240,8 +249,10 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
                               fontWeight:
                                   sel ? FontWeight.bold : FontWeight.normal,
                             ),
-                            onSelected: (_) =>
-                                setState(() => _selectedClass = cls),
+                            onSelected: (_) {
+                                RecentSelectionsService().saveClassSection(cls, '');
+                                setState(() => _selectedClass = cls);
+                            },
                           ),
                         );
                       }),
@@ -466,39 +477,50 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
   final _titleCtrl = TextEditingController(); // custom title ("Other")
   final _descCtrl  = TextEditingController();
 
-  late String _selectedClass;
-  late String _selectedSubject;
+  final List<String> _selectedClasses = [];
   String?     _selectedTitle;   // chosen from the common-title dropdown
-  DateTime    _dueDate = DateTime.now().add(const Duration(days: 1));
+  DateTime    _dueDate = _smartNextSchoolDay();
   bool        _saving  = false;
 
   bool get _isOtherTitle => _selectedTitle == 'Other (custom)';
 
+  /// Returns the next school day (skips weekends).
+  static DateTime _smartNextSchoolDay() {
+    final now = DateTime.now();
+    switch (now.weekday) {
+      case DateTime.friday:   return now.add(const Duration(days: 3));
+      case DateTime.saturday: return now.add(const Duration(days: 2));
+      case DateTime.sunday:   return now.add(const Duration(days: 1));
+      default:                return now.add(const Duration(days: 1));
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _selectedClass   = widget.classSubjectMap.keys.first;
-    _selectedSubject = widget.classSubjectMap[_selectedClass]!;
+    _selectedClasses.add(widget.classSubjectMap.keys.first);
   }
 
   /// Fill in {subject} / {class} placeholders in a template.
-  String _fillTemplate(String tpl) => tpl
-      .replaceAll('{subject}', _selectedSubject)
-      .replaceAll('{class}', _selectedClass);
+  String _fillTemplate(String tpl, String cls, String subject) => tpl
+      .replaceAll('{subject}', subject)
+      .replaceAll('{class}', cls);
 
   /// When a common title is picked, pre-fill the description with its template
   /// unless the teacher has already typed their own custom text.
   void _onTitleSelected(String? title) {
     if (title == null) return;
     final tpl = _kHomeworkTemplates[title] ?? '';
-    final filled = _fillTemplate(tpl);
+    final firstClass = _selectedClasses.first;
+    final subject = widget.classSubjectMap[firstClass]!;
+    final filled = _fillTemplate(tpl, firstClass, subject);
 
     // Only overwrite if the current text is empty or still matches a previous
     // template (i.e. the teacher hasn't customised it) — never clobber edits.
     final current = _descCtrl.text.trim();
     final isUntouchedTemplate = current.isEmpty ||
         _kHomeworkTemplates.values
-            .any((t) => t.isNotEmpty && _fillTemplate(t).trim() == current);
+            .any((t) => t.isNotEmpty && _fillTemplate(t, firstClass, subject).trim() == current);
 
     setState(() {
       _selectedTitle = title;
@@ -532,19 +554,40 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
     final title = _isOtherTitle
         ? _titleCtrl.text.trim()
         : (_selectedTitle ?? '');
-    final desc  = _descCtrl.text.trim();
+    final rawDesc  = _descCtrl.text.trim();
     setState(() => _saving = true);
-    final hw = Homework(
-      id:          '',
-      teacherId:   widget.teacher.id,
-      teacherName: widget.teacher.name,
-      className:   _selectedClass,
-      subject:     _selectedSubject,
-      title:       title,
-      description: desc,
-      dueDate:     _dueDate,
-      postedAt:    DateTime.now(),
-    );
+
+    // Determine if the description was generated from an untouched template
+    String? matchedTemplateKey;
+    if (_selectedTitle != null && _selectedTitle != 'Other (custom)') {
+      final tpl = _kHomeworkTemplates[_selectedTitle] ?? '';
+      final firstClass = _selectedClasses.first;
+      final subject = widget.classSubjectMap[firstClass]!;
+      if (_fillTemplate(tpl, firstClass, subject).trim() == rawDesc) {
+        matchedTemplateKey = _selectedTitle;
+      }
+    }
+
+    final List<Homework> homeworks = [];
+    for (final cls in _selectedClasses) {
+      final subject = widget.classSubjectMap[cls]!;
+      String desc = rawDesc;
+      if (matchedTemplateKey != null) {
+        final tpl = _kHomeworkTemplates[matchedTemplateKey] ?? '';
+        desc = _fillTemplate(tpl, cls, subject).trim();
+      }
+      homeworks.add(Homework(
+        id:          '',
+        teacherId:   widget.teacher.id,
+        teacherName: widget.teacher.name,
+        className:   cls,
+        subject:     subject,
+        title:       title,
+        description: desc,
+        dueDate:     _dueDate,
+        postedAt:    DateTime.now(),
+      ));
+    }
 
     bool isOnline = true;
     try {
@@ -554,15 +597,21 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
 
     final schoolId = BaseFirestoreService.currentSchoolId ?? 'default_school';
     if (isOnline) {
-      await _service.postHomework(schoolId, hw);
+      for (final hw in homeworks) {
+        await _service.postHomework(schoolId, hw);
+      }
     } else {
-      await OfflineQueueService().enqueueHomework(schoolId: schoolId, homework: hw);
+      for (final hw in homeworks) {
+        await OfflineQueueService().enqueueHomework(schoolId: schoolId, homework: hw);
+      }
     }
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(isOnline ? 'Homework posted successfully!' : 'Posted offline! Homework will sync automatically when network returns.'),
+        content: Text(isOnline
+            ? 'Homework posted successfully to ${_selectedClasses.length} class(es)!'
+            : 'Posted offline! Homework will sync automatically when network returns.'),
         backgroundColor: isOnline ? Colors.green : Colors.orange,
       ),
     );
@@ -612,32 +661,48 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: classes.map((cls) {
-                  final sel = cls == _selectedClass;
+                  final sel = _selectedClasses.contains(cls);
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
+                    child: FilterChip(
                       label: Text(cls),
                       selected: sel,
-                      selectedColor: Colors.red,
+                      selectedColor: Colors.red.withValues(alpha: 0.2),
+                      checkmarkColor: Colors.red,
                       labelStyle: TextStyle(
-                          color: sel ? Colors.white : null,
+                          color: sel ? Colors.red.shade900 : null,
                           fontWeight: sel
                               ? FontWeight.bold
                               : FontWeight.normal),
-                      onSelected: (_) => setState(() {
-                        _selectedClass   = cls;
-                        _selectedSubject =
-                            widget.classSubjectMap[cls]!;
-                      }),
+                      onSelected: (val) {
+                        setState(() {
+                          if (val) {
+                            _selectedClasses.add(cls);
+                          } else {
+                            if (_selectedClasses.length > 1) {
+                              _selectedClasses.remove(cls);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('At least one class must be selected.'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            }
+                          }
+                        });
+                      },
                     ),
                   );
                 }).toList(),
               ),
             ),
             const SizedBox(height: 4),
-            Text('${context.tr('subjectColon')} $_selectedSubject',
-                style: TextStyle(
-                    fontSize: 12, color: Colors.grey.shade500)),
+            Text(
+              'Selected subjects: ${_selectedClasses.map((cls) => "${widget.classSubjectMap[cls]} ($cls)").join(", ")}',
+              style: TextStyle(
+                  fontSize: 12, color: Colors.grey.shade500),
+            ),
             const SizedBox(height: 16),
 
             // Title — pick from common titles
