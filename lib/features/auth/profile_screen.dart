@@ -9,6 +9,7 @@ import '../../services/auth_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
 import './role_selection_screen.dart';
+import '../owner/edit_school_settings_screen.dart';
 
 /// Profile screen available to every role. Shows the signed-in user's own
 /// account details, read from the session and their `allowed_users` document.
@@ -219,6 +220,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 // ── Preferences: language & logout ─────────────────────────
                 _section(context.tr('preferences')),
+                if (['owner', 'principal', 'ownerprincipal'].contains(_role.toLowerCase()))
+                  _schoolSettingsRow(context),
                 _languageRow(context),
                 _logoutRow(context),
 
@@ -496,4 +499,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
               .toList(),
         ),
       );
+
+  Widget _schoolSettingsRow(BuildContext context) {
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const EditSchoolSettingsScreen()),
+      ),
+      child: Container(
+        color: AppTheme.surface,
+        margin: const EdgeInsets.only(bottom: 1),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(children: [
+          const Icon(Icons.settings_outlined, size: 20, color: AppTheme.primary),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              context.tr('schoolSettingsTitle'),
+              style: const TextStyle(
+                fontSize: 15,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: Colors.grey),
+        ]),
+      ),
+    );
+  }
 }

@@ -146,6 +146,23 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
   @override
   bool get wantKeepAlive => true;
 
+  String _ownerEmail = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOwnerEmail();
+  }
+
+  Future<void> _loadOwnerEmail() async {
+    final session = await AuthService().getSession();
+    if (mounted) {
+      setState(() {
+        _ownerEmail = session?['email'] as String? ?? '';
+      });
+    }
+  }
+
   late TextEditingController _nameCtrl;
   late TextEditingController _phoneCtrl;
   late TextEditingController _emailCtrl;
@@ -347,10 +364,172 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
         const SizedBox(height: 20),
         if (widget.editing) _saveBtn(context, _saving, _save),
         const SizedBox(height: 16),
+        _buildSubscriptionSection(),
+        const SizedBox(height: 16),
         _changeLogSection(),
         const SizedBox(height: 32),
       ]),
     );
+  }
+
+  Widget _buildSubscriptionSection() {
+    final p = context.watch<SchoolSettingsProvider>();
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade300),
+      ),
+      color: Colors.grey.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Subscription & Owner Account',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryDark,
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Owner Email
+            Row(
+              children: [
+                const Icon(Icons.person_outline, size: 20, color: AppTheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Owner Email',
+                        style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      ),
+                      Text(
+                        _ownerEmail.isNotEmpty ? _ownerEmail : 'Loading...',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            // Current Plan
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.card_membership_outlined, size: 20, color: AppTheme.primary),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Current Plan',
+                          style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                        ),
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: _getPlanColor(p.subscriptionPlan),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            p.subscriptionPlan.toUpperCase(),
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            // Simulate Plan Dropdown
+            Row(
+              children: [
+                const Icon(Icons.tune_outlined, size: 20, color: AppTheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Simulate Plan (Test)',
+                        style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      ),
+                      const SizedBox(height: 4),
+                      DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: ['free', 'basic', 'pro', 'enterprise'].contains(p.subscriptionPlan) 
+                              ? p.subscriptionPlan 
+                              : 'free',
+                          isDense: true,
+                          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
+                          items: ['free', 'basic', 'pro', 'enterprise'].map((plan) {
+                            return DropdownMenuItem(
+                              value: plan,
+                              child: Text(plan.toUpperCase()),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              _changeSchoolPlan(val);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getPlanColor(String plan) {
+    switch (plan.toLowerCase().trim()) {
+      case 'free':
+        return Colors.grey.shade600;
+      case 'basic':
+        return Colors.blue.shade600;
+      case 'pro':
+        return Colors.indigo.shade600;
+      case 'enterprise':
+        return Colors.teal.shade600;
+      default:
+        return Colors.grey.shade600;
+    }
+  }
+
+  Future<void> _changeSchoolPlan(String plan) async {
+    try {
+      final sid = AuthService.currentSchoolId;
+      await FirebaseFirestore.instance.collection('schools').doc(sid).set({
+        'subscriptionPlan': plan,
+      }, SetOptions(merge: true));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Plan changed to $plan successfully!'), backgroundColor: AppTheme.success),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to change plan: $e'), backgroundColor: AppTheme.danger),
+        );
+      }
+    }
   }
 
   Widget _logoPicker() {

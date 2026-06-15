@@ -300,8 +300,6 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
                     ),
                   ),
                 ]),
-                const SizedBox(height: 3),
-                Text(_myEmail, style: const TextStyle(color: Colors.white70, fontSize: 13)),
               ],
             ),
           ),
