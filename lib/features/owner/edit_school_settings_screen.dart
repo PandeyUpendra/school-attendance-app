@@ -10,6 +10,7 @@ import '../../shared/providers/school_settings_provider.dart';
 import '../../shared/providers/locale_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/school_settings_service.dart';
+import '../../services/location_service.dart';
 import '../../l10n/app_strings.dart';
 import '../../theme.dart';
 import '../../shared/utils/image_utils.dart';
@@ -393,6 +394,33 @@ class _AddressTabState extends State<_AddressTab>
   String _state = '';
   bool _saving = false;
   bool _init = false;
+  bool _loadingLocation = false;
+
+  Future<void> _pickLocation() async {
+    setState(() => _loadingLocation = true);
+    try {
+      final loc = await LocationService.getCurrentLocation();
+      setState(() {
+        _addrCtrl.text = loc.address;
+        _cityCtrl.text = loc.city;
+        _pinCtrl.text = loc.pinCode;
+        if (loc.state.isNotEmpty) {
+          _state = loc.state;
+        }
+      });
+      if (mounted) {
+        _snack('Location loaded successfully.', success: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        LocationService.handleLocationError(context, e);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingLocation = false);
+      }
+    }
+  }
 
   static const _states = [
     'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -450,6 +478,42 @@ class _AddressTabState extends State<_AddressTab>
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(children: [
+        if (widget.editing) ...[
+          InkWell(
+            onTap: _loadingLocation ? null : _pickLocation,
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _loadingLocation
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                        )
+                      : const Icon(Icons.my_location_outlined, color: AppTheme.primary, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    _loadingLocation ? 'Fetching location...' : 'Use Current Location',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         _field(_addrCtrl, context.tr('fullAddressLabel'), Icons.location_on_outlined,
             maxLines: 3, readOnly: !widget.editing),
         const SizedBox(height: 12),

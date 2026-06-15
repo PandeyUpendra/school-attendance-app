@@ -19,6 +19,7 @@ import './consent/parental_consent_flow.dart';
 import '../../models/parental_consent.dart';
 import '../../shared/utils/image_utils.dart';
 import '../../shared/utils/validators.dart';
+import '../../services/location_service.dart';
 
 class AddStudentScreen extends StatefulWidget {
   final String className;
@@ -57,6 +58,34 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
   String? _transportMode;
   bool _saving = false;
   bool _saveAndAddAnother = false;
+  bool _loadingLocation = false;
+
+  Future<void> _pickLocation() async {
+    setState(() => _loadingLocation = true);
+    try {
+      final loc = await LocationService.getCurrentLocation();
+      final fullAddr = [loc.address, loc.city, loc.state]
+          .where((s) => s.isNotEmpty)
+          .join(', ') +
+          (loc.pinCode.isNotEmpty ? ' - ${loc.pinCode}' : '');
+      setState(() {
+        _addressCtrl.text = fullAddr;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location loaded successfully.'), backgroundColor: AppTheme.success),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        LocationService.handleLocationError(context, e);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingLocation = false);
+      }
+    }
+  }
 
   bool get _isEdit => widget.existing != null;
 
@@ -684,6 +713,20 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               icon: Icons.home_outlined,
               caps: TextCapitalization.sentences,
               maxLength: 150,
+              suffixIcon: _loadingLocation
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: Padding(
+                        padding: EdgeInsets.all(12.0),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                      ),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.my_location_outlined, color: AppTheme.primary),
+                      onPressed: _pickLocation,
+                      tooltip: 'Use Current Location',
+                    ),
             ),
             const SizedBox(height: 14),
             _Field(
@@ -961,6 +1004,7 @@ class _Field extends StatelessWidget {
   final bool autofocus;
   final List<TextInputFormatter>? inputFormatters;
   final int? maxLength;
+  final Widget? suffixIcon;
 
   const _Field({
     required this.controller,
@@ -973,6 +1017,7 @@ class _Field extends StatelessWidget {
     this.autofocus = false,
     this.inputFormatters,
     this.maxLength,
+    this.suffixIcon,
   });
 
   @override
@@ -989,6 +1034,7 @@ class _Field extends StatelessWidget {
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon),
+          suffixIcon: suffixIcon,
           border:
               OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           contentPadding:
@@ -1011,6 +1057,7 @@ class _Field extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
+        suffixIcon: suffixIcon,
         border:
             OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         contentPadding:

@@ -17,6 +17,7 @@ import '../../services/role_permission_service.dart';
 import '../../services/school_settings_service.dart';
 import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
+import '../../services/location_service.dart';
 import '../../theme.dart';
 import '../auth/profile_screen.dart';
 import '../../shared/widgets/announcement_composer.dart';
@@ -863,6 +864,7 @@ class _OPManagePageState extends State<_OPManagePage> {
   final _schoolAddressCtrl = TextEditingController();
   final _academicYearCtrl = TextEditingController();
   bool _settingsSaving = false, _settingsLoaded = false;
+  bool _loadingLocation = false;
 
   List<Map<String, dynamic>> _announcements = [];
 
@@ -941,6 +943,31 @@ class _OPManagePageState extends State<_OPManagePage> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('School settings saved'), backgroundColor: AppTheme.success));
     } catch (e) { if (mounted) _snack('Error: $e'); }
     if (mounted) setState(() => _settingsSaving = false);
+  }
+
+  Future<void> _pickLocation() async {
+    setState(() => _loadingLocation = true);
+    try {
+      final loc = await LocationService.getCurrentLocation();
+      final fullAddr = [loc.address, loc.city, loc.state]
+          .where((s) => s.isNotEmpty)
+          .join(', ') +
+          (loc.pinCode.isNotEmpty ? ' - ${loc.pinCode}' : '');
+      setState(() {
+        _schoolAddressCtrl.text = fullAddr;
+      });
+      if (mounted) {
+        _snack('Location loaded successfully.');
+      }
+    } catch (e) {
+      if (mounted) {
+        LocationService.handleLocationError(context, e);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingLocation = false);
+      }
+    }
   }
 
   Future<void> _loadAnnouncements() async {
@@ -1058,7 +1085,25 @@ class _OPManagePageState extends State<_OPManagePage> {
               const SizedBox(height: 10),
               _opField(_schoolPhoneCtrl, 'Phone Number', Icons.phone_outlined, keyboardType: TextInputType.phone),
               const SizedBox(height: 10),
-              _opField(_schoolAddressCtrl, 'Address', Icons.location_on_outlined),
+              _opField(
+                _schoolAddressCtrl,
+                'Address',
+                Icons.location_on_outlined,
+                suffixIcon: _loadingLocation
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: _primary),
+                        ),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.my_location_outlined, color: _primary),
+                        onPressed: _pickLocation,
+                        tooltip: 'Use Current Location',
+                      ),
+              ),
               const SizedBox(height: 10),
               _opField(_academicYearCtrl, 'Academic Year', Icons.calendar_today_outlined),
               const SizedBox(height: 14),
@@ -1090,9 +1135,9 @@ class _OPManagePageState extends State<_OPManagePage> {
     );
   }
 
-  Widget _opField(TextEditingController ctrl, String label, IconData icon, {TextInputType keyboardType = TextInputType.text}) {
+  Widget _opField(TextEditingController ctrl, String label, IconData icon, {TextInputType keyboardType = TextInputType.text, Widget? suffixIcon}) {
     return TextField(controller: ctrl, keyboardType: keyboardType,
-      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon), border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true));
+      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon), suffixIcon: suffixIcon, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true));
   }
 }
 

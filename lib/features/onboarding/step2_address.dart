@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/school_onboarding.dart';
+import '../../services/location_service.dart';
+import '../../theme.dart';
 
 class Step2Address extends StatefulWidget {
   final SchoolOnboarding initial;
@@ -23,6 +25,36 @@ class Step2AddressState extends State<Step2Address> {
   late final TextEditingController _cityCtrl;
   late final TextEditingController _pinCtrl;
   late final TextEditingController _websiteCtrl;
+  bool _isLoadingLocation = false;
+
+  Future<void> _pickLocation() async {
+    setState(() => _isLoadingLocation = true);
+    try {
+      final loc = await LocationService.getCurrentLocation();
+      setState(() {
+        _addressCtrl.text = loc.address;
+        _cityCtrl.text = loc.city;
+        _pinCtrl.text = loc.pinCode;
+        if (loc.state.isNotEmpty) {
+          _state = loc.state;
+        }
+      });
+      _notify();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location loaded successfully.'), backgroundColor: AppTheme.success),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        LocationService.handleLocationError(context, e);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingLocation = false);
+      }
+    }
+  }
 
   String _state = '';
 
@@ -77,6 +109,40 @@ class Step2AddressState extends State<Step2Address> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          InkWell(
+            onTap: _isLoadingLocation ? null : _pickLocation,
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _isLoadingLocation
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                        )
+                      : const Icon(Icons.my_location_outlined, color: AppTheme.primary, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    _isLoadingLocation ? 'Fetching location...' : 'Use Current Location',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
           TextFormField(
             controller: _addressCtrl,
             maxLines: 3,

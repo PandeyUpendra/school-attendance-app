@@ -19,6 +19,7 @@ import '../../shared/utils/validators.dart';
 import '../../theme.dart';
 import '../../shared/widgets/email_text_form_field.dart';
 import '../../shared/widgets/refreshable_data.dart';
+import '../../services/location_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Predefined subject list for teacher dialog
@@ -1546,6 +1547,35 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
   String? _photoUrl;          // existing remote photo
   String? _photoPath;         // newly-picked local photo
   bool _saving = false;
+  bool _loadingLocation = false;
+
+  Future<void> _pickLocation() async {
+    setState(() => _loadingLocation = true);
+    try {
+      final loc = await LocationService.getCurrentLocation();
+      final fullAddr = [loc.address, loc.city, loc.state]
+          .where((s) => s.isNotEmpty)
+          .join(', ') +
+          (loc.pinCode.isNotEmpty ? ' - ${loc.pinCode}' : '');
+      setState(() {
+        _addressCtrl.text = fullAddr;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location loaded successfully.'), backgroundColor: AppTheme.success),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        LocationService.handleLocationError(context, e);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingLocation = false);
+      }
+    }
+  }
+
   List<String> _classes = [];
   bool _loadingClasses = true;
   bool _showAddClass   = false;
@@ -1976,10 +2006,25 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
               // ── Address ─────────────────────────────────────────────────
               TextFormField(
                 controller: _addressCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Address',
-                    alignLabelWithHint: true,
-                    prefixIcon: Icon(Icons.home_outlined)),
+                decoration: InputDecoration(
+                  labelText: 'Address',
+                  alignLabelWithHint: true,
+                  prefixIcon: const Icon(Icons.home_outlined),
+                  suffixIcon: _loadingLocation
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: Padding(
+                            padding: EdgeInsets.all(12.0),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                          ),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.my_location_outlined, color: AppTheme.primary),
+                          onPressed: _pickLocation,
+                          tooltip: 'Use Current Location',
+                        ),
+                ),
                 textCapitalization: TextCapitalization.sentences,
                 maxLines: 2,
                 maxLength: 150,
