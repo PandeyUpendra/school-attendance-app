@@ -149,7 +149,7 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
   late TextEditingController _phoneCtrl;
   late TextEditingController _emailCtrl;
   late TextEditingController _principalCtrl;
-  late TextEditingController _yearCtrl;
+  String _establishedYear = '';
   late TextEditingController _tagCtrl;
   late TextEditingController _websiteCtrl;
   String _type = 'Private';
@@ -206,7 +206,7 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
       _phoneCtrl = TextEditingController(text: p.schoolPhone);
       _emailCtrl = TextEditingController(text: p.schoolEmail);
       _principalCtrl = TextEditingController(text: p.principalName);
-      _yearCtrl = TextEditingController(text: p.establishedYear);
+      _establishedYear = p.establishedYear;
       _tagCtrl = TextEditingController(text: p.schoolTagline);
       _websiteCtrl = TextEditingController(text: p.schoolWebsite);
       // Accept custom (managed) values too — the dropdown surfaces them as
@@ -221,7 +221,7 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
   @override
   void dispose() {
     _nameCtrl.dispose(); _phoneCtrl.dispose(); _emailCtrl.dispose();
-    _principalCtrl.dispose(); _yearCtrl.dispose();
+    _principalCtrl.dispose();
     _tagCtrl.dispose(); _websiteCtrl.dispose();
     super.dispose();
   }
@@ -259,7 +259,7 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
         'phone': _phoneCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
         'principalName': _principalCtrl.text.trim(),
-        'establishedYear': _yearCtrl.text.trim(),
+        'establishedYear': _establishedYear.trim(),
         'tagline': _tagCtrl.text.trim(),
         'website': _websiteCtrl.text.trim(),
         'schoolType': _type,
@@ -282,6 +282,16 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
       if (mounted) _snack('Error: $e');
     }
     if (mounted) setState(() => _saving = false);
+  }
+
+  List<String> get _yearOptions {
+    final currentYear = DateTime.now().year;
+    final list = List.generate(currentYear - 1900 + 1, (index) => (currentYear - index).toString());
+    if (_establishedYear.isNotEmpty && !list.contains(_establishedYear)) {
+      list.add(_establishedYear);
+      list.sort((a, b) => b.compareTo(a));
+    }
+    return list;
   }
 
   @override
@@ -319,8 +329,14 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
         _field(_principalCtrl, context.tr('principalNameLabel'), Icons.person_outline,
             readOnly: !widget.editing),
         const SizedBox(height: 12),
-        _field(_yearCtrl, context.tr('establishedYearEditLabel'), Icons.calendar_today_outlined,
-            type: TextInputType.number, readOnly: !widget.editing),
+        _dropdown(
+          context.tr('establishedYearEditLabel'),
+          _establishedYear,
+          _yearOptions,
+          Icons.calendar_today_outlined,
+          (v) => setState(() => _establishedYear = v ?? ''),
+          enabled: widget.editing,
+        ),
         const SizedBox(height: 12),
         _field(_tagCtrl, context.tr('schoolTaglineEditLabel'), Icons.format_quote_outlined,
             readOnly: !widget.editing),
@@ -1319,13 +1335,14 @@ Widget _field(
 
 Widget _dropdown(
   String label,
-  String value,
+  String? value,
   List<String> items,
   IconData icon,
   void Function(String?) onChanged, {
   bool enabled = true,
   String? fieldKey,
 }) {
+  final effectiveValue = (value != null && value.isNotEmpty) ? value : null;
   // When editing and a fieldKey is supplied, use the user-manageable dropdown
   // so owners can add/remove school-specific values (board, type, …). When
   // read-only (not editing) fall back to a plain, non-interactive dropdown.
@@ -1334,20 +1351,21 @@ Widget _dropdown(
       fieldKey: fieldKey,
       label: label,
       seeds: items,
-      value: value,
+      value: effectiveValue,
       prefixIcon: Icon(icon),
       onChanged: onChanged,
     );
   }
   return DropdownButtonFormField<String>(
-    value: value,
+    value: effectiveValue,
+    isExpanded: true,
     decoration: InputDecoration(
       labelText: label,
       prefixIcon: Icon(icon),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       isDense: true,
     ),
-    items: items.map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(),
+    items: items.map((i) => DropdownMenuItem(value: i, child: Text(i, overflow: TextOverflow.ellipsis))).toList(),
     onChanged: enabled ? onChanged : null,
   );
 }

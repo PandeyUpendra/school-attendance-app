@@ -31,7 +31,7 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _emailCtrl;
   late final TextEditingController _principalCtrl;
-  late final TextEditingController _yearCtrl;
+  String _establishedYear = '';
 
   String _schoolType = 'Private';
   String _board = 'CBSE';
@@ -84,7 +84,7 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
     _phoneCtrl = TextEditingController(text: d.phone);
     _emailCtrl = TextEditingController(text: d.email);
     _principalCtrl = TextEditingController(text: d.principalName);
-    _yearCtrl = TextEditingController(text: d.establishedYear);
+    _establishedYear = d.establishedYear;
     _schoolType = _types.contains(d.schoolType) ? d.schoolType : 'Private';
     _board = _boards.contains(d.board) ? d.board : 'CBSE';
     _logoUrl = d.logoUrl;
@@ -96,7 +96,6 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
     _phoneCtrl.dispose();
     _emailCtrl.dispose();
     _principalCtrl.dispose();
-    _yearCtrl.dispose();
     super.dispose();
   }
 
@@ -106,7 +105,7 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
       phone: _phoneCtrl.text.trim(),
       email: _emailCtrl.text.trim(),
       principalName: _principalCtrl.text.trim(),
-      establishedYear: _yearCtrl.text.trim(),
+      establishedYear: _establishedYear.trim(),
       schoolType: _schoolType,
       board: _board,
       logoUrl: _logoUrl,
@@ -138,6 +137,16 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
             SnackBar(content: Text('${context.tr('logoUploadFailed')} $e')));
       }
     }
+  }
+
+  List<String> get _yearOptions {
+    final currentYear = DateTime.now().year;
+    final list = List.generate(currentYear - 1900 + 1, (index) => (currentYear - index).toString());
+    if (_establishedYear.isNotEmpty && !list.contains(_establishedYear)) {
+      list.add(_establishedYear);
+      list.sort((a, b) => b.compareTo(a));
+    }
+    return list;
   }
 
   @override
@@ -224,13 +233,15 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
             validator: (v) => (v ?? '').trim().isEmpty ? context.tr('validationRequired') : null,
           ),
           const SizedBox(height: 14),
-          _field(
-            controller: _yearCtrl,
+          _dropdown(
             label: context.tr('establishedYearLabel'),
+            value: _establishedYear,
+            items: _yearOptions,
             icon: Icons.calendar_today_outlined,
-            keyboardType: TextInputType.number,
-            maxLength: 4,
-            onChanged: (_) => _notify(),
+            onChanged: (v) {
+              setState(() => _establishedYear = v ?? '');
+              _notify();
+            },
           ),
           const SizedBox(height: 20),
         ],
@@ -314,13 +325,15 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
 
   Widget _dropdown({
     required String label,
-    required String value,
+    required String? value,
     required List<String> items,
     required IconData icon,
     required void Function(String?) onChanged,
   }) {
+    final effectiveValue = (value != null && value.isNotEmpty) ? value : null;
     return DropdownButtonFormField<String>(
-      value: value,
+      value: effectiveValue,
+      isExpanded: true,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
@@ -328,7 +341,7 @@ class Step1BasicInfoState extends State<Step1BasicInfo> {
         isDense: true,
       ),
       items: items
-          .map((i) => DropdownMenuItem(value: i, child: Text(i)))
+          .map((i) => DropdownMenuItem(value: i, child: Text(i, overflow: TextOverflow.ellipsis)))
           .toList(),
       onChanged: onChanged,
     );
