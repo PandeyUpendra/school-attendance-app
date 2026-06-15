@@ -18,6 +18,7 @@ import 'package:school_app/services/timetable_service.dart';
 import 'package:school_app/services/notification_service.dart';
 import 'package:school_app/services/offline_queue_service.dart';
 import 'package:school_app/services/sms_gateway_simulator.dart';
+import 'package:school_app/services/base_firestore_service.dart';
 import '../../shared/utils/phone_utils.dart';
 import '../../l10n/app_strings.dart';
 import 'package:school_app/services/consent_service.dart';
@@ -97,6 +98,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
   bool _soundEnabled = true;
   bool _vibrationEnabled = true;
   bool _autoMarkPresent = false;
+  bool _isListView = true; // Default to exceptions-only list view
 
   // Pager & Stats
   final PageController _pageController = PageController();
@@ -798,12 +800,26 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
               // the key format used by _loadConsent / ConsentService.
               if (_consentLoaded && !_consentedIds.contains(
                   Student.buildDocId(s.roll, s.className, s.section))) continue;
+              
+              // Trigger simulated SMS alert in Firestore
+              final phoneNum = s.parentPhone != null && s.parentPhone!.isNotEmpty ? s.parentPhone! : s.phone;
+              SmsGatewaySimulator().sendAbsenceAlert(
+                schoolId: BaseFirestoreService.currentSchoolId ?? 'school_1',
+                studentName: s.name,
+                roll: s.roll,
+                parentPhone: phoneNum,
+                status: status!,
+              ).catchError((e) {
+                AppLogger.e('Attendance', 'Simulated SMS dispatch error: $e');
+                return false;
+              });
+
               try {
                 await NotificationService().addAbsenceNotice(
                   className:   _className,
                   roll:        s.roll,
                   studentName: s.name,
-                  status:      status!,
+                  status:      status,
                   admissionId: s.admissionId,
                 );
               } catch (_) {
@@ -811,7 +827,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
                   className:   _className,
                   roll:        s.roll,
                   studentName: s.name,
-                  status:      status!,
+                  status:      status,
                   admissionId: s.admissionId,
                 );
               }
@@ -1028,12 +1044,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
             onPressed: _markAllPresent,
             tooltip: context.tr('markAllPresent'),
           ),
-        if (_students.isNotEmpty && _currentIndex < _students.length)
+        if (!_isListView && _students.isNotEmpty && _currentIndex < _students.length)
           IconButton(
             icon: const Icon(Icons.search, color: Colors.white),
             onPressed: _showSearchRollDialog,
             tooltip: context.tr('searchByRoll'),
           ),
+        IconButton(
+          icon: Icon(_isListView ? Icons.style : Icons.list, color: Colors.white),
+          onPressed: () => setState(() => _isListView = !_isListView),
+          tooltip: _isListView ? 'Switch to Swipe View' : 'Switch to List View',
+        ),
         IconButton(
           icon: const Icon(Icons.settings, color: Colors.white),
           onPressed: _showSettingsDialog,
@@ -1110,99 +1131,256 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
               child: _banner(AppTheme.primaryMid, Icons.sync_outlined, '$_classPendingCount offline record${_classPendingCount > 1 ? "s" : ""} for this class — Tap to sync'),
             ),
 
-          // ── Main Student Section: Vertical Swipe Card System ──────────────
-          Expanded(
-            child: PageView.builder(
-              scrollDirection: Axis.vertical,
-              controller: _pageController,
-              physics: _currentIndex == _students.length 
-                  ? const NeverScrollableScrollPhysics() 
-                  : const BouncingScrollPhysics(),
-              itemCount: _students.length + 1, // +1 for the Summary Screen
-              onPageChanged: (i) {
-                // If moving forward, mark the student we just FINISHED as Present (if unmarked)
-                if (_autoMarkPresent && i > _currentIndex && _currentIndex < _students.length) {
-                  final prevStudent = _students[_currentIndex];
-                  if (_attendance[prevStudent.roll] == '') {
-                    _setStatus(prevStudent.roll, 'Present');
-                  }
-                }
-                setState(() => _currentIndex = i);
-                if (i < _students.length) _saveQuietly();
-              },
-              itemBuilder: (context, index) {
-                // Final Summary Screen
-                if (index == _students.length) {
-                  return _AttendanceSummaryCard(
-                    total: _total,
-                    present: _present,
-                    absent: _absent,
-                    leave: _leave,
-                    onSave: _save,
-                    onNotify: _showWhatsAppSheet,
-                    saving: _saving,
-                  );
-                }
-
-                final s = _students[index];
-                // Use AnimatedBuilder to achieve 3D swipe effect
-                return AnimatedBuilder(
-                  animation: _pageController,
-                  builder: (context, child) {
-                    double value = 1.0;
-                    if (_pageController.position.haveDimensions) {
-                      value = _pageController.page! - index;
-                      value = (1 - (value.abs() * 0.3)).clamp(0.0, 1.0);
-                    } else {
-                      if (_currentIndex == index) {
-                        value = 1.0;
-                      } else {
-                        value = 0.7;
-                      }
+          if (_isListView)
+            _buildListView()
+          else
+            // ── Main Student Section: Vertical Swipe Card System ──────────────
+            Expanded(
+              child: PageView.builder(
+                scrollDirection: Axis.vertical,
+                controller: _pageController,
+                physics: _currentIndex == _students.length 
+                    ? const NeverScrollableScrollPhysics() 
+                    : const BouncingScrollPhysics(),
+                itemCount: _students.length + 1, // +1 for the Summary Screen
+                onPageChanged: (i) {
+                  // If moving forward, mark the student we just FINISHED as Present (if unmarked)
+                  if (_autoMarkPresent && i > _currentIndex && _currentIndex < _students.length) {
+                    final prevStudent = _students[_currentIndex];
+                    if (_attendance[prevStudent.roll] == '') {
+                      _setStatus(prevStudent.roll, 'Present');
                     }
+                  }
+                  setState(() => _currentIndex = i);
+                  if (i < _students.length) _saveQuietly();
+                },
+                itemBuilder: (context, index) {
+                  // Final Summary Screen
+                  if (index == _students.length) {
+                    return _AttendanceSummaryCard(
+                      total: _total,
+                      present: _present,
+                      absent: _absent,
+                      leave: _leave,
+                      onSave: _save,
+                      onNotify: _showWhatsAppSheet,
+                      saving: _saving,
+                    );
+                  }
 
-                    return Center(
-                      child: Transform(
-                        transform: Matrix4.identity()
-                          ..setEntry(3, 2, 0.001)
-                          ..scale(value),
-                        alignment: Alignment.center,
-                        child: Opacity(
-                          opacity: value.clamp(0.5, 1.0),
-                          child: _VerticalStudentCard(
-                            student: s,
-                            status:  _attendance[s.roll] ?? '',
-                            remarks: _remarks[s.roll] ?? [],
-                            lastWeek: _lastWeekStats[s.roll],
-                            lastMonth: _lastMonthStats[s.roll],
-                            hasConsent: !_consentLoaded ||
-                                _consentedIds.contains(Student.buildDocId(
-                                    s.roll, s.className, s.section)),
-                            onStatusChanged: (status) {
-                              _setStatus(s.roll, status);
-                              _saveQuietly();
-                              _triggerFeedback();
-                              // Auto-swipe to next card after a very small delay
-                              Future.delayed(const Duration(milliseconds: 150), () {
-                                if (_pageController.hasClients) {
-                                  _pageController.nextPage(
-                                    duration: const Duration(milliseconds: 350),
-                                    curve: Curves.easeOutCubic,
-                                  );
-                                }
-                              });
-                            },
+                  final s = _students[index];
+                  // Use AnimatedBuilder to achieve 3D swipe effect
+                  return AnimatedBuilder(
+                    animation: _pageController,
+                    builder: (context, child) {
+                      double value = 1.0;
+                      if (_pageController.position.haveDimensions) {
+                        value = _pageController.page! - index;
+                        value = (1 - (value.abs() * 0.3)).clamp(0.0, 1.0);
+                      } else {
+                        if (_currentIndex == index) {
+                          value = 1.0;
+                        } else {
+                          value = 0.7;
+                        }
+                      }
+
+                      return Center(
+                        child: Transform(
+                          transform: Matrix4.identity()
+                            ..setEntry(3, 2, 0.001)
+                            ..scale(value),
+                          alignment: Alignment.center,
+                          child: Opacity(
+                            opacity: value.clamp(0.5, 1.0),
+                            child: _VerticalStudentCard(
+                              student: s,
+                              status:  _attendance[s.roll] ?? '',
+                              remarks: _remarks[s.roll] ?? [],
+                              lastWeek: _lastWeekStats[s.roll],
+                              lastMonth: _lastMonthStats[s.roll],
+                              hasConsent: !_consentLoaded ||
+                                  _consentedIds.contains(Student.buildDocId(
+                                      s.roll, s.className, s.section)),
+                              onStatusChanged: (status) {
+                                _setStatus(s.roll, status);
+                                _saveQuietly();
+                                _triggerFeedback();
+                                // Auto-swipe to next card after a very small delay
+                                Future.delayed(const Duration(milliseconds: 150), () {
+                                  if (_pageController.hasClients) {
+                                    _pageController.nextPage(
+                                      duration: const Duration(milliseconds: 350),
+                                      curve: Curves.easeOutCubic,
+                                    );
+                                  }
+                                });
+                              },
+                            ),
                           ),
                         ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildListView() {
+    return Expanded(
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: _students.length,
+              itemBuilder: (context, index) {
+                final s = _students[index];
+                final status = _attendance[s.roll] ?? '';
+                
+                Color rowBgColor = Colors.white;
+                if (status == 'Present') rowBgColor = Colors.green.shade50.withValues(alpha: 0.1);
+                if (status == 'Absent') rowBgColor = Colors.red.shade50.withValues(alpha: 0.1);
+                if (status == 'Leave') rowBgColor = Colors.amber.shade50.withValues(alpha: 0.1);
+
+                return Container(
+                  color: rowBgColor,
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    leading: CircleAvatar(
+                      backgroundColor: _getStatusColor(status).withValues(alpha: 0.1),
+                      foregroundColor: _getStatusColor(status),
+                      child: Text(
+                        '${s.roll}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                    );
-                  },
+                    ),
+                    title: Text(
+                      s.name,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    subtitle: Text(
+                      'Father: ${s.fatherName}',
+                      style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _listViewStatusButton(s.roll, 'Present', 'P', Colors.green),
+                        const SizedBox(width: 8),
+                        _listViewStatusButton(s.roll, 'Leave', 'L', Colors.amber),
+                        const SizedBox(width: 8),
+                        _listViewStatusButton(s.roll, 'Absent', 'A', Colors.red),
+                      ],
+                    ),
+                  ),
                 );
               },
             ),
           ),
-          const SizedBox(height: 8),
+          // Bottom save action bar
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+              border: const Border(top: BorderSide(color: AppTheme.border)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      setState(() {
+                        for (final s in _students) {
+                          if (_attendance[s.roll] == '') {
+                            _attendance[s.roll] = 'Present';
+                          }
+                        }
+                        _dirty = true;
+                      });
+                      _triggerFeedback();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: AppTheme.primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Mark Rest Present'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _saving ? null : _save,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: _saving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Text('Save Attendance', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    if (status == 'Present') return Colors.green;
+    if (status == 'Absent') return Colors.red;
+    if (status == 'Leave') return Colors.amber;
+    return Colors.grey;
+  }
+
+  Widget _listViewStatusButton(int roll, String status, String label, Color color) {
+    final active = _attendance[roll] == status;
+    return InkWell(
+      onTap: () {
+        _setStatus(roll, status);
+        _triggerFeedback();
+        _saveQuietly();
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: active ? color : color.withValues(alpha: 0.05),
+          border: Border.all(color: color, width: 1.5),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active ? Colors.white : color,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
       ),
     );
   }

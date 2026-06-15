@@ -47,6 +47,7 @@ import '../class_diary/class_diary_screen.dart';
 import '../study_material/study_material_list_screen.dart';
 import '../exams/guardian_datesheet_screen.dart';
 import '../exams/student_performance_charts_screen.dart';
+import '../../shared/widgets/payment_gateway_simulator.dart';
 
 /// The Guardian Portal — shows a single student's attendance to their parent.
 /// Guardian is linked to {studentClass, studentRoll} in allowed_users.
@@ -92,6 +93,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   bool _loading = true;
   String? _error;
   Student? _student;
+  int _currentTab = 0; // Active dashboard tab index
 
   // Active child identity. Starts from the widget params, but can change when a
   // guardian with more than one child picks a different one. All data loads key
@@ -471,396 +473,418 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
     ),
   ];
 
-  List<Widget> _buildContentChildren() => [
-    if (!_hasConsent) ...[
-      const SizedBox(height: 12),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: ConsentPendingBanner(
-          hasConsent:  false,
-          isReConsent: _needsReConsent,
-          onTapAction: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => GuardianConsentScreen(
-                studentDocId: _studentDocId,
-                studentName: _student?.name ?? 'Student',
-                guardianName: _student?.fatherName ?? '',
-                guardianPhone: _student?.parentPhone ?? _student?.phone ?? '',
-                guardianEmail: _student?.guardianEmail,
+  List<Widget> _buildTabContent() {
+    if (_student == null) return [];
+    
+    switch (_currentTab) {
+      case 0: // Home (Summary)
+        return [
+          if (!_hasConsent) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ConsentPendingBanner(
+                hasConsent:  false,
+                isReConsent: _needsReConsent,
+                onTapAction: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GuardianConsentScreen(
+                      studentDocId: _studentDocId,
+                      studentName: _student?.name ?? 'Student',
+                      guardianName: _student?.fatherName ?? '',
+                      guardianPhone: _student?.parentPhone ?? _student?.phone ?? '',
+                      guardianEmail: _student?.guardianEmail,
+                    ),
+                  ),
+                ).then((_) => _loadAll()),
               ),
             ),
-          ).then((_) => _loadAll()),
-        ),
-      ),
-    ],
-    const SizedBox(height: 12),
-    FadeInUp(
-      delay: const Duration(milliseconds: 50),
-      child: _GuardianMorningSummaryCard(
-        todayStatus: _todayStatus,
-        homeworkCount: _homeworkList.length,
-        examCount: _examData.length,
-        feesPaid: _totalPaid,
-        hasConsent: _hasConsent,
-        onApplyLeave: () {
-          if (_student != null) {
-            Navigator.push(
+          ],
+          const SizedBox(height: 12),
+          FadeInUp(
+            delay: const Duration(milliseconds: 50),
+            child: _GuardianMorningSummaryCard(
+              todayStatus: _todayStatus,
+              homeworkCount: _homeworkList.length,
+              examCount: _examData.length,
+              feesPaid: _totalPaid,
+              hasConsent: _hasConsent,
+              onApplyLeave: () {
+                if (_student != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => GuardianLeaveApplicationScreen(
+                        student: _student!,
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
+          ),
+          if (_student != null && _student!.transportRouteId != null && _student!.transportRouteId!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            FadeInUp(
+              delay: const Duration(milliseconds: 100),
+              child: _GuardianBusTrackingCard(
+                routeId: _student!.transportRouteId!,
+              ),
+            ),
+          ],
+          _SectionHeader(context.tr('secSchoolProfile')),
+          _FeatureTile(
+            icon: Icons.campaign_outlined,
+            color: AppTheme.primary,
+            title: context.tr('noticeBoard'),
+            subtitle: context.tr('subViewAnnouncements'),
+            onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => GuardianLeaveApplicationScreen(
+                builder: (_) => const AnnouncementsScreen(viewerRole: 'guardian'),
+              ),
+            ),
+          ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.comment_outlined,
+            color: AppTheme.primary,
+            title: context.tr('studentRemarks'),
+            subtitle: context.tr('subViewObservations'),
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StudentRemarksScreen(
+                  role: 'guardian',
+                  guardianStudent: _student,
+                ),
+              ),
+            )),
+          ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.calendar_month_outlined,
+            color: AppTheme.primary,
+            title: context.tr('tilePtm'),
+            subtitle: context.tr('subPtm'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianPTMScreen(studentClass: _activeClass),
+              ),
+            ),
+          ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.calendar_today_outlined,
+            color: AppTheme.primary,
+            title: context.tr('tileSchoolHolidays'),
+            subtitle: context.tr('subSchoolHolidays'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const GuardianHolidayCalendarScreen(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+        ];
+        
+      case 1: // Academics
+        return [
+          _SectionHeader(context.tr('secAcademics')),
+          _FeatureTile(
+            icon: Icons.calendar_month_outlined,
+            color: AppTheme.primary,
+            title: context.tr('myTimetable'),
+            subtitle: context.tr('subViewBellSchedule'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianTimetableScreen(
+                  classTimetable: _classTimetable,
+                  bellSettings: _bellSettings,
+                  firstBellTime: _firstBellTime,
+                  teacherById: _teacherById,
+                  className: _student?.className ?? _activeClass,
+                ),
+              ),
+            ),
+          ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.people_outline,
+            color: AppTheme.primary,
+            title: context.tr('subjectTeachers'),
+            subtitle: context.tr('subTeachersThisClass'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianSubjectTeachersScreen(
+                  classTimetable: _classTimetable,
+                  teacherById: _teacherById,
+                  className: _student?.className ?? _activeClass,
+                ),
+              ),
+            ),
+          ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.assignment_outlined,
+            color: AppTheme.primary,
+            title: context.tr('homework'),
+            subtitle: context.tr('subViewHomework'),
+            badge: _homeworkList.isNotEmpty ? '${_homeworkList.length}' : null,
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianHomeworkScreen(
+                  homeworkList: _homeworkList,
+                  className: _student?.className ?? _activeClass,
+                ),
+              ),
+            )),
+          ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.book_outlined,
+            color: AppTheme.primary,
+            title: context.tr('tileDailyClassDiary'),
+            subtitle: context.tr('subDailyClassDiary'),
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ClassDiaryScreen(
+                  guardianClass: _student?.className ?? _activeClass,
+                  guardianSection: _student?.section ?? _activeSection,
+                ),
+              ),
+            )),
+          ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.folder_open_outlined,
+            color: AppTheme.primary,
+            title: context.tr('tileStudyMaterials'),
+            subtitle: context.tr('subStudyMaterials'),
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StudyMaterialListScreen(
+                  className: _student!.className,
+                  section: _student!.section,
+                ),
+              ),
+            )),
+          ),
+          const SizedBox(height: 32),
+        ];
+        
+      case 2: // Progress
+        return [
+          _SectionHeader(context.tr('secAttendance')),
+          _FeatureTile(
+            icon: Icons.bar_chart_outlined,
+            color: AppTheme.primary,
+            title: context.tr('attendanceHistory'),
+            subtitle: context.tr('subMonthlyReports'),
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianAttendanceHistoryScreen(
+                  attendanceKey: _attendanceKey,
+                  studentDocId: _studentDocId,
+                  studentRoll: _activeRoll,
+                  studentName: _student?.name ?? 'Student',
+                ),
+              ),
+            )),
+          ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.workspace_premium_outlined,
+            color: AppTheme.primary,
+            title: context.tr('attendanceCertificate'),
+            subtitle: context.tr('subDownloadCertificate'),
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AttendanceCertificateScreen(student: _student!),
+              ),
+            )),
+          ),
+          _SectionHeader(context.tr('secAcademics')),
+          _FeatureTile(
+            icon: Icons.calendar_today_outlined,
+            color: AppTheme.primary,
+            title: context.tr('tileExamDatesheets'),
+            subtitle: context.tr('subExamDatesheets'),
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianDatesheetScreen(
                   student: _student!,
                 ),
               ),
-            );
-          }
-        },
-      ),
-    ),
-    if (_student != null && _student!.transportRouteId != null && _student!.transportRouteId!.isNotEmpty) ...[
-      const SizedBox(height: 12),
-      FadeInUp(
-        delay: const Duration(milliseconds: 100),
-        child: _GuardianBusTrackingCard(
-          routeId: _student!.transportRouteId!,
-        ),
-      ),
-    ],
-
-    _SectionHeader(context.tr('secAcademics')),
-    _FeatureTile(
-      icon: Icons.calendar_month_outlined,
-      color: AppTheme.primary,
-      title: context.tr('myTimetable'),
-      subtitle: context.tr('subViewBellSchedule'),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuardianTimetableScreen(
-            classTimetable: _classTimetable,
-            bellSettings: _bellSettings,
-            firstBellTime: _firstBellTime,
-            teacherById: _teacherById,
-            className: _student?.className ?? _activeClass,
+            )),
           ),
-        ),
-      ),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.people_outline,
-      color: AppTheme.primary,
-      title: context.tr('subjectTeachers'),
-      subtitle: context.tr('subTeachersThisClass'),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuardianSubjectTeachersScreen(
-            classTimetable: _classTimetable,
-            teacherById: _teacherById,
-            className: _student?.className ?? _activeClass,
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.quiz_outlined,
+            color: AppTheme.primary,
+            title: context.tr('examResults'),
+            subtitle: context.tr('subViewReportCards'),
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianExamResultsScreen(
+                  examData: _examData,
+                ),
+              ),
+            )),
           ),
-        ),
-      ),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.assignment_outlined,
-      color: AppTheme.primary,
-      title: context.tr('homework'),
-      subtitle: context.tr('subViewHomework'),
-      badge: _homeworkList.isNotEmpty ? '${_homeworkList.length}' : null,
-      isLocked: !_hasConsent,
-      onTap: () => _runGatedAction(() => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuardianHomeworkScreen(
-            homeworkList: _homeworkList,
-            className: _student?.className ?? _activeClass,
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.trending_up_outlined,
+            color: AppTheme.primary,
+            title: context.tr('tilePerformanceTrends'),
+            subtitle: context.tr('subPerformanceTrends'),
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StudentPerformanceChartsScreen(
+                  student: _student!,
+                ),
+              ),
+            )),
           ),
-        ),
-      )),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.book_outlined,
-      color: AppTheme.primary,
-      title: context.tr('tileDailyClassDiary'),
-      subtitle: context.tr('subDailyClassDiary'),
-      isLocked: !_hasConsent,
-      onTap: () => _runGatedAction(() => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ClassDiaryScreen(
-            guardianClass: _student?.className ?? _activeClass,
-            guardianSection: _student?.section ?? _activeSection,
+          const SizedBox(height: 32),
+        ];
+        
+      case 3: // Admin & Fees
+        return [
+          _SectionHeader(context.tr('secFees')),
+          _FeatureTile(
+            icon: Icons.account_balance_wallet_outlined,
+            color: Colors.green,
+            title: context.tr('feeStatus'),
+            subtitle: _feeStructure != null && _feeStructure!.totalAnnualFee > 0
+                ? ((_feeStructure!.totalAnnualFee - _totalPaid) < 1 ? context.tr('fullyPaidLabel') : '${context.tr('pendingLabel')}: ${CurrencyUtils.formatRupees(_feeStructure!.totalAnnualFee - _totalPaid)}')
+                : context.tr('noFeeInfo'),
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianFeeStatusScreen(
+                  student: _student!,
+                  structure: _feeStructure ?? FeeStructure.empty(_activeClass),
+                  totalPaid: _totalPaid,
+                  className: _activeClass,
+                  roll: _activeRoll,
+                  onPaymentCompleted: () {
+                    _loadAll();
+                  },
+                ),
+              ),
+            )),
           ),
-        ),
-      )),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.folder_open_outlined,
-      color: AppTheme.primary,
-      title: context.tr('tileStudyMaterials'),
-      subtitle: context.tr('subStudyMaterials'),
-      isLocked: !_hasConsent,
-      onTap: () => _runGatedAction(() => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => StudyMaterialListScreen(
-            className: _student!.className,
-            section: _student!.section,
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.receipt_long_outlined,
+            color: Colors.green,
+            title: context.tr('tileFeeReceipts'),
+            subtitle: context.tr('subFeeReceipts'),
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianFeeReceiptsScreen(
+                  className: _activeClass,
+                  roll: _activeRoll,
+                ),
+              ),
+            )),
           ),
-        ),
-      )),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.calendar_today_outlined,
-      color: AppTheme.primary,
-      title: context.tr('tileExamDatesheets'),
-      subtitle: context.tr('subExamDatesheets'),
-      isLocked: !_hasConsent,
-      onTap: () => _runGatedAction(() => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuardianDatesheetScreen(
-            student: _student!,
+          _SectionHeader(context.tr('secLeaveRemarks')),
+          _FeatureTile(
+            icon: Icons.event_busy_outlined,
+            color: AppTheme.warning,
+            title: context.tr('applyForLeave'),
+            subtitle: context.tr('subSubmitLeave'),
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianLeaveApplicationScreen(student: _student!),
+              ),
+            ).then((_) => _loadAll())),
           ),
-        ),
-      )),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.quiz_outlined,
-      color: AppTheme.primary,
-      title: context.tr('examResults'),
-      subtitle: context.tr('subViewReportCards'),
-      isLocked: !_hasConsent,
-      onTap: () => _runGatedAction(() => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuardianExamResultsScreen(
-            examData: _examData,
+          _SectionHeader(context.tr('secSchoolProfile')),
+          _FeatureTile(
+            icon: Icons.badge_outlined,
+            color: AppTheme.primary,
+            title: context.tr('studentDetails'),
+            subtitle: context.tr('subViewProfile'),
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(_openChildDetails),
           ),
-        ),
-      )),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.trending_up_outlined,
-      color: AppTheme.primary,
-      title: context.tr('tilePerformanceTrends'),
-      subtitle: context.tr('subPerformanceTrends'),
-      isLocked: !_hasConsent,
-      onTap: () => _runGatedAction(() => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => StudentPerformanceChartsScreen(
-            student: _student!,
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.gavel_outlined,
+            color: AppTheme.primary,
+            title: context.tr('parentalConsent'),
+            subtitle: context.tr('subManagePermissions'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianConsentScreen(
+                  studentDocId: _studentDocId,
+                  studentName: _student!.name,
+                  guardianName: _student!.fatherName,
+                  guardianPhone: _student!.parentPhone ?? _student!.phone,
+                  guardianEmail: _student!.guardianEmail,
+                ),
+              ),
+            ),
           ),
-        ),
-      )),
-    ),
-
-    _SectionHeader(context.tr('secAttendance')),
-    _FeatureTile(
-      icon: Icons.bar_chart_outlined,
-      color: AppTheme.primary,
-      title: context.tr('attendanceHistory'),
-      subtitle: context.tr('subMonthlyReports'),
-      isLocked: !_hasConsent,
-      onTap: () => _runGatedAction(() => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuardianAttendanceHistoryScreen(
-            attendanceKey: _attendanceKey,
-            studentDocId: _studentDocId,
-            studentRoll: _activeRoll,
-            studentName: _student?.name ?? 'Student',
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.school_outlined,
+            color: AppTheme.primary,
+            title: context.tr('schoolInfo'),
+            subtitle: context.tr('subViewSchoolContact'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const GuardianSchoolInfoScreen(),
+              ),
+            ),
           ),
-        ),
-      )),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.workspace_premium_outlined,
-      color: AppTheme.primary,
-      title: context.tr('attendanceCertificate'),
-      subtitle: context.tr('subDownloadCertificate'),
-      isLocked: !_hasConsent,
-      onTap: () => _runGatedAction(() => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AttendanceCertificateScreen(student: _student!),
-        ),
-      )),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.event_busy_outlined,
-      color: AppTheme.warning,
-      title: context.tr('applyForLeave'),
-      subtitle: context.tr('subSubmitLeave'),
-      isLocked: !_hasConsent,
-      onTap: () => _runGatedAction(() => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuardianLeaveApplicationScreen(student: _student!),
-        ),
-      ).then((_) => _loadAll())),
-    ),
-
-    _SectionHeader(context.tr('secFees')),
-    _FeatureTile(
-      icon: Icons.account_balance_wallet_outlined,
-      color: Colors.green,
-      title: context.tr('feeStatus'),
-      subtitle: _feeStructure != null && _feeStructure!.totalAnnualFee > 0
-          ? ((_feeStructure!.totalAnnualFee - _totalPaid) < 1 ? context.tr('fullyPaidLabel') : '${context.tr('pendingLabel')}: ${CurrencyUtils.formatRupees(_feeStructure!.totalAnnualFee - _totalPaid)}')
-          : context.tr('noFeeInfo'),
-      isLocked: !_hasConsent,
-      onTap: () => _runGatedAction(() => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuardianFeeStatusScreen(
-            student: _student!,
-            structure: _feeStructure ?? FeeStructure.empty(_activeClass),
-            totalPaid: _totalPaid,
-            className: _activeClass,
-            roll: _activeRoll,
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.phone_callback_outlined,
+            color: AppTheme.primary,
+            title: context.tr('tileContactSchool'),
+            subtitle: context.tr('subContactSchool'),
+            onTap: _callSchool,
           ),
-        ),
-      )),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.receipt_long_outlined,
-      color: Colors.green,
-      title: context.tr('tileFeeReceipts'),
-      subtitle: context.tr('subFeeReceipts'),
-      isLocked: !_hasConsent,
-      onTap: () => _runGatedAction(() => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuardianFeeReceiptsScreen(
-            className: _activeClass,
-            roll: _activeRoll,
-          ),
-        ),
-      )),
-    ),
-
-    _SectionHeader(context.tr('secLeaveRemarks')),
-    _FeatureTile(
-      icon: Icons.comment_outlined,
-      color: AppTheme.primary,
-      title: context.tr('studentRemarks'),
-      subtitle: context.tr('subViewObservations'),
-      isLocked: !_hasConsent,
-      onTap: () => _runGatedAction(() => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => StudentRemarksScreen(
-            role: 'guardian',
-            guardianStudent: _student,
-          ),
-        ),
-      )),
-    ),
-
-    _SectionHeader(context.tr('secSchoolProfile')),
-    _FeatureTile(
-      icon: Icons.badge_outlined,
-      color: AppTheme.primary,
-      title: context.tr('studentDetails'),
-      subtitle: context.tr('subViewProfile'),
-      isLocked: !_hasConsent,
-      onTap: () => _runGatedAction(_openChildDetails),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.gavel_outlined,
-      color: AppTheme.primary,
-      title: context.tr('parentalConsent'),
-      subtitle: context.tr('subManagePermissions'),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuardianConsentScreen(
-            studentDocId: _studentDocId,
-            studentName: _student!.name,
-            guardianName: _student!.fatherName,
-            guardianPhone: _student!.parentPhone ?? _student!.phone,
-            guardianEmail: _student!.guardianEmail,
-          ),
-        ),
-      ),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.school_outlined,
-      color: AppTheme.primary,
-      title: context.tr('schoolInfo'),
-      subtitle: context.tr('subViewSchoolContact'),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const GuardianSchoolInfoScreen(),
-        ),
-      ),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.calendar_today_outlined,
-      color: AppTheme.primary,
-      title: context.tr('tileSchoolHolidays'),
-      subtitle: context.tr('subSchoolHolidays'),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const GuardianHolidayCalendarScreen(),
-        ),
-      ),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.campaign_outlined,
-      color: AppTheme.primary,
-      title: context.tr('noticeBoard'),
-      subtitle: context.tr('subViewAnnouncements'),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const AnnouncementsScreen(viewerRole: 'guardian'),
-        ),
-      ),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.calendar_month_outlined,
-      color: AppTheme.primary,
-      title: context.tr('tilePtm'),
-      subtitle: context.tr('subPtm'),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuardianPTMScreen(studentClass: _activeClass),
-        ),
-      ),
-    ),
-    const _Divider(),
-    _FeatureTile(
-      icon: Icons.phone_callback_outlined,
-      color: AppTheme.primary,
-      title: context.tr('tileContactSchool'),
-      subtitle: context.tr('subContactSchool'),
-      onTap: _callSchool,
-    ),
-
-    const SizedBox(height: 32),
-  ];
+          const SizedBox(height: 32),
+        ];
+        
+      default:
+        return [];
+    }
+  }
 
   void _showConsentRequiredDialog() {
     if (_student == null) return;
@@ -1318,7 +1342,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                       ? _buildErrorChildren()
                       : _student == null
                         ? _buildNoStudentChildren()
-                        : _buildContentChildren(),
+                        : _buildTabContent(),
               ),
             ),
           ),
@@ -1362,6 +1386,43 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
           ),
         ],
       ),
+      bottomNavigationBar: _loading || _error != null || _student == null
+          ? null
+          : BottomNavigationBar(
+              currentIndex: _currentTab,
+              onTap: (index) {
+                setState(() {
+                  _currentTab = index;
+                });
+              },
+              type: BottomNavigationBarType.fixed,
+              selectedItemColor: AppTheme.primary,
+              unselectedItemColor: AppTheme.textSecondary,
+              backgroundColor: Colors.white,
+              elevation: 8,
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home_outlined),
+                  activeIcon: Icon(Icons.home),
+                  label: 'Home',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.school_outlined),
+                  activeIcon: Icon(Icons.school),
+                  label: 'Academics',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.trending_up_outlined),
+                  activeIcon: Icon(Icons.trending_up),
+                  label: 'Progress',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.account_balance_wallet_outlined),
+                  activeIcon: Icon(Icons.account_balance_wallet),
+                  label: 'Admin & Fees',
+                ),
+              ],
+            ),
     );
   }
 }
@@ -3460,12 +3521,13 @@ class _GuardianAttendanceHistoryScreenState extends State<GuardianAttendanceHist
   }
 }
 
-class GuardianFeeStatusScreen extends StatelessWidget {
+class GuardianFeeStatusScreen extends StatefulWidget {
   final Student student;
   final FeeStructure structure;
   final double totalPaid;
   final String className;
   final int roll;
+  final VoidCallback? onPaymentCompleted;
 
   const GuardianFeeStatusScreen({
     super.key,
@@ -3474,143 +3536,222 @@ class GuardianFeeStatusScreen extends StatelessWidget {
     required this.totalPaid,
     required this.className,
     required this.roll,
+    this.onPaymentCompleted,
   });
+
+  @override
+  State<GuardianFeeStatusScreen> createState() => _GuardianFeeStatusScreenState();
+}
+
+class _GuardianFeeStatusScreenState extends State<GuardianFeeStatusScreen> {
+  late double _currentTotalPaid;
+  bool _refreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentTotalPaid = widget.totalPaid;
+  }
+
+  Future<void> _refreshFees() async {
+    if (!mounted) return;
+    setState(() => _refreshing = true);
+    try {
+      final p = await FeeService().getTotalPaid(
+        className: widget.className,
+        roll: widget.roll,
+      );
+      if (mounted) {
+        setState(() {
+          _currentTotalPaid = p;
+          _refreshing = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    final total = structure.totalAnnualFee;
-    final due = (total - totalPaid).clamp(0.0, double.infinity);
+    final total = widget.structure.totalAnnualFee;
+    final due = (total - _currentTotalPaid).clamp(0.0, double.infinity);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-          title: const Text('Fee Details'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.receipt_long_outlined),
-              tooltip: 'View Receipts',
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => GuardianFeeReceiptsScreen(
-                    className: className,
-                    roll: roll,
-                  ),
+        title: const Text('Fee Details'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long_outlined),
+            tooltip: 'View Receipts',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianFeeReceiptsScreen(
+                  className: widget.className,
+                  roll: widget.roll,
                 ),
               ),
             ),
-          ],
-        ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _FeeStatusCard(structure: structure, totalPaid: totalPaid),
-            if (due > 0) ...[
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => GuardianUpiPaymentScreen(
-                        student: student,
-                        structure: structure,
-                        outstandingAmount: due,
-                      ),
-                    ),
-                  ),
-                  icon: const Icon(Icons.flash_on_outlined),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
-                    foregroundColor: Colors.white,
-                  ),
-                  label: Text(context.tr('payOutstandingFeesViaUpi'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
-            
-            if (structure.components.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              const Text(
-                'FEE BREAKDOWN',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Column(
-                    children: structure.components.asMap().entries.map((entry) {
-                      final idx = entry.key;
-                      final comp = entry.value;
-                      return Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(comp.name, style: const TextStyle(fontWeight: FontWeight.w500)),
-                                Text(CurrencyUtils.formatRupees(comp.amount), style: const TextStyle(fontWeight: FontWeight.bold)),
-                              ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _refreshing ? null : _refreshFees,
+            tooltip: 'Refresh Fees',
+          ),
+        ],
+      ),
+      body: _refreshing
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _FeeStatusCard(structure: widget.structure, totalPaid: _currentTotalPaid),
+                  if (due > 0) ...[
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => GuardianUpiPaymentScreen(
+                              student: widget.student,
+                              structure: widget.structure,
+                              outstandingAmount: due,
                             ),
                           ),
-                          if (idx < structure.components.length - 1)
-                            const Divider(height: 1),
-                        ],
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-            ],
+                        ).then((_) => _refreshFees()),
+                        icon: const Icon(Icons.flash_on_outlined),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade700,
+                          foregroundColor: Colors.white,
+                        ),
+                        label: Text(context.tr('payOutstandingFeesViaUpi'),
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          PaymentGatewaySimulator.show(
+                            context,
+                            className: widget.className,
+                            roll: widget.roll,
+                            studentId: widget.student.id ?? '',
+                            amount: due,
+                            onSuccess: () {
+                              _refreshFees();
+                              widget.onPaymentCompleted?.call();
+                            },
+                            onFailure: (err) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Payment failed: $err'),
+                                  backgroundColor: AppTheme.danger,
+                                ),
+                              );
+                            },
+                          );
+                        },
+                        icon: const Icon(Icons.shield_outlined),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                        label: const Text('Pay Dues Instantly (Simulator)',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
 
-            if (structure.installments.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              const Text(
-                'INSTALLMENTS SCHEDULE',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey,
-                  letterSpacing: 0.8,
-                ),
+                  if (widget.structure.components.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    const Text(
+                      'FEE BREAKDOWN',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Column(
+                          children: widget.structure.components.asMap().entries.map((entry) {
+                            final idx = entry.key;
+                            final comp = entry.value;
+                            return Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(comp.name, style: const TextStyle(fontWeight: FontWeight.w500)),
+                                      Text(CurrencyUtils.formatRupees(comp.amount),
+                                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
+                                if (idx < widget.structure.components.length - 1)
+                                  const Divider(height: 1),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  if (widget.structure.installments.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    const Text(
+                      'INSTALLMENTS SCHEDULE',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...widget.structure.installments.map((inst) {
+                      final dateStr =
+                          '${inst.dueDate.day} ${months[inst.dueDate.month - 1]} ${inst.dueDate.year}';
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.orange.shade50,
+                            child: const Icon(Icons.calendar_today_outlined, color: Colors.orange, size: 18),
+                          ),
+                          title: Text(inst.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(context.tr('feeDueWithDate').replaceAll('{date}', dateStr)),
+                          trailing: Text(
+                            CurrencyUtils.formatRupees(inst.amount),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ],
               ),
-              const SizedBox(height: 8),
-              ...structure.installments.map((inst) {
-                final dateStr = '${inst.dueDate.day} ${months[inst.dueDate.month - 1]} ${inst.dueDate.year}';
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.orange.shade50,
-                      child: const Icon(Icons.calendar_today_outlined, color: Colors.orange, size: 18),
-                    ),
-                    title: Text(inst.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(context.tr('feeDueWithDate').replaceAll('{date}', dateStr)),
-                    trailing: Text(
-                      CurrencyUtils.formatRupees(inst.amount),
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ],
-        ),
-      ),
+            ),
     );
   }
 }
