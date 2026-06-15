@@ -19,7 +19,8 @@ import '../../shared/widgets/email_text_form_field.dart';
 import '../../shared/widgets/index_building_notice.dart';
 import '../../shared/widgets/managed_dropdown.dart';
 import '../../shared/utils/app_transitions.dart';
-import 'social_media_settings_screen.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
 
 class EditSchoolSettingsScreen extends StatefulWidget {
   const EditSchoolSettingsScreen({super.key});
@@ -37,7 +38,7 @@ class _EditSchoolSettingsScreenState extends State<EditSchoolSettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 5, vsync: this);
+    _tab = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -88,6 +89,7 @@ class _EditSchoolSettingsScreenState extends State<EditSchoolSettingsScreen>
             Tab(text: context.tr('tabAcademic')),
             Tab(text: context.tr('tabFees')),
             Tab(text: context.tr('tabCommunication')),
+            Tab(text: context.tr('tabSocialMedia')),
           ],
         ),
       ),
@@ -120,6 +122,7 @@ class _EditSchoolSettingsScreenState extends State<EditSchoolSettingsScreen>
                 _AcademicTab(editing: _editing, onSaved: _onTabSaved),
                 _FeesTab(editing: _editing, onSaved: _onTabSaved),
                 _CommunicationTab(editing: _editing, onSaved: _onTabSaved),
+                _SocialMediaTab(editing: _editing, onSaved: _onTabSaved),
               ],
             ),
           ),
@@ -1461,65 +1464,6 @@ class _CommunicationTabState extends State<_CommunicationTab>
               activeColor: AppTheme.primary,
               onChanged: widget.editing ? (v) => setState(() => _routes = v.round()) : null),
         ],
-        const SizedBox(height: 24),
-        const Divider(),
-        const SizedBox(height: 12),
-        Card(
-          elevation: 0,
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: const BorderSide(color: AppTheme.border),
-          ),
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const SocialMediaSettingsScreen(),
-                ),
-              );
-            },
-            borderRadius: BorderRadius.circular(10),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: AppTheme.primaryLight.withValues(alpha: 0.2),
-                    child: const Icon(Icons.share_outlined, color: AppTheme.primary, size: 20),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          context.tr('socialMediaLinksTitle'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          context.tr('socialMediaSubtitle'),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
-                ],
-              ),
-            ),
-          ),
-        ),
         const SizedBox(height: 20),
         if (widget.editing) _saveBtn(context, _saving, _save),
         const SizedBox(height: 16),
@@ -1734,6 +1678,211 @@ String _translateField(BuildContext context, String field) {
       return context.tr('linkedinLabel');
     default:
       return field;
+  }
+}
+
+// ── Social Media Tab ─────────────────────────────────────────────────────────
+
+class _SocialMediaTab extends StatefulWidget {
+  final bool editing;
+  final VoidCallback onSaved;
+
+  const _SocialMediaTab({required this.editing, required this.onSaved});
+
+  @override
+  State<_SocialMediaTab> createState() => _SocialMediaTabState();
+}
+
+class _SocialMediaTabState extends State<_SocialMediaTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  bool _saving = false;
+  bool _init = false;
+
+  late TextEditingController _facebookCtrl;
+  late TextEditingController _instagramCtrl;
+  late TextEditingController _twitterCtrl;
+  late TextEditingController _youtubeCtrl;
+  late TextEditingController _linkedinCtrl;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_init) {
+      final p = context.read<SchoolSettingsProvider>();
+      _facebookCtrl = TextEditingController(text: p.facebookUrl);
+      _instagramCtrl = TextEditingController(text: p.instagramUrl);
+      _twitterCtrl = TextEditingController(text: p.twitterUrl);
+      _youtubeCtrl = TextEditingController(text: p.youtubeUrl);
+      _linkedinCtrl = TextEditingController(text: p.linkedinUrl);
+      _init = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    _facebookCtrl.dispose();
+    _instagramCtrl.dispose();
+    _twitterCtrl.dispose();
+    _youtubeCtrl.dispose();
+    _linkedinCtrl.dispose();
+    super.dispose();
+  }
+
+  bool _isValidUrl(String value) {
+    if (value.isEmpty) return true;
+    final uri = Uri.tryParse(value);
+    return uri != null && (uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https'));
+  }
+
+  Future<void> _save() async {
+    if (!_isValidUrl(_facebookCtrl.text.trim()) ||
+        !_isValidUrl(_instagramCtrl.text.trim()) ||
+        !_isValidUrl(_twitterCtrl.text.trim()) ||
+        !_isValidUrl(_youtubeCtrl.text.trim()) ||
+        !_isValidUrl(_linkedinCtrl.text.trim())) {
+      _snack('Please enter valid URLs starting with http:// or https://');
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final p = context.read<SchoolSettingsProvider>();
+      final old = p.rawSchool;
+      final data = {
+        'facebookUrl': _facebookCtrl.text.trim(),
+        'instagramUrl': _instagramCtrl.text.trim(),
+        'twitterUrl': _twitterCtrl.text.trim(),
+        'youtubeUrl': _youtubeCtrl.text.trim(),
+        'linkedinUrl': _linkedinCtrl.text.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      await p.updateSchoolSettings(data);
+      final uid = (await AuthService().getSession())?['email'] as String? ?? 'owner';
+      for (final k in data.keys) {
+        if (k == 'updatedAt') continue;
+        final oldVal = old[k]?.toString() ?? '';
+        final newVal = data[k]?.toString() ?? '';
+        if (oldVal != newVal) await p.logChange(k, oldVal, newVal, uid);
+      }
+      if (mounted) {
+        _snack(context.tr('settingsUpdated'), success: true);
+        widget.onSaved();
+      }
+    } catch (e) {
+      if (mounted) _snack('Error: \$e');
+    }
+    if (mounted) setState(() => _saving = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            elevation: 0,
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: AppTheme.border),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: AppTheme.primary, size: 24),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      context.tr('socialMediaSubtitle'),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textPrimary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _socialField(
+            controller: _facebookCtrl,
+            label: context.tr('facebookLabel'),
+            icon: FontAwesomeIcons.facebook,
+            iconColor: const Color(0xFF1877F2),
+            readOnly: !widget.editing,
+          ),
+          const SizedBox(height: 16),
+          _socialField(
+            controller: _instagramCtrl,
+            label: context.tr('instagramLabel'),
+            icon: FontAwesomeIcons.instagram,
+            iconColor: const Color(0xFFE4405F),
+            readOnly: !widget.editing,
+          ),
+          const SizedBox(height: 16),
+          _socialField(
+            controller: _twitterCtrl,
+            label: context.tr('twitterLabel'),
+            icon: FontAwesomeIcons.twitter,
+            iconColor: const Color(0xFF1DA1F2),
+            readOnly: !widget.editing,
+          ),
+          const SizedBox(height: 16),
+          _socialField(
+            controller: _youtubeCtrl,
+            label: context.tr('youtubeLabel'),
+            icon: FontAwesomeIcons.youtube,
+            iconColor: const Color(0xFFFF0000),
+            readOnly: !widget.editing,
+          ),
+          const SizedBox(height: 16),
+          _socialField(
+            controller: _linkedinCtrl,
+            label: context.tr('linkedinLabel'),
+            icon: FontAwesomeIcons.linkedin,
+            iconColor: const Color(0xFF0A66C2),
+            readOnly: !widget.editing,
+          ),
+          const SizedBox(height: 32),
+          if (widget.editing) _saveBtn(context, _saving, _save),
+          const SizedBox(height: 16),
+          _changeLogSection(),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+
+  Widget _socialField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required Color iconColor,
+    required bool readOnly,
+  }) {
+    return TextField(
+      controller: controller,
+      readOnly: readOnly,
+      keyboardType: TextInputType.url,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Padding(
+          padding: const EdgeInsets.only(left: 12, right: 10, top: 10, bottom: 10),
+          child: FaIcon(icon, color: iconColor, size: 20),
+        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        isDense: true,
+      ),
+    );
   }
 }
 

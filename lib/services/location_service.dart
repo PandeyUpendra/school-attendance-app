@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -83,10 +84,22 @@ class LocationService {
     }
 
     // 3. Fetch current coordinates
-    Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-      timeLimit: const Duration(seconds: 10),
-    );
+    // Try high accuracy first (GPS) with a generous timeout.
+    // If that fails, fall back to lower accuracy (network/cell tower)
+    // which is much faster but less precise.
+    Position position;
+    try {
+      position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 30),
+      );
+    } on TimeoutException {
+      // GPS timed out — fall back to network-based location
+      position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.low,
+        timeLimit: const Duration(seconds: 15),
+      );
+    }
 
     // 4. Reverse geocode via Nominatim OSM API
     final url = Uri.parse(
@@ -235,9 +248,15 @@ class LocationService {
         ),
       );
     } else {
+      // Show a user-friendly message for timeout errors
+      final isTimeout = errorStr.contains('TimeoutException') || 
+                         errorStr.contains('Future not completed');
+      final message = isTimeout 
+          ? 'Location request timed out. Please try again in an open area with clear sky.'
+          : 'Could not get location: $errorStr';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not get location: $errorStr'),
+          content: Text(message),
           backgroundColor: AppTheme.danger,
         ),
       );

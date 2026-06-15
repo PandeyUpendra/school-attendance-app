@@ -1603,6 +1603,7 @@ class AppStrings {
     'socialMediaSubtitle':     {'en': 'Connect and update links to school profiles', 'hi': 'स्कूल प्रोफाइल के लिंक जोड़ें और अपडेट करें'},
     'tabAddress':              {'en': 'Address',              'hi': 'पता'},
     'tabCommunication':        {'en': 'Communication',        'hi': 'सम्पर्क'},
+    'tabSocialMedia':          {'en': 'Social Media',         'hi': 'सोशल मीडिया'},
     'viewOnlyWarning':         {'en': 'View only — tap Edit to make changes', 'hi': 'केवल देखने के लिए — बदलाव करने के लिए एडिट दबाएँ'},
     'schoolNameRequiredLabel': {'en': 'School Name *',        'hi': 'स्कूल का नाम *'},
     'phoneLabel':              {'en': 'Phone',                'hi': 'फ़ोन'},
