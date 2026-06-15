@@ -42,9 +42,11 @@ class AnnouncementService {
   /// Returns pinned first, then newest first.
   Future<List<Announcement>> getAnnouncements(
       {String? audience, String? viewerClass}) async {
-    final snap = await _coll
-        .where('audience', whereIn: _audiencesFor(audience, viewerClass))
-        .get();
+    Query<Map<String, dynamic>> query = _coll;
+    if (audience != null || viewerClass != null) {
+      query = query.where('audience', whereIn: _audiencesFor(audience, viewerClass));
+    }
+    final snap = await query.get();
     final list = snap.docs
         .map((d) => Announcement.fromDoc(d.id, d.data()))
         .toList();
@@ -55,10 +57,11 @@ class AnnouncementService {
   /// Real-time stream of announcements (for notification badges).
   Stream<List<Announcement>> watchAnnouncements(
       {String? audience, String? viewerClass}) {
-    return _coll
-        .where('audience', whereIn: _audiencesFor(audience, viewerClass))
-        .snapshots()
-        .map((snap) {
+    Query<Map<String, dynamic>> query = _coll;
+    if (audience != null || viewerClass != null) {
+      query = query.where('audience', whereIn: _audiencesFor(audience, viewerClass));
+    }
+    return query.snapshots().map((snap) {
       final list = snap.docs
           .map((d) => Announcement.fromDoc(d.id, d.data()))
           .toList();
