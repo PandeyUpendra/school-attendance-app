@@ -461,7 +461,7 @@ class _SplashGateState extends State<_SplashGate> {
       backgroundColor: Colors.transparent,
       body: Container(
         decoration: const BoxDecoration(
-          color: AppTheme.primaryDark,
+          color: AppTheme.primary,
         ),
         child: Center(
           child: Column(
@@ -477,7 +477,7 @@ class _SplashGateState extends State<_SplashGate> {
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) =>
                       Image.asset(
-                        'assets/images/logo.png',
+                        'assets/images/logo_white.png',
                         height: 72,
                         width: 72,
                       ),
@@ -498,7 +498,7 @@ class _SplashGateState extends State<_SplashGate> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: Image.asset(
-                      'assets/images/logo.png',
+                      'assets/images/logo_white.png',
                       height: 72,
                       width: 72,
                     ),
