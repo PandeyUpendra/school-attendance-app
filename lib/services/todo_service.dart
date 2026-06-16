@@ -13,11 +13,20 @@ class TodoService {
   @visibleForTesting
   static set mockInstance(TodoService? mock) => _instance = mock;
 
+  String _normalizeUserId(String userId) {
+    final trimmed = userId.trim();
+    if (trimmed.contains('@')) {
+      return trimmed.toLowerCase();
+    }
+    return trimmed;
+  }
+
   Stream<List<TodoItem>> streamForUser(String userId) {
     // No orderBy — avoids the composite index requirement.
     // Sorting is done in-app after fetching.
+    final normalized = _normalizeUserId(userId);
     return _col
-        .where('userId', isEqualTo: userId)
+        .where('userId', isEqualTo: normalized)
         .snapshots()
         .map((snap) {
           final items = snap.docs
@@ -32,9 +41,10 @@ class TodoService {
     final today    = DateTime.now();
     final start    = DateTime(today.year, today.month, today.day);
     final end      = start.add(const Duration(days: 1));
+    final normalized = _normalizeUserId(userId);
 
     return _col
-        .where('userId', isEqualTo: userId)
+        .where('userId', isEqualTo: normalized)
         .where('reminderEnabled', isEqualTo: true)
         .where('isCompleted', isEqualTo: false)
         .where('dueDate', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
@@ -49,7 +59,7 @@ class TodoService {
     final doc = _col.doc();
     await doc.set(TodoItem(
       id: doc.id,
-      userId: item.userId,
+      userId: _normalizeUserId(item.userId),
       role: item.role,
       title: item.title,
       isCustom: item.isCustom,

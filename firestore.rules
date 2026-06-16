@@ -497,12 +497,12 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     match /personal_todos/{todoId} {
       allow read, update, delete: if isSignedIn() && (
-        resource.data.userId == userEmail() ||
+        (resource.data.userId is string && resource.data.userId.lower() == userEmail()) ||
         resource.data.userId == userTeacherId()
       );
 
       allow create: if isSignedIn() && (
-        request.resource.data.userId == userEmail() ||
+        (request.resource.data.userId is string && request.resource.data.userId.lower() == userEmail()) ||
         request.resource.data.userId == userTeacherId()
       );
     }
