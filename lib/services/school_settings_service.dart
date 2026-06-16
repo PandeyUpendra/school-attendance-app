@@ -99,6 +99,11 @@ class SchoolSettingsService extends BaseFirestoreService {
       'tagline': d['schoolTagline'] ?? '',
       'website': d['website'] ?? '',
       'establishedYear': d['establishedYear'] ?? '',
+      'facebookUrl': d['facebookUrl'] ?? '',
+      'instagramUrl': d['instagramUrl'] ?? '',
+      'twitterUrl': d['twitterUrl'] ?? '',
+      'youtubeUrl': d['youtubeUrl'] ?? '',
+      'linkedinUrl': d['linkedinUrl'] ?? '',
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
