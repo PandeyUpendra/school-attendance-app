@@ -498,6 +498,100 @@ class _AdminScreenState extends State<AdminScreen> {
     _load();
   }
 
+  Future<void> _deleteAllSchools() async {
+    final confirmCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          final matches = confirmCtrl.text.trim().toLowerCase() == 'delete all';
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Delete All Schools?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'WARNING: This will permanently delete ALL school systems and all associated data, including all owner/user accounts. This action cannot be undone!',
+                  style: TextStyle(fontSize: 13.5, color: Colors.red),
+                ),
+                const SizedBox(height: 16),
+                const Text('Type "delete all" to confirm:',
+                     style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: confirmCtrl,
+                  autofocus: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: InputDecoration(
+                    hintText: 'delete all',
+                    isDense: true,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onChanged: (_) => setLocal(() {}),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(context.tr('cancel'))),
+              TextButton(
+                onPressed: matches ? () => Navigator.pop(ctx, true) : null,
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete All Permanently'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    Future.delayed(const Duration(milliseconds: 350), confirmCtrl.dispose);
+    if (ok != true) return;
+    if (!mounted) return;
+
+    setState(() => _loading = true);
+    try {
+      final allSchoolIds = List<String>.from(_schoolsMap.keys);
+      for (final schoolId in allSchoolIds) {
+        final schoolOwners = _users
+            .where((u) => u['schoolId'] == schoolId)
+            .map((u) => u['email'] as String)
+            .toList();
+        for (final email in schoolOwners) {
+          try {
+            await _service.deleteAccountFully(email);
+          } catch (e) {
+            AppLogger.e('AdminScreen', 'Failed to delete owner account $email: $e');
+          }
+        }
+        await FirebaseFirestore.instance.collection('schools').doc(schoolId).delete();
+      }
+
+      if (!mounted) return;
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('All school systems and owner accounts deleted successfully.'),
+        backgroundColor: Colors.green,
+      ));
+    } catch (e) {
+      AppLogger.e('AdminScreen', '_deleteAllSchools failed: $e', e);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to delete all schools: $e'),
+        backgroundColor: Colors.red,
+      ));
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
   Color _getPlanColor(String plan) {
     switch (plan.toLowerCase().trim()) {
       case 'free':
@@ -607,6 +701,17 @@ class _AdminScreenState extends State<AdminScreen> {
                               fontWeight: FontWeight.w700,
                               color: AppTheme.primary)),
                     ),
+                    const Spacer(),
+                    if (_schoolsMap.isNotEmpty)
+                      TextButton.icon(
+                        onPressed: _deleteAllSchools,
+                        icon: const Icon(Icons.delete_sweep_outlined, color: AppTheme.danger, size: 16),
+                        label: const Text('Delete All', style: TextStyle(color: AppTheme.danger, fontSize: 11.5, fontWeight: FontWeight.bold)),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
                   ]),
                   const SizedBox(height: 10),
                   _buildUsersSection(),
@@ -738,17 +843,17 @@ class _AdminScreenState extends State<AdminScreen> {
             controller: _schoolNameCtrl,
             decoration: InputDecoration(
               hintText: 'e.g. Greenwood Public School',
-              hintStyle: TextStyle(color: Colors.grey.shade400),
-              prefixIcon: Icon(Icons.school_outlined,
-                  color: Colors.grey.shade500, size: 20),
+              hintStyle: TextStyle(color: Colors.grey.shade500),
+              prefixIcon: const Icon(Icons.school_outlined,
+                  color: AppTheme.textSecondary, size: 20),
               filled: true,
-              fillColor: AppTheme.background,
+              fillColor: Colors.white,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade200)),
+                  borderSide: BorderSide(color: Colors.grey.shade300)),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade200)),
+                  borderSide: BorderSide(color: Colors.grey.shade300)),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:
@@ -765,17 +870,17 @@ class _AdminScreenState extends State<AdminScreen> {
             controller: _schoolAddressCtrl,
             decoration: InputDecoration(
               hintText: 'e.g. Sector 12, Noida, UP',
-              hintStyle: TextStyle(color: Colors.grey.shade400),
-              prefixIcon: Icon(Icons.location_on_outlined,
-                  color: Colors.grey.shade500, size: 20),
+              hintStyle: TextStyle(color: Colors.grey.shade500),
+              prefixIcon: const Icon(Icons.location_on_outlined,
+                  color: AppTheme.textSecondary, size: 20),
               filled: true,
-              fillColor: AppTheme.background,
+              fillColor: Colors.white,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade200)),
+                  borderSide: BorderSide(color: Colors.grey.shade300)),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade200)),
+                  borderSide: BorderSide(color: Colors.grey.shade300)),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:
@@ -792,17 +897,17 @@ class _AdminScreenState extends State<AdminScreen> {
             controller: _primaryOwnerEmailCtrl,
             decoration: InputDecoration(
               hintText: 'owner@example.com',
-              hintStyle: TextStyle(color: Colors.grey.shade400),
-              prefixIcon: Icon(Icons.email_outlined,
-                  color: Colors.grey.shade500, size: 20),
+              hintStyle: TextStyle(color: Colors.grey.shade500),
+              prefixIcon: const Icon(Icons.email_outlined,
+                  color: AppTheme.textSecondary, size: 20),
               filled: true,
-              fillColor: AppTheme.background,
+              fillColor: Colors.white,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade200)),
+                  borderSide: BorderSide(color: Colors.grey.shade300)),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade200)),
+                  borderSide: BorderSide(color: Colors.grey.shade300)),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:
