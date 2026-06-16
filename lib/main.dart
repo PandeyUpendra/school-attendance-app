@@ -174,7 +174,7 @@ class _SchoolAppState extends State<SchoolApp> with WidgetsBindingObserver {
               navigatorKey: rootNavigatorKey,
               debugShowCheckedModeBanner: false,
               navigatorObservers: [routeObserver],
-              title: settings.schoolName == 'My School' ? 'School App' : settings.schoolName,
+              title: settings.schoolName == 'My School' ? 'Klassivo' : settings.schoolName,
               theme: AppTheme.light,
               locale: localeProvider.locale,
               supportedLocales: LocaleProvider.supported.keys.map(Locale.new),
@@ -455,7 +455,7 @@ class _SplashGateState extends State<_SplashGate> {
   Widget build(BuildContext context) {
     final settings = Provider.of<SchoolSettingsProvider>(context);
     final logo = settings.schoolLogo;
-    final name = settings.schoolName == 'My School' ? 'School App' : settings.schoolName;
+    final name = settings.schoolName == 'My School' ? 'Klassivo' : settings.schoolName;
 
     return Scaffold(
       backgroundColor: Colors.transparent,

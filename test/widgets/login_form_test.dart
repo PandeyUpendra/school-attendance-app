@@ -51,7 +51,7 @@ void main() {
     testWidgets('Renders all input fields and titles', (WidgetTester tester) async {
       await tester.pumpWidget(createLoginScreen());
 
-      expect(find.text('School App'), findsOneWidget);
+      expect(find.text('Klassivo'), findsOneWidget);
       expect(find.byType(EmailTextFormField), findsOneWidget);
       expect(passwordFieldFinder, findsOneWidget);
       expect(find.text('Sign In'), findsOneWidget);

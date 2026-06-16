@@ -1554,7 +1554,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     final msg =
       'Hello! Your child ${_student.name}\'s school portal is ready.\n'
       'Login email: $email\n'
-      'Please check your email for a link to set up your password, then open the School App and sign in.';
+      'Please check your email for a link to set up your password, then open Klassivo and sign in.';
     final uri = PhoneUtils.whatsAppUri(_student.phone, text: msg);
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }

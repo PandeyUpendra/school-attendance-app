@@ -302,7 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 // ── Teacher name ─────────────────────────────────────────
                 Text(
-                  t?.name ?? 'School App',
+                  t?.name ?? 'Klassivo',
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 26,

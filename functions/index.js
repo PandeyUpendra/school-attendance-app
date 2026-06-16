@@ -711,8 +711,8 @@ exports.pushOnNotificationCreate = onDocumentCreated(
     // rules-protected feed to show the actual content.
     const isBroadcast = BROADCAST_AUDIENCES.has(audience);
     const title = isBroadcast
-      ? String(data.title || "School App")
-      : "School App";
+      ? String(data.title || "Klassivo")
+      : "Klassivo";
     const body = isBroadcast
       ? String(data.body || data.message || "")
       : "You have a new notification. Open the app to view.";
@@ -1346,7 +1346,7 @@ exports.sendReceiptEmail = onDocumentCreated(
       const schoolSettingsSnap = await db.collection("schools").doc(sid)
         .collection("settings").doc("school").get();
       const schoolSettings = schoolSettingsSnap.data() || {};
-      const schoolName = schoolSettings.schoolName || "School App";
+      const schoolName = schoolSettings.schoolName || "Klassivo";
       const logoUrl = schoolSettings.logoUrl || "";
 
       // 3. Construct receipt HTML body

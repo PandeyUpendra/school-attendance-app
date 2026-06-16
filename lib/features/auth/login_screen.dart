@@ -302,11 +302,30 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         GestureDetector(
                           onLongPress: _openAdminLogin,
-                          child: const Icon(Icons.school, size: 56, color: Colors.white),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Image.asset(
+                                'assets/images/logo.png',
+                                height: 72,
+                                width: 72,
+                              ),
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          'School App',
+                          'Klassivo',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 28,
