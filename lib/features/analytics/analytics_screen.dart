@@ -2090,11 +2090,11 @@ class _AiInsightsTabState extends State<_AiInsightsTab>
   Future<void> _loadInsights() async {
     setState(() => _loading = true);
     try {
-      final keyCheck = await _aiService.db.collection('schools')
+      final mainSettings = await _aiService.db.collection('schools')
           .doc(BaseFirestoreService.currentSchoolId ?? 'default_school')
-          .collection('settings').doc('keys').get();
-      if (keyCheck.exists && keyCheck.data()?['geminiApiKey'] != null) {
-        _apiKeyConfigured = keyCheck.data()?['geminiApiKey'].toString().isNotEmpty == true;
+          .collection('settings').doc('main').get();
+      if (mainSettings.exists && mainSettings.data()?['isAIEnabled'] != null) {
+        _apiKeyConfigured = mainSettings.data()?['isAIEnabled'] == true;
       }
 
       final allStudents = await _studentSvc.getStudentsByClass(className: widget.classes.first);

@@ -2876,5 +2876,124 @@ exports.registerGuardianWithInviteCode = onCall(
   }
 );
 
+/**
+ * Callable: callGemini({ prompt, systemInstruction })
+ *
+ * Securely calls the Gemini 1.5 Flash API on behalf of an authenticated user.
+ * Pulls the API key securely on the server-side, preventing client-side exposure.
+ */
+exports.callGemini = onCall(
+  { cors: true, region: "asia-south1", enforceAppCheck: false },
+  async (request) => {
+    // 1. Authenticate user
+    if (!request.auth || !request.auth.token || !request.auth.token.email) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+
+    const callerEmail = request.auth.token.email.toLowerCase();
+    const callerSchoolId = request.auth.token.schoolId;
+    if (!callerSchoolId) {
+      throw new HttpsError("permission-denied", "User is not associated with any school.");
+    }
+
+    const prompt = request.data && request.data.prompt;
+    const systemInstruction = request.data && request.data.systemInstruction;
+    if (!prompt || typeof prompt !== "string") {
+      throw new HttpsError("invalid-argument", "A valid prompt string is required.");
+    }
+
+    // 2. Fetch the Gemini API key for this school
+    const db = admin.firestore();
+    let apiKey = null;
+
+    try {
+      const settingsDoc = await db
+        .collection("schools")
+        .doc(callerSchoolId)
+        .collection("settings")
+        .doc("keys")
+        .get();
+
+      if (settingsDoc.exists) {
+        const data = settingsDoc.data();
+        if (data && data.geminiApiKey && String(data.geminiApiKey).trim().length > 0) {
+          apiKey = String(data.geminiApiKey).trim();
+        }
+      }
+    } catch (e) {
+      logger.error(`Failed to read Gemini API key from Firestore for school ${callerSchoolId}`, e);
+    }
+
+    // Fallback to environment variable if configured
+    if (!apiKey) {
+      apiKey = process.env.GEMINI_API_KEY;
+    }
+
+    if (!apiKey) {
+      throw new HttpsError("failed-precondition", "Gemini API key is not configured for this school.");
+    }
+
+    // 3. Make HTTP request to Gemini API
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const body = {
+      contents: [
+        {
+          parts: [
+            { text: prompt }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 800,
+      }
+    };
+
+    if (systemInstruction && typeof systemInstruction === "string" && systemInstruction.trim().length > 0) {
+      body.systemInstruction = {
+        parts: [
+          { text: systemInstruction.trim() }
+        ]
+      };
+    }
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error(`Gemini API call failed for school ${callerSchoolId}`, {
+          status: response.status,
+          errorText
+        });
+        throw new HttpsError("internal", `Gemini API call failed with status: ${response.status}`);
+      }
+
+      const responseData = await response.json();
+      const text = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        logger.error(`Invalid response structure from Gemini API for school ${callerSchoolId}`, responseData);
+        throw new HttpsError("internal", "Invalid response structure from Gemini API.");
+      }
+
+      return { text: text.trim() };
+    } catch (err) {
+      logger.error(`Gemini HTTP integration encountered an error for school ${callerSchoolId}`, err);
+      if (err instanceof HttpsError) {
+        throw err;
+      }
+      throw new HttpsError("internal", `Gemini API invocation failed: ${err.message}`);
+    }
+  }
+);
+
+
 
 

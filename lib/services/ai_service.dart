@@ -1,101 +1,32 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:cloud_functions/cloud_functions.dart';
 import 'base_firestore_service.dart';
 import '../models/student.dart';
 import '../models/exam.dart';
 import '../shared/utils/app_logger.dart';
+import '../shared/utils/app_functions.dart';
 
 class AIService extends BaseFirestoreService {
   static final AIService _instance = AIService._();
   AIService._();
   factory AIService() => _instance;
 
-  // In-memory caching of the API Key during the user session if provided manually
-  static String? _sessionApiKey;
-
-  static void setSessionApiKey(String? key) {
-    _sessionApiKey = key;
-  }
-
-  /// Fetches the Gemini API key. First checks session cache, then environment variables,
-  /// then looks at the school settings document `settings/main` for a `geminiApiKey` field.
-  Future<String?> _getApiKey() async {
-    if (_sessionApiKey != null && _sessionApiKey!.isNotEmpty) {
-      return _sessionApiKey;
-    }
-    
-    // Check environment variables/dart defines
-    const envKey = String.fromEnvironment('GEMINI_API_KEY');
-    if (envKey.isNotEmpty) return envKey;
-
-    final sid = BaseFirestoreService.currentSchoolId;
-    if (sid == null) return null;
-
-    try {
-      final settingsDoc = await db.collection('schools').doc(sid).collection('settings').doc('keys').get();
-      if (settingsDoc.exists) {
-        final data = settingsDoc.data();
-        if (data != null && data['geminiApiKey'] != null && data['geminiApiKey'].toString().isNotEmpty) {
-          return data['geminiApiKey'].toString();
-        }
-      }
-    } catch (e, st) {
-      AppLogger.e('AIService', 'Failed to retrieve API key from Firestore', e, st);
-    }
-    return null;
-  }
-
-  /// Calls the Gemini 1.5 Flash API via HTTP. Falls back to simulated results on failure or missing key.
+  /// Calls the Gemini 1.5 Flash API via Cloud Functions. Falls back to simulated results on failure.
   Future<String> _callGemini(String prompt, String systemInstruction, String fallbackResponse) async {
-    final apiKey = await _getApiKey();
-    if (apiKey == null || apiKey.isEmpty) {
-      AppLogger.d('AIService', 'No Gemini API key set. Running in Simulation Mode.');
-      // Wait a moment to mimic network latency
-      await Future.delayed(const Duration(milliseconds: 600));
-      return fallbackResponse;
-    }
-
     try {
-      final url = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey'
-      );
-      
-      final body = {
-        'contents': [
-          {
-            'parts': [
-              {'text': prompt}
-            ]
-          }
-        ],
-        'systemInstruction': {
-          'parts': [
-            {'text': systemInstruction}
-          ]
-        },
-        'generationConfig': {
-          'temperature': 0.7,
-          'maxOutputTokens': 800,
-        }
-      };
+      final response = await appFunctions.httpsCallable('callGemini').call<Map<String, dynamic>>({
+        'prompt': prompt,
+        'systemInstruction': systemInstruction,
+      });
 
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final text = data['candidates']?[0]?['content']?['parts']?[0]?['text'] as String?;
-        if (text != null && text.trim().isNotEmpty) {
-          return text.trim();
-        }
-      } else {
-        AppLogger.w('AIService', 'Gemini API call failed with status: ${response.statusCode}. Body: ${response.body}');
+      final text = response.data['text'] as String?;
+      if (text != null && text.trim().isNotEmpty) {
+        return text.trim();
       }
+    } on FirebaseFunctionsException catch (e) {
+      AppLogger.w('AIService', 'Gemini Cloud Function returned error: ${e.code} - ${e.message}');
     } catch (e, st) {
-      AppLogger.e('AIService', 'Gemini HTTP integration encountered an error', e, st);
+      AppLogger.e('AIService', 'Gemini Cloud Function integration encountered an error', e, st);
     }
     
     // Graceful fallback to simulated result on error

@@ -26,7 +26,7 @@ class RoleSelectionScreen extends StatelessWidget {
     );
   }
 
-  @override
+    @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -43,105 +43,123 @@ class RoleSelectionScreen extends StatelessWidget {
           decoration: const BoxDecoration(
             color: AppTheme.primaryDark,
           ),
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              24,
-              MediaQuery.paddingOf(context).top + 48,
-              24,
-              MediaQuery.paddingOf(context).bottom + 32,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                FadeInUp(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+          child: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 48, // Subtract padding top + bottom
+                    ),
+                    child: IntrinsicHeight(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.15),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
+                          const Spacer(flex: 3), // Push everything down on tall screens
+                          
+                          FadeInUp(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(20),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.15),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(20),
+                                        child: Image.asset(
+                                          'assets/images/logo.png',
+                                          height: 80,
+                                          width: 80,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Text(
+                                      context.tr('schoolApp'),
+                                      style: const TextStyle(
+                                        fontSize: 38,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  context.tr('chooseHowToSignIn'),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                  ),
                                 ),
                               ],
                             ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.asset(
-                                'assets/images/logo.png',
-                                height: 48,
-                                width: 48,
+                          ),
+                          
+                          const Spacer(flex: 2), // Spacing before the cards
+
+                          // ── Staff (teacher / coordinator / principal / owner) ───────
+                          FadeInUp(
+                            delay: const Duration(milliseconds: 100),
+                            child: _RoleCard(
+                              icon: Icons.badge_outlined,
+                              title: context.tr('staffLogin'),
+                              subtitle: context.tr('staffLoginSubtitle'),
+                              onTap: () => Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(builder: (_) => const LoginScreen()),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 16),
-                          Text(context.tr('schoolApp'),
-                              style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white)),
+                          const SizedBox(height: 12),
+
+                          // ── Guardian ──────────────────────────────────────────────
+                          FadeInUp(
+                            delay: const Duration(milliseconds: 180),
+                            child: _RoleCard(
+                              icon: Icons.family_restroom_outlined,
+                              title: context.tr('role_guardian'),
+                              subtitle: context.tr('guardianSubtitle'),
+                              onTap: () => Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const GuardianLoginScreen()),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // ── Admin ─────────────────────────────────────────────────
+                          FadeInUp(
+                            delay: const Duration(milliseconds: 260),
+                            child: _RoleCard(
+                              icon: Icons.manage_accounts_outlined,
+                              title: context.tr('role_admin'),
+                              subtitle: context.tr('adminSubtitle'),
+                              onTap: () => _openAdmin(context),
+                            ),
+                          ),
+
+                          const Spacer(flex: 1), // Padding at the bottom
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      Text(context.tr('chooseHowToSignIn'),
-                          style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white.withValues(alpha: 0.7))),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // ── Staff (teacher / coordinator / principal / owner) ───────
-                FadeInUp(
-                  delay: const Duration(milliseconds: 100),
-                  child: _RoleCard(
-                    icon: Icons.badge_outlined,
-                    title: context.tr('staffLogin'),
-                    subtitle: context.tr('staffLoginSubtitle'),
-                    onTap: () => Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-
-                // ── Guardian ──────────────────────────────────────────────
-                FadeInUp(
-                  delay: const Duration(milliseconds: 180),
-                  child: _RoleCard(
-                    icon: Icons.family_restroom_outlined,
-                    title: context.tr('role_guardian'),
-                    subtitle: context.tr('guardianSubtitle'),
-                    onTap: () => Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const GuardianLoginScreen()),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // ── Admin ─────────────────────────────────────────────────
-                FadeInUp(
-                  delay: const Duration(milliseconds: 260),
-                  child: _RoleCard(
-                    icon: Icons.manage_accounts_outlined,
-                    title: context.tr('role_admin'),
-                    subtitle: context.tr('adminSubtitle'),
-                    onTap: () => _openAdmin(context),
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-              ],
+                );
+              },
             ),
           ),
         ),
