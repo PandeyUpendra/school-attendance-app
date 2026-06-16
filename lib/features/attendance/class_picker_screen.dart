@@ -106,16 +106,6 @@ class _ClassPickerScreenState extends State<ClassPickerScreen> {
 
   String get _title => context.tr('selectClass');
 
-  String get _subtitle {
-    switch (widget.mode) {
-      case ClassPickerMode.attendance:
-        return context.tr('chooseClassAttendance');
-      case ClassPickerMode.reports:
-        return context.tr('chooseClassHistory');
-      default:
-        return context.tr('chooseClassStudents');
-    }
-  }
 
   Color get _color => AppTheme.primary;
 
@@ -167,14 +157,6 @@ class _ClassPickerScreenState extends State<ClassPickerScreen> {
                 )
               : Column(
                   children: [
-                    Container(
-                      color: _color,
-                      width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                      child: Text(_subtitle,
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 13)),
-                    ),
                     Expanded(
                       child: ListView.separated(
                         padding: const EdgeInsets.symmetric(vertical: 8),

@@ -186,17 +186,6 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                   ),
                 )
               : Column(children: [
-                  Container(
-                    color: AppTheme.primary,
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                    child: Text(
-                      _isPrincipal
-                          ? 'Select a class section to view its students'
-                          : 'Select a class to view its sections',
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
-                    ),
-                  ),
                   Expanded(
                     child: RefreshIndicator(
                       onRefresh: _reload,

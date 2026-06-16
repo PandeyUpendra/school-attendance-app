@@ -14,6 +14,7 @@ import '../../services/ai_service.dart';
 import '../../services/base_firestore_service.dart';
 import '../../services/auth_service.dart';
 import '../../shared/utils/app_transitions.dart';
+import '../../services/homework_service.dart';
 
 /// Analytics Dashboard — coordinator / principal only.
 /// Tabs: Overview · Attendance · Absences · Fee
@@ -95,7 +96,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                     _FeeTab(classes: _classes),
                     _ExamAnalyticsTab(classes: _classes),
                     const _TeacherPerformanceTab(),
-                    const _ParentEngagementTab(),
+                    _ParentEngagementTab(classes: _classes),
                     _AiInsightsTab(classes: _classes),
                   ],
                 ),
