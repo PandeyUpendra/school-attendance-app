@@ -1154,6 +1154,7 @@ class AppStrings {
     'obStepAcademic':          {'en': 'Academic Setup',       'hi': 'शैक्षणिक सेटअप'},
     'obStepFeeSetup':          {'en': 'Fee Setup',            'hi': 'फ़ीस सेटअप'},
     'obStepCommunication':     {'en': 'Communication',        'hi': 'संपर्क'},
+    'obStepSocialMedia':       {'en': 'Social Media',         'hi': 'सोशल मीडिया'},
     'obStepReview':            {'en': 'Review & Submit',      'hi': 'समीक्षा और जमा करें'},
     'schoolSetupStep':         {'en': 'SCHOOL SETUP  ·  STEP', 'hi': 'स्कूल सेटअप  ·  चरण'},
     'ofCaps':                  {'en': 'OF',                   'hi': '/'},

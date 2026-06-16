@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/school_onboarding.dart';
 import '../../theme.dart';
@@ -19,11 +20,11 @@ String _localizedLang(BuildContext c, String l) => switch (l) {
       _ => c.tr('langEnglish'),
     };
 
-class Step6Review extends StatelessWidget {
+class Step7Review extends StatelessWidget {
   final SchoolOnboarding data;
   final void Function(int step) onEditStep;
 
-  const Step6Review({
+  const Step7Review({
     super.key,
     required this.data,
     required this.onEditStep,
@@ -116,6 +117,20 @@ class Step6Review extends StatelessWidget {
               _row(context.tr('rvTagline'), '"${data.schoolTagline}"'),
           ],
         ),
+        // Social Media section
+        _card(
+          context: context,
+          title: context.tr('socialMediaLinksTitle'),
+          stepIndex: 5,
+          onEdit: onEditStep,
+          children: [
+            _socialRow(context.tr('facebookLabel'), data.facebookUrl, FontAwesomeIcons.facebook, const Color(0xFF1877F2)),
+            _socialRow(context.tr('instagramLabel'), data.instagramUrl, FontAwesomeIcons.instagram, const Color(0xFFE4405F)),
+            _socialRow(context.tr('twitterLabel'), data.twitterUrl, FontAwesomeIcons.twitter, const Color(0xFF1DA1F2)),
+            _socialRow(context.tr('youtubeLabel'), data.youtubeUrl, FontAwesomeIcons.youtube, const Color(0xFFFF0000)),
+            _socialRow(context.tr('linkedinLabel'), data.linkedinUrl, FontAwesomeIcons.linkedin, const Color(0xFF0A66C2)),
+          ],
+        ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(12),
@@ -199,6 +214,34 @@ class Step6Review extends StatelessWidget {
         Expanded(
           child: Text(value,
               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+        ),
+      ]),
+    );
+  }
+
+  Widget _socialRow(String label, String url, IconData icon, Color iconColor) {
+    final hasUrl = url.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(children: [
+        FaIcon(icon, color: iconColor, size: 14),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 90,
+          child: Text(label.replaceAll(' URL', ''),
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+        ),
+        Expanded(
+          child: Text(
+            hasUrl ? url : 'Not added',
+            style: TextStyle(
+              fontWeight: hasUrl ? FontWeight.w600 : FontWeight.normal,
+              fontSize: 12,
+              color: hasUrl ? null : Colors.grey.shade400,
+              fontStyle: hasUrl ? null : FontStyle.italic,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ]),
     );

@@ -32,6 +32,11 @@ class SchoolOnboarding {
   bool busServiceAvailable;
   int busRouteCount;
   String schoolTagline;
+  String facebookUrl;
+  String instagramUrl;
+  String twitterUrl;
+  String youtubeUrl;
+  String linkedinUrl;
   bool isCompleted;
   int currentStep;
   String? classesFromLabel;
@@ -71,6 +76,11 @@ class SchoolOnboarding {
     this.busServiceAvailable = false,
     this.busRouteCount = 0,
     this.schoolTagline = '',
+    this.facebookUrl = '',
+    this.instagramUrl = '',
+    this.twitterUrl = '',
+    this.youtubeUrl = '',
+    this.linkedinUrl = '',
     this.isCompleted = false,
     this.currentStep = 0,
     this.classesFromLabel,
@@ -111,6 +121,11 @@ class SchoolOnboarding {
     bool? busServiceAvailable,
     int? busRouteCount,
     String? schoolTagline,
+    String? facebookUrl,
+    String? instagramUrl,
+    String? twitterUrl,
+    String? youtubeUrl,
+    String? linkedinUrl,
     bool? isCompleted,
     int? currentStep,
     String? classesFromLabel,
@@ -149,6 +164,11 @@ class SchoolOnboarding {
     busServiceAvailable: busServiceAvailable ?? this.busServiceAvailable,
     busRouteCount: busRouteCount ?? this.busRouteCount,
     schoolTagline: schoolTagline ?? this.schoolTagline,
+    facebookUrl: facebookUrl ?? this.facebookUrl,
+    instagramUrl: instagramUrl ?? this.instagramUrl,
+    twitterUrl: twitterUrl ?? this.twitterUrl,
+    youtubeUrl: youtubeUrl ?? this.youtubeUrl,
+    linkedinUrl: linkedinUrl ?? this.linkedinUrl,
     isCompleted: isCompleted ?? this.isCompleted,
     currentStep: currentStep ?? this.currentStep,
     classesFromLabel: classesFromLabel ?? this.classesFromLabel,
@@ -189,6 +209,11 @@ class SchoolOnboarding {
     'busServiceAvailable': busServiceAvailable,
     'busRouteCount': busRouteCount,
     'schoolTagline': schoolTagline,
+    'facebookUrl': facebookUrl,
+    'instagramUrl': instagramUrl,
+    'twitterUrl': twitterUrl,
+    'youtubeUrl': youtubeUrl,
+    'linkedinUrl': linkedinUrl,
     'isCompleted': isCompleted,
     'currentStep': currentStep,
     'classesFromLabel': classesFromLabel,
@@ -229,6 +254,11 @@ class SchoolOnboarding {
     busServiceAvailable: j['busServiceAvailable'] as bool? ?? false,
     busRouteCount: j['busRouteCount'] as int? ?? 0,
     schoolTagline: j['schoolTagline'] as String? ?? '',
+    facebookUrl: j['facebookUrl'] as String? ?? '',
+    instagramUrl: j['instagramUrl'] as String? ?? '',
+    twitterUrl: j['twitterUrl'] as String? ?? '',
+    youtubeUrl: j['youtubeUrl'] as String? ?? '',
+    linkedinUrl: j['linkedinUrl'] as String? ?? '',
     isCompleted: j['isCompleted'] as bool? ?? false,
     currentStep: j['currentStep'] as int? ?? 0,
     classesFromLabel: j['classesFromLabel'] as String?,

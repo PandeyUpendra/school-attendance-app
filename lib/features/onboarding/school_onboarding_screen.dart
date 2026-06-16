@@ -8,7 +8,8 @@ import './step2_address.dart';
 import './step3_academic.dart';
 import './step4_fees.dart';
 import './step5_communication.dart';
-import './step6_review.dart';
+import './step6_social_media.dart';
+import './step7_review.dart';
 
 class SchoolOnboardingScreen extends StatefulWidget {
   final Widget destination;
@@ -35,6 +36,7 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
   final _step3Key = GlobalKey<Step3AcademicState>();
   final _step4Key = GlobalKey<Step4FeesState>();
   final _step5Key = GlobalKey<Step5CommunicationState>();
+  final _step6Key = GlobalKey<Step6SocialMediaState>();
 
   static const _stepTitleKeys = [
     'obStepBasicInfo',
@@ -42,6 +44,7 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
     'obStepAcademic',
     'obStepFeeSetup',
     'obStepCommunication',
+    'obStepSocialMedia',
     'obStepReview',
   ];
 
@@ -61,7 +64,7 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
     try {
       final draft = await _svc.getOnboardingStatus();
       if (draft.isNotEmpty) {
-        final savedStep = (draft['currentStep'] as int? ?? 0).clamp(0, 5);
+        final savedStep = (draft['currentStep'] as int? ?? 0).clamp(0, 6);
         setState(() {
           _data = SchoolOnboarding.fromJson(draft);
           _step = savedStep;
@@ -97,6 +100,7 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
       case 2: return _step3Key.currentState?.validate() ?? false;
       case 3: return _step4Key.currentState?.validate() ?? false;
       case 4: return _step5Key.currentState?.validate() ?? false;
+      case 5: return _step6Key.currentState?.validate() ?? true;
       default: return true;
     }
   }
@@ -104,7 +108,7 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
   Future<void> _onNext() async {
     if (!_validateCurrentStep()) return;
     await _saveDraft();
-    if (_step < 5) {
+    if (_step < 6) {
       setState(() {
         _step++;
         _resuming = false;
@@ -221,7 +225,12 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
                   initial: _data,
                   onChanged: (d) => setState(() => _data = d),
                 ),
-                Step6Review(
+                Step6SocialMedia(
+                  key: _step6Key,
+                  initial: _data,
+                  onChanged: (d) => setState(() => _data = d),
+                ),
+                Step7Review(
                   data: _data,
                   onEditStep: _goToStep,
                 ),
@@ -268,7 +277,7 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
-                value: (_step + 1) / 6,
+                value: (_step + 1) / 7,
                 minHeight: 6,
                 backgroundColor: Colors.white24,
                 valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
@@ -281,7 +290,7 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
   }
 
   Widget _buildBottomNav() {
-    final isLast = _step == 5;
+    final isLast = _step == 6;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       decoration: BoxDecoration(

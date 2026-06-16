@@ -54,13 +54,25 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
     super.initState();
     _focusNode = FocusNode();
     _focusNode.addListener(_onFocusChange);
+    widget.controller.addListener(_onTextChanged);
   }
 
   @override
   void dispose() {
+    widget.controller.removeListener(_onTextChanged);
     _focusNode.removeListener(_onFocusChange);
     _focusNode.dispose();
     super.dispose();
+  }
+
+  /// Reset validation state when the text is cleared externally
+  /// (e.g. after a successful account creation).
+  void _onTextChanged() {
+    if (widget.controller.text.isEmpty && _touched) {
+      setState(() {
+        _touched = false;
+      });
+    }
   }
 
   void _onFocusChange() {
