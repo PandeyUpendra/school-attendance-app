@@ -461,7 +461,7 @@ class _SplashGateState extends State<_SplashGate> {
       backgroundColor: Colors.transparent,
       body: Container(
         decoration: const BoxDecoration(
-          color: AppTheme.primary,
+          color: AppTheme.primaryDark,
         ),
         child: Center(
           child: Column(
