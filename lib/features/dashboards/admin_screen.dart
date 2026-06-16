@@ -19,7 +19,9 @@ class AdminScreen extends StatefulWidget {
 
 class _AdminScreenState extends State<AdminScreen> {
   final _service    = TimetableService.instance;
-  final _emailCtrl  = TextEditingController();
+  final _schoolNameCtrl = TextEditingController();
+  final _schoolAddressCtrl = TextEditingController();
+  final _primaryOwnerEmailCtrl = TextEditingController();
   final _searchCtrl = TextEditingController();
 
   static const _role = 'owner';
@@ -30,8 +32,6 @@ class _AdminScreenState extends State<AdminScreen> {
   bool _saving   = false;
   String _searchQuery = '';
   String _filterStatus = 'all'; // 'all', 'active', 'suspended'
-
-
 
   @override
   void initState() {
@@ -44,7 +44,9 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    _schoolNameCtrl.dispose();
+    _schoolAddressCtrl.dispose();
+    _primaryOwnerEmailCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -85,24 +87,29 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  // ── Filtered Users ─────────────────────────────────────────────────────────
+  // ── Filtered Schools ───────────────────────────────────────────────────────
 
-  List<Map<String, dynamic>> get _filteredUsers {
-    return _users.where((user) {
-      final email = (user['email'] as String).toLowerCase();
-      final schoolId = (user['schoolId'] as String?) ?? '';
+  List<String> get _filteredSchools {
+    final query = _searchQuery;
+    
+    return _schoolsMap.keys.where((schoolId) {
       final school = _schoolsMap[schoolId];
-      final schoolName = ((school?['name'] as String?) ?? '').toLowerCase();
-      final brandName = ((school?['brandName'] as String?) ?? '').toLowerCase();
+      final name = (school?['name'] as String? ?? '').toLowerCase();
+      final brandName = (school?['brandName'] as String? ?? '').toLowerCase();
       
-      final matchesSearch = email.contains(_searchQuery) ||
-          schoolId.toLowerCase().contains(_searchQuery) ||
-          schoolName.contains(_searchQuery) ||
-          brandName.contains(_searchQuery);
+      final schoolOwners = _users
+          .where((u) => u['schoolId'] == schoolId)
+          .map((u) => (u['email'] as String).toLowerCase())
+          .toList();
+          
+      final matchesSearch = schoolId.toLowerCase().contains(query) ||
+          name.contains(query) ||
+          brandName.contains(query) ||
+          schoolOwners.any((email) => email.contains(query));
           
       if (!matchesSearch) return false;
       
-      final isActive = school?['isActive'] ?? true;
+      final isActive = school?['isActive'] as bool? ?? true;
       if (_filterStatus == 'active') {
         return isActive == true;
       } else if (_filterStatus == 'suspended') {
@@ -113,18 +120,28 @@ class _AdminScreenState extends State<AdminScreen> {
     }).toList();
   }
 
-  // ── Add ────────────────────────────────────────────────────────────────────
+  // ── Create School System ───────────────────────────────────────────────────
 
-  Future<void> _add() async {
-    final email = _emailCtrl.text.trim().toLowerCase();
+  Future<void> _createSchoolSystem() async {
+    final name = _schoolNameCtrl.text.trim();
+    final address = _schoolAddressCtrl.text.trim();
+    final email = _primaryOwnerEmailCtrl.text.trim().toLowerCase();
 
+    if (name.isEmpty) {
+      _snack('Please enter the school name');
+      return;
+    }
+    if (address.isEmpty) {
+      _snack('Please enter the school address');
+      return;
+    }
     if (email.isEmpty ||
         !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
       _snack(context.tr('enterValidEmailAddress'));
       return;
     }
     if (_users.any((u) => u['email'] == email)) {
-      _snack(context.tr('emailAlreadyRegistered'));
+      _snack('This email is already registered as an owner.');
       return;
     }
 
@@ -132,32 +149,38 @@ class _AdminScreenState extends State<AdminScreen> {
     try {
       final schoolId =
           'school_${DateTime.now().millisecondsSinceEpoch}_${email.hashCode.abs()}';
+      
       await FirebaseFirestore.instance.collection('schools').doc(schoolId).set({
-        'name': '',
-        'address': '',
+        'name': name,
+        'address': address,
         'contactNumber': '',
         'email': email,
         'logoUrl': '',
         'createdAt': FieldValue.serverTimestamp(),
         'subscriptionPlan': 'free',
         'isActive': true,
-        'brandName': '',
+        'brandName': name,
       });
+
       await _service.addAllowedUser(email, '', _role, schoolId: schoolId);
-      _emailCtrl.clear();
+
+      _schoolNameCtrl.clear();
+      _schoolAddressCtrl.clear();
+      _primaryOwnerEmailCtrl.clear();
+
       if (!mounted) return;
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('$email ${context.tr('addedAsOwnerSuffix')}'),
+        content: Text('Created school system and invited $email'),
         backgroundColor: Colors.green.shade700,
         duration: const Duration(seconds: 3),
       ));
     } catch (e) {
-      AppLogger.e('AdminScreen', '_add failed for $email: $e', e);
+      AppLogger.e('AdminScreen', '_createSchoolSystem failed: $e', e);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('${context.tr('couldNotAdd')} $email: $e'),
+        content: Text('Could not create school system: $e'),
         backgroundColor: Colors.red.shade700,
         duration: const Duration(seconds: 8),
       ));
@@ -166,80 +189,112 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  // ── Remove ─────────────────────────────────────────────────────────────────
+  // ── Multi-Owner Management ─────────────────────────────────────────────────
 
-  Future<void> _remove(String email) async {
-    final confirmCtrl = TextEditingController();
-    final ok = await showDialog<bool>(
+  Future<void> _addOwnerToSchool(String schoolId) async {
+    final emailCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) {
-          final matches =
-              confirmCtrl.text.trim().toLowerCase() == email.toLowerCase();
-          return AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Text(context.tr('deleteOwnerAccount')),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${context.tr('deleteOwnerBodyPre')} $email ${context.tr('deleteOwnerBodyPost')}',
-                  style: const TextStyle(fontSize: 13.5),
-                ),
-                const SizedBox(height: 16),
-                Text(context.tr('typeEmailToConfirm'),
-                    style:
-                        TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: confirmCtrl,
-                  autofocus: true,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  decoration: InputDecoration(
-                    hintText: email,
-                    isDense: true,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onChanged: (_) => setLocal(() {}),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: Text(context.tr('cancel'))),
-              TextButton(
-                onPressed: matches ? () => Navigator.pop(ctx, true) : null,
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: Text(context.tr('deletePermanently')),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Add School Owner'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Enter the email address of the additional owner for this school system:'),
+            const SizedBox(height: 12),
+            EmailTextFormField(
+              controller: emailCtrl,
+              decoration: InputDecoration(
+                hintText: 'owner2@example.com',
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
-            ],
-          );
-        },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.primary),
+            child: const Text('Add Owner'),
+          ),
+        ],
       ),
     );
-    Future.delayed(const Duration(milliseconds: 350), confirmCtrl.dispose);
-    if (ok != true) return;
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+    final email = emailCtrl.text.trim().toLowerCase();
+    if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
+      _snack(context.tr('enterValidEmailAddress'));
+      return;
+    }
+    if (_users.any((u) => u['email'] == email)) {
+      _snack('This email is already registered as an owner.');
+      return;
+    }
+
+    setState(() => _loading = true);
     try {
-      final full = await _service.deleteAccountFully(email);
+      await _service.addAllowedUser(email, '', _role, schoolId: schoolId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(full
-            ? '$email ${context.tr('ownerDeletedSuffix')}'
-            : '${context.tr('accessRevokedPre')} $email — ${context.tr('accessRevokedPost')}'),
-        backgroundColor: full ? Colors.green.shade700 : Colors.orange.shade800,
-        duration: const Duration(seconds: 5),
+        content: Text('Added owner $email to the school system.'),
+        backgroundColor: Colors.green.shade700,
       ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('${context.tr('couldNotDelete')} $email: $e'),
+        content: Text('Failed to add owner: $e'),
         backgroundColor: Colors.red.shade700,
-        duration: const Duration(seconds: 8),
+      ));
+    }
+    _load();
+  }
+
+  Future<void> _removeOwnerEmail(String email) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Remove Owner Access?'),
+        content: Text('Are you sure you want to revoke owner access for $email? This will not delete the school itself.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Revoke Access'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    setState(() => _loading = true);
+    try {
+      await _service.deleteAccountFully(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Revoked owner access for $email.'),
+        backgroundColor: Colors.green.shade700,
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to revoke access: $e'),
+        backgroundColor: Colors.red.shade700,
       ));
     }
     _load();
@@ -280,6 +335,7 @@ class _AdminScreenState extends State<AdminScreen> {
     );
     
     if (selected == null || selected == currentPlan) return;
+    if (!mounted) return;
     
     setState(() => _loading = true);
     try {
@@ -288,11 +344,13 @@ class _AdminScreenState extends State<AdminScreen> {
           .doc(schoolId)
           .update({'subscriptionPlan': selected});
       
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Updated plan to ${selected.toUpperCase()}'),
         backgroundColor: Colors.green.shade700,
       ));
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Failed to update plan: $e'),
         backgroundColor: Colors.red.shade700,
@@ -330,6 +388,7 @@ class _AdminScreenState extends State<AdminScreen> {
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
 
     setState(() => _loading = true);
     try {
@@ -338,14 +397,102 @@ class _AdminScreenState extends State<AdminScreen> {
           .doc(schoolId)
           .update({'isActive': nextActive});
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(nextActive ? 'School system activated.' : 'School system suspended.'),
         backgroundColor: nextActive ? Colors.green.shade700 : Colors.orange.shade800,
       ));
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Failed to update status: $e'),
         backgroundColor: Colors.red.shade700,
+      ));
+    }
+    _load();
+  }
+
+  Future<void> _deleteSchoolSystem(String schoolId, String schoolName) async {
+    final confirmCtrl = TextEditingController();
+    final schoolOwners = _users
+        .where((u) => u['schoolId'] == schoolId)
+        .map((u) => u['email'] as String)
+        .toList();
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          final matches =
+              confirmCtrl.text.trim().toLowerCase() == schoolName.toLowerCase();
+          return AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Delete School System?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'WARNING: This will permanently delete the school system "$schoolName" and all associated data, including its owner accounts (${schoolOwners.join(", ")}). This action cannot be undone!',
+                  style: const TextStyle(fontSize: 13.5, color: Colors.red),
+                ),
+                const SizedBox(height: 16),
+                const Text('Type the exact school name to confirm:',
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: confirmCtrl,
+                  autofocus: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: InputDecoration(
+                    hintText: schoolName,
+                    isDense: true,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onChanged: (_) => setLocal(() {}),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(context.tr('cancel'))),
+              TextButton(
+                onPressed: matches ? () => Navigator.pop(ctx, true) : null,
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete Permanently'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    Future.delayed(const Duration(milliseconds: 350), confirmCtrl.dispose);
+    if (ok != true) return;
+    if (!mounted) return;
+
+    setState(() => _loading = true);
+    try {
+      for (final email in schoolOwners) {
+        await _service.deleteAccountFully(email);
+      }
+      await FirebaseFirestore.instance.collection('schools').doc(schoolId).delete();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Successfully deleted school system "$schoolName".'),
+        backgroundColor: Colors.green.shade700,
+        duration: const Duration(seconds: 5),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not delete school system: $e'),
+        backgroundColor: Colors.red.shade700,
+        duration: const Duration(seconds: 8),
       ));
     }
     _load();
@@ -400,8 +547,6 @@ class _AdminScreenState extends State<AdminScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(msg)));
 
-
-
   BoxDecoration get _cardDecoration => BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -447,7 +592,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   _buildSearchAndFilter(),
                   const SizedBox(height: 16),
                   Row(children: [
-                    _fieldLabel(context.tr('registeredOwners')),
+                    _fieldLabel('REGISTERED SCHOOL SYSTEMS'),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -456,7 +601,7 @@ class _AdminScreenState extends State<AdminScreen> {
                         color: AppTheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Text('${_filteredUsers.length}',
+                      child: Text('${_filteredSchools.length}',
                           style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -577,22 +722,76 @@ class _AdminScreenState extends State<AdminScreen> {
                 color: AppTheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(11),
               ),
-              child: const Icon(Icons.person_add_alt_1_outlined,
+              child: const Icon(Icons.add_business_outlined,
                   color: AppTheme.primary, size: 20),
             ),
             const SizedBox(width: 12),
-            Text(context.tr('addOwner'),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Create School System',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ]),
           const SizedBox(height: 18),
 
-          // Email
-          _fieldLabel(context.tr('emailAddressCaps')),
+          // School Name
+          _fieldLabel('SCHOOL NAME'),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _schoolNameCtrl,
+            decoration: InputDecoration(
+              hintText: 'e.g. Greenwood Public School',
+              hintStyle: TextStyle(color: Colors.grey.shade400),
+              prefixIcon: Icon(Icons.school_outlined,
+                  color: Colors.grey.shade500, size: 20),
+              filled: true,
+              fillColor: AppTheme.background,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade200)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade200)),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:
+                      const BorderSide(color: AppTheme.primary, width: 1.5)),
+              contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // School Address
+          _fieldLabel('SCHOOL ADDRESS'),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _schoolAddressCtrl,
+            decoration: InputDecoration(
+              hintText: 'e.g. Sector 12, Noida, UP',
+              hintStyle: TextStyle(color: Colors.grey.shade400),
+              prefixIcon: Icon(Icons.location_on_outlined,
+                  color: Colors.grey.shade500, size: 20),
+              filled: true,
+              fillColor: AppTheme.background,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade200)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade200)),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:
+                      const BorderSide(color: AppTheme.primary, width: 1.5)),
+              contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Owner Email
+          _fieldLabel('PRIMARY OWNER EMAIL'),
           const SizedBox(height: 6),
           EmailTextFormField(
-            controller: _emailCtrl,
+            controller: _primaryOwnerEmailCtrl,
             decoration: InputDecoration(
-              hintText: 'name@example.com',
+              hintText: 'owner@example.com',
               hintStyle: TextStyle(color: Colors.grey.shade400),
               prefixIcon: Icon(Icons.email_outlined,
                   color: Colors.grey.shade500, size: 20),
@@ -628,7 +827,7 @@ class _AdminScreenState extends State<AdminScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _saving ? null : _add,
+              onPressed: _saving ? null : _createSchoolSystem,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
@@ -643,7 +842,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.send_rounded, size: 18),
-              label: Text(_saving ? context.tr('sendingEllipsis') : context.tr('addAndSendInvite'),
+              label: Text(_saving ? context.tr('sendingEllipsis') : 'Create & Send Invite',
                   style: const TextStyle(
                       fontSize: 15, fontWeight: FontWeight.w600)),
             ),
@@ -688,35 +887,27 @@ class _AdminScreenState extends State<AdminScreen> {
         child: Center(child: CircularProgressIndicator()),
       );
     }
-    final filtered = _filteredUsers;
+    final filtered = _filteredSchools;
     if (filtered.isEmpty) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 44),
         alignment: Alignment.center,
         child: Column(children: [
-          Icon(Icons.group_outlined, size: 54, color: Colors.grey.shade300),
+          Icon(Icons.business_outlined, size: 54, color: Colors.grey.shade300),
           const SizedBox(height: 12),
           Text(
             _searchQuery.isNotEmpty || _filterStatus != 'all'
-                ? 'No matching tenants found'
-                : context.tr('noOwnersRegistered'),
+                ? 'No matching schools found'
+                : 'No schools registered yet',
             style: TextStyle(fontSize: 14.5, color: Colors.grey.shade400),
           ),
-          if (_searchQuery.isEmpty && _filterStatus == 'all') ...[
-            const SizedBox(height: 4),
-            Text(context.tr('addEmailToInvite'),
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
-          ]
         ]),
       );
     }
-    return Column(children: [for (final u in filtered) _buildUserCard(u)]);
+    return Column(children: [for (final sid in filtered) _buildSchoolCard(sid)]);
   }
 
-  Widget _buildUserCard(Map<String, dynamic> user) {
-    final email    = user['email'] as String;
-    final schoolId = (user['schoolId'] as String?) ?? '';
-
+  Widget _buildSchoolCard(String schoolId) {
     final schoolDoc = _schoolsMap[schoolId];
     final schoolName = schoolDoc?['name'] as String? ?? '';
     final brandName  = schoolDoc?['brandName'] as String? ?? '';
@@ -727,6 +918,11 @@ class _AdminScreenState extends State<AdminScreen> {
     final formattedDate = createdAt != null
         ? '${createdAt.toDate().day}/${createdAt.toDate().month}/${createdAt.toDate().year}'
         : 'Unknown';
+
+    final schoolOwners = _users
+        .where((u) => u['schoolId'] == schoolId)
+        .map((u) => u['email'] as String)
+        .toList();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -802,19 +998,38 @@ class _AdminScreenState extends State<AdminScreen> {
             ],
           ),
           const Divider(height: 20, thickness: 0.8),
-          Row(
+          
+          _fieldLabel('REGISTERED OWNERS'),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
             children: [
-              Icon(Icons.email_outlined, size: 14, color: Colors.grey.shade400),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  email,
-                  style: const TextStyle(fontSize: 12.5, color: AppTheme.textPrimary, fontWeight: FontWeight.w500),
+              for (final email in schoolOwners)
+                Chip(
+                  label: Text(email, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500)),
+                  backgroundColor: AppTheme.background,
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  deleteIcon: const Icon(Icons.cancel_outlined, size: 14, color: AppTheme.danger),
+                  onDeleted: schoolOwners.length > 1
+                      ? () => _removeOwnerEmail(email)
+                      : null,
                 ),
+              ActionChip(
+                avatar: const Icon(Icons.add, size: 14, color: AppTheme.primary),
+                label: const Text('Add Owner', style: TextStyle(fontSize: 11.5, color: AppTheme.primary, fontWeight: FontWeight.bold)),
+                backgroundColor: AppTheme.primary.withValues(alpha: 0.08),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: const BorderSide(color: AppTheme.primaryLight),
+                ),
+                onPressed: () => _addOwnerToSchool(schoolId),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
+          
           InkWell(
             onTap: () {
               if (schoolId.isNotEmpty) {
@@ -885,8 +1100,8 @@ class _AdminScreenState extends State<AdminScreen> {
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.delete_outline, color: AppTheme.danger, size: 18),
-                onPressed: () => _remove(email),
-                tooltip: context.tr('removeAction'),
+                onPressed: () => _deleteSchoolSystem(schoolId, schoolName),
+                tooltip: 'Delete School System',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
