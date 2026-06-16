@@ -41,6 +41,7 @@ import '../todo/todo_list_screen.dart';
 import '../todo/todo_reminder_banner.dart';
 import '../teachers/teacher_morning_summary_card.dart';
 import '../../shared/widgets/social_media_links_screen.dart';
+import '../admin/admission_crm_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -533,6 +534,17 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.assignment_ind_outlined,
+            color: AppTheme.primary,
+            title: 'Admission Enquiries',
+            subtitle: 'Log prospective students & follow-ups',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AdmissionCrmScreen()),
+            ),
+          ),
 
           _SectionHeader(context.tr('secCalls')),
           _FeatureTile(
@@ -915,6 +927,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 teacherId:        teacher?.id,
               ),
             ),
+          ),
+        ),
+        const _Divider(),
+        _FeatureTile(
+          icon: Icons.assignment_ind_outlined,
+          color: AppTheme.primary,
+          title: 'Admission Enquiries',
+          subtitle: 'Log prospective students & follow-ups',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AdmissionCrmScreen()),
           ),
         ),
 

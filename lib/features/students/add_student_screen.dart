@@ -28,8 +28,22 @@ class AddStudentScreen extends StatefulWidget {
   /// Class teacher's ID — stamped onto every new student so records are
   /// scoped to this teacher and not visible to other teachers.
   final String? teacherId;
-  const AddStudentScreen(
-      {super.key, required this.className, this.section = '', this.existing, this.teacherId});
+  final String? initialStudentName;
+  final String? initialParentName;
+  final String? initialParentPhone;
+  final String? initialParentEmail;
+
+  const AddStudentScreen({
+    super.key,
+    required this.className,
+    this.section = '',
+    this.existing,
+    this.teacherId,
+    this.initialStudentName,
+    this.initialParentName,
+    this.initialParentPhone,
+    this.initialParentEmail,
+  });
 
   @override
   State<AddStudentScreen> createState() => _AddStudentScreenState();
@@ -115,6 +129,18 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       _transportMode        = s.transportMode;
     } else {
       _autoFillNextRoll();
+      if (widget.initialStudentName != null) {
+        _nameCtrl.text = widget.initialStudentName!;
+      }
+      if (widget.initialParentName != null) {
+        _fatherCtrl.text = widget.initialParentName!;
+      }
+      if (widget.initialParentPhone != null) {
+        _phoneCtrl.text = widget.initialParentPhone!;
+      }
+      if (widget.initialParentEmail != null) {
+        _guardianEmailCtrl.text = widget.initialParentEmail!;
+      }
     }
   }
 

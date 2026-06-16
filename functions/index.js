@@ -461,9 +461,10 @@ exports.createAllowedUser = onCall(
     }
 
     const callerEmail = request.auth.token.email.toLowerCase();
-    const callerRole = request.auth.token.role;
-    const callerSchoolId = request.auth.token.schoolId;
-    const callerClassIds = request.auth.token.classIds || [];
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerRole = resolveCallerRole(callerEmail, callerSnap) || request.auth.token.role;
+    const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : request.auth.token.schoolId;
+    const callerClassIds = callerSnap.exists ? (callerSnap.get("classIds") || []) : (request.auth.token.classIds || []);
 
     const isAdmin = callerRole === "admin" || ROOT_ADMIN_EMAILS.includes(callerEmail);
 
@@ -590,9 +591,10 @@ exports.updateUserMetadata = onCall(
     }
 
     const callerEmail = request.auth.token.email.toLowerCase();
-    const callerRole = request.auth.token.role;
-    const callerSchoolId = request.auth.token.schoolId;
-    const callerClassIds = request.auth.token.classIds || [];
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerRole = resolveCallerRole(callerEmail, callerSnap) || request.auth.token.role;
+    const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : request.auth.token.schoolId;
+    const callerClassIds = callerSnap.exists ? (callerSnap.get("classIds") || []) : (request.auth.token.classIds || []);
 
     const email = String(request.data && request.data.email ? request.data.email : "")
       .trim()
@@ -2891,7 +2893,8 @@ exports.callGemini = onCall(
     }
 
     const callerEmail = request.auth.token.email.toLowerCase();
-    const callerSchoolId = request.auth.token.schoolId;
+    const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : request.auth.token.schoolId;
     if (!callerSchoolId) {
       throw new HttpsError("permission-denied", "User is not associated with any school.");
     }

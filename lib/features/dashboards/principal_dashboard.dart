@@ -38,6 +38,7 @@ import '../../services/task_service.dart';
 import '../../shared/utils/role_guard.dart';
 import '../../shared/utils/app_transitions.dart';
 import '../meeting/principal_meeting_records_screen.dart';
+import '../admin/admission_crm_screen.dart';
 import '../todo/todo_list_screen.dart';
 import '../todo/todo_reminder_banner.dart';
 import '../fees/fee_overview_screen.dart';
@@ -356,6 +357,14 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   principalEmail: _principalEmail,
                   principalName:  _principalName,
                 )),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.assignment_ind_outlined,
+                color: AppTheme.primary,
+                title: 'Admission CRM',
+                subtitle: 'Manage enrollment pipeline leads and follow-ups',
+                onTap: () => _navigate(const AdmissionCrmScreen()),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(

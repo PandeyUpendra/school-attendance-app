@@ -973,6 +973,32 @@ service cloud.firestore {
       allow delete: if isSignedIn() && inSchool(sid) && isManagement();
     }
 
+    // ════════════════════════════════════════════════════════════════
+    // ADMISSION LEADS / ENQUIRIES  (/schools/{sid}/leads/{leadId})
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/leads/{leadId} {
+      allow read: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        isAnyTeacher() ||
+        (isRole('guardian') && 'createdByEmail' in resource.data && resource.data.createdByEmail.lower() == userEmail())
+      );
+      
+      allow create: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        isAnyTeacher() ||
+        (isRole('guardian') && 'createdByEmail' in request.resource.data && request.resource.data.createdByEmail.lower() == userEmail())
+      );
+      
+      allow update: if isSignedIn() && inSchool(sid) && (
+        isManagement() ||
+        isAnyTeacher() ||
+        (isRole('guardian') && 'createdByEmail' in resource.data && resource.data.createdByEmail.lower() == userEmail()
+                            && 'createdByEmail' in request.resource.data && request.resource.data.createdByEmail.lower() == userEmail())
+      );
+      
+      allow delete: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
 
     // ════════════════════════════════════════════════════════════════
     // ATTENDANCE  (/schools/{sid}/attendance/{cls})

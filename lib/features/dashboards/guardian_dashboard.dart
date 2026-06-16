@@ -48,6 +48,7 @@ import '../study_material/study_material_list_screen.dart';
 import '../exams/guardian_datesheet_screen.dart';
 import '../exams/student_performance_charts_screen.dart';
 import '../../shared/widgets/payment_gateway_simulator.dart';
+import '../admin/admission_crm_screen.dart';
 import '../../shared/widgets/social_media_links_screen.dart';
 
 /// The Guardian Portal — shows a single student's attendance to their parent.
@@ -544,6 +545,19 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
               context,
               MaterialPageRoute(
                 builder: (_) => const AnnouncementsScreen(viewerRole: 'guardian'),
+              ),
+            ),
+          ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.people_outline,
+            color: AppTheme.primary,
+            title: 'Refer a Student',
+            subtitle: 'Refer friends & track referral status',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AdmissionCrmScreen(),
               ),
             ),
           ),
