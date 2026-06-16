@@ -300,40 +300,44 @@ class _LoginScreenState extends State<LoginScreen> {
                     delay: Duration.zero,
                     child: Column(
                       children: [
-                        GestureDetector(
-                          onLongPress: _openAdminLogin,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.15),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            GestureDetector(
+                              onLongPress: _openAdminLogin,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.15),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: Image.asset(
-                                'assets/images/logo.png',
-                                height: 72,
-                                width: 72,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Image.asset(
+                                    'assets/images/logo.png',
+                                    height: 64,
+                                    width: 64,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                            const SizedBox(width: 16),
+                            const Text(
+                              'Klassivo',
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Klassivo',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 12),
                         Text(
                           context.tr('signInSubtitle'),
                           textAlign: TextAlign.center,
@@ -458,6 +462,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
 
                         // Sign In button
+                        const SizedBox(height: 24),
                         SizedBox(
                           height: 52,
                           child: ElevatedButton(

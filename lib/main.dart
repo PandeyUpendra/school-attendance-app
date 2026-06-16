@@ -476,11 +476,34 @@ class _SplashGateState extends State<_SplashGate> {
                     width: 80,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.school, size: 56, color: Colors.white),
+                      Image.asset(
+                        'assets/images/logo.png',
+                        height: 72,
+                        width: 72,
+                      ),
                   ),
                 )
               else
-                const Icon(Icons.school, size: 56, color: Colors.white),
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: 72,
+                      width: 72,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 20),
               Text(
                 name,

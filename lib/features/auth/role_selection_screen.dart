@@ -54,18 +54,41 @@ class RoleSelectionScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 FadeInUp(
-                  delay: Duration.zero,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.school, size: 48, color: Colors.white),
-                      const SizedBox(height: 16),
-                      Text(context.tr('schoolApp'),
-                          style: const TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white)),
-                      const SizedBox(height: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.asset(
+                                'assets/images/logo.png',
+                                height: 48,
+                                width: 48,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Text(context.tr('schoolApp'),
+                              style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
                       Text(context.tr('chooseHowToSignIn'),
                           style: TextStyle(
                               fontSize: 16,
