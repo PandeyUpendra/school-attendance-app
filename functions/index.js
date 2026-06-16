@@ -2761,6 +2761,7 @@ exports.backfillFeeSummaries = onCall(
     } catch (err) {
       logger.error("[backfillFeeSummaries] failed", err);
       throw new HttpsError("internal", err.message);
+    }
   }
 );
 
