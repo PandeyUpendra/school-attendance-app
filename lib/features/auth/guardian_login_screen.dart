@@ -167,227 +167,242 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
           color: AppTheme.primaryDark,
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 24),
-                FadeInUp(
-                  delay: Duration.zero,
-                  child: Column(
-                    children: [
-                      const Icon(Icons.family_restroom_outlined,
-                          size: 56, color: Colors.white),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Guardian Portal',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        context.tr('guardianSignInSubtitle'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontSize: 15, color: Colors.white.withValues(alpha: 0.75)),
-                      ),
-                    ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - 48, // Subtract padding top + bottom
                   ),
-                ),
-                const SizedBox(height: 40),
-
-                // Card
-                FadeInUp(
-                  delay: const Duration(milliseconds: 150),
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Spacer(flex: 3), // Push everything down on tall screens
+                        
+                        FadeInUp(
+                          delay: Duration.zero,
+                          child: Column(
+                            children: [
+                              const Icon(Icons.family_restroom_outlined,
+                                  size: 56, color: Colors.white),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Guardian Portal',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                context.tr('guardianSignInSubtitle'),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontSize: 15, color: Colors.white.withValues(alpha: 0.75)),
+                              ),
+                            ],
+                          ),
                         ),
+                        
+                        const Spacer(flex: 2), // Extra space between header and card
+
+                        // Card
+                        FadeInUp(
+                          delay: const Duration(milliseconds: 150),
+                          child: Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: AutofillGroup(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Email
+                                  EmailTextFormField(
+                                    controller: _emailCtrl,
+                                    textInputAction: TextInputAction.next,
+                                    decoration: InputDecoration(
+                                      labelText: context.tr('emailAddress'),
+                                      prefixIcon: const Icon(Icons.email_outlined),
+                                      border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  // Password
+                                  TextField(
+                                    controller: _passCtrl,
+                                    obscureText: !_showPass,
+                                    textInputAction: TextInputAction.done,
+                                    onSubmitted: (_) => _loading ? null : _signIn(),
+                                    autofillHints: const [AutofillHints.password],
+                                    decoration: InputDecoration(
+                                      labelText: context.tr('password'),
+                                      prefixIcon: const Icon(Icons.lock_outline),
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                            _showPass
+                                                ? Icons.visibility_off
+                                                : Icons.visibility,
+                                            size: 18),
+                                        onPressed: () =>
+                                            setState(() => _showPass = !_showPass),
+                                      ),
+                                      border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                  ),
+
+                                  // Forgot password
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) => ForgotPasswordScreen(
+                                                initialEmail: _emailCtrl.text.trim(),
+                                            )),
+                                      ),
+                                      child: Text(
+                                        context.tr('forgotPassword'),
+                                        style: const TextStyle(color: AppTheme.primary),
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Error
+                                  if (_error != null) ...[
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.shade50,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: Colors.red.shade200),
+                                      ),
+                                      child: Row(children: [
+                                        Icon(Icons.error_outline,
+                                            color: Colors.red.shade600, size: 18),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            _error!,
+                                            style: TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.red.shade700),
+                                          ),
+                                        ),
+                                      ]),
+                                    ),
+                                    const SizedBox(height: 12),
+                                  ],
+
+                                  // Sign In button
+                                  SizedBox(
+                                    height: 52,
+                                    child: ElevatedButton(
+                                      onPressed: _loading ? null : _signIn,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppTheme.primary,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12)),
+                                        elevation: 0,
+                                      ),
+                                      child: _loading
+                                          ? const SizedBox(
+                                              width: 22,
+                                              height: 22,
+                                              child: CircularProgressIndicator(
+                                                  strokeWidth: 2, color: Colors.white),
+                                            )
+                                          : Text(
+                                              context.tr('signIn'),
+                                              style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600),
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+                        Center(
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const GuardianRegisterScreen()),
+                              );
+                            },
+                            child: const Text(
+                              'Have an Invite Code? Register here',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Back to staff login
+                        OutlinedButton.icon(
+                          onPressed: () => Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          ),
+                          icon: const Icon(Icons.work_outline, color: Colors.white70),
+                          label: const Text(
+                            'Staff? Sign in here',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+                        Center(
+                          child: Text(
+                            'Your email must be registered by your\nchild\'s teacher before you can sign in.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.white.withValues(alpha: 0.45),
+                                height: 1.5),
+                          ),
+                        ),
+                        
+                        const Spacer(flex: 1), // Padding at bottom
                       ],
                     ),
-                    child: AutofillGroup(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Email
-                          EmailTextFormField(
-                            controller: _emailCtrl,
-                            textInputAction: TextInputAction.next,
-                            decoration: InputDecoration(
-                              labelText: context.tr('emailAddress'),
-                              prefixIcon: const Icon(Icons.email_outlined),
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Password
-                          TextField(
-                            controller: _passCtrl,
-                            obscureText: !_showPass,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _loading ? null : _signIn(),
-                            autofillHints: const [AutofillHints.password],
-                            decoration: InputDecoration(
-                              labelText: context.tr('password'),
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                    _showPass
-                                        ? Icons.visibility_off
-                                        : Icons.visibility,
-                                    size: 18),
-                                onPressed: () =>
-                                    setState(() => _showPass = !_showPass),
-                              ),
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-
-                          // Forgot password
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => ForgotPasswordScreen(
-                                        initialEmail: _emailCtrl.text.trim(),
-                                    )),
-                              ),
-                              child: Text(
-                                context.tr('forgotPassword'),
-                                style: const TextStyle(color: AppTheme.primary),
-                              ),
-                            ),
-                          ),
-
-                          // Error
-                          if (_error != null) ...[
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.red.shade200),
-                              ),
-                              child: Row(children: [
-                                Icon(Icons.error_outline,
-                                    color: Colors.red.shade600, size: 18),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _error!,
-                                    style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.red.shade700),
-                                  ),
-                                ),
-                              ]),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-
-                          // Sign In button
-                          SizedBox(
-                            height: 52,
-                            child: ElevatedButton(
-                              onPressed: _loading ? null : _signIn,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primary,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                                elevation: 0,
-                              ),
-                              child: _loading
-                                  ? const SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2, color: Colors.white),
-                                    )
-                                  : Text(
-                                      context.tr('signIn'),
-                                      style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600),
-                                    ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
                 ),
-
-                const SizedBox(height: 16),
-                Center(
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const GuardianRegisterScreen()),
-                      );
-                    },
-                    child: const Text(
-                      'Have an Invite Code? Register here',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // Back to staff login
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  ),
-                  icon: const Icon(Icons.work_outline, color: Colors.white70),
-                  label: const Text(
-                    'Staff? Sign in here',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-                Center(
-                  child: Text(
-                    'Your email must be registered by your\nchild\'s teacher before you can sign in.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.45),
-                        height: 1.5),
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),
-      ),
-    );
-  }
+    ),
+  );
+}
 }
