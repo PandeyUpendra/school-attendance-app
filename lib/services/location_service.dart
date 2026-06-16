@@ -61,6 +61,31 @@ class LocationService {
     return '';
   }
 
+  /// Checks if a string looks like a Plus Code (Open Location Code) or a
+  /// short coded identifier rather than a real address part.
+  /// Examples of Plus Codes: "MDR93E", "7JVW+QR5", "MQRG+6HW"
+  static bool _isPlusCodeOrJunk(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return true;
+
+    // Plus Codes with '+' (e.g., "7JVW+QR5", "MQRG+6HW")
+    if (RegExp(r'^[2-9A-Z]{4}\+[2-9A-Z0-9]{2,3}$', caseSensitive: false)
+        .hasMatch(trimmed)) {
+      return true;
+    }
+
+    // Short alphanumeric codes without spaces (e.g., "MDR93E", "XY4R2")
+    // Real address parts usually have spaces or are longer meaningful words
+    if (trimmed.length <= 8 &&
+        RegExp(r'^[A-Z0-9]+$', caseSensitive: false).hasMatch(trimmed) &&
+        RegExp(r'[0-9]').hasMatch(trimmed) &&
+        RegExp(r'[A-Za-z]').hasMatch(trimmed)) {
+      return true;
+    }
+
+    return false;
+  }
+
   /// Requests permissions and fetches the current device location.
   /// Then reverse-geocodes using OpenStreetMap Nominatim API.
   static Future<LocationDetails> getCurrentLocation() async {
@@ -138,19 +163,50 @@ class LocationService {
 
       // Construct a readable full address
       List<String> addressParts = [];
-      
-      if (addressData['amenity'] != null) addressParts.add(addressData['amenity'].toString());
-      if (addressData['building'] != null) addressParts.add(addressData['building'].toString());
-      if (addressData['house_number'] != null) addressParts.add(addressData['house_number'].toString());
-      if (addressData['road'] != null) addressParts.add(addressData['road'].toString());
-      if (addressData['neighbourhood'] != null) addressParts.add(addressData['neighbourhood'].toString());
-      if (addressData['suburb'] != null) addressParts.add(addressData['suburb'].toString());
+
+      // Keys in priority order for building a readable address
+      const addressKeys = [
+        'amenity', 'building', 'house_number', 'road',
+        'neighbourhood', 'quarter', 'residential',
+        'hamlet', 'locality', 'suburb',
+      ];
+
+      for (final key in addressKeys) {
+        final value = addressData[key]?.toString();
+        if (value != null && value.isNotEmpty && !_isPlusCodeOrJunk(value)) {
+          addressParts.add(value);
+        }
+      }
       
       String constructedAddress = addressParts.join(', ');
       
-      // Fallback to display_name if constructed address is too short
-      if (constructedAddress.length < 5) {
-        constructedAddress = data['display_name'] ?? '';
+      // Fallback to display_name if constructed address is too short or empty
+      if (constructedAddress.length < 10) {
+        final displayName = data['display_name']?.toString() ?? '';
+        // Strip country, state, city, and pincode from the tail of display_name
+        // Nominatim display_name format: "part1, part2, ..., city, state, postcode, country"
+        if (displayName.isNotEmpty) {
+          final parts = displayName.split(', ');
+          // Remove last parts that match country/state/postcode/city
+          final strippedParts = <String>[];
+          final lowerCity = city.toLowerCase();
+          final lowerState = state.toLowerCase();
+          for (final part in parts) {
+            final lowerPart = part.toLowerCase().trim();
+            // Skip parts that are country, state, city, postcode, or Plus Codes
+            if (lowerPart == 'india' ||
+                lowerPart == lowerState ||
+                lowerPart == lowerCity ||
+                lowerPart == pinCode ||
+                _isPlusCodeOrJunk(part)) {
+              continue;
+            }
+            strippedParts.add(part.trim());
+          }
+          constructedAddress = strippedParts.isNotEmpty
+              ? strippedParts.join(', ')
+              : displayName;
+        }
       }
 
       return LocationDetails(

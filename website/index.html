@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Klassivo - Premium School Attendance & Management System</title>
+  <meta name="description" content="Klassivo is a modern, multi-role school attendance and management system designed to digitize daily school operations for teachers, coordinators, principals, and guardians.">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Klassivo - Premium School Attendance & Management System">
+  <meta property="og:description" content="Digitize daily school operations. Role-specific dashboards for teachers, coordinators, principals, and guardians.">
+  <meta property="og:image" content="https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=1200">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header class="header">
+    <div class="container nav-container">
+      <a href="#" class="logo-link" id="nav-logo">
+        <div class="logo-icon">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <span class="logo-text">Klassivo</span>
+      </a>
+      <nav class="nav" aria-label="Main Navigation">
+        <ul class="nav-list">
+          <li><a href="#features" class="nav-item">Features</a></li>
+          <li><a href="#simulator" class="nav-item">Interactive Simulator</a></li>
+          <li><a href="#pricing" class="nav-item">Pricing</a></li>
+          <li><a href="#contact" class="nav-item">Contact</a></li>
+        </ul>
+      </nav>
+      <div class="nav-cta">
+        <a href="#simulator" class="btn btn-secondary btn-sm" id="nav-cta-btn">Try Demo</a>
+      </div>
+      <button class="mobile-nav-toggle" aria-label="Toggle Menu" id="menu-toggle">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="container hero-container">
+        <div class="hero-content">
+          <div class="badge-new">
+            <span class="badge-dot"></span> Rebranded to Klassivo v1.0
+          </div>
+          <h1 class="hero-title">Reimagining School Management for the Modern Era</h1>
+          <p class="hero-subtitle">
+            A secure, multi-role school attendance and administration platform. Connect teachers, coordinators, principals, and guardians on a single, unified database.
+          </p>
+          <div class="hero-actions">
+            <a href="#simulator" class="btn btn-primary" id="hero-primary-cta">Explore the App</a>
+            <a href="#features" class="btn btn-outline" id="hero-secondary-cta">Learn More</a>
+          </div>
+          <div class="hero-stats">
+            <div class="stat-item">
+              <span class="stat-num">99.9%</span>
+              <span class="stat-label">Uptime Guarantees</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-num">10+</span>
+              <span class="stat-label">Core Modules</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-num">4 Roles</span>
+              <span class="stat-label">Tailored Portals</span>
+            </div>
+          </div>
+        </div>
+        <div class="hero-illustration">
+          <div class="illustration-card main-ill">
+            <div class="ill-header">
+              <span class="dot-red"></span>
+              <span class="dot-yellow"></span>
+              <span class="dot-green"></span>
+            </div>
+            <div class="ill-body">
+              <div class="ill-avatar">
+                <i class="fa-solid fa-school"></i>
+              </div>
+              <div class="ill-lines">
+                <div class="line line-1"></div>
+                <div class="line line-2"></div>
+              </div>
+            </div>
+          </div>
+          <div class="illustration-card float-ill-1">
+            <i class="fa-solid fa-check-double text-success"></i>
+            <div>
+              <span class="float-title">Attendance</span>
+              <span class="float-desc">Marked in 12s</span>
+            </div>
+          </div>
+          <div class="illustration-card float-ill-2">
+            <i class="fa-solid fa-wallet text-accent"></i>
+            <div>
+              <span class="float-title">Fees Status</span>
+              <span class="float-desc">Auto-Reminded</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Powerful Modules</span>
+          <h2>Digitize Daily School Operations</h2>
+          <p class="section-description">
+            Klassivo replaces paper registers, Excel sheets, and chaotic chat groups with structured, secure workflows.
+          </p>
+        </div>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon bg-teal-10">
+              <i class="fa-solid fa-user-check"></i>
+            </div>
+            <h3>Smart Attendance</h3>
+            <p>Class teachers mark attendance in seconds. Parents get instant automatic notification alerts for absentees.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon bg-teal-10">
+              <i class="fa-solid fa-calendar-alt"></i>
+            </div>
+            <h3>Dynamic Timetable</h3>
+            <p>Configure classes, bell schedules, and teacher assignments. Instantly exports to clean PDF reports.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon bg-teal-10">
+              <i class="fa-solid fa-handshake-angle"></i>
+            </div>
+            <h3>Substitution Duties</h3>
+            <p>Smart substitution suggestion based on teachers' free bells. Track duties and history automatically.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon bg-teal-10">
+              <i class="fa-solid fa-envelope-open-text"></i>
+            </div>
+            <h3>Leave Management</h3>
+            <p>Teachers submit leave applications on the app. Coordinators and principals approve with a single tap.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon bg-teal-10">
+              <i class="fa-solid fa-file-invoice-dollar"></i>
+            </div>
+            <h3>Fee Collection</h3>
+            <p>Define fee structures per class. Record transactions, view receipts, and monitor outstanding dues.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon bg-teal-10">
+              <i class="fa-solid fa-images"></i>
+            </div>
+            <h3>School Gallery</h3>
+            <p>Upload activities, events, and watermarked photos directly to secure Cloud Storage for guardians to view.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Simulator Section -->
+    <section id="simulator" class="simulator-section">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Interactive Demo</span>
+          <h2>Experience the App Live</h2>
+          <p class="section-description">
+            Interact directly with the phone mockup. Navigate through the actual authentication hub and simulate different roles.
+          </p>
+        </div>
+
+        <div class="simulator-layout">
+          <!-- Role Controls (Left) -->
+          <div class="simulator-controls" role="tablist" aria-label="Simulator Navigation Controls">
+            <button class="role-btn active" id="btn-role-selection" role="tab" aria-selected="true">
+              <div class="role-icon-box"><i class="fa-solid fa-arrows-spin"></i></div>
+              <div class="role-info">
+                <h4>Start / Auth Hub</h4>
+                <p>Welcome screen for sign-in routing</p>
+              </div>
+            </button>
+            <button class="role-btn" id="btn-staff-login" role="tab" aria-selected="false">
+              <div class="role-icon-box"><i class="fa-solid fa-id-card"></i></div>
+              <div class="role-info">
+                <h4>Staff Sign-In Page</h4>
+                <p>Simulate logging in as different roles</p>
+              </div>
+            </button>
+            <button class="role-btn" id="btn-dashboards" role="tab" aria-selected="false">
+              <div class="role-icon-box"><i class="fa-solid fa-table-columns"></i></div>
+              <div class="role-info">
+                <h4>Dashboard Portals</h4>
+                <p>Teacher, Coordinator, Principal, Owner views</p>
+              </div>
+            </button>
+          </div>
+
+          <!-- Phone Mockup Container (Right) -->
+          <div class="phone-mockup-wrapper">
+            <div class="phone-frame">
+              <div class="phone-speaker"></div>
+              <div class="phone-screen">
+                
+                <!-- 1. SCREEN: ROLE SELECTION HUB -->
+                <div class="sim-screen active bg-dark-teal" id="screen-role-selection">
+                  <div class="sim-brand-header">
+                    <div class="sim-brand-logo">
+                      <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <h2 class="text-white">Klassivo</h2>
+                    <p class="text-white-opacity">Choose how to sign in</p>
+                  </div>
+                  
+                  <div class="role-cards-stack">
+                    <div class="role-card-item dark-card" onclick="selectRoleSim('staff-login')">
+                      <div class="role-card-icon"><i class="fa-solid fa-badge"></i></div>
+                      <div class="role-card-text">
+                        <h5 class="text-white">Staff Login</h5>
+                        <p class="text-white-opacity">Teacher, Coordinator, Principal, Owner</p>
+                      </div>
+                      <i class="fa-solid fa-chevron-right chevron text-white-opacity"></i>
+                    </div>
+                    <div class="role-card-item dark-card" onclick="selectRoleSim('guardian')">
+                      <div class="role-card-icon"><i class="fa-solid fa-family-restroom"></i></div>
+                      <div class="role-card-text">
+                        <h5 class="text-white">Guardian</h5>
+                        <p class="text-white-opacity">Track your child's attendance & activity</p>
+                      </div>
+                      <i class="fa-solid fa-chevron-right chevron text-white-opacity"></i>
+                    </div>
+                    <div class="role-card-item dark-card" onclick="selectRoleSim('admin-login')">
+                      <div class="role-card-icon"><i class="fa-solid fa-user-shield"></i></div>
+                      <div class="role-card-text">
+                        <h5 class="text-white">System Admin</h5>
+                        <p class="text-white-opacity">Manage system permissions & tenants</p>
+                      </div>
+                      <i class="fa-solid fa-chevron-right chevron text-white-opacity"></i>
+                    </div>
+                  </div>
+                  
+                  <div class="sim-bottom-text text-white-opacity">
+                    Klassivo Admin v1.0.0
+                  </div>
+                </div>
+
+                <!-- 2. SCREEN: STAFF LOGIN PAGE -->
+                <div class="sim-screen bg-dark-teal" id="screen-staff-login">
+                  <div class="sim-auth-navbar">
+                    <button class="back-btn" onclick="resetSim()"><i class="fa-solid fa-arrow-left"></i></button>
+                    <span>Staff Login</span>
+                  </div>
+                  
+                  <div class="sim-brand-header mini-header">
+                    <div class="sim-brand-logo small-logo">
+                      <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <h2 class="text-white">Klassivo</h2>
+                    <p class="text-white-opacity">Sign in to your school system</p>
+                  </div>
+
+                  <div class="sim-login-form-card">
+                    <div class="sim-form-group">
+                      <label>Email Address</label>
+                      <input type="email" id="sim-email" placeholder="name@school.com" value="meera.sen@klassivo.com" readonly>
+                    </div>
+                    <div class="sim-form-group">
+                      <label>Password</label>
+                      <input type="password" id="sim-password" placeholder="••••••••" value="password123" readonly>
+                    </div>
+                    
+                    <!-- Sim Selector Dropdown -->
+                    <div class="sim-form-group">
+                      <label class="text-accent text-bold">Simulation Role Select</label>
+                      <select class="sim-role-select" id="sim-role-picker" onchange="updateSimCredentials()">
+                        <option value="teacher">Teacher (Mrs. Meera Sen)</option>
+                        <option value="coordinator">Coordinator (Mr. Rajesh Sharma)</option>
+                        <option value="principal">Principal (Dr. Devendra Roy)</option>
+                        <option value="owner">School Owner (Mr. Suresh Patel)</option>
+                      </select>
+                    </div>
+
+                    <button class="btn btn-primary btn-full btn-xs" onclick="authenticateStaffSim()" style="margin-top: 10px;">Sign In</button>
+                  </div>
+                  <div class="sim-bottom-text text-white-opacity">
+                    Forgot Password?
+                  </div>
+                </div>
+
+                <!-- 3. SCREEN: ADMIN LOGIN PAGE -->
+                <div class="sim-screen bg-dark-teal" id="screen-admin-login">
+                  <div class="sim-auth-navbar">
+                    <button class="back-btn" onclick="resetSim()"><i class="fa-solid fa-arrow-left"></i></button>
+                    <span>System Admin Login</span>
+                  </div>
+                  
+                  <div class="sim-brand-header mini-header">
+                    <div class="sim-brand-logo small-logo">
+                      <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                    <h2 class="text-white">Klassivo Admin</h2>
+                    <p class="text-white-opacity">Manage systems & multi-tenants</p>
+                  </div>
+
+                  <div class="sim-login-form-card">
+                    <div class="sim-form-group">
+                      <label>Admin Email</label>
+                      <input type="email" value="admin@klassivo.com" readonly>
+                    </div>
+                    <div class="sim-form-group">
+                      <label>Password</label>
+                      <input type="password" value="••••••••" readonly>
+                    </div>
+                    <button class="btn btn-primary btn-full btn-xs" onclick="authenticateAdminSim()">Sign In as Admin</button>
+                  </div>
+                </div>
+
+                <!-- 4. SCREEN: TEACHER PORTAL -->
+                <div class="sim-screen" id="screen-teacher">
+                  <div class="sim-appbar">
+                    <div class="user-profile">
+                      <div class="avatar-sm">MS</div>
+                      <div>
+                        <h6>Mrs. Meera Sen</h6>
+                        <span>Class Teacher • Grade 6</span>
+                      </div>
+                    </div>
+                    <div class="appbar-actions">
+                      <div class="noti-bell"><i class="fa-solid fa-bell"></i><span class="badge-dot-highlight"></span></div>
+                      <i class="fa-solid fa-right-from-bracket" onclick="resetSim()"></i>
+                    </div>
+                  </div>
+                  
+                  <div class="sim-scrollable">
+                    <!-- Morning Summary Alert -->
+                    <div class="morning-card">
+                      <h6>Today's Summary</h6>
+                      <p>You have 5 bells today. Class 6 attendance is not marked yet.</p>
+                    </div>
+
+                    <div class="section-label">ACADEMICS</div>
+                    
+                    <!-- Attendance Widget (Interactive) -->
+                    <div class="sim-panel">
+                      <div class="panel-header">
+                        <h5>Mark Attendance (Grade 6)</h5>
+                        <span class="status-chip" id="attendance-status">Unsaved</span>
+                      </div>
+                      <div class="student-list">
+                        <div class="student-row">
+                          <span>Aarav Sharma</span>
+                          <label class="switch-container">
+                            <input type="checkbox" checked class="student-chk" id="student-1">
+                            <span class="switch-slider"></span>
+                          </label>
+                        </div>
+                        <div class="student-row">
+                          <span>Aditi Patel</span>
+                          <label class="switch-container">
+                            <input type="checkbox" checked class="student-chk" id="student-2">
+                            <span class="switch-slider"></span>
+                          </label>
+                        </div>
+                        <div class="student-row">
+                          <span>Rohan Gupta</span>
+                          <label class="switch-container">
+                            <input type="checkbox" class="student-chk" id="student-3">
+                            <span class="switch-slider"></span>
+                          </label>
+                        </div>
+                      </div>
+                      <button class="btn btn-secondary btn-full btn-xs" id="btn-submit-attendance">Submit Attendance</button>
+                    </div>
+
+                    <div class="section-label">OTHER ACTIONS</div>
+                    <div class="list-item-tile">
+                      <div class="tile-icon"><i class="fa-solid fa-calendar"></i></div>
+                      <div class="tile-content">
+                        <h6>My Timetable</h6>
+                        <span>View daily schedule</span>
+                      </div>
+                      <i class="fa-solid fa-chevron-right"></i>
+                    </div>
+                    <div class="list-item-tile">
+                      <div class="tile-icon"><i class="fa-solid fa-file-signature"></i></div>
+                      <div class="tile-content">
+                        <h6>Apply for Leave</h6>
+                        <span>Submit leave requests</span>
+                      </div>
+                      <i class="fa-solid fa-chevron-right"></i>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 5. SCREEN: COORDINATOR DASHBOARD -->
+                <div class="sim-screen" id="screen-coordinator">
+                  <div class="sim-appbar">
+                    <div class="user-profile">
+                      <div class="avatar-sm">RS</div>
+                      <div>
+                        <h6>Mr. Rajesh Sharma</h6>
+                        <span>School Coordinator</span>
+                      </div>
+                    </div>
+                    <div class="appbar-actions">
+                      <i class="fa-solid fa-right-from-bracket" onclick="resetSim()"></i>
+                    </div>
+                  </div>
+                  
+                  <div class="sim-scrollable">
+                    <div class="stats-row">
+                      <div class="stats-card">
+                        <span class="s-label">Attendance</span>
+                        <span class="s-val">84.5%</span>
+                      </div>
+                      <div class="stats-card">
+                        <span class="s-label">Pending Leave</span>
+                        <span class="s-val" id="pending-leave-count">1</span>
+                      </div>
+                    </div>
+
+                    <!-- Leave Approval Widget (Interactive) -->
+                    <div class="section-label">LEAVE REQUESTS</div>
+                    <div class="sim-panel" id="leave-request-panel">
+                      <div class="panel-header">
+                        <h5>Leave Request</h5>
+                        <span class="badge-warning">Pending</span>
+                      </div>
+                      <div class="panel-body">
+                        <p class="leave-details">
+                          <strong>Ms. Priya Roy</strong> (Grade 3)<br>
+                          Reason: Personal Medical<br>
+                          Duration: 2 days (Jun 17 - Jun 18)
+                        </p>
+                        <div class="action-buttons">
+                          <button class="btn btn-danger btn-xs" id="btn-deny-leave">Deny</button>
+                          <button class="btn btn-secondary btn-xs" id="btn-approve-leave">Approve</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="sim-panel hidden" id="leave-success-panel">
+                      <div class="success-message">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <p>Leave request processed successfully!</p>
+                      </div>
+                    </div>
+
+                    <div class="section-label">MANAGEMENT</div>
+                    <div class="list-item-tile">
+                      <div class="tile-icon text-success"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                      <div class="tile-content">
+                        <h6>Fee Collection</h6>
+                        <span>Manage payments</span>
+                      </div>
+                      <i class="fa-solid fa-chevron-right"></i>
+                    </div>
+                    <div class="list-item-tile">
+                      <div class="tile-icon"><i class="fa-solid fa-users"></i></div>
+                      <div class="tile-content">
+                        <h6>Manage Teachers</h6>
+                        <span>Assigned duties & classes</span>
+                      </div>
+                      <i class="fa-solid fa-chevron-right"></i>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 6. SCREEN: PRINCIPAL OVERVIEW -->
+                <div class="sim-screen" id="screen-principal">
+                  <div class="sim-appbar">
+                    <div class="user-profile">
+                      <div class="avatar-sm">DR</div>
+                      <div>
+                        <h6>Dr. Devendra Roy</h6>
+                        <span>Principal Portal</span>
+                      </div>
+                    </div>
+                    <div class="appbar-actions">
+                      <i class="fa-solid fa-right-from-bracket" onclick="resetSim()"></i>
+                    </div>
+                  </div>
+
+                  <div class="sim-scrollable">
+                    <!-- Hero Attendance Card -->
+                    <div class="sim-hero-card">
+                      <span class="h-label">TODAY'S OVERVIEW</span>
+                      <h3>87.5% Present</h3>
+                      <p>28 / 32 Classes Marked Today</p>
+                      <div class="stats-mini-grid">
+                        <div>
+                          <strong>420</strong>
+                          <span>Present</span>
+                        </div>
+                        <div>
+                          <strong>52</strong>
+                          <span>Absent</span>
+                        </div>
+                        <div>
+                          <strong>8</strong>
+                          <span>Leave</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="section-label">SCHOOL STATUS</div>
+                    <div class="list-item-tile">
+                      <div class="tile-icon text-warning"><i class="fa-solid fa-door-open"></i></div>
+                      <div class="tile-content">
+                        <h6>Staff Attendance</h6>
+                        <span>3 Teachers on leave today</span>
+                      </div>
+                      <span class="badge-warning">3 Leave</span>
+                    </div>
+                    <div class="list-item-tile">
+                      <div class="tile-icon"><i class="fa-solid fa-chart-line"></i></div>
+                      <div class="tile-content">
+                        <h6>Attendance Analytics</h6>
+                        <span>View monthly insights</span>
+                      </div>
+                      <i class="fa-solid fa-chevron-right"></i>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 7. SCREEN: OWNER PORTAL -->
+                <div class="sim-screen" id="screen-owner">
+                  <div class="sim-appbar bg-slate">
+                    <div class="user-profile">
+                      <div class="avatar-sm bg-accent">SP</div>
+                      <div>
+                        <h6>Mr. Suresh Patel</h6>
+                        <span>School Owner</span>
+                      </div>
+                    </div>
+                    <div class="appbar-actions">
+                      <i class="fa-solid fa-right-from-bracket" onclick="resetSim()"></i>
+                    </div>
+                  </div>
+
+                  <div class="sim-scrollable">
+                    <!-- Profit/Loss Banner -->
+                    <div class="owner-ledger-card">
+                      <span class="ledger-label">MONTHLY FINANCIALS</span>
+                      <h4>Net Revenue: ₹12.4 Lakhs</h4>
+                      <p>Collected: ₹16.2L | Expenses: ₹3.8L</p>
+                    </div>
+
+                    <div class="section-label">OWNER UTILITIES</div>
+                    <div class="list-item-tile">
+                      <div class="tile-icon text-success"><i class="fa-solid fa-receipt"></i></div>
+                      <div class="tile-content">
+                        <h6>Expenses Tracker</h6>
+                        <span>Add salaries, utility bills, maintenance</span>
+                      </div>
+                      <i class="fa-solid fa-chevron-right"></i>
+                    </div>
+                    <div class="list-item-tile">
+                      <div class="tile-icon text-accent"><i class="fa-solid fa-chart-pie"></i></div>
+                      <div class="tile-content">
+                        <h6>Profit & Loss Summary</h6>
+                        <span>View quarterly accounting charts</span>
+                      </div>
+                      <i class="fa-solid fa-chevron-right"></i>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 8. SCREEN: GUARDIAN PORTAL -->
+                <div class="sim-screen" id="screen-guardian">
+                  <div class="sim-appbar">
+                    <div class="user-profile">
+                      <div class="avatar-sm">KP</div>
+                      <div>
+                        <h6>Kabir Pandey</h6>
+                        <span>Class 6-A • Guardian View</span>
+                      </div>
+                    </div>
+                    <div class="appbar-actions">
+                      <i class="fa-solid fa-right-from-bracket" onclick="resetSim()"></i>
+                    </div>
+                  </div>
+
+                  <div class="sim-scrollable">
+                    <div class="attendance-card-guardian">
+                      <div class="g-chart-desc">
+                        <span>Attendance Rate</span>
+                        <h4>94.2%</h4>
+                      </div>
+                      <span class="badge-success">EXCELLENT</span>
+                    </div>
+
+                    <div class="section-label">STUDENT TRACKER</div>
+                    
+                    <div class="list-item-tile">
+                      <div class="tile-icon"><i class="fa-solid fa-book-open"></i></div>
+                      <div class="tile-content">
+                        <h6>Homework Overview</h6>
+                        <span>2 Assignments due tomorrow</span>
+                      </div>
+                      <span class="badge-highlight">2 Due</span>
+                    </div>
+
+                    <div class="list-item-tile">
+                      <div class="tile-icon text-success"><i class="fa-solid fa-receipt"></i></div>
+                      <div class="tile-content">
+                        <h6>Fees Summary</h6>
+                        <span>Term 2 Fees: Paid</span>
+                      </div>
+                      <span class="text-success text-bold">PAID</span>
+                    </div>
+                    
+                    <div class="list-item-tile">
+                      <div class="tile-icon"><i class="fa-solid fa-file-lines"></i></div>
+                      <div class="tile-content">
+                        <h6>Exam Results</h6>
+                        <span>Term 1 Grades Available</span>
+                      </div>
+                      <span class="badge-gray">View</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 9. SCREEN: SYSTEM ADMIN SCREEN -->
+                <div class="sim-screen" id="screen-admin-dashboard">
+                  <div class="sim-appbar bg-slate">
+                    <div class="user-profile">
+                      <div class="avatar-sm">AD</div>
+                      <div>
+                        <h6>Admin Dashboard</h6>
+                        <span>Global System Controls</span>
+                      </div>
+                    </div>
+                    <div class="appbar-actions">
+                      <i class="fa-solid fa-right-from-bracket" onclick="resetSim()"></i>
+                    </div>
+                  </div>
+
+                  <div class="sim-scrollable">
+                    <div class="section-label">TENANT MANAGEMENT</div>
+                    <div class="list-item-tile">
+                      <div class="tile-icon"><i class="fa-solid fa-plus"></i></div>
+                      <div class="tile-content">
+                        <h6>Create New School System</h6>
+                        <span>Deploy new client tenant space</span>
+                      </div>
+                      <i class="fa-solid fa-chevron-right"></i>
+                    </div>
+                    <div class="list-item-tile">
+                      <div class="tile-icon text-danger"><i class="fa-solid fa-trash-can"></i></div>
+                      <div class="tile-content">
+                        <h6>Allowed Users Registry</h6>
+                        <span>Verify system invites</span>
+                      </div>
+                      <i class="fa-solid fa-chevron-right"></i>
+                    </div>
+                    <button class="btn btn-danger btn-full btn-xs" onclick="alert('Demo: System Admin has triggered a hard cleanup of all mock data.')">Delete All Schools (Helper)</button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+            
+            <div class="simulator-hint">
+              <i class="fa-solid fa-info-circle"></i> Try interacting with the elements inside the phone screen!
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="pricing">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Flexible Plans</span>
+          <h2>Simple, Transparent Pricing</h2>
+          <p class="section-description">
+            Choose the right subscription plan to digitize operations at your school. No setup fees.
+          </p>
+        </div>
+
+        <div class="pricing-grid">
+          <div class="pricing-card">
+            <div class="card-header">
+              <h3>Basic</h3>
+              <p>For small schools needing essential trackers</p>
+              <div class="price"><span>₹1,999</span>/mo</div>
+            </div>
+            <ul class="pricing-features">
+              <li><i class="fa-solid fa-check text-accent"></i> Attendance Tracking</li>
+              <li><i class="fa-solid fa-check text-accent"></i> Guardian SMS Alerts</li>
+              <li><i class="fa-solid fa-check text-accent"></i> Basic Timetables</li>
+              <li><i class="fa-solid fa-xmark text-muted"></i> Leave Workflows</li>
+              <li><i class="fa-solid fa-xmark text-muted"></i> Fees Collection</li>
+            </ul>
+            <a href="#contact" class="btn btn-outline btn-full">Get Started</a>
+          </div>
+
+          <div class="pricing-card popular">
+            <div class="popular-ribbon">Most Popular</div>
+            <div class="card-header">
+              <h3>Standard</h3>
+              <p>For mid-sized schools seeking full digitization</p>
+              <div class="price"><span>₹4,999</span>/mo</div>
+            </div>
+            <ul class="pricing-features">
+              <li><i class="fa-solid fa-check text-accent"></i> Attendance & History</li>
+              <li><i class="fa-solid fa-check text-accent"></i> Live substitution planner</li>
+              <li><i class="fa-solid fa-check text-accent"></i> Staff Leave Approval</li>
+              <li><i class="fa-solid fa-check text-accent"></i> Homework & Copy checking</li>
+              <li><i class="fa-solid fa-check text-accent"></i> Core Fee collection</li>
+            </ul>
+            <a href="#contact" class="btn btn-secondary btn-full">Choose Plan</a>
+          </div>
+
+          <div class="pricing-card">
+            <div class="card-header">
+              <h3>Enterprise</h3>
+              <p>For large schools and group institutions</p>
+              <div class="price"><span>₹9,999</span>/mo</div>
+            </div>
+            <ul class="pricing-features">
+              <li><i class="fa-solid fa-check text-accent"></i> All Standard features</li>
+              <li><i class="fa-solid fa-check text-accent"></i> Unlimited student records</li>
+              <li><i class="fa-solid fa-check text-accent"></i> Dedicated database isolation</li>
+              <li><i class="fa-solid fa-check text-accent"></i> Custom watermark gallery</li>
+              <li><i class="fa-solid fa-check text-accent"></i> Premium PDF certificate tools</li>
+            </ul>
+            <a href="#contact" class="btn btn-outline btn-full">Contact Sales</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+      <div class="container contact-container">
+        <div class="contact-info">
+          <h2>Ready to upgrade your school administration?</h2>
+          <p>
+            Contact us today for a detailed walkthrough, custom integration support, or a 14-day free trial.
+          </p>
+          <div class="contact-details">
+            <div class="contact-item">
+              <i class="fa-solid fa-envelope"></i>
+              <span>support@klassivo.com</span>
+            </div>
+            <div class="contact-item">
+              <i class="fa-solid fa-phone"></i>
+              <span>+91 98765 43210</span>
+            </div>
+            <div class="contact-item">
+              <i class="fa-solid fa-location-dot"></i>
+              <span>Mumbai, Maharashtra, India</span>
+            </div>
+          </div>
+        </div>
+        <div class="contact-form-card">
+          <form id="klassivo-contact-form">
+            <div class="form-group">
+              <label for="input-name">Full Name</label>
+              <input type="text" id="input-name" required placeholder="Dr. Devendra Sen">
+            </div>
+            <div class="form-group">
+              <label for="input-email">Work Email</label>
+              <input type="email" id="input-email" required placeholder="principal@yourschool.com">
+            </div>
+            <div class="form-group">
+              <label for="input-school">School Name</label>
+              <input type="text" id="input-school" required placeholder="St. Mary Academy">
+            </div>
+            <div class="form-group">
+              <label for="input-message">Message</label>
+              <textarea id="input-message" rows="4" placeholder="Hello, I'd like to schedule a demo for Klassivo..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-secondary btn-full" id="btn-submit-form">Send Inquiry</button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-container">
+      <div class="footer-brand">
+        <div class="logo-text-footer">Klassivo</div>
+        <p>Providing premium administrative software to simplify digital education tracking.</p>
+        <div class="social-links">
+          <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+          <a href="#" aria-label="Twitter"><i class="fa-brands fa-twitter"></i></a>
+          <a href="#" aria-label="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
+          <a href="#" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+        </div>
+      </div>
+      <div class="footer-links-group">
+        <h4>Product</h4>
+        <ul>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#simulator">Simulator</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+        </ul>
+      </div>
+      <div class="footer-links-group">
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="#">Privacy Policy</a></li>
+          <li><a href="#">Terms of Service</a></li>
+          <li><a href="#">Security Audit</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2026 Klassivo Systems Private Limited. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Custom JS -->
+  <script src="app.js"></script>
+</body>
+</html>
