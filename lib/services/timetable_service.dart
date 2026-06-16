@@ -838,10 +838,20 @@ class TimetableService extends BaseFirestoreService {
         }
       }
 
-      // 3. Find orphaned users and schoolIds
-      final orphanedUsers = <String>[];
-      final orphanedSchoolIds = <String>{};
+      // 3. Get all schools to check for orphaned ones (schools with no active owner)
+      final schoolsSnap = await FirebaseFirestore.instance.collection('schools').get();
+      final existingSchoolIds = schoolsSnap.docs.map((d) => d.id).toSet();
 
+      // Find schools that have no active owner
+      final orphanedSchoolIds = <String>{};
+      for (final schoolId in existingSchoolIds) {
+        if (!activeSchoolIds.contains(schoolId)) {
+          orphanedSchoolIds.add(schoolId);
+        }
+      }
+
+      // 4. Find orphaned users (users pointing to non-existent or ownerless schools)
+      final orphanedUsers = <String>[];
       for (final doc in allUsersSnap.docs) {
         final data = doc.data();
         final email = doc.id;
@@ -849,11 +859,13 @@ class TimetableService extends BaseFirestoreService {
         final schoolId = data['schoolId'] as String?;
 
         if (role == 'admin') continue;
-        if (schoolId == null || schoolId.isEmpty) continue;
-
-        if (!activeSchoolIds.contains(schoolId)) {
+        if (schoolId == null || schoolId.isEmpty) {
           orphanedUsers.add(email);
-          orphanedSchoolIds.add(schoolId);
+          continue;
+        }
+
+        if (!existingSchoolIds.contains(schoolId) || orphanedSchoolIds.contains(schoolId)) {
+          orphanedUsers.add(email);
         }
       }
 

@@ -145,7 +145,17 @@ class _AdminScreenState extends State<AdminScreen> {
       return;
     }
 
+    final schoolExists = _schoolsMap.values.any((s) =>
+        (s['name'] as String? ?? '').trim().toLowerCase() == name.toLowerCase() &&
+        (s['address'] as String? ?? '').trim().toLowerCase() == address.toLowerCase() &&
+        (s['email'] as String? ?? '').trim().toLowerCase() == email.toLowerCase());
+    if (schoolExists) {
+      _snack('A school system with this name, address, and owner email already exists.');
+      return;
+    }
+
     setState(() => _saving = true);
+    String? createdSchoolId;
     try {
       final schoolId =
           'school_${DateTime.now().millisecondsSinceEpoch}_${email.hashCode.abs()}';
@@ -161,6 +171,7 @@ class _AdminScreenState extends State<AdminScreen> {
         'isActive': true,
         'brandName': name,
       });
+      createdSchoolId = schoolId;
 
       await _service.addAllowedUser(email, '', _role, schoolId: schoolId);
 
@@ -178,6 +189,13 @@ class _AdminScreenState extends State<AdminScreen> {
       ));
     } catch (e) {
       AppLogger.e('AdminScreen', '_createSchoolSystem failed: $e', e);
+      if (createdSchoolId != null) {
+        try {
+          await FirebaseFirestore.instance.collection('schools').doc(createdSchoolId).delete();
+        } catch (rollbackError) {
+          AppLogger.e('AdminScreen', 'Rollback failed: $rollbackError', rollbackError);
+        }
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Could not create school system: $e'),
@@ -663,21 +681,21 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final double statusBarHeight = MediaQuery.of(context).padding.top;
+    final double headerHeight = 140.0 + statusBarHeight;
+
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: Column(
+      body: Stack(
         children: [
-          _AdminHero(
-            onBack: () => Navigator.maybePop(context),
-            onLogout: _logout,
-          ),
-          Expanded(
+          Positioned.fill(
             child: RefreshIndicator(
               onRefresh: _load,
               color: AppTheme.primary,
+              displacement: headerHeight + 10,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                padding: EdgeInsets.fromLTRB(16, headerHeight - 15, 16, 28),
                 children: [
                   _buildAddCard(),
                   const SizedBox(height: 16),
@@ -717,6 +735,15 @@ class _AdminScreenState extends State<AdminScreen> {
                   _buildUsersSection(),
                 ],
               ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _AdminHero(
+              onBack: () => Navigator.maybePop(context),
+              onLogout: _logout,
             ),
           ),
         ],
@@ -1295,11 +1322,11 @@ class _AdminWaveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
-    path.lineTo(0, size.height - 28);
+    path.lineTo(0, size.height - 30);
     path.quadraticBezierTo(
-        size.width * 0.25, size.height + 6, size.width * 0.5, size.height - 16);
+        size.width * 0.25, size.height, size.width * 0.5, size.height - 20);
     path.quadraticBezierTo(
-        size.width * 0.75, size.height - 38, size.width, size.height - 16);
+        size.width * 0.75, size.height - 40, size.width, size.height - 20);
     path.lineTo(size.width, 0);
     path.close();
     return path;

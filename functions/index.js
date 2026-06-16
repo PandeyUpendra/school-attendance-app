@@ -514,14 +514,19 @@ exports.createAllowedUser = onCall(
       user = await admin.auth().getUserByEmail(email);
     } catch (e) {
       if (e.code === "auth/user-not-found") {
-        // If not found, create new Auth user with temp password
-        const tempPass = password || Math.random().toString(36).substring(2, 10) + "A!";
-        user = await admin.auth().createUser({
-          email: email,
-          password: tempPass,
-        });
+        try {
+          const tempPass = password || Math.random().toString(36).substring(2, 10) + "A!";
+          user = await admin.auth().createUser({
+            email: email,
+            password: tempPass,
+          });
+        } catch (createError) {
+          logger.error("Failed to create Firebase Auth user:", createError);
+          throw new HttpsError("internal", `Failed to create user account: ${createError.message}`);
+        }
       } else {
-        throw new HttpsError("internal", e.message);
+        logger.error("Failed to fetch Firebase Auth user by email:", e);
+        throw new HttpsError("internal", `Failed to check user account: ${e.message}`);
       }
     }
 
