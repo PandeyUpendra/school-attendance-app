@@ -151,24 +151,33 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
     if (Platform.environment.containsKey('FLUTTER_TEST')) return;
     try {
       final emails = await _getSavedEmails();
+      bool chosen = false;
       if (emails.isEmpty) {
-        await _triggerNativePicker();
+        chosen = await _triggerNativePicker();
       } else {
         if (!mounted) return;
-        await _showThemedEmailSheet(emails);
+        chosen = await _showThemedEmailSheet(emails);
+      }
+      if (!chosen && mounted) {
+        _focusNode.unfocus();
       }
     } catch (e) {
       debugPrint('Failed to pick email: $e');
+      if (mounted) {
+        _focusNode.unfocus();
+      }
     }
   }
 
-  Future<void> _triggerNativePicker() async {
+  Future<bool> _triggerNativePicker() async {
     final emailResult = await AccountPicker.emailHint();
     if (emailResult != null) {
       final selectedEmail = emailResult.email;
       _selectEmail(selectedEmail);
       await _saveEmail(selectedEmail);
+      return true;
     }
+    return false;
   }
 
   void _selectEmail(String email) {
@@ -182,8 +191,8 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
     );
   }
 
-  Future<void> _showThemedEmailSheet(List<String> emails) async {
-    await showModalBottomSheet(
+  Future<bool> _showThemedEmailSheet(List<String> emails) async {
+    final chosen = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       builder: (context) {
@@ -237,7 +246,7 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
                         onTap: () {
                           _selectEmail(email);
                           _saveEmail(email);
-                          Navigator.pop(context);
+                          Navigator.pop(context, true);
                         },
                       );
                     },
@@ -266,10 +275,8 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
                       color: AppTheme.accent,
                     ),
                   ),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await Future.delayed(const Duration(milliseconds: 150));
-                    await _triggerNativePicker();
+                  onTap: () {
+                    Navigator.pop(context, false);
                   },
                 ),
                 const SizedBox(height: 8),
@@ -279,6 +286,14 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
         );
       },
     );
+
+    if (chosen == true) {
+      return true;
+    } else if (chosen == false) {
+      await Future.delayed(const Duration(milliseconds: 150));
+      return await _triggerNativePicker();
+    }
+    return false;
   }
 
   @override
