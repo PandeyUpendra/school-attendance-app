@@ -480,6 +480,7 @@ class _SplashGateState extends State<_SplashGate> {
                         'assets/images/logo_white.png',
                         height: 72,
                         width: 72,
+                        filterQuality: FilterQuality.high,
                       ),
                   ),
                 )
@@ -501,6 +502,7 @@ class _SplashGateState extends State<_SplashGate> {
                       'assets/images/logo_white.png',
                       height: 72,
                       width: 72,
+                      filterQuality: FilterQuality.high,
                     ),
                   ),
                 ),
