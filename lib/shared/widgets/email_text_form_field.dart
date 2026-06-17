@@ -199,6 +199,13 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
     widget.controller.selection = TextSelection.fromPosition(
       TextPosition(offset: email.length),
     );
+    if (widget.textInputAction == TextInputAction.next) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _focusNode.nextFocus();
+        }
+      });
+    }
   }
 
   Future<bool> _showThemedEmailSheet(List<String> emails) async {
