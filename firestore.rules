@@ -218,7 +218,7 @@ service cloud.firestore {
             (role in ['teacher', 'subjectTeacher'] && (
               ('teacherId' in userData && userData.teacherId != null && audience == 'teacher:' + userData.teacherId) ||
               audience.matches('class:.*') ||
-              (audience.matches('class_teacher:.*') && 'classIds' in userData && audience.split(':')[1] in userData.classIds)
+              (audience.matches('class_teacher:.*') && 'classIds' in userData && classIdInList(audience.split(':')[1], userData.classIds, ''))
             ))
           )) ||
           
@@ -235,8 +235,8 @@ service cloud.firestore {
              audience.matches('guardian_adm:.*') &&
              audience.split(':')[1] == userData.studentAdmissionId) ||
             (audience.matches('class:.*') && (
-             ('classIds' in userData && audience.split(':')[1] in userData.classIds) ||
-             ('studentClass' in userData && audience.split(':')[1] == userData.studentClass)
+             ('classIds' in userData && classIdInList(audience.split(':')[1], userData.classIds, '')) ||
+             ('studentClass' in userData && classIdInList(audience.split(':')[1], [userData.studentClass], ''))
             ))
           ))
         )
@@ -312,9 +312,9 @@ service cloud.firestore {
         aud == 'coordinator' || aud == 'principal' ||
         aud.matches('teacher:.*') ||
         aud.matches('guardian_adm:.*') ||
-        (aud.matches('class:.*')         && aud.split(':')[1] in ids) ||
-        (aud.matches('class_teacher:.*') && aud.split(':')[1] in ids) ||
-        (aud.matches('guardian:.*:.*')   && aud.split(':')[1] in ids)
+        (aud.matches('class:.*')         && classIdInList(aud.split(':')[1], ids, '')) ||
+        (aud.matches('class_teacher:.*') && classIdInList(aud.split(':')[1], ids, '')) ||
+        (aud.matches('guardian:.*:.*')   && classIdInList(aud.split(':')[1], ids, ''))
       );
     }
 
@@ -340,16 +340,19 @@ service cloud.firestore {
     /// short-circuited before reaching here, which is why only teachers broke).
     function classIdInList(cls, ids, sec) {
       return cls in ids
+          || ('Class ' + cls) in ids
+          || (cls.split(' ').size() > 1 && cls.split(' ')[1] in ids)
+          || (cls.split(' ').size() > 1 && ('Class ' + cls.split(' ')[1]) in ids)
           || (cls.split('-')[0] in ids)
           || (('Class ' + cls.split('-')[0]) in ids)
           || (sec != '' && (
-                ((cls + '-' + sec) in ids)
-             || ((cls + '_' + sec) in ids)
-             || (cls.split(' ').size() > 1 && (
-                   ((cls.split(' ')[1] + '-' + sec) in ids)
-                || ((cls.split(' ')[1] + '_' + sec) in ids)
-             ))
-          ));
+                 ((cls + '-' + sec) in ids)
+              || ((cls + '_' + sec) in ids)
+              || (cls.split(' ').size() > 1 && (
+                    ((cls.split(' ')[1] + '-' + sec) in ids)
+                 || ((cls.split(' ')[1] + '_' + sec) in ids)
+              ))
+           ));
     }
 
     function isClassTeacher(cls, sec) {
@@ -368,11 +371,10 @@ service cloud.firestore {
     /// 2-word names. Pure string ops (no get()), so it stays well under the
     /// 1000-expression ceiling.
     function isAttendanceClassTeacher(cls) {
-      return (cls.split('_')[0] in userClassIds()) ||
+      return classIdInList(cls.split('_')[0], userClassIds(), '') ||
              (cls.split('_').size() >= 4 &&
-                (cls.split('_')[0] + ' ' + cls.split('_')[1]) in userClassIds()) ||
-             (cls.split('_').size() >= 4 &&
-                (cls.split('_')[0] + '_' + cls.split('_')[1]) in userClassIds());
+                (classIdInList(cls.split('_')[0] + ' ' + cls.split('_')[1], userClassIds(), '') ||
+                 classIdInList(cls.split('_')[0] + '_' + cls.split('_')[1], userClassIds(), '')));
     }
 
     /// True when an ATTENDANCE doc id belongs to the guardian's child's class.
@@ -708,7 +710,7 @@ service cloud.firestore {
         );
         allow write: if isSignedIn() && inSchool(sid) && (
           isManagement() ||
-          (isAnyTeacher() && classId in userClassIds())
+          (isAnyTeacher() && classIdInList(classId, userClassIds(), ''))
         );
       }
     }
@@ -1092,7 +1094,7 @@ service cloud.firestore {
         (isAnyTeacher()
           && request.resource.data.audience is string
           && request.resource.data.audience.split(':')[0] == 'class'
-          && request.resource.data.audience.split(':')[1] in userClassIds()
+          && classIdInList(request.resource.data.audience.split(':')[1], userClassIds(), '')
           && request.resource.data.postedBy.lower() == userEmail())
       );
 

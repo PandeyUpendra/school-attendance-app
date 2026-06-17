@@ -335,12 +335,16 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf_outlined),
+            color: Colors.white,
+            disabledColor: Colors.white30,
             tooltip: context.tr('exportPdf'),
             onPressed:
                 _loading || _workingDays == 0 ? null : _exportPdf,
           ),
           IconButton(
             icon: const Icon(Icons.description_outlined),
+            color: Colors.white,
+            disabledColor: Colors.white30,
             tooltip: context.tr('exportToCsv'),
             onPressed:
                 _loading || _workingDays == 0 ? null : _exportCsv,
@@ -350,7 +354,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
       body: Column(children: [
         // ── Month picker ───────────────────────────────────────────────────
         Container(
-          color: AppTheme.primary,
+          color: AppTheme.primaryDark,
           padding: const EdgeInsets.fromLTRB(4, 0, 4, 14),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -739,7 +743,7 @@ class _StudentCalendarScreenState extends State<_StudentCalendarScreen> {
         child: Column(children: [
           // Month nav
           Container(
-            color: AppTheme.primary,
+            color: AppTheme.primaryDark,
             padding: const EdgeInsets.fromLTRB(4, 0, 4, 14),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
