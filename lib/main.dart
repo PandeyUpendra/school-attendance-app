@@ -68,11 +68,12 @@ void main() async {
   } catch (_) {/* App Check unavailable — continue without it */}
 
   final messaging = FirebaseMessaging.instance;
-  await messaging.requestPermission(
+  // Request permission asynchronously to avoid blocking startup (issue #1)
+  unawaited(messaging.requestPermission(
     alert: true,
     badge: true,
     sound: true,
-  );
+  ));
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   
   // Load cached root admin emails
