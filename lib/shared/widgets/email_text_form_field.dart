@@ -90,9 +90,7 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
         });
       }
     } else {
-      if (widget.controller.text.isEmpty) {
-        _hasAutoPrompted = false;
-      } else {
+      if (widget.controller.text.isNotEmpty) {
         _saveEmail(widget.controller.text);
       }
       if (!_touched) {

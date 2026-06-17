@@ -5,6 +5,7 @@ import '../../services/auth_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
 import '../students/add_student_screen.dart';
+import '../../shared/widgets/email_text_form_field.dart';
 
 class AdmissionCrmScreen extends StatefulWidget {
   const AdmissionCrmScreen({super.key});
@@ -140,13 +141,13 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                   validator: (v) => v == null || v.trim().isEmpty ? 'Enter phone' : null,
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                EmailTextFormField(
                   controller: emailCtrl,
+                  isOptional: true,
                   decoration: const InputDecoration(
                     labelText: 'Email Address (Optional)',
                     hintText: 'parent@example.com',
                   ),
-                  keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(

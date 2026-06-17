@@ -6,6 +6,7 @@ import '../../theme.dart';
 import '../../shared/utils/validators.dart';
 import '../../services/auth_service.dart';
 import '../../models/student.dart';
+import '../../shared/widgets/email_text_form_field.dart';
 
 class GuardianEmailRequestScreen extends StatefulWidget {
   final Student student;
@@ -162,9 +163,8 @@ class _GuardianEmailRequestScreenState extends State<GuardianEmailRequestScreen>
                 ),
               ),
               const SizedBox(height: 20),
-              TextFormField(
+              EmailTextFormField(
                 controller: _newEmailCtrl,
-                keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
                   labelText: context.tr('newEmail'),
                   prefixIcon: const Icon(Icons.email_outlined, color: AppTheme.primary),
@@ -183,9 +183,8 @@ class _GuardianEmailRequestScreenState extends State<GuardianEmailRequestScreen>
                 },
               ),
               const SizedBox(height: 16),
-              TextFormField(
+              EmailTextFormField(
                 controller: _confirmEmailCtrl,
-                keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
                   labelText: context.tr('confirmNewEmail'),
                   prefixIcon: const Icon(Icons.mark_email_read_outlined, color: AppTheme.primary),
