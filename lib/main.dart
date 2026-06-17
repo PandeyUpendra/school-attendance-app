@@ -231,7 +231,6 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
   late Animation<double> _capOpacity;
   late Animation<double> _kOpacity;
   late Animation<double> _brandOpacity;
-  late Animation<double> _taglineOpacity;
 
   bool _animationCompleted = false;
   bool _sessionCheckCompleted = false;
@@ -272,13 +271,6 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.5, 0.875, curve: Curves.easeOut),
-      ),
-    );
-
-    _taglineOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.625, 1.0, curve: Curves.easeOut),
       ),
     );
 
@@ -613,25 +605,6 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
                       color: Color(0xFF002B24),
                       fontSize: 26,
                       letterSpacing: 3.0,
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            AnimatedBuilder(
-              animation: _taglineOpacity,
-              builder: (context, child) {
-                return Opacity(
-                  opacity: _taglineOpacity.value,
-                  child: Text(
-                    'School Operating System',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w400, // Regular
-                      color: const Color(0xFF002B24).withOpacity(0.65),
-                      fontSize: 14,
                     ),
                   ),
                 );
