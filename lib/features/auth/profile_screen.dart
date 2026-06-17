@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_strings.dart';
@@ -22,6 +23,8 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
+  bool _biometricSupported = false;
+  bool _biometricEnabled = false;
 
   String _name = '';
   String _email = '';
@@ -125,6 +128,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _schoolName = (s.data()?['name'] as String?)?.trim() ?? '';
       } catch (e, st) { AppLogger.e('ProfileScreen', 'Best-effort load failed', e, st); }
 
+      // Biometric checks
+      _biometricEnabled = await AuthService().isBiometricEnabled();
+      final localAuth = LocalAuthentication();
+      try {
+        final canCheck = await localAuth.canCheckBiometrics;
+        _biometricSupported = canCheck || await localAuth.isDeviceSupported();
+      } catch (_) {
+        _biometricSupported = false;
+      }
+
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -209,6 +222,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _section(context.tr('preferences')),
                 if (['owner', 'principal', 'ownerprincipal'].contains(_role.toLowerCase()))
                   _schoolSettingsRow(context),
+                if (_biometricSupported)
+                  _biometricRow(context),
                 _languageRow(context),
                 _logoutRow(context),
 
@@ -354,6 +369,121 @@ class _ProfileScreenState extends State<ProfileScreen> {
               .toList(),
         ),
       );
+
+  Widget _biometricRow(BuildContext context) {
+    return Container(
+      color: AppTheme.surface,
+      margin: const EdgeInsets.only(bottom: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(children: [
+        const Icon(Icons.fingerprint_outlined, size: 20, color: AppTheme.primary),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                context.tr('biometricSecurity'),
+                style: const TextStyle(fontSize: 15, color: AppTheme.textPrimary, fontWeight: FontWeight.w500),
+              ),
+              Text(
+                context.tr('enableBiometric'),
+                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          value: _biometricEnabled,
+          activeColor: AppTheme.primary,
+          onChanged: (val) => _toggleBiometric(val),
+        ),
+      ]),
+    );
+  }
+
+  Future<void> _toggleBiometric(bool val) async {
+    if (val) {
+      final password = await showDialog<String>(
+        context: context,
+        builder: (ctx) {
+          final ctrl = TextEditingController();
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text(context.tr('biometricSecurity')),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(context.tr('enterPasswordToEnable')),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: ctrl,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: context.tr('password'),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(context.tr('cancel')),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, ctrl.text),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (password == null || password.isEmpty) return;
+      if (!mounted) return;
+
+      final localAuth = LocalAuthentication();
+      try {
+        final didAuth = await localAuth.authenticate(
+          localizedReason: context.tr('biometricReason'),
+          options: const AuthenticationOptions(biometricOnly: true),
+        );
+        if (didAuth) {
+          await AuthService().setBiometricEnabled(
+            enabled: true,
+            email: _email,
+            password: password,
+          );
+          setState(() {
+            _biometricEnabled = true;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Biometric security enabled successfully'), backgroundColor: AppTheme.success),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Verification failed: $e'), backgroundColor: AppTheme.danger),
+          );
+        }
+      }
+    } else {
+      await AuthService().setBiometricEnabled(enabled: false);
+      setState(() {
+        _biometricEnabled = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Biometric security disabled'), backgroundColor: AppTheme.warning),
+        );
+      }
+    }
+  }
 
   Widget _schoolSettingsRow(BuildContext context) {
     return InkWell(

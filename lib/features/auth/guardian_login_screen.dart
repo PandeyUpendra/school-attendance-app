@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:flutter/services.dart';
 import '../../theme.dart';
 import '../../l10n/app_strings.dart';
@@ -28,6 +29,44 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
   bool _loading    = false;
   bool _showPass   = false;
   String? _error;
+  bool _biometricEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometric();
+  }
+
+  Future<void> _checkBiometric() async {
+    final enabled = await AuthService().isBiometricEnabled();
+    if (mounted) {
+      setState(() {
+        _biometricEnabled = enabled;
+      });
+    }
+  }
+
+  Future<void> _biometricSignIn() async {
+    final localAuth = LocalAuthentication();
+    try {
+      final didAuth = await localAuth.authenticate(
+        localizedReason: context.tr('biometricReason'),
+        options: const AuthenticationOptions(biometricOnly: true),
+      );
+      if (didAuth) {
+        final creds = await AuthService().getBiometricCredentials();
+        if (creds != null && creds['email'] != null && creds['password'] != null) {
+          _emailCtrl.text = creds['email']!;
+          _passCtrl.text = creds['password']!;
+          _signIn();
+        } else {
+          setState(() => _error = 'No saved biometric credentials found.');
+        }
+      }
+    } catch (e) {
+      setState(() => _error = 'Biometric authentication failed: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -312,31 +351,55 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
                                   ],
 
                                   // Sign In button
-                                  SizedBox(
-                                    height: 52,
-                                    child: ElevatedButton(
-                                      onPressed: _loading ? null : _signIn,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppTheme.primary,
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(12)),
-                                        elevation: 0,
-                                      ),
-                                      child: _loading
-                                          ? const SizedBox(
-                                              width: 22,
-                                              height: 22,
-                                              child: CircularProgressIndicator(
-                                                  strokeWidth: 2, color: Colors.white),
-                                            )
-                                          : Text(
-                                              context.tr('signIn'),
-                                              style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: SizedBox(
+                                          height: 52,
+                                          child: ElevatedButton(
+                                            onPressed: _loading ? null : _signIn,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppTheme.primary,
+                                              foregroundColor: Colors.white,
+                                              shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(12)),
+                                              elevation: 0,
                                             ),
-                                    ),
+                                            child: _loading
+                                                ? const SizedBox(
+                                                    width: 22,
+                                                    height: 22,
+                                                    child: CircularProgressIndicator(
+                                                        strokeWidth: 2, color: Colors.white),
+                                                  )
+                                                : Text(
+                                                    context.tr('signIn'),
+                                                    style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.w600),
+                                                  ),
+                                          ),
+                                        ),
+                                      ),
+                                      if (_biometricEnabled) ...[
+                                        const SizedBox(width: 12),
+                                        SizedBox(
+                                          height: 52,
+                                          width: 52,
+                                          child: OutlinedButton(
+                                            onPressed: _loading ? null : _biometricSignIn,
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: AppTheme.primary,
+                                              side: const BorderSide(color: AppTheme.primary),
+                                              shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(12)),
+                                              padding: EdgeInsets.zero,
+                                            ),
+                                            child: const Icon(Icons.fingerprint, size: 28),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ],
                               ),

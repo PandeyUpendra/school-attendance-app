@@ -37,6 +37,9 @@ class AuthService {
   static const _keyName            = 'auth_name';
   static const _keySchoolId        = 'auth_school_id';
   static const _keyStudentLinks    = 'auth_student_links';
+  static const _keyUseBiometric    = 'auth_use_biometric';
+  static const _keyBiometricEmail  = 'auth_biometric_email';
+  static const _keyBiometricPassword = 'auth_biometric_password';
 
   // Lazy getter — FirebaseAuth.instance is only accessed the first time a
   // method that needs auth actually runs. This prevents the static initializer
@@ -478,5 +481,38 @@ class AuthService {
       'requestedAt': FieldValue.serverTimestamp(),
     });
     return true;
+  }
+
+  // ── Biometric (Fingerprint/Face ID) helpers ───────────────────────────────
+
+  Future<bool> isBiometricEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyUseBiometric) ?? false;
+  }
+
+  Future<void> setBiometricEnabled({
+    required bool enabled,
+    String? email,
+    String? password,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyUseBiometric, enabled);
+    if (enabled && email != null && password != null) {
+      await prefs.setString(_keyBiometricEmail, email);
+      await prefs.setString(_keyBiometricPassword, password);
+    } else {
+      await prefs.remove(_keyBiometricEmail);
+      await prefs.remove(_keyBiometricPassword);
+    }
+  }
+
+  Future<Map<String, String>?> getBiometricCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString(_keyBiometricEmail);
+    final password = prefs.getString(_keyBiometricPassword);
+    if (email != null && password != null) {
+      return {'email': email, 'password': password};
+    }
+    return null;
   }
 }
