@@ -249,6 +249,18 @@ beforeEach(async () => {
       days: 2,
     });
 
+    // Guardian student leave application for student in Class 9-A
+    await setDoc(doc(adb, schoolPath('leave_applications', 'student-leave-1')), {
+      applicantType: 'guardian',
+      studentClass: 'Class 9',
+      studentSection: 'A',
+      studentRoll: 42,
+      studentName: 'Alice Sharma',
+      startDate: '2026-07-01',
+      days: 2,
+      status: 'approved',
+    });
+
     // Staff task assigned to teacher9A
     await setDoc(doc(adb, schoolPath('staff_tasks', 'task-1')), {
       title: 'Write progress report',
@@ -552,6 +564,18 @@ describe('Firestore Security Rules', () => {
     test('DENY — other teacher cannot read teacher9A\'s leave application', async () => {
       await assertFails(
         getDoc(doc(db(UID.teacher10B), schoolPath('leave_applications', 'leave-1'))),
+      );
+    });
+
+    test('ALLOW — class teacher can read student leave applications for their class and section', async () => {
+      await assertSucceeds(
+        getDoc(doc(db(UID.teacher9A), schoolPath('leave_applications', 'student-leave-1'))),
+      );
+    });
+
+    test('DENY — teacher from another class/section cannot read student leave applications', async () => {
+      await assertFails(
+        getDoc(doc(db(UID.teacher10B), schoolPath('leave_applications', 'student-leave-1'))),
       );
     });
   });

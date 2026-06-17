@@ -357,7 +357,14 @@ service cloud.firestore {
         cls,
         userClassIds(),
         (request.resource != null && 'data' in request.resource && 'section' in request.resource.data)
-          ? request.resource.data.section : ''
+          ? request.resource.data.section
+          : (request.resource != null && 'data' in request.resource && 'studentSection' in request.resource.data)
+            ? request.resource.data.studentSection
+            : (resource != null && 'data' in resource && 'studentSection' in resource.data)
+              ? resource.data.studentSection
+              : (resource != null && 'data' in resource && 'section' in resource.data)
+                ? resource.data.section
+                : ''
       );
     }
 

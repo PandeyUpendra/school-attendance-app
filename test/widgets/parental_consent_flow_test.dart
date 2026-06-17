@@ -72,5 +72,18 @@ void main() {
 
       expect(field.controller.text, 'new-guardian@example.com');
     });
+
+    testWidgets('Requires a valid email address before continuing',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(createConsentFlow(prefillEmail: null));
+      await tester.pump();
+
+      // Tap the Continue button
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+
+      // Verify validation fails and required error is shown
+      expect(find.text('Enter an Email'), findsOneWidget);
+    });
   });
 }
