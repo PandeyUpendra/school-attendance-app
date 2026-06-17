@@ -56,6 +56,7 @@ class TeacherMorningSummaryCardState extends State<TeacherMorningSummaryCard> {
       Future<List<Map<String, dynamic>>> leaveFuture = classTeacherOf != null && classTeacherOf.isNotEmpty
           ? TimetableService.instance.getStudentLeaveApplications(
               studentClass: classTeacherOf,
+              studentSection: teacher.section,
               status: 'approved',
             )
           : Future.value([]);

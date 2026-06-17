@@ -128,6 +128,11 @@ service cloud.firestore {
         : (getUserData() != null && 'classIds' in getUserData() ? getUserData().classIds : []);
     }
 
+    /// Caller's assigned classIds from Auth token claims only (no document reads, query-friendly).
+    function tokenClassIds() {
+      return (isSignedIn() && 'classIds' in request.auth.token) ? request.auth.token.classIds : [];
+    }
+
     /// Caller's assigned studentIds array (for guardians).
     function userStudentIds() {
       return isSignedIn() && 'studentIds' in request.auth.token && request.auth.token.studentIds.size() > 0
@@ -1115,6 +1120,12 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/leave_applications/{leaveId} {
 
+      // Query-friendly rule: relies only on custom claims in token (no get() call)
+      allow read: if isSignedIn() && inSchool(sid) && isAnyTeacher()
+        && 'studentClass' in resource.data
+        && (resource.data.studentClass in tokenClassIds() || ('Class ' + resource.data.studentClass) in tokenClassIds());
+
+      // Fallback rule: relies on allowed_users doc / isClassTeacher logic (calls get(), works for getDoc but not queries)
       allow read: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
         (isAnyTeacher() && 'teacherId' in resource.data && resource.data.teacherId == userTeacherId()) ||
