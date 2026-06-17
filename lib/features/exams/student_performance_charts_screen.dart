@@ -70,7 +70,6 @@ class _StudentPerformanceChartsScreenState
 
       if (mounted) {
         setState(() {
-          _exams = examsList;
           _results = publishedResults;
           _selectedExamResult =
               publishedResults.isNotEmpty ? publishedResults.last : null;
