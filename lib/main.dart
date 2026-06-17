@@ -228,8 +228,6 @@ class _SplashGate extends StatefulWidget {
 
 class _SplashGateState extends State<_SplashGate> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _capOpacity;
-  late Animation<double> _kOpacity;
   late Animation<double> _brandOpacity;
 
   bool _animationCompleted = false;
@@ -250,27 +248,13 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-
-    _capOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.375, curve: Curves.easeOut),
-      ),
-    );
-
-    _kOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.25, 0.625, curve: Curves.easeOut),
-      ),
+      duration: const Duration(milliseconds: 600),
     );
 
     _brandOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.5, 0.875, curve: Curves.easeOut),
+        curve: Curves.easeOut,
       ),
     );
 
@@ -559,33 +543,17 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
               height: logoHeight,
               child: Stack(
                 children: [
-                  AnimatedBuilder(
-                    animation: _capOpacity,
-                    builder: (context, child) {
-                      return Opacity(
-                        opacity: _capOpacity.value,
-                        child: SvgPicture.asset(
-                          'assets/images/logo_cap.svg',
-                          width: logoHeight,
-                          height: logoHeight,
-                          fit: BoxFit.contain,
-                        ),
-                      );
-                    },
+                  SvgPicture.asset(
+                    'assets/images/logo_cap.svg',
+                    width: logoHeight,
+                    height: logoHeight,
+                    fit: BoxFit.contain,
                   ),
-                  AnimatedBuilder(
-                    animation: _kOpacity,
-                    builder: (context, child) {
-                      return Opacity(
-                        opacity: _kOpacity.value,
-                        child: SvgPicture.asset(
-                          'assets/images/logo_k.svg',
-                          width: logoHeight,
-                          height: logoHeight,
-                          fit: BoxFit.contain,
-                        ),
-                      );
-                    },
+                  SvgPicture.asset(
+                    'assets/images/logo_k.svg',
+                    width: logoHeight,
+                    height: logoHeight,
+                    fit: BoxFit.contain,
                   ),
                 ],
               ),
