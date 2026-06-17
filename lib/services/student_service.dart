@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../shared/utils/app_functions.dart';
 import 'package:uuid/uuid.dart';
 
@@ -12,6 +14,7 @@ import '../models/guardian_provided_details.dart';
 import '../models/school_provided_details.dart';
 import '../repositories/student_repository.dart';
 import '../shared/utils/app_logger.dart';
+import '../shared/utils/image_utils.dart';
 import '../shared/utils/phone_utils.dart';
 import '../shared/utils/school_clock.dart';
 import 'audit_log_service.dart';
@@ -65,6 +68,18 @@ class StudentService extends BaseFirestoreService {
   // ── Firestore refs (attendance only — students live in the repo) ────────────
 
   String get _schoolId => AuthService.currentSchoolId;
+
+  static final _storage = FirebaseStorage.instance;
+
+  /// Uploads a student photo to Firebase Storage and returns the download URL.
+  /// Path: `schools/{schoolId}/students/{studentDocId}.jpg`
+  /// Compresses the image and strips EXIF before uploading.
+  Future<String> uploadStudentPhoto(File file, String studentDocId) async {
+    final ref = _storage.ref('schools/$_schoolId/students/$studentDocId.jpg');
+    final bytes = await ImageUtils.compressAndStripExif(file, quality: 70);
+    await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+    return await ref.getDownloadURL();
+  }
 
   CollectionReference<Map<String, dynamic>> get _attendance =>
       schoolCollection(_schoolId, 'attendance');

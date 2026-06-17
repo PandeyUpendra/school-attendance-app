@@ -1177,6 +1177,7 @@ class AppStrings {
     'tapAddLogo':              {'en': 'Tap to add school logo', 'hi': 'स्कूल लोगो जोड़ने के लिए टैप करें'},
     'tapChangeLogo':           {'en': 'Tap to change logo',   'hi': 'लोगो बदलने के लिए टैप करें'},
     'logoUploadFailed':        {'en': 'Logo upload failed:',  'hi': 'लोगो अपलोड विफल:'},
+    'photoUploadFailed':       {'en': 'Photo saved but upload failed. You can re-upload later.', 'hi': 'फ़ोटो सहेजा गया लेकिन अपलोड विफल। आप बाद में पुनः अपलोड कर सकते हैं।'},
     // Step 2 — address
     'fullAddressLabel':        {'en': 'Full Address',         'hi': 'पूरा पता'},
     'cityLabel':               {'en': 'City',                 'hi': 'शहर'},

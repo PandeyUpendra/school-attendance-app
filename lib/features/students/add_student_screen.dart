@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -73,6 +74,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
   bool _saving = false;
   bool _saveAndAddAnother = false;
   bool _loadingLocation = false;
+  bool _isPhotoChanged = false;
 
   Future<void> _pickLocation() async {
     setState(() => _loadingLocation = true);
@@ -205,7 +207,10 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
         await ImagePicker().pickImage(source: source, imageQuality: 70);
     if (picked != null) {
       final compressed = await ImageUtils.compressIfNeeded(File(picked.path));
-      setState(() => _photoPath = compressed.path);
+      setState(() {
+        _photoPath = compressed.path;
+        _isPhotoChanged = true;
+      });
     }
   }
 
@@ -319,7 +324,9 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       gender: _gender,
       bloodGroup: _bloodGroup,
       transportMode: _transportMode,
-      photoPath: _photoPath,
+      // photoPath is intentionally NOT stored — it's a device-local absolute
+      // path that is meaningless on any other device. Photos are uploaded to
+      // Firebase Storage and referenced via photoUrl instead.
       photoUrl: widget.existing?.photoUrl,
       guardianEmail: _guardianEmailCtrl.text.trim().isEmpty
           ? null
@@ -347,6 +354,28 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     String? failedStep;
     try {
       if (_isEdit) {
+        var studentForUpdate = widget.existing!;
+        if (_isPhotoChanged && _photoPath != null) {
+          try {
+            failedStep = 'upload edited student photo';
+            final photoUrl = await service.uploadStudentPhoto(
+              File(_photoPath!),
+              widget.existing!.id,
+            );
+            studentForUpdate = studentForUpdate.copyWith(photoUrl: photoUrl);
+            await service.updateStudent(updated: studentForUpdate);
+          } catch (e) {
+            AppLogger.e('AddStudent', 'edited photo upload failed', e);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(context.tr('photoUploadFailed')),
+                backgroundColor: AppTheme.warning,
+                duration: const Duration(seconds: 5),
+              ));
+            }
+          }
+        }
+
         final dobStr = _dateOfBirth != null
             ? '${_dateOfBirth!.day.toString().padLeft(2, '0')}/${_dateOfBirth!.month.toString().padLeft(2, '0')}/${_dateOfBirth!.year}'
             : '';
@@ -378,7 +407,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(context.tr('detailsProposalSubmitted'))),
           );
-          Navigator.pop(context, widget.existing);
+          Navigator.pop(context, studentForUpdate);
         }
       } else {
         // ── Parental consent flow ─────────────────────────────────────────
@@ -430,6 +459,33 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               SnackBar(content: Text(error), backgroundColor: Colors.red));
           setState(() => _saving = false);
           return;
+        }
+
+        // ── Upload student photo to Firebase Storage ────────────────────
+        // This must happen AFTER addStudent succeeds (the doc must exist
+        // first). Non-fatal: the student record is saved even if the
+        // photo upload fails — the teacher can retry later.
+        if (_photoPath != null) {
+          try {
+            failedStep = 'upload student photo';
+            final photoUrl = await service.uploadStudentPhoto(
+              File(_photoPath!),
+              studentDocId,
+            );
+            // Patch the saved student record with the download URL.
+            await service.updateStudent(
+              updated: student.copyWith(id: studentDocId, photoUrl: photoUrl),
+            );
+          } catch (e) {
+            AppLogger.e('AddStudent', 'photo upload failed', e);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(context.tr('photoUploadFailed')),
+                backgroundColor: AppTheme.warning,
+                duration: const Duration(seconds: 5),
+              ));
+            }
+          }
         }
 
         // ── Guardian portal login ─────────────────────────────────────────
@@ -598,10 +654,14 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                 CircleAvatar(
                   radius: 52,
                   backgroundColor: AppTheme.primary.withValues(alpha: 0.08),
-                  backgroundImage: _photoPath != null
+                  backgroundImage: _isPhotoChanged && _photoPath != null
                       ? FileImage(File(_photoPath!))
-                      : null,
-                  child: _photoPath == null
+                      : (widget.existing?.photoUrl != null && widget.existing!.photoUrl!.isNotEmpty
+                          ? CachedNetworkImageProvider(widget.existing!.photoUrl!)
+                          : (_photoPath != null ? FileImage(File(_photoPath!)) : null)) as ImageProvider?,
+                  child: (!_isPhotoChanged || _photoPath == null) &&
+                          (widget.existing?.photoUrl == null || widget.existing!.photoUrl!.isEmpty) &&
+                          _photoPath == null
                       ? const Icon(Icons.person,
                           size: 52, color: AppTheme.primaryLight)
                       : null,

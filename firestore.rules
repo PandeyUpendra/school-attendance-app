@@ -1123,7 +1123,7 @@ service cloud.firestore {
       // Query-friendly rule: relies only on custom claims in token (no get() call)
       allow read: if isSignedIn() && inSchool(sid) && isAnyTeacher()
         && 'studentClass' in resource.data
-        && (resource.data.studentClass in tokenClassIds() || ('Class ' + resource.data.studentClass) in tokenClassIds());
+        && classIdInList(resource.data.studentClass, tokenClassIds(), 'studentSection' in resource.data ? resource.data.studentSection : '');
 
       // Fallback rule: relies on allowed_users doc / isClassTeacher logic (calls get(), works for getDoc but not queries)
       allow read: if isSignedIn() && inSchool(sid) && (

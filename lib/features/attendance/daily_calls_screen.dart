@@ -623,10 +623,12 @@ class _CallCard extends StatelessWidget {
           CircleAvatar(
             radius: 22,
             backgroundColor: color.withValues(alpha: 0.1),
-            backgroundImage: student.photoPath != null
-                ? FileImage(File(student.photoPath!))
-                : null,
-            child: student.photoPath == null
+            backgroundImage: (student.photoUrl != null && student.photoUrl!.isNotEmpty
+                ? NetworkImage(student.photoUrl!)
+                : (student.photoPath != null
+                    ? FileImage(File(student.photoPath!))
+                    : null)) as ImageProvider?,
+            child: (student.photoUrl == null || student.photoUrl!.isEmpty) && student.photoPath == null
                 ? Text(student.name[0].toUpperCase(),
                     style: TextStyle(
                         fontSize: 16,

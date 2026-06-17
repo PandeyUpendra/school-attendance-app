@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
@@ -1611,7 +1612,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
         lastUpdated: DateTime.now().toIso8601String(),
       );
 
-      final updatedStudent = _student.copyWith(
+      var updatedStudent = _student.copyWith(
         name: details.name,
         fatherName: details.fatherName,
         motherName: details.motherName,
@@ -1629,6 +1630,27 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             ? '${details.emergencyContactName} (${details.emergencyContactPhone})'
             : null,
       );
+
+      if (details.photoBase64 != null && details.photoBase64!.isNotEmpty) {
+        try {
+          final tempDir = Directory.systemTemp;
+          final tempFile = File('${tempDir.path}/temp_student_photo_${_student.id}.jpg');
+          await tempFile.writeAsBytes(base64Decode(details.photoBase64!));
+          
+          final photoUrl = await StudentService.instance.uploadStudentPhoto(
+            tempFile,
+            _student.id,
+          );
+          
+          updatedStudent = updatedStudent.copyWith(photoUrl: photoUrl);
+          
+          if (await tempFile.exists()) {
+            await tempFile.delete();
+          }
+        } catch (e) {
+          AppLogger.e('StudentList', 'failed to upload guardian proposed photo', e);
+        }
+      }
 
       await StudentService.instance.updateStudent(updated: updatedStudent);
       await StudentService.instance.updateGuardianProvidedDetailsStatus(_student.id, details.id, 'accepted');
@@ -1724,7 +1746,8 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
     compare(context.tr('allergiesConditionsLabel'), d?.allergies ?? '', details.allergies);
     compare(context.tr('transportModeLabel'), d?.transportMode ?? '', details.transportMode);
 
-    if (diffs.isEmpty) return const SizedBox.shrink();
+    final hasPhotoDiff = details.photoBase64 != null && details.photoBase64!.isNotEmpty;
+    if (diffs.isEmpty && !hasPhotoDiff) return const SizedBox.shrink();
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1751,6 +1774,41 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
               ],
             ),
             const SizedBox(height: 12),
+            if (hasPhotoDiff) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Text(
+                      '${context.tr('scopePhotos')}: ',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+                    ),
+                    const SizedBox(width: 8),
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.grey.shade200,
+                      backgroundImage: s.photoUrl != null && s.photoUrl!.isNotEmpty
+                          ? CachedNetworkImageProvider(s.photoUrl!)
+                          : (s.photoPath != null && s.photoPath!.isNotEmpty
+                              ? FileImage(File(s.photoPath!))
+                              : null) as ImageProvider?,
+                      child: (s.photoUrl == null || s.photoUrl!.isEmpty) && (s.photoPath == null || s.photoPath!.isEmpty)
+                          ? const Icon(Icons.person, size: 20, color: Colors.grey)
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Icon(Icons.arrow_forward, color: Colors.green.shade700, size: 16),
+                    const SizedBox(width: 12),
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.grey.shade200,
+                      backgroundImage: MemoryImage(base64Decode(details.photoBase64!)),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+            ],
             ...diffs.entries.map((entry) {
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),

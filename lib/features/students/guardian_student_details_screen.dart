@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -356,6 +357,12 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
     setState(() => _isSaving = true);
 
     try {
+      String? photoBase64;
+      if (_imageFile != null) {
+        final bytes = await _imageFile!.readAsBytes();
+        photoBase64 = base64Encode(bytes);
+      }
+
       final newDetails = GuardianProvidedDetails(
         name: _nameController.text.trim(),
         dob: _dobController.text.trim(),
@@ -374,6 +381,7 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
         guardianUid: FirebaseAuth.instance.currentUser?.uid ?? '',
         status: 'pending',
         remarks: '',
+        photoBase64: photoBase64,
       );
 
       await _service.submitGuardianProvidedDetails(widget.student.id, newDetails);

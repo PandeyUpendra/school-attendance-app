@@ -1980,6 +1980,8 @@ class _VerticalStudentCard extends StatelessWidget {
                                 File(student.photoPath!),
                                 fit: BoxFit.cover,
                                 alignment: const Alignment(0, -0.5),
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(Icons.person, size: 150, color: Colors.white24),
                               )
                             : Container(
                                 color: Colors.white10,

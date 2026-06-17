@@ -934,11 +934,16 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                                 : CircleAvatar(
                                     radius: 24,
                                     backgroundColor: color,
-                                    child: Text(t.name[0].toUpperCase(),
-                                        style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18)),
+                                    backgroundImage: (t.photoUrl != null && t.photoUrl!.isNotEmpty)
+                                        ? NetworkImage(t.photoUrl!)
+                                        : null,
+                                    child: (t.photoUrl == null || t.photoUrl!.isEmpty)
+                                        ? Text(t.name[0].toUpperCase(),
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18))
+                                        : null,
                                   ),
                             const SizedBox(width: 14),
                             Expanded(

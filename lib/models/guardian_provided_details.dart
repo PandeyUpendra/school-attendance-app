@@ -20,6 +20,7 @@ class GuardianProvidedDetails {
   final String guardianUid;
   final String status; // 'pending' | 'accepted' | 'rejected' | 'clarification_requested'
   final String remarks;
+  final String? photoBase64;
 
   const GuardianProvidedDetails({
     this.id = '',
@@ -41,6 +42,7 @@ class GuardianProvidedDetails {
     this.guardianUid = '',
     this.status = 'pending',
     this.remarks = '',
+    this.photoBase64,
   });
 
   Map<String, dynamic> toJson() => {
@@ -63,6 +65,7 @@ class GuardianProvidedDetails {
         'guardianUid': guardianUid,
         'status': status,
         'remarks': remarks,
+        'photoBase64': photoBase64,
       };
 
   factory GuardianProvidedDetails.fromJson(String docId, Map<String, dynamic> json) =>
@@ -86,5 +89,6 @@ class GuardianProvidedDetails {
         guardianUid: json['guardianUid'] as String? ?? '',
         status: json['status'] as String? ?? 'pending',
         remarks: json['remarks'] as String? ?? '',
+        photoBase64: json['photoBase64'] as String?,
       );
 }
