@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -65,8 +66,11 @@ void main() {
   late MockCopyCheckService mockCopyCheckService;
   late MockFeeService mockFeeService;
 
-  setUp(() {
+  setUp(() async {
     setupFirebaseMocks();
+    final fakeDb = FakeFirebaseFirestore();
+    BaseFirestoreService.mockDb = fakeDb;
+    await fakeDb.collection('schools').doc('test_school').set({'isActive': true});
     SharedPreferences.setMockInitialValues({});
     BaseFirestoreService.currentSchoolId = 'test_school';
     mockAuthService = MockAuthService();
@@ -86,6 +90,7 @@ void main() {
     when(() => mockUserCredential.user).thenReturn(mockUser);
     when(() => mockUser.email).thenReturn('teacher@school.test');
     when(() => mockAuthService.currentFirebaseUser).thenReturn(mockUser);
+    when(() => mockAuthService.isBiometricEnabled()).thenAnswer((_) async => false);
     when(() => mockAuthService.saveSession(
           email: any(named: 'email'),
           role: any(named: 'role'),
@@ -168,6 +173,7 @@ void main() {
   });
 
   tearDown(() {
+    BaseFirestoreService.mockDb = null;
     BaseFirestoreService.currentSchoolId = null;
     AuthService.mockInstance = null;
     TimetableService.mockInstance = null;

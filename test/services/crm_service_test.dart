@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:school_app/models/lead.dart';
 import 'package:school_app/services/base_firestore_service.dart';
 import 'package:school_app/services/lead_service.dart';
@@ -9,6 +10,8 @@ void main() {
   late LeadService service;
 
   setUp(() {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    SharedPreferences.setMockInitialValues({});
     fakeDb = FakeFirebaseFirestore();
     BaseFirestoreService.mockDb = fakeDb;
     BaseFirestoreService.currentSchoolId = 'test_school';

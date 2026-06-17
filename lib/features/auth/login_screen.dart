@@ -142,7 +142,8 @@ class _LoginScreenState extends State<LoginScreen> {
       // Block if the school/tenant itself is suspended
       if (schoolId.isNotEmpty && role != 'admin') {
         try {
-          final schoolSnap = await FirebaseFirestore.instance.collection('schools').doc(schoolId).get();
+          final firestore = BaseFirestoreService.mockDb ?? FirebaseFirestore.instance;
+          final schoolSnap = await firestore.collection('schools').doc(schoolId).get();
           if (schoolSnap.exists && schoolSnap.data()?['isActive'] == false) {
             await AuthService().signOut();
             setState(() {

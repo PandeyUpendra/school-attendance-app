@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,8 +40,11 @@ void main() {
     registerFallbackValue(DateTime.now());
   });
 
-  setUp(() {
+  setUp(() async {
     setupFirebaseMocks();
+    final fakeDb = FakeFirebaseFirestore();
+    BaseFirestoreService.mockDb = fakeDb;
+    await fakeDb.collection('schools').doc('test_school').set({'isActive': true});
     SharedPreferences.setMockInitialValues({});
     BaseFirestoreService.currentSchoolId = 'test_school';
     mockStudentService = MockStudentService();
@@ -56,6 +60,7 @@ void main() {
     ConsentService.mockInstance = mockConsentService;
 
     when(() => mockAuthService.currentFirebaseUser).thenReturn(mockUser);
+    when(() => mockAuthService.isBiometricEnabled()).thenAnswer((_) async => false);
     when(() => mockAuthService.getSession()).thenAnswer((_) async => {
           'email': 'teacher@school.test',
           'role': 'teacher',
@@ -93,6 +98,7 @@ void main() {
   });
 
   tearDown(() {
+    BaseFirestoreService.mockDb = null;
     BaseFirestoreService.currentSchoolId = null;
     StudentService.mockInstance = null;
     TimetableService.mockInstance = null;
@@ -172,6 +178,10 @@ void main() {
       await tester.tap(find.text('Take Attendance for Today'));
       await tester.pumpAndSettle();
 
+      // Switch to Swipe View
+      await tester.tap(find.byIcon(Icons.style));
+      await tester.pumpAndSettle();
+
       // Verify student 1 rendered on page 0
       expect(find.text('Alice'), findsOneWidget);
 
@@ -242,6 +252,10 @@ void main() {
 
       // Tap Take Attendance for Today
       await tester.tap(find.text('Take Attendance for Today'));
+      await tester.pumpAndSettle();
+
+      // Switch to Swipe View
+      await tester.tap(find.byIcon(Icons.style));
       await tester.pumpAndSettle();
 
       // Scroll to page 2 (Summary Card)

@@ -24,6 +24,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     mockAuthService = MockAuthService();
     mockTimetableService = MockTimetableService();
+    when(() => mockAuthService.isBiometricEnabled()).thenAnswer((_) async => false);
 
     AuthService.mockInstance = mockAuthService;
     TimetableService.mockInstance = mockTimetableService;

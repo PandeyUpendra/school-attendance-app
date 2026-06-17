@@ -39,6 +39,13 @@ void setupFirebaseMocks() {
       MethodChannel('plugins.flutter.io/cloud_firestore');
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(firestoreChannel, (MethodCall call) async {
+    print('Firestore MethodCall: ${call.method} ${call.arguments}');
+    if (call.method == 'DocumentReference#get') {
+      return {
+        'data': {'isActive': true},
+        'metadata': {'hasPendingWrites': false, 'isFromCache': false}
+      };
+    }
     return null;
   });
 }
