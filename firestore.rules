@@ -352,20 +352,8 @@ service cloud.firestore {
           ));
     }
 
-    function isClassTeacher(cls) {
-      return classIdInList(
-        cls,
-        userClassIds(),
-        (request.resource != null && 'data' in request.resource && 'section' in request.resource.data)
-          ? request.resource.data.section
-          : (request.resource != null && 'data' in request.resource && 'studentSection' in request.resource.data)
-            ? request.resource.data.studentSection
-            : (resource != null && 'data' in resource && 'studentSection' in resource.data)
-              ? resource.data.studentSection
-              : (resource != null && 'data' in resource && 'section' in resource.data)
-                ? resource.data.section
-                : ''
-      );
+    function isClassTeacher(cls, sec) {
+      return classIdInList(cls, userClassIds(), sec);
     }
 
     /// Recovers the class name from an ATTENDANCE document id and tests it
@@ -743,7 +731,7 @@ service cloud.firestore {
 
       allow create: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isAnyTeacher() && isClassTeacher(request.resource.data.className))
+        (isAnyTeacher() && isClassTeacher(request.resource.data.className, 'section' in request.resource.data ? request.resource.data.section : ''))
       );
 
       // Guardian branch FIRST so a guardian short-circuits before the heavier
@@ -757,7 +745,7 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['guardianDetails', 'guardianEmail'])) ||
         isManagement() ||
-        (isAnyTeacher() && isClassTeacher(resource.data.className))
+        (isAnyTeacher() && isClassTeacher(resource.data.className, 'section' in resource.data ? resource.data.section : ''))
       );
 
       allow delete: if isSignedIn() && inSchool(sid) && isManagement();
@@ -1133,7 +1121,7 @@ service cloud.firestore {
           && 'studentClass' in resource.data && resource.data.studentClass == userStudentClass()
           && 'studentRoll' in resource.data && resource.data.studentRoll == userStudentRoll()
           && 'studentSection' in resource.data && resource.data.studentSection == userStudentSection()) ||
-        (isAnyTeacher() && 'studentClass' in resource.data && (resource.data.studentClass in userClassIds() || isClassTeacher(resource.data.studentClass)))
+        (isAnyTeacher() && 'studentClass' in resource.data && (resource.data.studentClass in userClassIds() || isClassTeacher(resource.data.studentClass, 'studentSection' in resource.data ? resource.data.studentSection : '')))
       );
 
       // No impersonation: teacherId must equal the calling user's teacherId, or guardian matches student info.
@@ -1170,7 +1158,7 @@ service cloud.firestore {
         (isAnyTeacher()
           && 'studentClass' in resource.data
           && 'applicantType' in resource.data && resource.data.applicantType == 'guardian'
-          && isClassTeacher(resource.data.studentClass)
+          && isClassTeacher(resource.data.studentClass, 'studentSection' in resource.data ? resource.data.studentSection : '')
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['status', 'coordinatorNote']))
       );
@@ -1378,12 +1366,12 @@ service cloud.firestore {
 
       allow create: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isAnyTeacher() && isClassTeacher(request.resource.data.className))
+        (isAnyTeacher() && isClassTeacher(request.resource.data.className, 'section' in request.resource.data ? request.resource.data.section : ''))
       );
 
       allow update: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isAnyTeacher() && isClassTeacher(resource.data.className))
+        (isAnyTeacher() && isClassTeacher(resource.data.className, 'section' in resource.data ? resource.data.section : ''))
       );
 
       allow delete: if isSignedIn() && inSchool(sid) && isManagement();
@@ -1404,7 +1392,7 @@ service cloud.firestore {
 
       allow write: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isAnyTeacher() && isClassTeacher(request.resource.data.className))
+        (isAnyTeacher() && isClassTeacher(request.resource.data.className, 'section' in request.resource.data ? request.resource.data.section : ''))
       );
 
       match /students/{roll} {
@@ -1412,7 +1400,7 @@ service cloud.firestore {
 
         allow write: if isSignedIn() && inSchool(sid) && (
           isManagement() ||
-          (isAnyTeacher() && isClassTeacher(request.resource.data.className))
+          (isAnyTeacher() && isClassTeacher(request.resource.data.className, 'section' in request.resource.data ? request.resource.data.section : ''))
         );
       }
     }
@@ -1437,12 +1425,12 @@ service cloud.firestore {
 
       allow create: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isAnyTeacher() && isClassTeacher(request.resource.data.className))
+        (isAnyTeacher() && isClassTeacher(request.resource.data.className, 'section' in request.resource.data ? request.resource.data.section : ''))
       );
 
       allow update: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
-        (isAnyTeacher() && isClassTeacher(resource.data.className))
+        (isAnyTeacher() && isClassTeacher(resource.data.className, 'section' in resource.data ? resource.data.section : ''))
       );
 
       allow delete: if isSignedIn() && inSchool(sid) && isManagement();
