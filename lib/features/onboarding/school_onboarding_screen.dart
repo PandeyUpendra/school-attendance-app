@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../l10n/app_strings.dart';
+import '../../services/auth_service.dart';
+import '../auth/role_selection_screen.dart';
 import '../../models/school_onboarding.dart';
 import '../../services/school_settings_service.dart';
 import '../../theme.dart';
@@ -58,6 +60,36 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
   void dispose() {
     _pageCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _logout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.tr('logOut')),
+        content: Text(context.tr('logoutConfirm')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              context.tr('logOut'),
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await AuthService().clearSession();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      (route) => false,
+    );
   }
 
   Future<void> _loadDraft() async {
@@ -263,6 +295,24 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.8),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: _logout,
+                icon: const Icon(Icons.logout, color: Colors.white70, size: 14),
+                label: Text(
+                  context.tr('logOut'),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
               ),
             ]),
             const SizedBox(height: 6),
