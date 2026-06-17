@@ -1,6 +1,6 @@
 # School App — Performance & Scalability Quality Audit
 
-This audit evaluates the performance and scalability of the School Attendance Application across six core performance vectors: **Expensive Rebuilds**, **Firestore Over-fetching**, **Unnecessary Listeners**, **Large Widget Trees**, **Memory Waste**, and **Slow Startup Issues**.
+This audit evaluates the performance and scalability of the School Attendance Application across six core performance vectors: **Slow Startup Issues**, **Expensive Rebuilds**, **Firestore Over-fetching**, **Unnecessary Listeners**, **Large Widget Trees**, and **Memory Waste**.
 
 For each issue, a detailed description, severity rating, location reference, code comparison (current vs. optimized), and estimated performance gains are provided.
 
@@ -8,7 +8,7 @@ For each issue, a detailed description, severity rating, location reference, cod
 
 ## Executive Summary & Key Metrics
 
-Implementing the recommendations in this report will yield dramatic improvements in response times, cellular data usage, and Firestore operating costs:
+Implementing the recommendations in this report will yield dramatic improvements in response times, cellular data usage, memory overhead, and Firestore operating costs:
 
 | Metric | Current State | Target State (Optimized) | Est. Improvement |
 | :--- | :--- | :--- | :--- |
@@ -17,7 +17,7 @@ Implementing the recommendations in this report will yield dramatic improvements
 | **Attendance Stats Latency** | $N + 1$ network requests (~100+ calls) | **1 collection HTTP request** | **~99% Latency Reduction** |
 | **Firestore Read Cost (Stats)** | $2N$ document reads per stats load | **$N$ document reads** | **50% Cost Reduction** |
 | **Dashboard Frame Rate (FPS)** | 35-45 FPS (flickering due to build stream recreation) | **60 / 120 FPS (Jank-Free)** | **Butter-smooth transitions** |
-| **Memory Footprint** | Unbounded static caches (leaking over time) | **Bounded/Evicting cache** | **Zero session-memory growth** |
+| **Memory Footprint** | Unbounded static caches & leaked provider listeners | **Bounded/Evicting cache & clean disposals** | **Zero session-memory growth** |
 
 ---
 
@@ -25,7 +25,7 @@ Implementing the recommendations in this report will yield dramatic improvements
 
 ### 1. 🔴 Blocking Push Notification Permission in `main()`
 * **Location**: [lib/main.dart:70-74](file:///Users/upendrapandey/school_app/lib/main.dart#L70-L74)
-* **Problem**: Firebase Messaging's permission request (`await messaging.requestPermission(...)`) is called and awaited directly inside the `main()` function *before* `runApp()` is called. If it is the first launch, execution halts entirely while the OS displays the notification permission dialog. The app will freeze on the native splash screen until the user responds, risking rejection from app stores.
+* **Problem**: Firebase Messaging's permission request (`await messaging.requestPermission(...)`) is called and awaited directly inside the `main()` function *before* `runApp()` is called. On first launch, execution halts entirely while the OS displays the notification permission dialog. The app will freeze on the native splash screen until the user responds, risking app store rejection.
 * **Refactoring Proposal**:
   ```diff
   -  // request permission and wait
@@ -51,7 +51,7 @@ Implementing the recommendations in this report will yield dramatic improvements
   +    );
   +  });
   ```
-* **Performance Gain**: **High**. Completely eliminates startup blocking. First-frame render latency drops from seconds to milliseconds.
+* **Estimated Performance Gain**: **High**. Completely eliminates startup blocking. First-frame render latency drops from several seconds to milliseconds.
 
 ---
 
@@ -82,7 +82,7 @@ Implementing the recommendations in this report will yield dramatic improvements
               locale: localeProvider.locale,
               ...
   ```
-* **Performance Gain**: **High**. Prevents the entire route tree and navigation hierarchy from rebuilding at startup, reducing UI rendering passes during initialization.
+* **Estimated Performance Gain**: **High**. Prevents the entire route tree and navigation hierarchy from rebuilding at startup, reducing UI rendering passes during initialization.
 
 ---
 
@@ -139,7 +139,7 @@ Implementing the recommendations in this report will yield dramatic improvements
     }
   }
   ```
-* **Performance Gain**: **Enormous**. Reduces network calls from $N+1$ to 1 (e.g., from 101 to 1 for 100 days of school). Drops reads from $2N$ to $N$, instantly saving 50% on Firestore read costs.
+* **Estimated Performance Gain**: **Enormous**. Reduces network calls from $N+1$ to 1 (e.g., from 101 to 1 for 100 days of school). Drops reads from $2N$ to $N$, instantly saving 50% on Firestore read costs.
 
 ---
 
@@ -158,7 +158,7 @@ Implementing the recommendations in this report will yield dramatic improvements
       .where(FieldPath.documentId, <=, '$endKey\uf8ff')
       .get();
   ```
-* **Performance Gain**: **Critical**. Reduces network round-trips from ~30 to 1. Screen latency is cut by over 90%, transforming calendar transitions from lagging to instant.
+* **Estimated Performance Gain**: **Critical**. Reduces network round-trips from ~30 to 1. Screen latency is cut by over 90%, transforming calendar transitions from lagging to instant.
 
 ---
 
@@ -166,7 +166,7 @@ Implementing the recommendations in this report will yield dramatic improvements
 * **Location**: [lib/services/exam_service.dart](file:///Users/upendrapandey/school_app/lib/services/exam_service.dart) (`getStudentResults`) and [lib/features/dashboards/guardian_dashboard.dart](file:///Users/upendrapandey/school_app/lib/features/dashboards/guardian_dashboard.dart) (`_loadExamData`)
 * **Problem**: Parallel gets are executed for every exam result inside a `Future.wait` loop (`getResult(e.id, roll)`). If a class has 10–15 exams, it fires 10–15 separate Firestore requests.
 * **Refactoring Proposal**: Query results using a Firestore collection group query on subcollections named `students` under `schools/{schoolId}/exam_results/{examId}/students/{roll}`, or filter in-memory if query volume is low.
-* **Performance Gain**: **High**. Drops network requests from $M+1$ to 1.
+* **Estimated Performance Gain**: **High**. Drops network requests from $M+1$ to 1.
 
 ---
 
@@ -206,25 +206,48 @@ Implementing the recommendations in this report will yield dramatic improvements
     }
   }
   ```
-* **Performance Gain**: **Critical**. Saves thousands of duplicate Firestore reads daily. Eliminates screen flashing and micro-stutters during rebuilds.
+* **Estimated Performance Gain**: **Critical**. Saves thousands of duplicate Firestore reads daily. Eliminates screen flashing and micro-stutters during rebuilds.
+
+---
+
+### 7. 🔴 Leaked Listeners in `SchoolSettingsProvider`
+* **Location**: [lib/shared/providers/school_settings_provider.dart:31](file:///Users/upendrapandey/school_app/lib/shared/providers/school_settings_provider.dart#L31)
+* **Problem**: In the constructor of `SchoolSettingsProvider`, a listener is added to the global static `BaseFirestoreService.schoolIdNotifier`:
+  ```dart
+  BaseFirestoreService.schoolIdNotifier.addListener(_onActiveSchoolChanged);
+  ```
+  However, this provider **never overrides `dispose()`** and never removes this listener. Because the static notifier holds a strong reference to the provider's closure, the `SchoolSettingsProvider` is leaked in memory and never garbage collected even when it is recreated on session switches or logout.
+* **Refactoring Proposal**: Override `dispose()` to clean up the static listener and cancel all internal stream subscriptions.
+  ```dart
+  @override
+  void dispose() {
+    BaseFirestoreService.schoolIdNotifier.removeListener(_onActiveSchoolChanged);
+    _schoolSub?.cancel();
+    _academicSub?.cancel();
+    _feesSub?.cancel();
+    _commSub?.cancel();
+    super.dispose();
+  }
+  ```
+* **Estimated Performance Gain**: **High**. Prevents critical memory leaks during long-running sessions, multi-user switching, or logout-login loops on shared devices.
 
 ---
 
 ## E. Large Widget Trees
 
-### 7. 🟠 Monolithic Screen Packaging
+### 8. 🟠 Monolithic Screen Packaging
 * **Locations**: 
   - [lib/features/dashboards/guardian_dashboard.dart](file:///Users/upendrapandey/school_app/lib/features/dashboards/guardian_dashboard.dart) (3,600+ lines, houses `GuardianTimetableScreen`, `GuardianHomeworkScreen`, etc.)
   - [lib/features/students/student_list_screen.dart](file:///Users/upendrapandey/school_app/lib/features/students/student_list_screen.dart) (2,300+ lines, houses `StudentDetailPage`)
 * **Problem**: Packing multiple distinct full-screen pages into a single dashboard or list file inflates syntax parsing limits, slows down Hot Reload, and creates monolithic widget trees that compile slowly and are difficult to optimize.
 * **Refactoring Proposal**: Extract each screen class into its own dedicated file under its respective feature directory (e.g., `lib/features/timetable/guardian_timetable_screen.dart`).
-* **Performance Gain**: **Medium**. Speeds up compile times and Hot Reload loops, improves IDE responsiveness, and scopes code changes to specific files.
+* **Estimated Performance Gain**: **Medium**. Speeds up compile times and Hot Reload loops, improves IDE responsiveness, and scopes code changes to specific files.
 
 ---
 
 ## F. Memory Waste & Caching
 
-### 8. 🟠 Image Cache Misses for Splash Screen Logo
+### 9. 🟠 Image Cache Misses for Splash Screen Logo
 * **Location**: [lib/main.dart:428](file:///Users/upendrapandey/school_app/lib/main.dart#L428)
 * **Problem**: The school logo in `_SplashGate` is rendered using `Image.network` instead of `CachedNetworkImage`. It is downloaded from Firebase Storage on every cold startup, displaying a fallback icon or flash of empty space until loading completes.
 * **Refactoring Proposal**: Replace it with `CachedNetworkImage` to cache the file on the device's persistent storage.
@@ -246,10 +269,12 @@ Implementing the recommendations in this report will yield dramatic improvements
   +    errorWidget: (context, url, error) => const Icon(Icons.school, size: 56, color: Colors.white),
   +  )
   ```
-* **Performance Gain**: **Medium**. Smooth, instant logo display on cold start, saving network bandwidth.
+* **Estimated Performance Gain**: **Medium**. Smooth, instant logo display on cold start, saving network bandwidth.
 
-### 9. 🟡 Unbounded Static Cache in `StudentService`
-* **Location**: [lib/services/student_service.dart:91](file:///Users/upendrapandey/school_app/lib/services/student_service.dart#L91)
+---
+
+### 10. 🟡 Unbounded Static Cache in `StudentService`
+* **Location**: [lib/services/student_service.dart:92](file:///Users/upendrapandey/school_app/lib/services/student_service.dart#L92)
 * **Problem**: `_dayDocCache` is defined as a static map `static final Map<String, _DayDocEntry> _dayDocCache = {};`. While the entries expire (TTL of 30 seconds), they are never removed from the map. As users navigate the app and fetch different days, this map grows indefinitely, leaking memory.
 * **Refactoring Proposal**: Evict expired items when adding new entries, or enforce a maximum cache size.
   ```dart
@@ -278,7 +303,32 @@ Implementing the recommendations in this report will yield dramatic improvements
     _dayDocCache[key] = _DayDocEntry(data, now);
   }
   ```
-* **Performance Gain**: **Medium**. Bounds memory growth, preventing slow memory leaks during long-running sessions.
+* **Estimated Performance Gain**: **Medium**. Bounds memory growth, preventing slow memory leaks during long-running sessions.
+
+---
+
+### 11. 🔴 Undisposed Local TextEditingControllers
+* **Locations**: 
+  - [announcements_screen.dart:207](file:///Users/upendrapandey/school_app/lib/features/announcements/announcements_screen.dart#L207) (`customTitleCtrl` and `bodyCtrl` in `showComposeSheet`)
+  - [attendance_screen.dart:934](file:///Users/upendrapandey/school_app/lib/features/attendance/attendance_screen.dart#L934) (`controller` in `_showSearchRollDialog`)
+  - [daily_calls_screen.dart:228](file:///Users/upendrapandey/school_app/lib/features/attendance/daily_calls_screen.dart#L228) (`ctrl` in `_recordCall`)
+  - [copy_checking_screen.dart:662](file:///Users/upendrapandey/school_app/lib/features/copy_check/copy_checking_screen.dart#L662) (`typedCtrl` in `_runAiVerification`)
+  - [exam_management_screen.dart:70](file:///Users/upendrapandey/school_app/lib/features/exams/exam_management_screen.dart#L70) (`nameCtrl`, `maxMarksCtrl`, `subjectCtrls`)
+  - [report_card_screen.dart:248](file:///Users/upendrapandey/school_app/lib/features/exams/report_card_screen.dart#L248) (`textCtrl` in `_showAiRemarksDialog`)
+* **Problem**: `TextEditingController` objects are instantiated inside local build/dialog methods without explicit lifecycle tracking or disposal. The underlying text-listening listeners remain attached to the OS framework, leaking memory every time the modal sheets or dialogs are opened and closed.
+* **Refactoring Proposal**: Ensure controllers are disposed when the modal route completes or migrate the dialog content to a stateful widget that manages controller lifecycle.
+  ```dart
+  // Example fix inside local dialog method:
+  final controller = TextEditingController();
+  await showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      content: TextField(controller: controller),
+    ),
+  );
+  controller.dispose(); // Explicitly dispose after the dialog completes
+  ```
+* **Estimated Performance Gain**: **High**. Reclaims leaked memory dynamically on dialog dismissal and prevents keyboard lag or text listener drag in long sessions.
 
 ---
 
@@ -286,13 +336,13 @@ Implementing the recommendations in this report will yield dramatic improvements
 
 ```mermaid
 graph TD
-    A["Phase 1: Startup & Stream Builders (Immediate)"] -->|Fixes #1, #2, #6, #8| B["Instant Cold Start & Flicker-Free UI"]
+    A["Phase 1: Startup & Memory Leaks (Immediate)"] -->|Fixes #1, #2, #6, #7, #9, #11| B["Instant Cold Start, Leak-Free & Flicker-Free UI"]
     B --> C["Phase 2: Firestore Query Consolidation"]
     C -->|Fixes #3, #4, #5| D["95% Query Latency & Read Cost Reduction"]
     D --> E["Phase 3: Code Cleanup & Cache Bounding"]
-    E -->|Fixes #7, #9| F["Clean Architecture & Controlled Memory"]
+    E -->|Fixes #8, #10| F["Clean Architecture & Controlled Memory"]
 ```
 
-1. **Phase 1 (Immediate)**: Defer the FCM permission request, resolve the `MaterialApp` rebuild via `onGenerateTitle`, migrate the splash logo to `CachedNetworkImage`, and refactor all inline `StreamBuilder` stream instantiations to class state variables.
+1. **Phase 1 (Immediate)**: Defer the FCM permission request, resolve the `MaterialApp` rebuild via `onGenerateTitle`, migrate the splash logo to `CachedNetworkImage`, refactor all inline `StreamBuilder` stream instantiations to class state variables, dispose local dialog `TextEditingController` instances, and override `dispose()` in `SchoolSettingsProvider`.
 2. **Phase 2 (High Impact)**: Rewrite the attendance services to fetch the entire collection once, and rewrite calendar month queries to use ranges instead of parallel loops.
 3. **Phase 3 (Maintenance)**: Split the large dashboard and list files, and implement size bounding on the `StudentService` static map cache.

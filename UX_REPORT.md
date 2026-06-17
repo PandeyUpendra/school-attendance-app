@@ -1,6 +1,6 @@
 # UX Audit & Usability Report: School Attendance App
 
-This report evaluates the school management application's user experience (UX) from the perspectives of its four primary user roles: **Teacher**, **Guardian**, **Coordinator**, and **Principal**. It identifies critical usability blockers, workflow redundancies, navigation friction, and design inconsistencies across all screens, providing actionable recommendations for production readiness.
+This report evaluates the school management application's user experience (PDF / UX) from the perspectives of its four primary user roles: **Teacher**, **Guardian**, **Coordinator**, and **Principal**. It identifies critical usability blockers, workflow redundancies, navigation friction, and design inconsistencies across all screens, providing actionable recommendations for production readiness.
 
 ---
 
@@ -39,19 +39,16 @@ graph TD
 ```
 
 * **The Attendance Swipe Bottleneck (Too Many Taps & Swipes)**
-  * **File:** [attendance_screen.dart](file:///Users/upendrapandey/school_app/lib/features/attendance/attendance_screen.dart#L1115-L1145)
+  * **File:** [attendance_screen.dart](file:///Users/upendrapandey/school_app/lib/features/attendance/attendance_screen.dart#L1139)
   * **Issue**: Daily attendance marking uses a vertical `PageView.builder`. For a class of 40+ students, a teacher must scroll or swipe vertically 40 times, tapping each card individually. If a teacher wants to mark just 2 absentees, they still must navigate through the entire list to reach the final summary screen.
-  * **Recommendation**: Replace the vertical `PageView` with a scrollable list view displaying student rows. Default all students to "Present" and allow the teacher to tap a status button (P/A/L) only for exceptions (absentees/leaves). Add a "Mark All Present" button.
+  * **Status**: While there is a list view toggle (`_isListView`), the card-based swipe view remains the default when configured, causing high friction for daily use.
+  * **Recommendation**: Replace the vertical `PageView` as the default with the scrollable list view displaying student rows. Default all students to "Present" and allow the teacher to tap a status button (P/A/L) only for exceptions (absentees/leaves). Add a "Mark All Present" button.
 * **Intrusive Daily Call Logging (Confusing Workflows & Too Many Taps)**
-  * **File:** [daily_calls_screen.dart](file:///Users/upendrapandey/school_app/lib/features/attendance/daily_calls_screen.dart#L153-L175)
+  * **File:** [daily_calls_screen.dart](file:///Users/upendrapandey/school_app/lib/features/attendance/daily_calls_screen.dart#L174)
   * **Issue**: Tapping the call button immediately launches the dialer and pops up the `_recordCall` notes dialog in the app *before* the call actually connects or completes. This interrupts the OS phone transition and prompts the teacher to record notes when they haven't even spoken to the guardian.
   * **Recommendation**: Trigger the call log entry dialog only when the teacher returns from the system dialer, or let them manually tap a separate "Add Notes" button on the call roster.
-* **Disconnected Leave & Attendance (Confusing Workflows)**
-  * **File:** [leave_requests_screen.dart](file:///Users/upendrapandey/school_app/lib/features/leave/leave_requests_screen.dart)
-  * **Issue**: When a coordinator approves a student's leave request, it does not auto-populate the attendance registry. The teacher must still manually mark the student as "Leave" in the attendance tool.
-  * **Recommendation**: When a student leave request is marked as "Approved", trigger a database transaction to update the status in the corresponding day's `attendance` collection automatically.
 * **Dual Task Lists (Poor Navigation)**
-  * **File:** [home_screen.dart](file:///Users/upendrapandey/school_app/lib/features/dashboards/home_screen.dart)
+  * **File:** [home_screen.dart](file:///Users/upendrapandey/school_app/lib/features/dashboards/home_screen.dart#L120)
   * **Issue**: Teachers are assigned tasks in two separate lists: general class tasks (`tasks` collection) and coordinator/principal tasks (`staff_tasks` collection). They must navigate to different screens to check their duties.
   * **Recommendation**: Consolidate the two views into a single "My Tasks" screen with filter tabs (e.g., "Class Tasks" vs. "Staff Duties").
 
@@ -60,18 +57,22 @@ graph TD
 ### 2.2 The Guardian Persona
 Guardians require clear, glanceable updates about their children and simple ways to perform payments or consent requests.
 
+```mermaid
+graph TD
+    A[Guardian Profile Avatar] -->|Tap| B[Profile Dialog]
+    B -->|Select sibling| C[Switch Student Context]
+    
+    D[Persistent Sibling Avatars] -->|Single Tap| C
+```
+
 * **Non-Functional Child Switcher (Poor Navigation & Confusing Workflows)**
-  * **File:** [guardian_dashboard.dart](file:///Users/upendrapandey/school_app/lib/features/dashboards/guardian_dashboard.dart#L1281-L1283)
-  * **Issue**: The child switcher helper method `_childSwitcher()` returns `const SizedBox.shrink();`. For parents with multiple children, there is no way to switch children from the main header. The profile switcher dialog is also hidden and clunky.
+  * **File:** [guardian_dashboard.dart](file:///Users/upendrapandey/school_app/lib/features/dashboards/guardian_dashboard.dart#L1344)
+  * **Issue**: The child switcher helper method `_childSwitcher()` returns `const SizedBox.shrink();`. For parents with multiple children, sibling navigation is hidden behind the profile switcher dialog, requiring a long multi-tap flow.
   * **Recommendation**: Replace the `SizedBox.shrink()` in `_childSwitcher` with a row of sibling avatars or a dropdown list at the top header to let parents switch student contexts instantly.
 * **Excessive Scroll Depth (Poor Navigation)**
-  * **File:** [guardian_dashboard.dart](file:///Users/upendrapandey/school_app/lib/features/dashboards/guardian_dashboard.dart#L472-L700)
-  * **Issue**: The guardian dashboard is a massive vertical list containing over 15 feature tiles (Timetable, Homework, Daily Diary, Study Materials, Exams, Results, Trends, Attendance History, Certificate, Leave, Fees, etc.). Important day-to-day items are pushed far below the fold.
-  * **Recommendation**: Redesign the guardian portal using a modern dashboard tab bar:
-    * **Tab 1: Summary** (Glanceable today status, homework due today, alerts).
-    * **Tab 2: Academics** (Timetable, homework history, diary, study materials).
-    * **Tab 3: Progress** (Reports, marks, performance trends).
-    * **Tab 4: Admin** (Fees, consent, leave application).
+  * **File:** [guardian_dashboard.dart](file:///Users/upendrapandey/school_app/lib/features/dashboards/guardian_dashboard.dart#L478)
+  * **Issue**: Despite the implementation of a tabbed layout (Home, Academics, Progress, Admin & Fees), individual tabs still render a long list of features and tiles without search tools or section shortcuts.
+  * **Recommendation**: Redesign the sub-views with clear visual category cards or floating navigation anchors to decrease vertical scroll depth.
 * **Broken Session on Student Deletion (Confusing Workflows & Missing Feedback)**
   * **File:** [guardian_dashboard.dart](file:///Users/upendrapandey/school_app/lib/features/dashboards/guardian_dashboard.dart)
   * **Issue**: If a student is removed from the school records, the guardian's cached local session is not cleared. On next app launch, they are routed to a broken dashboard filled with null values, permission-denied spinners, or crashes.
@@ -83,7 +84,7 @@ Guardians require clear, glanceable updates about their children and simple ways
 Coordinators manage timetables, handle substitutions, oversee student settings, and verify payment claims.
 
 * **Opaque Setup Wizard Progress (Confusing Workflows)**
-  * **File:** [school_onboarding_screen.dart](file:///Users/upendrapandey/school_app/lib/features/onboarding/school_onboarding_screen.dart)
+  * **File:** [school_onboarding_screen.dart](file:///Users/upendrapandey/school_app/lib/features/onboarding/school_onboarding_screen.dart#L87)
   * **Issue**: Although onboarding drafts are saved to Firestore, there is no manual "Save Draft" button or visual confirmation to show the draft is saved. If the coordinator closes the app, the draft is resumed on cold start, but the user is not warned about potential draft data overrides.
   * **Recommendation**: Add a status indicator ("Draft auto-saved to cloud") and a manual "Save & Exit" button to the onboarding bottom navigation bar.
 * **Missing Search & Filter on Lists (Poor Navigation)**
@@ -101,7 +102,7 @@ Coordinators manage timetables, handle substitutions, oversee student settings, 
 Principals require a birds-eye view of school attendance, staff duties, and institutional finances.
 
 * **Dashboard Read Storm & Blank Loading State (Missing Feedback & Poor Navigation)**
-  * **File:** [principal_dashboard.dart](file:///Users/upendrapandey/school_app/lib/features/dashboards/principal_dashboard.dart#L183-L231)
+  * **File:** [principal_dashboard.dart](file:///Users/upendrapandey/school_app/lib/features/dashboards/principal_dashboard.dart#L185)
   * **Issue**: Opening the principal dashboard triggers multiple simultaneous query scans (absentee aggregates, teacher rosters, tasks, etc.). During this loading phase, the dashboard renders empty placeholders or hides content, showing a blank/unresponsive UI rather than a skeleton screen or cached data.
   * **Recommendation**: Implement dashboard data caching. Render the last-cached summary instantly, and replace it once the active Firestore stream updates. Add a skeleton loader (using the `shimmer` package) instead of hiding widgets.
 * **Bypassable Deletion Workflows (Confusing Workflows)**
@@ -115,7 +116,7 @@ Principals require a birds-eye view of school attendance, staff duties, and inst
 
 ### 3.1 Confusing Workflows
 1. **Disconnected Leave/Attendance Systems**: Approving student leave doesn't create the corresponding 'Leave' record in the daily attendance registry.
-2. **Onboarding Setup Wizard Resuming**: The 6-step setup wizard does not show auto-save statuses or allow manual draft saving, causing coordinators to feel insecure about their progress.
+2. **Onboarding Setup Wizard Resuming**: The 7-step wizard does not show auto-save statuses or allow manual draft saving, causing coordinators to feel insecure about their progress.
 3. **Orphaned Sessions for Removed Students**: Deleted students leave parent accounts logged into a broken, un-synchronized dashboard.
 
 ### 3.2 Too Many Taps
@@ -124,7 +125,7 @@ Principals require a birds-eye view of school attendance, staff duties, and inst
 3. **Double-Logging Call Outcomes**: The daily calls screen launches the phone dialer, but the teacher must remember to navigate back and manually record the call outcome.
 
 ### 3.3 Missing Feedback
-1. **Silent catches swallowing errors**: 27 silent `catch (_) {}` blocks swallow failures across the app. If a database write fails (e.g. in [attendance_screen.dart](file:///Users/upendrapandey/school_app/lib/features/attendance/attendance_screen.dart#L537) or auth screens), it fails silently without informing the user.
+1. **Silent catches swallowing errors**: Over 100 silent `catch (_) {}` blocks swallow failures across the app. If a database write fails (e.g. in [attendance_screen.dart](file:///Users/upendrapandey/school_app/lib/features/attendance/attendance_screen.dart#L539) or auth screens), it fails silently without informing the user.
 2. **No Offline Indicators**: Although the app queues attendance writes offline, there is no visual indicator showing whether the app is currently connected or syncing.
 3. **No Progress Indicators**: Large batch exports (e.g., report card batch generation) show no progress or completion feedback.
 4. **Blank States During Loading**: In the Principal dashboard, all cards are hidden during fetch, leaving the screen looking empty and broken.
