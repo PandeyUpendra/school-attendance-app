@@ -251,7 +251,7 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
       duration: const Duration(milliseconds: 600),
     );
 
-    _brandOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _brandOpacity = Tween<double>(begin: 1.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: Curves.easeOut,
