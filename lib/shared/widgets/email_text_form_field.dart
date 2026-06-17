@@ -161,14 +161,31 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
     if (Platform.environment.containsKey('FLUTTER_TEST')) return;
     try {
       final emails = await _getSavedEmails();
-      bool chosen = false;
+      String? selectedEmail;
+
       if (emails.isEmpty) {
-        chosen = await _triggerNativePicker();
+        final emailResult = await AccountPicker.emailHint();
+        if (emailResult != null) {
+          selectedEmail = emailResult.email;
+        }
       } else {
         if (!mounted) return;
-        chosen = await _showThemedEmailSheet(emails);
+        final result = await _showThemedEmailSheet(emails);
+        if (result == 'CHOOSE_DEVICE_ACCOUNTS') {
+          await Future.delayed(const Duration(milliseconds: 150));
+          final emailResult = await AccountPicker.emailHint();
+          if (emailResult != null) {
+            selectedEmail = emailResult.email;
+          }
+        } else if (result is String) {
+          selectedEmail = result;
+        }
       }
-      if (!chosen && mounted) {
+
+      if (selectedEmail != null && mounted) {
+        _selectEmail(selectedEmail);
+        await _saveEmail(selectedEmail);
+      } else if (mounted) {
         _focusNode.unfocus();
       }
     } catch (e) {
@@ -177,17 +194,6 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
         _focusNode.unfocus();
       }
     }
-  }
-
-  Future<bool> _triggerNativePicker() async {
-    final emailResult = await AccountPicker.emailHint();
-    if (emailResult != null) {
-      final selectedEmail = emailResult.email;
-      _selectEmail(selectedEmail);
-      await _saveEmail(selectedEmail);
-      return true;
-    }
-    return false;
   }
 
   void _selectEmail(String email) {
@@ -205,11 +211,17 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
           _focusNode.nextFocus();
         }
       });
+      // Safety delay to ensure focus shifts even if route animations/system focus shifts are still occurring
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted && _focusNode.hasFocus) {
+          _focusNode.nextFocus();
+        }
+      });
     }
   }
 
-  Future<bool> _showThemedEmailSheet(List<String> emails) async {
-    final chosen = await showModalBottomSheet<bool>(
+  Future<dynamic> _showThemedEmailSheet(List<String> emails) async {
+    final result = await showModalBottomSheet<dynamic>(
       context: context,
       isScrollControlled: true,
       builder: (context) {
@@ -261,9 +273,7 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
                           ),
                         ),
                         onTap: () {
-                          _selectEmail(email);
-                          _saveEmail(email);
-                          Navigator.pop(context, true);
+                          Navigator.pop(context, email);
                         },
                       );
                     },
@@ -293,7 +303,7 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
                     ),
                   ),
                   onTap: () {
-                    Navigator.pop(context, false);
+                    Navigator.pop(context, 'CHOOSE_DEVICE_ACCOUNTS');
                   },
                 ),
                 const SizedBox(height: 8),
@@ -304,13 +314,7 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
       },
     );
 
-    if (chosen == true) {
-      return true;
-    } else if (chosen == false) {
-      await Future.delayed(const Duration(milliseconds: 150));
-      return await _triggerNativePicker();
-    }
-    return false;
+    return result;
   }
 
   @override
