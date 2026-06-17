@@ -244,49 +244,52 @@ class _ParentalConsentFlowState extends State<ParentalConsentFlow> {
             child: _StepProgress(step: _step, total: 5),
           ),
         ),
-        body: PageView(
-          controller:  _pageCtrl,
-          physics:     const NeverScrollableScrollPhysics(),
-          onPageChanged: (i) => setState(() => _step = i),
-          children: [
-            _GuardianDetailsStep(
-              formKey:    _formKey,
-              nameCtrl:   _nameCtrl,
-              phoneCtrl:  _phoneCtrl,
-              emailCtrl:  _emailCtrl,
-              studentName: widget.studentName,
-              onNext: () { if (_validateStep0()) _next(); },
-            ),
-            _PrivacyNoticeStep(
-              lang:   _lang,
-              onLangToggle: (l) => setState(() => _lang = l),
-              onNext: _next,
-            ),
-            _ScopeSelectionStep(
-              scopes:   _scopes,
-              onChange: (updated) => setState(() => _scopes = updated),
-              onNext:   _next,
-            ),
-            _OtpStep(
-              method:           _method,
-              onMethodChanged:  (m) => setState(() => _method = m),
-              phoneNumber:      _phoneCtrl.text.trim(),
-              otpSending:       _otpSending,
-              otpSent:          _otpSent,
-              verifying:        _verifying || _submitting,
-              otpError:         _otpError,
-              otpCtrl:          _otpCtrl,
-              inPersonConfirmed: _inPersonConfirmed,
-              onInPersonToggle: (v) => setState(() => _inPersonConfirmed = v),
-              onSendOtp:        _sendOtp,
-              onVerifyOtp:      _verifyOtp,
-              onInPersonSubmit: _submitInPersonConsent,
-            ),
-            _SuccessStep(
-              consent:  _result,
-              onDone:   () => Navigator.pop(context, _result),
-            ),
-          ],
+        body: SafeArea(
+          top: false,
+          child: PageView(
+            controller:  _pageCtrl,
+            physics:     const NeverScrollableScrollPhysics(),
+            onPageChanged: (i) => setState(() => _step = i),
+            children: [
+              _GuardianDetailsStep(
+                formKey:    _formKey,
+                nameCtrl:   _nameCtrl,
+                phoneCtrl:  _phoneCtrl,
+                emailCtrl:  _emailCtrl,
+                studentName: widget.studentName,
+                onNext: () { if (_validateStep0()) _next(); },
+              ),
+              _PrivacyNoticeStep(
+                lang:   _lang,
+                onLangToggle: (l) => setState(() => _lang = l),
+                onNext: _next,
+              ),
+              _ScopeSelectionStep(
+                scopes:   _scopes,
+                onChange: (updated) => setState(() => _scopes = updated),
+                onNext:   _next,
+              ),
+              _OtpStep(
+                method:           _method,
+                onMethodChanged:  (m) => setState(() => _method = m),
+                phoneNumber:      _phoneCtrl.text.trim(),
+                otpSending:       _otpSending,
+                otpSent:          _otpSent,
+                verifying:        _verifying || _submitting,
+                otpError:         _otpError,
+                otpCtrl:          _otpCtrl,
+                inPersonConfirmed: _inPersonConfirmed,
+                onInPersonToggle: (v) => setState(() => _inPersonConfirmed = v),
+                onSendOtp:        _sendOtp,
+                onVerifyOtp:      _verifyOtp,
+                onInPersonSubmit: _submitInPersonConsent,
+              ),
+              _SuccessStep(
+                consent:  _result,
+                onDone:   () => Navigator.pop(context, _result),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -882,16 +885,27 @@ class _NextButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon:  const Icon(Icons.arrow_forward),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppTheme.primary,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          elevation: 0,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label),
+            const SizedBox(width: 8),
+            const Icon(Icons.arrow_forward, size: 18),
+          ],
+        ),
       ),
     );
   }

@@ -1865,6 +1865,9 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
                               : (_student.phone.isNotEmpty
                                   ? _student.phone
                                   : null),
+                          prefillGuardianEmail: (_student.guardianEmail?.isNotEmpty == true)
+                              ? _student.guardianEmail
+                              : null,
                           isReConsent: _isReConsent,
                         ),
                         fullscreenDialog: true,

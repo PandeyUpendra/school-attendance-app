@@ -401,6 +401,9 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                                         : (student.phone.isNotEmpty
                                               ? student.phone
                                               : null),
+              prefillGuardianEmail: (student.guardianEmail?.isNotEmpty == true)
+                                        ? student.guardianEmail
+                                        : null,
             ),
             fullscreenDialog: true,
           ),
