@@ -31,6 +31,13 @@ admin.initializeApp();
     const claims = {};
     if (d.role) claims.role = String(d.role);
     if (d.schoolId) claims.schoolId = String(d.schoolId);
+    if (d.classIds) claims.classIds = d.classIds;
+    if (d.studentClass) claims.studentClass = String(d.studentClass);
+    if (d.studentRoll) claims.studentRoll = Number(d.studentRoll);
+    if (d.studentSection) claims.studentSection = String(d.studentSection);
+    if (d.studentAdmissionId) claims.studentAdmissionId = String(d.studentAdmissionId);
+    if (d.studentIds) claims.studentIds = d.studentIds;
+    if (d.teacherId) claims.teacherId = String(d.teacherId);
     try {
       const user = await admin.auth().getUserByEmail(email);
       if (!DRY_RUN) await admin.auth().setCustomUserClaims(user.uid, claims);

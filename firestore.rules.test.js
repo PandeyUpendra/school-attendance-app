@@ -163,6 +163,7 @@ function db(uid) {
     ...(user.studentRoll ? { studentRoll: user.studentRoll } : {}),
     ...(user.studentSection ? { studentSection: user.studentSection } : {}),
     ...(user.studentAdmissionId ? { studentAdmissionId: user.studentAdmissionId } : {}),
+    ...(user.teacherId ? { teacherId: user.teacherId } : {}),
     ...(uid === UID.rootAdmin ? { isRootAdmin: true } : {}),
   } : {};
   return testEnv.authenticatedContext(uid, customClaims).firestore();

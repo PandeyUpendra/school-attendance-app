@@ -181,6 +181,7 @@ exports.syncUserClaims = onDocumentWritten(
         studentSection: d.studentSection ? String(d.studentSection) : null,
         studentAdmissionId: d.studentAdmissionId ? String(d.studentAdmissionId) : null,
         studentIds: d.studentIds ? d.studentIds : [],
+        teacherId: d.teacherId ? String(d.teacherId) : null,
       };
       await admin.auth().setCustomUserClaims(user.uid, claims);
     } catch (err) {

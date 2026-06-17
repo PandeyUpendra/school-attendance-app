@@ -107,6 +107,7 @@ async function runMigration() {
           studentRoll: data.studentRoll ? Number(data.studentRoll) : null,
           studentSection: data.studentSection ? String(data.studentSection) : null,
           studentAdmissionId: data.studentAdmissionId ? String(data.studentAdmissionId) : null,
+          teacherId: data.teacherId ? String(data.teacherId) : null,
         };
         await auth.setCustomUserClaims(userRecord.uid, claims);
         console.log(`  Updated Auth custom claims for ${email}`);
