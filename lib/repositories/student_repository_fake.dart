@@ -123,8 +123,11 @@ class FakeStudentRepository implements StudentRepository {
   Future<String?> addStudentUnique(Student s) async {
     final id = docId(s.roll, s.className, s.section);
     if (_students.containsKey(id)) {
-      final sec = s.section.isNotEmpty ? ' Section ${s.section}' : '';
-      return 'Roll number ${s.roll} already exists in ${s.className}$sec.';
+      final existing = _students[id];
+      if (existing != null && existing.name.isNotEmpty) {
+        final sec = s.section.isNotEmpty ? ' Section ${s.section}' : '';
+        return 'Roll number ${s.roll} already exists in ${s.className}$sec.';
+      }
     }
     _students[id] = _withId(s, id);
     return null;

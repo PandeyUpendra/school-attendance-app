@@ -142,7 +142,14 @@ class Student {
   static String buildDocId(int roll, String className, String section) {
     final base = _toTitleCase(className).replaceAll(' ', '_');
     final sec = section.trim().toUpperCase().replaceAll(' ', '_');
-    return sec.isEmpty ? '${base}_$roll' : '${base}_${sec}_$roll';
+    if (sec.isEmpty) {
+      return '${base}_$roll';
+    }
+    if (base.toUpperCase().endsWith('-${sec.toUpperCase()}') ||
+        base.toUpperCase().endsWith('_${sec.toUpperCase()}')) {
+      return '${base}_$roll';
+    }
+    return '${base}_${sec}_$roll';
   }
 
   factory Student.fromJson(Map<String, dynamic> json) {

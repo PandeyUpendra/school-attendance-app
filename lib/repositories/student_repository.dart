@@ -381,10 +381,13 @@ class FirestoreStudentRepository implements StudentRepository {
     return _db.runTransaction<String?>((tx) async {
       final doc = await tx.get(docRef);
       if (doc.exists) {
-        final sec = s.section.isNotEmpty ? ' Section ${s.section}' : '';
-        return 'Roll number ${s.roll} already exists in ${s.className}$sec.';
+        final data = doc.data();
+        if (data != null && data.containsKey('name') && data['name'].toString().isNotEmpty) {
+          final sec = s.section.isNotEmpty ? ' Section ${s.section}' : '';
+          return 'Roll number ${s.roll} already exists in ${s.className}$sec.';
+        }
       }
-      tx.set(docRef, s.toJson());
+      tx.set(docRef, s.toJson(), SetOptions(merge: true));
       return null;
     });
   }

@@ -476,6 +476,12 @@ void main() {
 
     final docId3 = Student.buildDocId(20, 'Class 10', '');
     expect(docId3, 'Class_10_20');
+
+    final docId4 = Student.buildDocId(1, '6-B', 'B');
+    expect(docId4, '6-B_1');
+
+    final docId5 = Student.buildDocId(1, '6_B', 'B');
+    expect(docId5, '6_b_1');
   });
 }
 
