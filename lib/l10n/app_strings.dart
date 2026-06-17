@@ -1502,7 +1502,7 @@ class AppStrings {
     'confirmSelection':        {'en': 'Confirm Selection',    'hi': 'चयन की पुष्टि करें'},
     'verifyIdentity':          {'en': 'Verify Identity',      'hi': 'पहचान सत्यापित करें'},
     'verifyIdentitySub':       {'en': 'Confirm guardian identity before recording consent', 'hi': 'सहमति दर्ज करने से पहले अभिभावक की पहचान की पुष्टि करें'},
-    'otpViaSms':               {'en': 'OTP via SMS',          'hi': 'SMS द्वारा OTP'},
+    'otpViaEmail':             {'en': 'OTP via Email',        'hi': 'ईमेल द्वारा OTP'},
     'inPersonSigned':          {'en': 'In-Person Signed',     'hi': 'व्यक्तिगत रूप से हस्ताक्षरित'},
     'sendingOtpTo':            {'en': 'Sending OTP to:',      'hi': 'OTP भेजा जा रहा है:'},
     'enterOtp':                {'en': 'Enter OTP',            'hi': 'OTP दर्ज करें'},

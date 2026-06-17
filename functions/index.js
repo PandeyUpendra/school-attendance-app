@@ -452,6 +452,8 @@ exports.createAllowedUser = onCall(
     const studentSection = request.data && request.data.studentSection ? String(request.data.studentSection).trim() : null;
     const studentAdmissionId = request.data && request.data.studentAdmissionId ? String(request.data.studentAdmissionId).trim() : null;
     const assignedClasses = request.data && request.data.assignedClasses ? request.data.assignedClasses : [];
+    const classIds = request.data && request.data.classIds ? request.data.classIds : null;
+    const teacherId = request.data && request.data.teacherId ? String(request.data.teacherId).trim() : null;
 
     if (!EMAIL_RE.test(email)) {
       throw new HttpsError("invalid-argument", "A valid email address is required.");
@@ -537,11 +539,13 @@ exports.createAllowedUser = onCall(
       email: email,
       status: "pending",
       schoolId: schoolId,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
       name: name || "",
       createdByEmail: request.data.createdByEmail ? String(request.data.createdByEmail).trim().toLowerCase() : callerEmail,
       createdByRole: request.data.createdByRole ? String(request.data.createdByRole).trim() : (callerRole || ""),
     };
+    if (!docSnap.exists) {
+      data.createdAt = admin.firestore.FieldValue.serverTimestamp();
+    }
     if (role === "guardian") {
       data.studentClass = studentClass || null;
       data.studentRoll = studentRoll || null;
@@ -569,8 +573,16 @@ exports.createAllowedUser = onCall(
     if (["coordinator", "principal", "owner"].includes(role)) {
       data.assignedClasses = assignedClasses || [];
     }
+    if (["teacher", "subjectTeacher"].includes(role)) {
+      if (classIds !== null) {
+        data.classIds = Array.isArray(classIds) ? classIds.map(String) : [];
+      }
+      if (teacherId !== null) {
+        data.teacherId = teacherId;
+      }
+    }
 
-    await docRef.set(data);
+    await docRef.set(data, { merge: true });
 
     return { success: true, uid: user.uid };
   }
@@ -2996,6 +3008,173 @@ exports.callGemini = onCall(
     }
   }
 );
+
+/**
+ * Callable: sendEmailOtp({ email, schoolId })
+ *
+ * Generates and sends a 6-digit numeric OTP to the specified guardian email.
+ */
+exports.sendEmailOtp = onCall(
+  { cors: true, region: "asia-south1", enforceAppCheck: false },
+  async (request) => {
+    const db = admin.firestore();
+    const email = String(request.data && request.data.email ? request.data.email : "").trim().toLowerCase();
+    const schoolId = String(request.data && request.data.schoolId ? request.data.schoolId : "").trim();
+
+    if (!email || !EMAIL_RE.test(email)) {
+      throw new HttpsError("invalid-argument", "A valid email address is required.");
+    }
+    if (!schoolId) {
+      throw new HttpsError("invalid-argument", "School ID is required.");
+    }
+
+    // Generate a 6-digit OTP
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+
+    // Save to Firestore: schools/{schoolId}/consent_otps/{email}
+    // Expires in 10 minutes
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+    await db.collection("schools").doc(schoolId)
+      .collection("consent_otps").doc(email)
+      .set({
+        otp: otp,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: expiresAt
+      });
+
+    // Get school name for branding
+    let schoolName = "Klassivo";
+    let logoUrl = "";
+    try {
+      const schoolSettingsSnap = await db.collection("schools").doc(schoolId)
+        .collection("settings").doc("school").get();
+      if (schoolSettingsSnap.exists && schoolSettingsSnap.data()) {
+        const settings = schoolSettingsSnap.data();
+        schoolName = settings.schoolName || "Klassivo";
+        logoUrl = settings.logoUrl || "";
+      }
+    } catch (err) {
+      logger.error("Failed to fetch school settings for OTP branding", err);
+    }
+
+    // Send email via nodemailer
+    const nodemailer = require("nodemailer");
+    const smtpSnap = await db.collection("schools").doc(schoolId)
+      .collection("settings").doc("smtp").get();
+    let transporter;
+
+    if (smtpSnap.exists && smtpSnap.data()) {
+      const smtp = smtpSnap.data();
+      transporter = nodemailer.createTransport({
+        host: smtp.host,
+        port: parseInt(smtp.port, 10) || 587,
+        secure: smtp.secure || false,
+        auth: {
+          user: smtp.username,
+          pass: smtp.password,
+        },
+      });
+    } else {
+      transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || "smtp.gmail.com",
+        port: parseInt(process.env.SMTP_PORT, 10) || 587,
+        secure: process.env.SMTP_SECURE === "true",
+        auth: {
+          user: process.env.SMTP_USER || "noreply@yourschooldomain.com",
+          pass: process.env.SMTP_PASS || "",
+        },
+      });
+    }
+
+    const mailFrom = process.env.MAIL_FROM || "noreply@yourschooldomain.com";
+    const mailFromName = process.env.MAIL_FROM_NAME || schoolName;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(schoolName)}" style="max-height: 80px; margin-bottom: 10px;" />` : ''}
+          <h2 style="color: #003D33; margin: 0;">${escapeHtml(schoolName)}</h2>
+          <p style="color: #666; margin: 5px 0 0 0;">Parental Consent Identity Verification</p>
+        </div>
+        
+        <div style="background-color: #f5f7f6; padding: 20px; border-radius: 6px; text-align: center; margin-bottom: 20px;">
+          <p style="font-size: 15px; color: #333; margin-top: 0;">Use the following verification code to sign parental consent:</p>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #003D33; margin: 15px 0; background: #ffffff; padding: 12px; border-radius: 4px; display: inline-block; border: 1px solid #e4e8e7;">
+            ${otp}
+          </div>
+          <p style="font-size: 12px; color: #666; margin-bottom: 0;">This code is valid for 10 minutes. Do not share this code with anyone.</p>
+        </div>
+        
+        <div style="text-align: center; border-top: 1px solid #eeeeee; padding-top: 15px; font-size: 11px; color: #888;">
+          This is an automated security message. Please do not reply directly to this email.
+        </div>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: `"${mailFromName}" <${mailFrom}>`,
+      to: email,
+      subject: `Verification Code: ${otp} - ${schoolName}`,
+      html: htmlContent,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      return { success: true };
+    } catch (err) {
+      logger.error("Failed to send OTP email via nodemailer", err);
+      throw new HttpsError("internal", `Failed to send email: ${err.message}`);
+    }
+  }
+);
+
+/**
+ * Callable: verifyEmailOtp({ email, schoolId, otpCode })
+ *
+ * Verifies the specified OTP code against the one stored in Firestore.
+ */
+exports.verifyEmailOtp = onCall(
+  { cors: true, region: "asia-south1", enforceAppCheck: false },
+  async (request) => {
+    const db = admin.firestore();
+    const email = String(request.data && request.data.email ? request.data.email : "").trim().toLowerCase();
+    const schoolId = String(request.data && request.data.schoolId ? request.data.schoolId : "").trim();
+    const otpCode = String(request.data && request.data.otpCode ? request.data.otpCode : "").trim();
+
+    if (!email || !EMAIL_RE.test(email)) {
+      throw new HttpsError("invalid-argument", "A valid email address is required.");
+    }
+    if (!schoolId) {
+      throw new HttpsError("invalid-argument", "School ID is required.");
+    }
+    if (!otpCode) {
+      throw new HttpsError("invalid-argument", "Verification code is required.");
+    }
+
+    const otpDocRef = db.collection("schools").doc(schoolId)
+      .collection("consent_otps").doc(email);
+
+    const otpSnap = await otpDocRef.get();
+    if (!otpSnap.exists) {
+      throw new HttpsError("not-found", "No verification code has been sent to this email, or it has expired.");
+    }
+
+    const data = otpSnap.data();
+    if (Date.now() > data.expiresAt) {
+      await otpDocRef.delete();
+      throw new HttpsError("failed-precondition", "The verification code has expired. Please request a new one.");
+    }
+
+    if (data.otp !== otpCode) {
+      throw new HttpsError("invalid-argument", "Incorrect verification code. Please check and try again.");
+    }
+
+    // Success! Delete the OTP doc so it can't be reused.
+    await otpDocRef.delete();
+    return { success: true };
+  }
+);
+
 
 
 

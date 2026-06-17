@@ -477,6 +477,8 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
           'teacher',
           name:     teacher.name,
           schoolId: schoolId,
+          classIds:  _service.classIdsFor(teacher),
+          teacherId: teacher.id,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -503,6 +505,8 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
           'teacher',
           name:     teacher.name,
           schoolId: schoolId,
+          classIds:  _service.classIdsFor(teacher),
+          teacherId: teacher.id,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -775,6 +779,8 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
             'teacher',
             name:     t.name,
             schoolId: sid,
+            classIds:  _service.classIdsFor(t),
+            teacherId: t.id,
           );
         } catch (e) {
           AppLogger.e('TeacherManagement',

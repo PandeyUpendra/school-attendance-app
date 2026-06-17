@@ -7,6 +7,7 @@ import '../models/parental_consent.dart';
 import 'audit_log_service.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
+import '../shared/utils/app_functions.dart';
 
 /// Manages parental consent records for student data processing.
 ///
@@ -31,6 +32,46 @@ class ConsentService {
       .collection('students')
       .doc(studentDocId)
       .collection('consents');
+
+
+  /// Public getter to expose school ID
+  String get schoolId => _schoolId();
+
+  // ── OTP via Email ──────────────────────────────────────────────────────────
+
+  /// Sends a 6-digit verification code to the guardian's [email].
+  Future<void> sendEmailOtp({
+    required String email,
+    required String schoolId,
+  }) async {
+    await appFunctions.httpsCallable('sendEmailOtp').call({
+      'email': email.trim(),
+      'schoolId': schoolId.trim(),
+    });
+  }
+
+  /// Verifies [otpCode] against the code sent to [email].
+  Future<bool> verifyEmailOtp({
+    required String email,
+    required String schoolId,
+    required String otpCode,
+  }) async {
+    try {
+      await appFunctions.httpsCallable('verifyEmailOtp').call({
+        'email': email.trim(),
+        'schoolId': schoolId.trim(),
+        'otpCode': otpCode.trim(),
+      });
+      return true;
+    } catch (e) {
+      // Re-throw a clean user-facing exception
+      String msg = e.toString();
+      if (msg.contains('] ')) {
+        msg = msg.substring(msg.indexOf('] ') + 2);
+      }
+      throw Exception(msg);
+    }
+  }
 
   // ── OTP / Firebase Phone Auth ─────────────────────────────────────────────
 

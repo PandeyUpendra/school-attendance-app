@@ -144,21 +144,17 @@ class _ParentalConsentFlowState extends State<ParentalConsentFlow> {
   Future<void> _sendOtp() async {
     setState(() { _otpSending = true; _otpError = null; });
     try {
-      final vid = await _svc.sendOtp(phoneNumber: _phoneCtrl.text.trim());
+      final email = _emailCtrl.text.trim();
+      await _svc.sendEmailOtp(
+        email: email,
+        schoolId: _svc.schoolId,
+      );
       if (!mounted) return;
-      if (vid.startsWith('__auto__:')) {
-        // Auto-retrieval completed
-        final code = vid.substring(9);
-        _otpCtrl.text = code;
-        _verificationId = vid;
-        setState(() { _otpSent = true; _otpSending = false; });
-      } else {
-        setState(() {
-          _verificationId = vid;
-          _otpSent        = true;
-          _otpSending     = false;
-        });
-      }
+      setState(() {
+        _verificationId = email;
+        _otpSent        = true;
+        _otpSending     = false;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() { _otpSending = false; _otpError = e.toString(); });
@@ -173,14 +169,16 @@ class _ParentalConsentFlowState extends State<ParentalConsentFlow> {
     }
     setState(() { _verifying = true; _otpError = null; });
     try {
-      await _svc.verifyOtp(
-        verificationId: _verificationId,
-        smsCode:        code,
+      final email = _emailCtrl.text.trim();
+      await _svc.verifyEmailOtp(
+        email: email,
+        schoolId: _svc.schoolId,
+        otpCode: code,
       );
       if (!mounted) return;
       await _submitConsent(
         method:            ConsentMethod.otpVerified,
-        otpVerificationId: _verificationId,
+        otpVerificationId: email,
       );
     } catch (e) {
       if (!mounted) return;
@@ -272,7 +270,7 @@ class _ParentalConsentFlowState extends State<ParentalConsentFlow> {
               _OtpStep(
                 method:           _method,
                 onMethodChanged:  (m) => setState(() => _method = m),
-                phoneNumber:      _phoneCtrl.text.trim(),
+                email:            _emailCtrl.text.trim(),
                 otpSending:       _otpSending,
                 otpSent:          _otpSent,
                 verifying:        _verifying || _submitting,
@@ -352,10 +350,10 @@ class _GuardianDetailsStep extends StatelessWidget {
           const SizedBox(height: 16),
           EmailTextFormField(
             controller: emailCtrl,
-            isOptional: true,
-            validator: Validators.optionalEmail,
+            isOptional: false,
+            validator: (v) => Validators.email(v, fieldLabel: context.tr('emailLabel')),
             decoration: InputDecoration(
-              labelText:    context.tr('emailOptionalLabel'),
+              labelText:    context.tr('emailLabel'),
               prefixIcon:   const Icon(Icons.email_outlined, color: AppTheme.primary),
               border:       OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10)),
@@ -533,7 +531,7 @@ enum _ConsentMethod { otp, inPerson }
 class _OtpStep extends StatelessWidget {
   final _ConsentMethod  method;
   final void Function(_ConsentMethod) onMethodChanged;
-  final String  phoneNumber;
+  final String  email;
   final bool    otpSending;
   final bool    otpSent;
   final bool    verifying;
@@ -548,7 +546,7 @@ class _OtpStep extends StatelessWidget {
   const _OtpStep({
     required this.method,
     required this.onMethodChanged,
-    required this.phoneNumber,
+    required this.email,
     required this.otpSending,
     required this.otpSent,
     required this.verifying,
@@ -577,8 +575,8 @@ class _OtpStep extends StatelessWidget {
         Row(children: [
           Expanded(
             child: _MethodChip(
-              label:    context.tr('otpViaSms'),
-              icon:     Icons.sms_outlined,
+              label:    context.tr('otpViaEmail'),
+              icon:     Icons.mail_outlined,
               selected: method == _ConsentMethod.otp,
               onTap:    () => onMethodChanged(_ConsentMethod.otp),
             ),
@@ -606,7 +604,7 @@ class _OtpStep extends StatelessWidget {
             ),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Text(
-                '${context.tr('sendingOtpTo')}\n$phoneNumber',
+                '${context.tr('sendingOtpTo')}\n$email',
                 style: const TextStyle(fontSize: 13, height: 1.5),
               ),
               const SizedBox(height: 16),

@@ -127,7 +127,7 @@ class TimetableService extends BaseFirestoreService {
   ///   - if isClassTeacher == true, include `classTeacherOf` (if non-empty);
   ///   - plus everything in `assignedClasses` (for subject teachers).
   /// Duplicates are de-duplicated.
-  List<String> _classIdsFor(Teacher t) {
+  List<String> classIdsFor(Teacher t) {
     final s = <String>{};
     if (t.isClassTeacher && (t.classTeacherOf ?? '').isNotEmpty) {
       s.add(t.classTeacherOf!);
@@ -211,7 +211,7 @@ class TimetableService extends BaseFirestoreService {
       'name':      teacher.name,
       'teacherId': teacher.id,
       'schoolId':  schoolId,
-      'classIds':  _classIdsFor(teacher),
+      'classIds':  classIdsFor(teacher),
       'status':    'pending',
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -233,7 +233,7 @@ class TimetableService extends BaseFirestoreService {
       await appFunctions.httpsCallable('updateUserMetadata').call(<String, dynamic>{
         'email': normEmail,
         'name': teacher.name,
-        'classIds': _classIdsFor(teacher),
+        'classIds': classIdsFor(teacher),
         'teacherId': teacher.id,
       });
     } catch (e) {
@@ -616,6 +616,8 @@ class TimetableService extends BaseFirestoreService {
     String?       studentSection,
     String?       studentAdmissionId,
     List<String>? assignedClasses,
+    List<String>? classIds,
+    String?       teacherId,
     String?       createdByEmail,
     String?       createdByRole,
   }) async {
@@ -662,6 +664,8 @@ class TimetableService extends BaseFirestoreService {
         if (studentSection != null) 'studentSection': studentSection,
         if (studentAdmissionId != null) 'studentAdmissionId': studentAdmissionId,
         if (assignedClasses != null) 'assignedClasses': assignedClasses,
+        if (classIds != null) 'classIds': classIds,
+        if (teacherId != null) 'teacherId': teacherId,
         if (createdByEmail != null) 'createdByEmail': createdByEmail,
         if (createdByRole != null) 'createdByRole': createdByRole,
       });
@@ -1044,7 +1048,7 @@ class TimetableService extends BaseFirestoreService {
       'name':      teacher.name,
       'teacherId': teacher.id,
       'schoolId':  effectiveSchoolId,
-      'classIds':  _classIdsFor(teacher),
+      'classIds':  classIdsFor(teacher),
       'status':    'pending',
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
