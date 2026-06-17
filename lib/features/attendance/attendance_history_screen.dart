@@ -314,6 +314,12 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     }
   }
 
+  void _showNoData() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.tr('noData'))),
+    );
+  }
+
   // ── Build ────────────────────────────────────────────────────────────────────
 
   @override
@@ -336,18 +342,22 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
           IconButton(
             icon: const Icon(Icons.picture_as_pdf_outlined),
             color: Colors.white,
-            disabledColor: Colors.white30,
             tooltip: context.tr('exportPdf'),
-            onPressed:
-                _loading || _workingDays == 0 ? null : _exportPdf,
+            onPressed: _loading
+                ? null
+                : (_workingDays == 0 || _students.isEmpty
+                    ? _showNoData
+                    : _exportPdf),
           ),
           IconButton(
             icon: const Icon(Icons.description_outlined),
             color: Colors.white,
-            disabledColor: Colors.white30,
             tooltip: context.tr('exportToCsv'),
-            onPressed:
-                _loading || _workingDays == 0 ? null : _exportCsv,
+            onPressed: _loading
+                ? null
+                : (_workingDays == 0 || _students.isEmpty
+                    ? _showNoData
+                    : _exportCsv),
           ),
         ],
       ),

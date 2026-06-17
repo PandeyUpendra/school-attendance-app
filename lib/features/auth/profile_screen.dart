@@ -226,6 +226,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _biometricRow(context),
                 _languageRow(context),
                 _logoutRow(context),
+                _section(context.tr('dangerZone'), color: AppTheme.danger),
+                _deleteAccountRow(context),
 
                 const SizedBox(height: 40),
               ],
@@ -294,6 +296,128 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ]),
       ),
     );
+  }
+
+  /// Tappable row to delete the user's own account.
+  Widget _deleteAccountRow(BuildContext context) {
+    return InkWell(
+      onTap: _deleteAccount,
+      child: Container(
+        color: AppTheme.surface,
+        margin: const EdgeInsets.only(bottom: 1),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(children: [
+          const Icon(Icons.delete_forever_outlined, size: 20, color: AppTheme.danger),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              context.tr('deleteMyAccount'),
+              style: const TextStyle(
+                fontSize: 15,
+                color: AppTheme.danger,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: Colors.grey),
+        ]),
+      ),
+    );
+  }
+
+  Future<void> _deleteAccount() async {
+    final firstConfirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(context.tr('deleteAccountConfirmTitle')),
+        content: Text(context.tr('deleteAccountConfirmBody')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
+            child: Text(
+              context.tr('deleteMyAccount'),
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (firstConfirm != true) return;
+    if (!mounted) return;
+
+    final secondConfirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(context.tr('secondConfirmTitle')),
+        content: Text(context.tr('secondConfirmBody')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
+            child: Text(
+              context.tr('deleteMyAccount'),
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (secondConfirm != true) return;
+    if (!mounted) return;
+
+    setState(() => _loading = true);
+
+    try {
+      final success = await TimetableService.instance.deleteAccountFully(_email);
+      if (!mounted) return;
+      if (success) {
+        await AuthService().clearSession();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.tr('deletionRequestSent')),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+          (route) => false,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.tr('deletionRequestFailed')),
+            backgroundColor: AppTheme.danger,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.danger,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
   }
 
   Future<void> _pickLanguage(BuildContext context) async {
