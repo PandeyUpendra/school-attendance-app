@@ -4,8 +4,8 @@ import '../../models/transport_route.dart';
 import '../../services/student_service.dart';
 import '../../services/transport_service.dart';
 import '../../theme.dart';
-import '../../l10n/app_strings.dart';
 import '../../shared/utils/app_logger.dart';
+import '../../shared/utils/app_transitions.dart';
 
 class TransportDriverScreen extends StatefulWidget {
   const TransportDriverScreen({super.key});
@@ -219,7 +219,7 @@ class _TransportDriverScreenState extends State<TransportDriverScreen>
           ],
         ),
       ),
-      body: TabBarView(
+      body: PremiumTabBarView(
         controller: _tabCtrl,
         children: [
           _buildActiveTrackingTab(),

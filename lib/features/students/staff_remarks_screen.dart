@@ -9,6 +9,7 @@ import '../../services/staff_remark_service.dart';
 import '../../services/timetable_service.dart';
 import '../../services/notification_service.dart';
 import '../../shared/providers/locale_provider.dart';
+import '../../shared/utils/app_transitions.dart';
 
 /// Remark / feedback hub for staff.
 ///
@@ -94,7 +95,7 @@ class _StaffRemarksScreenState extends State<StaffRemarksScreen> {
               )
             : null,
         body: tabs.length > 1
-            ? TabBarView(children: views)
+            ? PremiumTabBarView(children: views)
             : views.first,
       ),
     );

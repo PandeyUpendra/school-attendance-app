@@ -9,6 +9,7 @@ import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../models/student.dart';
 import '../../shared/utils/app_logger.dart';
+import '../../shared/utils/app_transitions.dart';
 
 class BulkStudentImportScreen extends StatefulWidget {
   const BulkStudentImportScreen({super.key});
@@ -426,7 +427,7 @@ class _BulkStudentImportScreenState extends State<BulkStudentImportScreen>
             )
           : _parsedRows.isEmpty
               ? _buildFileSelector()
-              : TabBarView(
+              : PremiumTabBarView(
                   controller: _tabController,
                   children: [
                     _buildValidTab(validRows),

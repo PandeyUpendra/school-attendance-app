@@ -6,6 +6,7 @@ import '../../services/timetable_service.dart';
 import '../../theme.dart';
 import '../students/add_student_screen.dart';
 import '../../shared/widgets/email_text_form_field.dart';
+import '../../shared/utils/app_transitions.dart';
 
 class AdmissionCrmScreen extends StatefulWidget {
   const AdmissionCrmScreen({super.key});
@@ -818,7 +819,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                   ).toList();
                 }
 
-                return TabBarView(
+                return PremiumTabBarView(
                   controller: _tabCtrl,
                   children: _stages.map((stage) {
                     final filtered = leads.where((l) => l.stage == stage).toList();

@@ -5,6 +5,7 @@ import '../../models/student.dart';
 import '../../models/exam.dart';
 import '../../services/exam_service.dart';
 import '../../theme.dart';
+import '../../shared/utils/app_transitions.dart';
 
 class StudentPerformanceChartsScreen extends StatefulWidget {
   final Student student;
@@ -26,7 +27,6 @@ class _StudentPerformanceChartsScreenState
 
   bool _loading = true;
   List<ExamResult> _results = [];
-  List<Exam> _exams = [];
   ExamResult? _selectedExamResult;
 
   @override
@@ -121,7 +121,7 @@ class _StudentPerformanceChartsScreenState
                   children: [
                     _buildSummaryHeader(),
                     Expanded(
-                      child: TabBarView(
+                      child: PremiumTabBarView(
                         controller: _tabController,
                         children: [
                           _buildLineChartTab(),

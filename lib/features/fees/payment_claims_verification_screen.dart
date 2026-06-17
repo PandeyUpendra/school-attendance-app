@@ -9,6 +9,7 @@ import '../../services/fee_service.dart';
 import '../../theme.dart';
 import '../../shared/utils/app_logger.dart';
 import '../../shared/utils/currency_utils.dart';
+import '../../shared/utils/app_transitions.dart';
 
 class PaymentClaimsVerificationScreen extends StatefulWidget {
   const PaymentClaimsVerificationScreen({super.key});
@@ -62,7 +63,7 @@ class _PaymentClaimsVerificationScreenState extends State<PaymentClaimsVerificat
           ],
         ),
       ),
-      body: TabBarView(
+      body: PremiumTabBarView(
         controller: _tabController,
         children: [
           _buildClaimsList('pending'),

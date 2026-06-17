@@ -5,6 +5,7 @@ import '../../models/teacher.dart';
 import '../../services/substitution_history_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
+import '../../shared/utils/app_transitions.dart';
 
 /// Coordinator screen — full substitution history + per-teacher statistics.
 class SubstitutionHistoryScreen extends StatefulWidget {
@@ -126,7 +127,7 @@ class _SubstitutionHistoryScreenState
                   onDelete:     null,
                   emptyMessage: context.tr('noDutyAssigned'),
                 )
-              : TabBarView(
+              : PremiumTabBarView(
                   controller: _tab,
                   children: [
                     _HistoryList(

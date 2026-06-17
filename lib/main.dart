@@ -100,6 +100,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// idle-lock below) navigate without a BuildContext.
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
+class AppScrollBehavior extends MaterialScrollBehavior {
+  const AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+      };
+}
+
 class SchoolApp extends StatefulWidget {
   final String languageCode;
   const SchoolApp({super.key, this.languageCode = 'en'});
@@ -172,6 +183,7 @@ class _SchoolAppState extends State<SchoolApp> with WidgetsBindingObserver {
           builder: (context, localeProvider, _) {
             final settings = Provider.of<SchoolSettingsProvider>(context);
             return MaterialApp(
+              scrollBehavior: const AppScrollBehavior(),
               navigatorKey: rootNavigatorKey,
               debugShowCheckedModeBanner: false,
               navigatorObservers: [routeObserver],
