@@ -490,7 +490,7 @@ class _SplashGateState extends State<_SplashGate> {
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) =>
                       Image.asset(
-                        'assets/images/logo_white.png',
+                        'assets/images/logo_orange_white.png',
                         height: 72,
                         width: 72,
                         filterQuality: FilterQuality.high,
@@ -498,26 +498,11 @@ class _SplashGateState extends State<_SplashGate> {
                   ),
                 )
               else
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.asset(
-                      'assets/images/logo_white.png',
-                      height: 72,
-                      width: 72,
-                      filterQuality: FilterQuality.high,
-                    ),
-                  ),
+                Image.asset(
+                  'assets/images/logo_orange_white.png',
+                  height: 72,
+                  width: 72,
+                  filterQuality: FilterQuality.high,
                 ),
               const SizedBox(height: 20),
               Text(
