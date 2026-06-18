@@ -100,11 +100,11 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
     } else {
       if (widget.controller.text.isNotEmpty) {
         _saveEmail(widget.controller.text);
-      }
-      if (!_touched) {
-        setState(() {
-          _touched = true;
-        });
+        if (!_touched) {
+          setState(() {
+            _touched = true;
+          });
+        }
       }
     }
   }
