@@ -448,14 +448,20 @@ class StudentService extends BaseFirestoreService {
     // If a guardian email is provided, create their Firebase Auth account.
     if (sanitized.guardianEmail != null &&
         sanitized.guardianEmail!.trim().isNotEmpty) {
-      await _upsertGuardianAccount(
-        email:     sanitized.guardianEmail!.trim().toLowerCase(),
-        className: sanitized.className,
-        roll:      sanitized.roll,
-        section:   sanitized.section,
-        name:      sanitized.name,
-        admissionId: sanitized.admissionId,
-      );
+      unawaited(() async {
+        try {
+          await _upsertGuardianAccount(
+            email:     sanitized.guardianEmail!.trim().toLowerCase(),
+            className: sanitized.className,
+            roll:      sanitized.roll,
+            section:   sanitized.section,
+            name:      sanitized.name,
+            admissionId: sanitized.admissionId,
+          );
+        } catch (e) {
+          AppLogger.e('StudentService', 'Guardian account onboarding failed for ${sanitized.name}: $e', e);
+        }
+      }());
     }
     return null;
   }
@@ -625,7 +631,7 @@ class StudentService extends BaseFirestoreService {
     }
 
     if (postCommitTasks.isNotEmpty) {
-      await Future.wait(postCommitTasks);
+      unawaited(Future.wait(postCommitTasks));
     }
 
     return {
@@ -844,22 +850,6 @@ class StudentService extends BaseFirestoreService {
       studentName:  name,
       studentAdmissionId: admissionId,
     );
-    // Issue 21: also update the existing allowed_users doc with the new
-    // class/section/roll so the guardian's cached session points to the
-    // correct class after promotion.
-    try {
-      await appFunctions.httpsCallable('updateUserMetadata').call(<String, dynamic>{
-        'email': email.toLowerCase().trim(),
-        'studentClass': className,
-        'studentRoll': roll,
-        'studentSection': section,
-        if (admissionId != null && admissionId.isNotEmpty)
-          'studentAdmissionId': admissionId,
-      });
-    } catch (e) {
-      AppLogger.e('StudentService',
-          '_upsertGuardianAccount allowed_users update failed (non-fatal): $e', e);
-    }
   }
 
   /// Sets/updates the guardian email and creates a Firebase Auth account so

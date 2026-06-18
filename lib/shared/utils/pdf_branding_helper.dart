@@ -98,7 +98,7 @@ class PdfBrandingHelper {
                     data.appName,
                     style: pw.TextStyle(
                       fontSize: 9,
-                      fontWeight: pw.FontWeight.medium,
+                      fontWeight: pw.FontWeight.bold,
                       color: PdfTheme.textLight,
                     ),
                   ),

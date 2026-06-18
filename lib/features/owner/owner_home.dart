@@ -1345,14 +1345,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
           name: name, schoolId: AuthService.currentSchoolId,
           createdByEmail: widget.email, createdByRole: widget.role);
       _nameCtrl.clear(); _emailCtrl.clear();
-      // Read the stored display name back from the freshly created profile so
-      // the confirmation reflects what was actually saved (falls back to the
-      // entered name, then the email).
-      final profile     = await _svc.getAllowedUserDoc(email);
-      final createdName  = (profile?['name'] as String?)?.trim();
-      final displayName  = (createdName != null && createdName.isNotEmpty)
-          ? createdName
-          : (name.isNotEmpty ? name : email);
+      final displayName = name.isNotEmpty ? name : email;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Account created for $displayName – '

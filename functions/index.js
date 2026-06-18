@@ -569,8 +569,23 @@ exports.createAllowedUser = onCall(
     const docSnap = await docRef.get();
     if (docSnap.exists) {
       const existingData = docSnap.data();
-      if (existingData.role !== role) {
-        throw new HttpsError("already-exists", `This email is already in use under a different role (${existingData.role}).`);
+      const existingSchoolId = existingData.schoolId;
+      const existingRole = existingData.role;
+
+      if (existingSchoolId && existingSchoolId !== schoolId) {
+        throw new HttpsError(
+          "already-exists",
+          "This email is already in use by another school. An email address can only be associated with one school.",
+          { existingRole, schoolId: existingSchoolId }
+        );
+      }
+
+      if (existingRole !== role) {
+        throw new HttpsError(
+          "already-exists",
+          `This email is already in use under a different role (${existingRole}).`,
+          { existingRole, schoolId: existingSchoolId }
+        );
       }
     }
 

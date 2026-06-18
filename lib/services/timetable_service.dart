@@ -648,34 +648,6 @@ class TimetableService extends BaseFirestoreService {
   }) async {
     final normEmail = email.toLowerCase().trim();
 
-    // 0. One email = one role. If this address already holds a *different* role,
-    //    refuse outright — the existing account must be deleted before the email
-    //    can be reassigned. Re-adding the SAME role is fine (re-inviting a user,
-    //    or linking another child to an existing guardian).
-    DocumentSnapshot<Map<String, dynamic>>? existingDoc;
-    try {
-      final query = await _allowedUsers.where('email', isEqualTo: normEmail).limit(1).get();
-      if (query.docs.isNotEmpty) {
-        existingDoc = query.docs.first;
-      }
-    } catch (_) {
-      existingDoc = null; // unreadable (likely absent) — no provable conflict.
-    }
-    if (existingDoc != null && existingDoc.exists) {
-      final existingSchoolId = existingDoc.data()?['schoolId'] as String?;
-      final existingRole = existingDoc.data()?['role'] as String?;
-
-      if (existingSchoolId != null && existingSchoolId.isNotEmpty && existingSchoolId != schoolId) {
-        throw Exception(
-          'This email is already in use by another school. An email address can only be associated with one school.'
-        );
-      }
-
-      if (existingRole != null && existingRole.isNotEmpty && existingRole != role) {
-        throw RoleConflictException(normEmail, existingRole, role);
-      }
-    }
-
     // Call the Cloud Function createAllowedUser to securely provision the user
     try {
       final result = await appFunctions.httpsCallable('createAllowedUser').call(<String, dynamic>{
@@ -705,7 +677,15 @@ class TimetableService extends BaseFirestoreService {
       return uid;
     } on FirebaseFunctionsException catch (e) {
       if (e.code == 'already-exists') {
-        throw RoleConflictException(normEmail, role, role);
+        final details = e.details as Map?;
+        final existingRole = details?['existingRole'] as String? ?? role;
+        final existingSchoolId = details?['schoolId'] as String?;
+        if (existingSchoolId != null && existingSchoolId.isNotEmpty && existingSchoolId != schoolId) {
+          throw Exception(
+            'This email is already in use by another school. An email address can only be associated with one school.'
+          );
+        }
+        throw RoleConflictException(normEmail, existingRole, role);
       }
       throw Exception('Failed to add allowed user: ${e.message}');
     } catch (e) {
