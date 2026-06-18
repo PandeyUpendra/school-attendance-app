@@ -752,7 +752,10 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['guardianDetails', 'guardianEmail'])) ||
         isManagement() ||
-        (isAnyTeacher() && isClassTeacher(resource.data.className, 'section' in resource.data ? resource.data.section : ''))
+        (isAnyTeacher() && (
+          ('className' in resource.data && isClassTeacher(resource.data.className, 'section' in resource.data ? resource.data.section : '')) ||
+          (!('className' in resource.data) && isClassTeacher(request.resource.data.className, 'section' in request.resource.data ? request.resource.data.section : ''))
+        ))
       );
 
       allow delete: if isSignedIn() && inSchool(sid) && isManagement();
@@ -1123,7 +1126,22 @@ service cloud.firestore {
       // Query-friendly rule: relies only on custom claims in token (no get() call)
       allow read: if isSignedIn() && inSchool(sid) && isAnyTeacher()
         && 'studentClass' in resource.data
-        && classIdInList(resource.data.studentClass, tokenClassIds(), 'studentSection' in resource.data ? resource.data.studentSection : '');
+        && (
+          resource.data.studentClass in tokenClassIds()
+          || ('Class ' + resource.data.studentClass) in tokenClassIds()
+          || (resource.data.studentClass.split(' ').size() > 1 && resource.data.studentClass.split(' ')[1] in tokenClassIds())
+          || (resource.data.studentClass.split(' ').size() > 1 && ('Class ' + resource.data.studentClass.split(' ')[1]) in tokenClassIds())
+          || (resource.data.studentClass.split('-')[0] in tokenClassIds())
+          || (('Class ' + resource.data.studentClass.split('-')[0]) in tokenClassIds())
+          || ('studentSection' in resource.data && resource.data.studentSection != '' && (
+                 ((resource.data.studentClass + '-' + resource.data.studentSection) in tokenClassIds())
+              || ((resource.data.studentClass + '_' + resource.data.studentSection) in tokenClassIds())
+              || (resource.data.studentClass.split(' ').size() > 1 && (
+                    ((resource.data.studentClass.split(' ')[1] + '-' + resource.data.studentSection) in tokenClassIds())
+                 || ((resource.data.studentClass.split(' ')[1] + '_' + resource.data.studentSection) in tokenClassIds())
+              ))
+             ))
+        );
 
       // Fallback rule: relies on allowed_users doc / isClassTeacher logic (calls get(), works for getDoc but not queries)
       allow read: if isSignedIn() && inSchool(sid) && (
