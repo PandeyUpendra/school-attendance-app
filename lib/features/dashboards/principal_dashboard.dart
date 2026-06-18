@@ -916,90 +916,104 @@ class _PrincipalHeroCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top action row
-                Row(children: [
-                  const Icon(Icons.business_outlined,
-                      color: Colors.white60, size: 14),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'PRINCIPAL  ·  $dateStr',
-                      style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.9),
-                    ),
-                  ),
-                  Stack(children: [
-                    IconButton(
-                      icon: const Icon(Icons.notifications_outlined,
-                          color: Colors.white, size: 22),
-                      padding: const EdgeInsets.all(8),
-                      constraints: const BoxConstraints(),
-                      onPressed: onNotifTap,
-                    ),
-                    if (unreadNotifCount > 0)
-                      Positioned(
-                        right: 4, top: 4,
-                        child: Container(
-                          width: 14, height: 14,
-                          decoration: const BoxDecoration(
-                              color: AppTheme.accent,
-                              shape: BoxShape.circle),
-                          child: Center(
+                // Top row: School Logo & Name on left, Notifications & Profile on right.
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundColor: Colors.white24,
+                            backgroundImage: settings.schoolLogo.isNotEmpty
+                                ? CachedNetworkImageProvider(settings.schoolLogo)
+                                : null,
+                            child: settings.schoolLogo.isEmpty
+                                ? const Icon(Icons.school, size: 14, color: Colors.white)
+                                : null,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
                             child: Text(
-                              unreadNotifCount > 9
-                                  ? '9+'
-                                  : '$unreadNotifCount',
+                              settings.schoolName,
                               style: const TextStyle(
-                                  fontSize: 8,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold),
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                  ]),
-                  IconButton(
-                    icon: const Icon(Icons.account_circle_outlined,
-                        color: Colors.white, size: 22),
-                    padding: const EdgeInsets.all(8),
-                    constraints: const BoxConstraints(),
-                    tooltip: 'My Profile',
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                ]),
+                    const SizedBox(width: 8),
+                    // Notification bell + Profile section
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Stack(children: [
+                          IconButton(
+                            icon: const Icon(Icons.notifications_outlined,
+                                color: Colors.white, size: 22),
+                            padding: const EdgeInsets.all(8),
+                            constraints: const BoxConstraints(),
+                            onPressed: onNotifTap,
+                          ),
+                          if (unreadNotifCount > 0)
+                            Positioned(
+                              right: 4, top: 4,
+                              child: Container(
+                                width: 14, height: 14,
+                                decoration: const BoxDecoration(
+                                    color: AppTheme.accent,
+                                    shape: BoxShape.circle),
+                                child: Center(
+                                  child: Text(
+                                    unreadNotifCount > 9
+                                        ? '9+'
+                                        : '$unreadNotifCount',
+                                    style: const TextStyle(
+                                        fontSize: 8,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ]),
+                        IconButton(
+                          icon: const Icon(Icons.account_circle_outlined,
+                              color: Colors.white, size: 22),
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(),
+                          tooltip: 'My Profile',
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
-                // School name & logo
+                // Principal & date row below
                 Row(
                   children: [
-                    // ── School branding ──
-                    CircleAvatar(
-                      radius: 14,
-                      backgroundColor: Colors.white24,
-                      backgroundImage: settings.schoolLogo.isNotEmpty
-                          ? CachedNetworkImageProvider(settings.schoolLogo)
-                          : null,
-                      child: settings.schoolLogo.isEmpty
-                          ? const Icon(Icons.school, size: 14, color: Colors.white)
-                          : null,
-                    ),
+                    const Icon(Icons.business_outlined,
+                        color: Colors.white60, size: 14),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        settings.schoolName,
+                        'PRINCIPAL  ·  $dateStr',
                         style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.9),
                       ),
                     ),
                   ],

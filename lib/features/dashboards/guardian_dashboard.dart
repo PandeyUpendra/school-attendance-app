@@ -1601,115 +1601,127 @@ class _GuardianHeroCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Top action row ──────────────────────────────────
-                Row(children: [
-                  const Icon(Icons.family_restroom_outlined,
-                      color: Colors.white60, size: 14),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'GUARDIAN  ·  $dateStr',
-                      style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.9),
-                    ),
-                  ),
-                  Stack(children: [
-                    IconButton(
-                      icon: const Icon(Icons.notifications_outlined,
-                          color: Colors.white, size: 22),
-                      padding: const EdgeInsets.all(8),
-                      constraints: const BoxConstraints(),
-                      onPressed: onNotifTap,
-                    ),
-                    if (unreadNotifCount > 0)
-                      Positioned(
-                        right: 4, top: 4,
-                        child: Container(
-                          width: 14, height: 14,
-                          decoration: const BoxDecoration(
-                              color: AppTheme.accent,
-                              shape: BoxShape.circle),
-                          child: Center(
-                            child: Text(
-                              unreadNotifCount > 9
-                                  ? '9+'
-                                  : '$unreadNotifCount',
-                              style: const TextStyle(
-                                  fontSize: 8,
+                // Top row: School Logo & Name on left, Notifications & Profile on right.
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Consumer<SchoolSettingsProvider>(
+                        builder: (context, sProvider, _) => Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor: Colors.white24,
+                              backgroundImage: sProvider.schoolLogo.isNotEmpty
+                                  ? CachedNetworkImageProvider(sProvider.schoolLogo)
+                                  : null,
+                              child: sProvider.schoolLogo.isEmpty
+                                  ? const Icon(Icons.school, size: 14, color: Colors.white)
+                                  : null,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                sProvider.schoolName,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
                                   color: Colors.white,
-                                  fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Notification bell + Profile section
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Stack(children: [
+                          IconButton(
+                            icon: const Icon(Icons.notifications_outlined,
+                                color: Colors.white, size: 22),
+                            padding: const EdgeInsets.all(8),
+                            constraints: const BoxConstraints(),
+                            onPressed: onNotifTap,
+                          ),
+                          if (unreadNotifCount > 0)
+                            Positioned(
+                              right: 4, top: 4,
+                              child: Container(
+                                width: 14, height: 14,
+                                decoration: const BoxDecoration(
+                                    color: AppTheme.accent,
+                                    shape: BoxShape.circle),
+                                child: Center(
+                                  child: Text(
+                                    unreadNotifCount > 9
+                                        ? '9+'
+                                        : '$unreadNotifCount',
+                                    style: const TextStyle(
+                                        fontSize: 8,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ]),
+                        GestureDetector(
+                          onTap: onProfileTap,
+                          child: Tooltip(
+                            message: 'Switch Profile / View Account',
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white70, width: 1.5),
+                              ),
+                              child: CircleAvatar(
+                                radius: 12,
+                                backgroundColor: avatarBgColor,
+                                backgroundImage: student?.photoUrl != null
+                                    ? CachedNetworkImageProvider(student!.photoUrl!)
+                                    : (student?.photoPath != null
+                                        ? FileImage(File(student!.photoPath!))
+                                        : null) as ImageProvider?,
+                                child: (student?.photoUrl == null && student?.photoPath == null)
+                                    ? Text(
+                                        studentName.isNotEmpty ? studentName[0].toUpperCase() : 'G',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      )
+                                    : null,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                  ]),
-                  GestureDetector(
-                    onTap: onProfileTap,
-                    child: Tooltip(
-                      message: 'Switch Profile / View Account',
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white70, width: 1.5),
-                        ),
-                        child: CircleAvatar(
-                          radius: 12,
-                          backgroundColor: avatarBgColor,
-                          backgroundImage: student?.photoUrl != null
-                              ? CachedNetworkImageProvider(student!.photoUrl!)
-                              : (student?.photoPath != null
-                                  ? FileImage(File(student!.photoPath!))
-                                  : null) as ImageProvider?,
-                          child: (student?.photoUrl == null && student?.photoPath == null)
-                              ? Text(
-                                  studentName.isNotEmpty ? studentName[0].toUpperCase() : 'G',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ),
+                        const SizedBox(width: 4),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                ]),
+                  ],
+                ),
                 const SizedBox(height: 8),
-                // School name & logo
+                // Guardian & date row below
                 Row(
                   children: [
-                    // ── School branding ──
-                    Consumer<SchoolSettingsProvider>(
-                      builder: (context, sProvider, _) => CircleAvatar(
-                        radius: 14,
-                        backgroundColor: Colors.white24,
-                        backgroundImage: sProvider.schoolLogo.isNotEmpty
-                            ? CachedNetworkImageProvider(sProvider.schoolLogo)
-                            : null,
-                        child: sProvider.schoolLogo.isEmpty
-                            ? const Icon(Icons.school, size: 14, color: Colors.white)
-                            : null,
-                      ),
-                    ),
+                    const Icon(Icons.family_restroom_outlined,
+                        color: Colors.white60, size: 14),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Consumer<SchoolSettingsProvider>(
-                        builder: (context, sProvider, _) => Text(
-                          sProvider.schoolName,
-                          style: const TextStyle(
-                            fontSize: 16,
+                      child: Text(
+                        'GUARDIAN  ·  $dateStr',
+                        style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                            letterSpacing: 0.9),
                       ),
                     ),
                   ],
