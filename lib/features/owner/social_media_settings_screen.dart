@@ -79,12 +79,15 @@ class _SocialMediaSettingsScreenState extends State<SocialMediaSettingsScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       };
       await p.updateSchoolSettings(data);
-      final uid = (await AuthService().getSession())?['email'] as String? ?? 'owner';
+      final session = await AuthService().getSession();
+      final uid = session?['email'] as String? ?? 'owner';
+      final userName = session?['name'] as String? ?? '';
+      final userRole = session?['role'] as String? ?? '';
       for (final k in data.keys) {
         if (k == 'updatedAt') continue;
         final oldVal = old[k]?.toString() ?? '';
         final newVal = data[k]?.toString() ?? '';
-        if (oldVal != newVal) await p.logChange(k, oldVal, newVal, uid);
+        if (oldVal != newVal) await p.logChange(k, oldVal, newVal, uid, changedByName: userName, changedByRole: userRole);
       }
       if (mounted) {
         _snack(context.tr('settingsUpdated'), success: true);

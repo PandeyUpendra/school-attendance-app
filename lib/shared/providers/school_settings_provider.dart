@@ -223,8 +223,8 @@ class SchoolSettingsProvider extends ChangeNotifier {
   }
   Future<void> updateCommSettings(Map<String, dynamic> data) =>
       _svc.updateCommSettings(data);
-  Future<void> logChange(String f, String o, String n, String uid) =>
-      _svc.logChange(f, o, n, uid);
+  Future<void> logChange(String f, String o, String n, String uid, {String? changedByName, String? changedByRole}) =>
+      _svc.logChange(f, o, n, uid, changedByName: changedByName, changedByRole: changedByRole);
   Stream<List<Map<String, dynamic>>> watchChangeLog() =>
       _svc.watchChangeLog();
 }

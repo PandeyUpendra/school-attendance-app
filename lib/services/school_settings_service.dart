@@ -105,10 +105,12 @@ class SchoolSettingsService extends BaseFirestoreService {
   Future<void> updateCommSettings(Map<String, dynamic> data) =>
       _settings.doc('communication').set(data, SetOptions(merge: true));
 
-  Future<void> logChange(String field, String oldVal, String newVal, String uid) {
+  Future<void> logChange(String field, String oldVal, String newVal, String uid, {String? changedByName, String? changedByRole}) {
     final verifiedUid = AuthService().currentFirebaseUser?.uid ?? uid;
     return _settings.doc('changeLog').collection('entries').add({
       'changedBy': verifiedUid,
+      'changedByName': changedByName ?? '',
+      'changedByRole': changedByRole ?? '',
       'changedAt': FieldValue.serverTimestamp(),
       'field': field,
       'oldValue': oldVal,

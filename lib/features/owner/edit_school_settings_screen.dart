@@ -288,12 +288,15 @@ class _BasicInfoTabState extends State<_BasicInfoTab>
         'updatedAt': FieldValue.serverTimestamp(),
       };
       await p.updateSchoolSettings(data);
-      final uid = (await AuthService().getSession())?['email'] as String? ?? 'owner';
+      final session = await AuthService().getSession();
+      final uid = session?['email'] as String? ?? 'owner';
+      final userName = session?['name'] as String? ?? '';
+      final userRole = session?['role'] as String? ?? '';
       for (final k in data.keys) {
         if (k == 'updatedAt') continue;
         final oldVal = old[k]?.toString() ?? '';
         final newVal = data[k]?.toString() ?? '';
-        if (oldVal != newVal) await p.logChange(k, oldVal, newVal, uid);
+        if (oldVal != newVal) await p.logChange(k, oldVal, newVal, uid, changedByName: userName, changedByRole: userRole);
       }
       if (mounted) {
         _snack(context.tr('settingsUpdated'), success: true);
@@ -1665,9 +1668,13 @@ Widget _changeLogSection() {
           ...logs.map((log) {
             final ts = log['changedAt'];
             String dateStr = '';
+            String timeStr = '';
             if (ts is Timestamp) {
               final dt = ts.toDate();
               dateStr = '${dt.day}/${dt.month}/${dt.year}';
+              final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+              final amPm = dt.hour >= 12 ? 'PM' : 'AM';
+              timeStr = '${hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} $amPm';
             }
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
@@ -1686,7 +1693,14 @@ Widget _changeLogSection() {
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),
-                Text(dateStr, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(dateStr, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    if (timeStr.isNotEmpty)
+                      Text(timeStr, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  ],
+                ),
               ]),
             );
           }),
@@ -1698,10 +1712,20 @@ Widget _changeLogSection() {
 
 String _formatChangeLog(BuildContext context, Map<String, dynamic> log) {
   final field = log['field']?.toString() ?? '';
-  final changedBy = log['changedBy']?.toString() ?? 'owner';
+  final changedByName = log['changedByName']?.toString() ?? '';
+  final changedByRole = log['changedByRole']?.toString() ?? '';
   
   final translatedField = _translateField(context, field);
-  final author = changedBy == 'owner' ? context.trRole('owner') : changedBy;
+  
+  String author;
+  if (changedByName.isNotEmpty) {
+    final rolePart = changedByRole.isNotEmpty ? ' (${context.trRole(changedByRole)})' : '';
+    author = '$changedByName$rolePart';
+  } else {
+    // Fallback for old entries without name/role
+    final changedBy = log['changedBy']?.toString() ?? 'owner';
+    author = changedBy == 'owner' ? context.trRole('owner') : changedBy;
+  }
   
   return context.tr('changeLogEntry')
       .replaceAll('{field}', translatedField)
@@ -1832,12 +1856,15 @@ class _SocialMediaTabState extends State<_SocialMediaTab>
         'updatedAt': FieldValue.serverTimestamp(),
       };
       await p.updateSchoolSettings(data);
-      final uid = (await AuthService().getSession())?['email'] as String? ?? 'owner';
+      final session = await AuthService().getSession();
+      final uid = session?['email'] as String? ?? 'owner';
+      final userName = session?['name'] as String? ?? '';
+      final userRole = session?['role'] as String? ?? '';
       for (final k in data.keys) {
         if (k == 'updatedAt') continue;
         final oldVal = old[k]?.toString() ?? '';
         final newVal = data[k]?.toString() ?? '';
-        if (oldVal != newVal) await p.logChange(k, oldVal, newVal, uid);
+        if (oldVal != newVal) await p.logChange(k, oldVal, newVal, uid, changedByName: userName, changedByRole: userRole);
       }
       if (mounted) {
         _snack(context.tr('settingsUpdated'), success: true);
