@@ -223,6 +223,11 @@ service cloud.firestore {
       let userData = getUserData();
       let role = userData != null ? userData.role : null;
       let schoolId = userData != null && 'schoolId' in userData ? userData.schoolId : null;
+      let uClass = 'studentClass' in request.auth.token ? request.auth.token.studentClass : (userData != null && 'studentClass' in userData ? userData.studentClass : '');
+      let uSection = 'studentSection' in request.auth.token ? request.auth.token.studentSection : (userData != null && 'studentSection' in userData ? userData.studentSection : '');
+      let uRoll = 'studentRoll' in request.auth.token ? request.auth.token.studentRoll : (userData != null && 'studentRoll' in userData ? userData.studentRoll : 0);
+      let uStudentId = buildStudentId(uClass, uSection, uRoll);
+
       return isRootAdmin() || (
         audience != null && (audience is string) &&
         userData != null && schoolId == sid && (
@@ -247,18 +252,18 @@ service cloud.firestore {
             (audience.matches('guardian:.*:.*') && (
               (resource != null && 'targetStudentId' in resource.data && (
                 ('studentIds' in userData && resource.data.targetStudentId in userData.studentIds) ||
-                resource.data.targetStudentId == guardianStudentId()
+                resource.data.targetStudentId == uStudentId
               )) ||
               (resource != null && !('targetStudentId' in resource.data) &&
-               audience.split(':')[1] == userStudentClass() &&
-               audience.split(':')[2] == string(userStudentRoll()))
+               audience.split(':')[1] == uClass &&
+               audience.split(':')[2] == string(uRoll))
             )) ||
             ('studentAdmissionId' in userData && userData.studentAdmissionId != null &&
              audience.matches('guardian_adm:.*') &&
              audience.split(':')[1] == userData.studentAdmissionId) ||
             (audience.matches('class:.*') && (
              ('classIds' in userData && classIdInList(audience.split(':')[1], userData.classIds, '')) ||
-             ('studentClass' in userData && classIdInList(audience.split(':')[1], [userData.studentClass], ''))
+             (uClass != '' && classIdInList(audience.split(':')[1], [uClass], ''))
             ))
           ))
         )

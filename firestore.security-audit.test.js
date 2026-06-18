@@ -45,15 +45,15 @@ const SCHOOL_ID  = 'school_1';
 // ── User identities ─────────────────────────────────────────────────────────
 //
 //  guardian_A  →  child Alice in Class 9-A, roll 42, section A
-//                 studentId: 'Class_9-A_A_42'
+//                 studentId: 'Class_9-A_42'
 //
 //  guardian_B  →  child Bob in Class 9-A, roll  7, section A
 //                 (same class as guardian_A — intra-class leak test)
-//                 studentId: 'Class_9-A_A_7'
+//                 studentId: 'Class_9-A_7'
 //
 //  guardian_C  →  child Carol in Class 10-B, roll 15, section B
 //                 (different class — cross-class leak test)
-//                 studentId: 'Class_10-B_B_15'
+//                 studentId: 'Class_10-B_15'
 //
 //  teacher9A   →  class teacher of Class 9-A
 //  coordinator →  management
@@ -118,7 +118,7 @@ const EXAM_ID = 'exam-unit-test-1';
 const RESULT_ALICE = {
   examId: EXAM_ID, examName: 'Unit Test 1',
   className: 'Class 9-A', roll: 42, studentName: 'Alice Sharma',
-  studentId: 'Class_9-A_A_42',   // ← proposed new field
+  studentId: 'Class_9-A_42',   // ← proposed new field
   marks: { Maths: 85, Science: 90 }, maxMarks: 100,
   enteredBy: 'teacher9a@school.test',
 };
@@ -127,7 +127,7 @@ const RESULT_ALICE = {
 const RESULT_BOB = {
   examId: EXAM_ID, examName: 'Unit Test 1',
   className: 'Class 9-A', roll: 7, studentName: 'Bob Kumar',
-  studentId: 'Class_9-A_A_7',    // ← proposed new field
+  studentId: 'Class_9-A_7',    // ← proposed new field
   marks: { Maths: 70, Science: 75 }, maxMarks: 100,
   enteredBy: 'teacher9a@school.test',
 };
@@ -136,7 +136,7 @@ const RESULT_BOB = {
 const RESULT_CAROL = {
   examId: EXAM_ID, examName: 'Unit Test 1',
   className: 'Class 10-B', roll: 15, studentName: 'Carol Verma',
-  studentId: 'Class_10-B_B_15',  // ← proposed new field
+  studentId: 'Class_10-B_15',  // ← proposed new field
   marks: { Maths: 92, Science: 88 }, maxMarks: 100,
   enteredBy: 'teacher9a@school.test',
 };
@@ -159,7 +159,7 @@ const RESULT_LEGACY_NO_STUDENT_ID = {
 // Notification for Alice (Class 9-A, roll 42) — guardian_A should read
 const NOTIF_ALICE = {
   audience:        'guardian:Class 9-A:42',
-  targetStudentId: 'Class_9-A_A_42',   // ← proposed new field
+  targetStudentId: 'Class_9-A_42',   // ← proposed new field
   title: 'Alice was absent',
   body:  'Alice was marked absent on 2026-05-30.',
 };
@@ -167,7 +167,7 @@ const NOTIF_ALICE = {
 // Notification for Bob (Class 9-A, roll 7) — guardian_A must NOT read
 const NOTIF_BOB = {
   audience:        'guardian:Class 9-A:7',
-  targetStudentId: 'Class_9-A_A_7',    // ← proposed new field
+  targetStudentId: 'Class_9-A_7',    // ← proposed new field
   title: 'Bob was absent',
   body:  'Bob was marked absent on 2026-05-30.',
 };
@@ -175,7 +175,7 @@ const NOTIF_BOB = {
 // Notification for Carol (Class 10-B, roll 15) — guardian_A must NOT read
 const NOTIF_CAROL = {
   audience:        'guardian:Class 10-B:15',
-  targetStudentId: 'Class_10-B_B_15',  // ← proposed new field
+  targetStudentId: 'Class_10-B_15',  // ← proposed new field
   title: 'Carol was absent',
   body:  'Carol was marked absent on 2026-05-30.',
 };
@@ -305,11 +305,11 @@ beforeEach(async () => {
     await setDoc(doc(adb, sch('attendance', 'Class 10-B')), ATTENDANCE_10B);
 
     // Per-student attendance mirror (H2) — the guardian-readable projection.
-    await setDoc(doc(adb, sch('student_attendance', 'Class_9-A_A_42')),
+    await setDoc(doc(adb, sch('student_attendance', 'Class_9-A_42')),
       { schoolId: SCHOOL_ID, roll: 42, days: { '2026-05-23': 'Present' } });
-    await setDoc(doc(adb, sch('student_attendance', 'Class_9-A_A_7')),
+    await setDoc(doc(adb, sch('student_attendance', 'Class_9-A_7')),
       { schoolId: SCHOOL_ID, roll: 7, days: { '2026-05-23': 'Absent' } });
-    await setDoc(doc(adb, sch('student_attendance', 'Class_10-B_B_15')),
+    await setDoc(doc(adb, sch('student_attendance', 'Class_10-B_15')),
       { schoolId: SCHOOL_ID, roll: 15, days: { '2026-05-23': 'Present' } });
 
     // Seed copy checks (parent doc + status subcollection)
@@ -466,7 +466,7 @@ describe('Leak 2 — notifications roll-level enforcement', () => {
     // Old notifications without targetStudentId must be denied (no fallback to
     // class-only check — that was the original vulnerability).
     await assertFails(
-      getDoc(doc(db(UID.guardianA), sch('notifications', 'notif-legacy-no-tid'))),
+      getDoc(doc(db(UID.guardianB), sch('notifications', 'notif-legacy-no-tid'))),
     );
   });
 
@@ -560,7 +560,7 @@ describe('Leak 3 — attendance (FIXED via per-student mirror, H2)', () => {
 
   test('[FIXED] ALLOW — guardian reads ONLY their own child\'s mirror', async () => {
     await assertSucceeds(
-      getDoc(doc(db(UID.guardianA), sch('student_attendance', 'Class_9-A_A_42'))),
+      getDoc(doc(db(UID.guardianA), sch('student_attendance', 'Class_9-A_42'))),
     );
   });
 
@@ -568,7 +568,7 @@ describe('Leak 3 — attendance (FIXED via per-student mirror, H2)', () => {
     // The strongest proof the intra-class leak is closed: guardianA and
     // guardianB share Class 9-A, but A cannot read B's child (roll 7).
     await assertFails(
-      getDoc(doc(db(UID.guardianA), sch('student_attendance', 'Class_9-A_A_7'))),
+      getDoc(doc(db(UID.guardianA), sch('student_attendance', 'Class_9-A_7'))),
     );
   });
 
