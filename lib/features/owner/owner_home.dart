@@ -937,7 +937,7 @@ class _StaffPageState extends State<_StaffPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(color: AppTheme.warning.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                  child: const Text('Pending', style: TextStyle(fontSize: 11, color: AppTheme.warning, fontWeight: FontWeight.w600)),
+                  child: Text(context.tr('statusPending'), style: const TextStyle(fontSize: 11, color: AppTheme.warning, fontWeight: FontWeight.w600)),
                 ),
               ]),
               if (reason.isNotEmpty) ...[
@@ -949,13 +949,13 @@ class _StaffPageState extends State<_StaffPage> {
                 Expanded(child: OutlinedButton(
                   style: OutlinedButton.styleFrom(foregroundColor: AppTheme.danger, side: const BorderSide(color: AppTheme.danger), padding: const EdgeInsets.symmetric(vertical: 6)),
                   onPressed: () => _updateLeave(id, 'rejected'),
-                  child: const Text('Reject', style: TextStyle(fontSize: 12)),
+                  child: Text(context.tr('rejectAction'), style: const TextStyle(fontSize: 12)),
                 )),
                 const SizedBox(width: 8),
                 Expanded(child: ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success, padding: const EdgeInsets.symmetric(vertical: 6)),
                   onPressed: () => _updateLeave(id, 'approved'),
-                  child: const Text('Approve', style: TextStyle(fontSize: 12)),
+                  child: Text(context.tr('approveAction'), style: const TextStyle(fontSize: 12)),
                 )),
               ]),
             ]),
@@ -966,7 +966,7 @@ class _StaffPageState extends State<_StaffPage> {
   }
 
   Widget _buildTeacherList(List<Map<String, dynamic>> filtered) {
-    if (filtered.isEmpty) return _emptyCard(Icons.people_outline, 'No staff found');
+    if (filtered.isEmpty) return _emptyCard(Icons.people_outline, context.tr('noStaffFound'));
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Column(
@@ -997,7 +997,7 @@ class _StaffPageState extends State<_StaffPage> {
                 StaffStatusPill(status: status),
                 if (isOnLeave) ...[
                   const SizedBox(height: 4),
-                  const Text('On Leave', style: TextStyle(fontSize: 9, color: AppTheme.warning, fontWeight: FontWeight.w600)),
+                  Text(context.tr('onLeaveStatus'), style: const TextStyle(fontSize: 9, color: AppTheme.warning, fontWeight: FontWeight.w600)),
                 ],
               ]),
             ]),
@@ -1073,7 +1073,7 @@ class _AcademicsPageState extends State<_AcademicsPage> {
   Widget _buildExamList(List<Exam> exams, {required bool recent}) {
     if (exams.isEmpty) {
       return _emptyCard(recent ? Icons.quiz_outlined : Icons.event_note_outlined,
-          recent ? 'No tests recorded yet' : 'No upcoming exams in the next 30 days');
+          recent ? context.tr('noTestsRecorded') : context.tr('noUpcomingExams30Days'));
     }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -1102,7 +1102,7 @@ class _AcademicsPageState extends State<_AcademicsPage> {
             child: Row(children: [
               Column(children: [
                 Text('${dt.day}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _primary)),
-                Text(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.month - 1],
+                Text(context.tr(['month_Jan','month_Feb','month_Mar','month_Apr','month_May','month_Jun','month_Jul','month_Aug','month_Sep','month_Oct','month_Nov','month_Dec'][dt.month - 1]),
                     style: const TextStyle(fontSize: 11, color: _primary)),
               ]),
               const SizedBox(width: 14),
@@ -1113,7 +1113,7 @@ class _AcademicsPageState extends State<_AcademicsPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(color: dColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                child: Text(daysLeft == 0 ? 'Today' : '${daysLeft}d left', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: dColor)),
+                child: Text(daysLeft == 0 ? context.tr('filterToday') : context.tr('daysLeftLabel').replaceAll('{count}', daysLeft.toString()), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: dColor)),
               ),
             ]),
           );
@@ -1169,18 +1169,21 @@ class _FinancePageState extends State<_FinancePage> {
   Future<void> _sendReminders() async {
     final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Send Fee Reminders?'),
-      content: Text('Send WhatsApp reminders to ${_defaulters.length} overdue guardians?'),
+      title: Text(context.tr('sendFeeRemindersTitle')),
+      content: Text(context.tr('sendFeeRemindersPrompt').replaceAll('{count}', _defaulters.length.toString())),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success), onPressed: () => Navigator.pop(context, true), child: const Text('Send All')),
+        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.tr('cancel'))),
+        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success), onPressed: () => Navigator.pop(context, true), child: Text(context.tr('sendAll'))),
       ],
     ));
     if (ok != true) return;
+    final msgTemplate = context.tr('whatsAppReminderMessage');
     for (final d in _defaulters) {
       final phone = d['phone'] as String;
       if (phone.replaceAll(RegExp(r'\D'), '').isEmpty) continue;
-      final msg = 'Dear Parent of ${d['name']}, your fee of ${CurrencyUtils.formatRupees(d['amount'] as double)} is overdue. Please pay at the earliest.';
+      final msg = msgTemplate
+          .replaceAll('{name}', d['name'] as String)
+          .replaceAll('{amount}', CurrencyUtils.formatRupees(d['amount'] as double));
       final url = PhoneUtils.whatsAppUri(phone, text: msg);
       await launchUrl(url, mode: LaunchMode.externalApplication);
       await Future.delayed(const Duration(milliseconds: 800));
@@ -1191,7 +1194,7 @@ class _FinancePageState extends State<_FinancePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: const Text('Fee Collection')),
+      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: Text(context.tr('feeCollection'))),
       body: RefreshIndicator(
         onRefresh: _load,
         color: _primary,
@@ -1200,20 +1203,20 @@ class _FinancePageState extends State<_FinancePage> {
             : CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
-                  SliverToBoxAdapter(child: _sectionHeader('FEE COLLECTION OVERVIEW')),
+                  SliverToBoxAdapter(child: _sectionHeader(context.tr('feeCollectionOverview').toUpperCase())),
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       child: Row(children: [
-                        Expanded(child: _FeeCard(label: 'Collected', amount: _collected, color: AppTheme.success, icon: Icons.check_circle_outline)),
+                        Expanded(child: _FeeCard(label: context.tr('collected'), amount: _collected, color: AppTheme.success, icon: Icons.check_circle_outline)),
                         const SizedBox(width: 10),
-                        Expanded(child: _FeeCard(label: 'Pending', amount: _pending, color: AppTheme.warning, icon: Icons.hourglass_bottom_outlined)),
+                        Expanded(child: _FeeCard(label: context.tr('pendingLabel'), amount: _pending, color: AppTheme.warning, icon: Icons.hourglass_bottom_outlined)),
                         const SizedBox(width: 10),
-                        Expanded(child: _FeeCard(label: 'Overdue', amount: _overdue, color: AppTheme.danger, icon: Icons.warning_amber_outlined)),
+                        Expanded(child: _FeeCard(label: context.tr('overdue'), amount: _overdue, color: AppTheme.danger, icon: Icons.warning_amber_outlined)),
                       ]),
                     ),
                   ),
-                  SliverToBoxAdapter(child: _sectionHeader('TOP DEFAULTERS')),
+                  SliverToBoxAdapter(child: _sectionHeader(context.tr('topDefaulters').toUpperCase())),
                   SliverToBoxAdapter(child: _buildDefaulters()),
                   if (_defaulters.isNotEmpty)
                     SliverToBoxAdapter(
@@ -1221,7 +1224,7 @@ class _FinancePageState extends State<_FinancePage> {
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.chat_outlined),
-                          label: const Text('Send WhatsApp Reminder to All Overdue'),
+                          label: Text(context.tr('sendWhatsAppReminderToAllOverdue')),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.whatsapp,
                             padding: const EdgeInsets.symmetric(vertical: 13),
@@ -1324,19 +1327,19 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
       // Don't leave the list stuck on "Loading…" if the query fails.
       if (!mounted) return;
       setState(() { _createdUsers = []; _usersLoading = false; });
-      _snack('Could not load accounts: $e');
+      _snack(context.tr('couldNotLoadAccounts').replaceAll('{error}', e.toString()));
     }
   }
 
   Future<void> _createUser() async {
     final name  = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim().toLowerCase();
-    if (name.isEmpty) { _snack('Enter a name'); return; }
+    if (name.isEmpty) { _snack(context.tr('enterName')); return; }
     if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
-      _snack('Enter a valid email'); return;
+      _snack(context.tr('enterValidEmail')); return;
     }
     if (!_perm.canCreate(widget.role, _createRole)) {
-      _snack('No permission to create $_createRole accounts'); return;
+      _snack(context.tr('noPermissionCreateAccounts').replaceAll('{role}', context.tr('role_$_createRole'))); return;
     }
     setState(() => _saving = true);
     try {
@@ -1348,8 +1351,9 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
       final displayName = name.isNotEmpty ? name : email;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Account created for $displayName – '
-              '${RolePermissionService.roleDisplayName(_createRole)}'),
+          content: Text(context.tr('accountCreatedForDetail')
+              .replaceAll('{name}', displayName)
+              .replaceAll('{role}', context.tr('role_$_createRole'))),
           backgroundColor: AppTheme.success,
         ));
         await _loadUsers();
@@ -1382,19 +1386,19 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
         return StatefulBuilder(
           builder: (dialogCtx, setDlg) => AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('Confirm Deletion'),
+            title: Text(dialogCtx.tr('confirmDeletion')),
             content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               RichText(text: TextSpan(
                 style: const TextStyle(color: Colors.black87, fontSize: 13, height: 1.4),
                 children: [
-                  const TextSpan(text: 'This will permanently delete the '),
+                  TextSpan(text: dialogCtx.tr('deleteAccountConfirmRichText1')),
                   TextSpan(
-                    text: RolePermissionService.roleDisplayName(uRole),
+                    text: dialogCtx.tr('role_$uRole'),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  const TextSpan(text: ' account for\n'),
+                  TextSpan(text: dialogCtx.tr('deleteAccountConfirmRichText2')),
                   TextSpan(text: uEmail, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.accent)),
-                  const TextSpan(text: '.\n\nEnter your password to confirm.'),
+                  TextSpan(text: dialogCtx.tr('deleteAccountConfirmRichText3')),
                 ],
               )),
               const SizedBox(height: 16),
@@ -1403,7 +1407,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                 obscureText: obscure,
                 autofocus: true,
                 decoration: InputDecoration(
-                  labelText: 'Your Password',
+                  labelText: dialogCtx.tr('yourPassword'),
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
@@ -1417,7 +1421,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
             actions: [
               TextButton(
                 onPressed: deleting ? null : () => Navigator.of(dialogCtx).pop(false),
-                child: const Text('Cancel'),
+                child: Text(dialogCtx.tr('cancel')),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
@@ -1436,13 +1440,13 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                         } catch (_) {
                           if (dialogCtx.mounted) setDlg(() => deleting = false);
                           messenger.showSnackBar(
-                            const SnackBar(content: Text('Incorrect password')),
+                            SnackBar(content: Text(dialogCtx.tr('incorrectPassword'))),
                           );
                         }
                       },
                 child: deleting
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Delete Account', style: TextStyle(color: Colors.white)),
+                    : Text(dialogCtx.tr('delete'), style: const TextStyle(color: Colors.white)),
               ),
             ],
           ),
@@ -1456,8 +1460,8 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(
         content: Text(full
-            ? 'Account and all related data deleted'
-            : 'Access revoked — deploy the deletion function for full cleanup'),
+            ? context.tr('accountDeletedSuccess')
+            : context.tr('accountAccessRevoked')),
         backgroundColor: full ? AppTheme.danger : Colors.orange.shade800,
       ));
       await _loadUsers();
@@ -1475,7 +1479,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
         backgroundColor: _primary,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Create Accounts'),
+        title: Text(context.tr('createAccounts')),
       ),
       body: RefreshIndicator(
         onRefresh: _loadUsers,
@@ -1484,22 +1488,22 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 32),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _sectionHeader('NEW ACCOUNT'),
+            _sectionHeader(context.tr('newAccount')),
             if (allowed.isEmpty)
-              _emptyCard(Icons.block_outlined, 'No permission to create accounts')
+              _emptyCard(Icons.block_outlined, context.tr('noPermissionCreateAccounts').replaceAll('{role} ', ''))
             else
               _OwnerCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 if (allowed.length > 1) ...[
                   DropdownButtonFormField<String>(
                     value: _createRole,
-                    decoration: const InputDecoration(
-                        labelText: 'Account Role',
-                        prefixIcon: Icon(Icons.badge_outlined),
+                    decoration: InputDecoration(
+                        labelText: context.tr('accountRole'),
+                        prefixIcon: const Icon(Icons.badge_outlined),
                         isDense: true),
                     items: allowed
                         .map((r) => DropdownMenuItem(
                             value: r,
-                            child: Text(RolePermissionService.roleDisplayName(r))))
+                            child: Text(context.tr('role_$r'))))
                         .toList(),
                     onChanged: (v) { if (v != null) setState(() => _createRole = v); },
                   ),
@@ -1508,17 +1512,17 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Text(
-                      'Creating: ${RolePermissionService.roleDisplayName(allowed.first)}',
+                      context.tr('creatingRole').replaceAll('{role}', context.tr('role_${allowed.first}')),
                       style: const TextStyle(fontWeight: FontWeight.w600, color: _primary),
                     ),
                   ),
-                _inputField(_nameCtrl, 'Full Name', Icons.person_outline,
+                _inputField(_nameCtrl, context.tr('fullName'), Icons.person_outline,
                     keyboardType: TextInputType.name),
                 const SizedBox(height: 10),
                 EmailTextFormField(
                   controller: _emailCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Email',
+                    labelText: context.tr('email'),
                     prefixIcon: const Icon(Icons.email_outlined),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     isDense: true,
@@ -1530,7 +1534,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'A password-setup link will be sent to the user\'s email.',
+                      context.tr('passwordSetupLinkSent'),
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
                   ),
@@ -1544,8 +1548,8 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                         : const Icon(Icons.person_add_outlined),
                     label: Text(_saving
-                        ? 'Creating…'
-                        : 'Create ${RolePermissionService.roleDisplayName(_createRole)} Account'),
+                        ? context.tr('creatingEllipsis')
+                        : context.tr('createRoleAccount').replaceAll('{role}', context.tr('role_$_createRole'))),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.accent,
                       padding: const EdgeInsets.symmetric(vertical: 13),
@@ -1555,13 +1559,13 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                   ),
                 ),
               ])),
-            _sectionHeader('CREATED BY YOU'),
+            _sectionHeader(context.tr('createdByYou')),
             if (_usersLoading)
               const Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
                   child: LoadingState())
             else if (_createdUsers.isEmpty)
-              _emptyCard(Icons.group_outlined, 'No accounts created yet')
+              _emptyCard(Icons.group_outlined, context.tr('noAccountsCreatedYet'))
             else
               ..._createdUsers.map((u) {
                 final uEmail    = u['email']    as String? ?? '';
@@ -1592,7 +1596,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                           overflow: TextOverflow.ellipsis),
                       if (dateStr.isNotEmpty)
-                        Text('Created: $dateStr',
+                        Text(context.tr('createdOnDate').replaceAll('{date}', dateStr),
                             style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
                     ])),
                     Container(
@@ -1602,7 +1606,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        RolePermissionService.roleDisplayName(uRole),
+                        context.tr('role_$uRole'),
                         style: const TextStyle(
                             fontSize: 10, fontWeight: FontWeight.w700, color: _primary),
                       ),
@@ -1610,7 +1614,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                     const SizedBox(width: 4),
                     IconButton(
                       icon: const Icon(Icons.delete_outline, color: AppTheme.danger, size: 20),
-                      tooltip: 'Delete account',
+                      tooltip: context.tr('deleteAccountTooltip'),
                       onPressed: () => _deleteUser(uEmail, uRole),
                     ),
                   ]),
@@ -1692,7 +1696,7 @@ class _AnnouncementsPageState extends State<_AnnouncementsPage> {
         backgroundColor: _primary,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Announcements'),
+        title: Text(context.tr('announcements')),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -1701,7 +1705,7 @@ class _AnnouncementsPageState extends State<_AnnouncementsPage> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 32),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _sectionHeader('NEW ANNOUNCEMENT'),
+            _sectionHeader(context.tr('newAnnouncementUpper')),
             _OwnerCard(
               child: AnnouncementComposer(
                 email: widget.email,
@@ -1709,14 +1713,14 @@ class _AnnouncementsPageState extends State<_AnnouncementsPage> {
                 onSent: _load,
               ),
             ),
-            _sectionHeader('RECENT ANNOUNCEMENTS'),
+            _sectionHeader(context.tr('recentAnnouncementsUpper')),
             if (_loading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: LoadingState(),
               )
             else if (_announcements.isEmpty)
-              _emptyCard(Icons.campaign_outlined, 'No announcements yet')
+              _emptyCard(Icons.campaign_outlined, context.tr('noAnnouncementsYet'))
             else
               ..._announcements.map((a) => _OwnerCard(
                 margin: const EdgeInsets.only(bottom: 8),

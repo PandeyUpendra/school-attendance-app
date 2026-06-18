@@ -563,8 +563,8 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
                   scale: _logoScale.value,
                   child: SizedBox(
                     height: logoHeight,
-                    child: SvgPicture.asset(
-                      'assets/images/logo_splash.svg',
+                    child: Image.asset(
+                      'assets/images/logo.png',
                       height: logoHeight,
                       fit: BoxFit.contain,
                     ),

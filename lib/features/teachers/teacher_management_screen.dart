@@ -186,18 +186,17 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove Teachers'),
+        title: Text(context.tr('removeTeachers')),
         content: Text(
-            'Remove $count teacher${count == 1 ? '' : 's'}? '
-            'Their timetable assignments will be cleared.'),
+            context.tr('removeTeachersConfirm').replaceAll('{count}', count.toString())),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Remove'),
+            child: Text(context.tr('removeAction')),
           ),
         ],
       ),
@@ -213,7 +212,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
           content: Text(
-              '$count teacher${count == 1 ? '' : 's'} removed')),
+              context.tr('teachersRemovedSuccess').replaceAll('{count}', count.toString()))),
     );
   }
 
@@ -225,16 +224,14 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
         .where((t) => !_pendingByTeacherId.containsKey(t.id))
         .toList();
     if (selected.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('All selected teachers already have pending requests.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.tr('allSelectedTeachersPendingRequests')),
       ));
       return;
     }
     final reason = await _promptReason(
-      title: 'Request Deletion (${selected.length})',
-      message:
-          'These ${selected.length} teacher accounts will be queued for the '
-          'principal or owner to review. Add an optional reason:',
+      title: context.tr('requestDeletionCount').replaceAll('{count}', selected.length.toString()),
+      message: context.tr('teachersQueuedForReview').replaceAll('{count}', selected.length.toString()),
     );
     if (reason == null || !mounted) return;
     var ok = 0;
@@ -257,10 +254,27 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     setState(() { _selectMode = false; _selectedIds = {}; });
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(fail == 0
-          ? '$ok deletion request${ok == 1 ? '' : 's'} sent for approval.'
-          : '$ok sent · $fail failed.'),
+          ? context.tr('deletionRequestsSentForApproval').replaceAll('{count}', ok.toString())
+          : context.tr('requestsSentAndFailed').replaceAll('{ok}', ok.toString()).replaceAll('{fail}', fail.toString())),
       backgroundColor: fail == 0 ? AppTheme.success : AppTheme.warning,
     ));
+  }
+
+  String _localiseDeletionReason(BuildContext context, String reason) {
+    switch (reason) {
+      case 'Resigned / Left the school':
+        return context.tr('reasonResigned');
+      case 'Retired':
+        return context.tr('reasonRetired');
+      case 'Terminated':
+        return context.tr('reasonTerminated');
+      case 'Duplicate account / Wrong entry':
+        return context.tr('reasonDuplicate');
+      case 'Other (specify reason)':
+        return context.tr('reasonOther');
+      default:
+        return reason;
+    }
   }
 
   /// Shared bottom prompt for "Reason for deletion". Returns the entered
@@ -290,19 +304,19 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                 value: dropReason,
                 isExpanded: true,
                 decoration: InputDecoration(
-                  labelText: 'Reason',
+                  labelText: context.tr('reasonLabel'),
                   prefixIcon: const Icon(Icons.info_outline, size: 18),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10)),
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 10),
                 ),
-                hint: const Text('Select a reason',
-                    style: TextStyle(fontSize: 13)),
+                hint: Text(context.tr('selectReason'),
+                    style: const TextStyle(fontSize: 13)),
                 items: _kTeacherDeletionReasons
                     .map((r) => DropdownMenuItem(
                           value: r,
-                          child: Text(r, style: const TextStyle(fontSize: 13)),
+                          child: Text(_localiseDeletionReason(context, r), style: const TextStyle(fontSize: 13)),
                         ))
                     .toList(),
                 onChanged: (v) => setLocal(() {
@@ -318,7 +332,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                   maxLines: 2,
                   autofocus: true,
                   decoration: InputDecoration(
-                    labelText: 'Specify reason',
+                    labelText: context.tr('specifyReason'),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
                     contentPadding: const EdgeInsets.all(10),
@@ -331,7 +345,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel')),
+                child: Text(context.tr('cancel'))),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
@@ -344,7 +358,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                       if (!showCustom) ctrl.text = dropReason ?? '';
                       Navigator.pop(ctx, true);
                     },
-              child: const Text('Send for Approval'),
+              child: Text(context.tr('sendForApproval')),
             ),
           ],
         ),
@@ -381,24 +395,22 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(children: [
-          Icon(Icons.warning_amber_rounded, color: Colors.orange),
-          SizedBox(width: 8),
-          Text('Possible duplicate', style: TextStyle(fontSize: 16)),
+        title: Row(children: [
+          const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+          const SizedBox(width: 8),
+          Text(context.tr('possibleDuplicate'), style: const TextStyle(fontSize: 16)),
         ]),
         content: Text(
-          'A teacher with the same details already appears to be saved:\n\n'
-          '${m.name}${m.email.isNotEmpty ? " (${m.email})" : ""}.\n\n'
-          'Please check before adding again. Save anyway?',
+          context.tr('teacherPossibleDuplicate').replaceAll('{name}', '${m.name}${m.email.isNotEmpty ? " (${m.email})" : ""}'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('cancel')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Save anyway'),
+            child: Text(context.tr('saveAnyway')),
           ),
         ],
       ),
@@ -435,23 +447,23 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
           builder: (ctx) => AlertDialog(
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16)),
-            title: const Row(children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.orange),
-              SizedBox(width: 8),
-              Text('Conflict', style: TextStyle(fontSize: 16)),
+            title: Row(children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+              const SizedBox(width: 8),
+              Text(context.tr('conflict'), style: const TextStyle(fontSize: 16)),
             ]),
             content: Text(
-              '${duplicate.name} is already the class teacher of '
-              '${teacher.classTeacherOf!}.\n\n'
-              'Please remove them as class teacher first.',
+              context.tr('teacherAlreadyClassTeacher')
+                  .replaceAll('{name}', duplicate.name)
+                  .replaceAll('{class}', teacher.classTeacherOf!),
             ),
             actions: [
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx),
                 style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange),
-                child: const Text('OK',
-                    style: TextStyle(color: Colors.white)),
+                child: Text(context.tr('ok'),
+                    style: const TextStyle(color: Colors.white)),
               ),
             ],
           ),
@@ -482,7 +494,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Invite email sent to ${teacher.email}'),
+            content: Text(context.tr('inviteSentTo').replaceAll('{email}', teacher.email)),
             backgroundColor: Colors.green.shade700,
           ));
         }
@@ -510,7 +522,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Email updated — invite sent to $newEmail'),
+            content: Text(context.tr('emailUpdatedInviteSent').replaceAll('{email}', newEmail)),
             backgroundColor: Colors.green.shade700,
           ));
         }
@@ -530,15 +542,14 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
       if (_pendingByTeacherId.containsKey(teacher.id)) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-              'A deletion request for ${teacher.name} is already pending.'),
+              context.tr('teacherDeletionRequestPending').replaceAll('{name}', teacher.name)),
         ));
         return;
       }
       final reason = await _promptReason(
-        title: 'Request Deletion',
+        title: context.tr('requestDeletionTitle'),
         message:
-            '${teacher.name} will be queued for the principal or owner to '
-            'review. Add an optional reason:',
+            context.tr('teacherQueuedForReviewSingle').replaceAll('{name}', teacher.name),
       );
       if (reason == null || !mounted) return;
       try {
@@ -552,13 +563,13 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-              'Deletion request sent for ${teacher.name}. The principal will review it.'),
+              context.tr('deletionRequestSentSuccess').replaceAll('{name}', teacher.name)),
           backgroundColor: AppTheme.success,
         ));
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not send request: $e'),
+          content: Text(context.tr('couldNotSendRequest').replaceAll('{error}', e.toString())),
           backgroundColor: Colors.red,
         ));
       }
@@ -569,17 +580,17 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove Teacher'),
+        title: Text(context.tr('removeTeacherQ')),
         content: Text(
-            'Remove ${teacher.name}? Their timetable assignments will be cleared.'),
+            context.tr('removeTeacherConfirm').replaceAll('{name}', teacher.name)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Remove'),
+            child: Text(context.tr('removeAction')),
           ),
         ],
       ),
@@ -601,8 +612,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(context.tr('cancelDeletionRequest')),
         content: Text(
-            'Withdraw your deletion request for ${teacher.name}? '
-            'The principal will no longer see it in their queue.'),
+            context.tr('withdrawRequestConfirm').replaceAll('{name}', teacher.name)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -612,7 +622,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                 backgroundColor: AppTheme.warning,
                 foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Withdraw'),
+            child: Text(context.tr('withdrawButton')),
           ),
         ],
       ),
@@ -693,14 +703,14 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
 
     if (teachers.isEmpty || !mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No valid teachers found in CSV')));
+          SnackBar(content: Text(context.tr('noValidTeachersCsv'))));
       return;
     }
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Import ${teachers.length} Teachers'),
+        title: Text(context.tr('importTeachersCount').replaceAll('{count}', teachers.length.toString())),
         content: SizedBox(
           width: double.maxFinite,
           height: 260,
@@ -730,13 +740,13 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(_, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           ElevatedButton(
             onPressed: () => Navigator.pop(_, true),
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white),
-            child: const Text('Import'),
+            child: Text(context.tr('importButton')),
           ),
         ],
       ),
@@ -814,8 +824,8 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
               )
             : null,
         title: _selectMode
-            ? Text('${_selectedIds.length} selected')
-            : const Text('Manage Teachers'),
+            ? Text(context.tr('countSelected').replaceAll('{count}', _selectedIds.length.toString()))
+            : Text(context.tr('manageTeachers')),
         actions: _selectMode
             ? [
                 IconButton(
@@ -1168,21 +1178,19 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
       builder: (_) => AlertDialog(
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Send Login Invite'),
+        title: Text(context.tr('sendLoginInvite')),
         content: Text(
-            'This will create a login account for ${widget.teacher.name} '
-            'and send a password-setup link to $email.\n\n'
-            'They can use it to set their password and sign in.'),
+            context.tr('sendLoginInviteConfirm').replaceAll('{name}', widget.teacher.name).replaceAll('{email}', email)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(_, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           ElevatedButton(
             onPressed: () => Navigator.pop(_, true),
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white),
-            child: const Text('Send'),
+            child: Text(context.tr('sendButton')),
           ),
         ],
       ),
@@ -1193,13 +1201,13 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
       await _service.provisionTeacherLoginAccess(widget.teacher);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Invite sent to $email'),
+        content: Text(context.tr('inviteSentTo').replaceAll('{email}', email)),
         backgroundColor: Colors.green,
       ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to send invite: $e'),
+        content: Text(context.tr('failedToSendInvite').replaceAll('{error}', e.toString())),
         backgroundColor: Colors.red,
       ));
     }
@@ -1270,15 +1278,15 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
                         Icons.email_outlined, 'Email', t.email),
                   if (t.isClassTeacher &&
                       t.classTeacherOf != null) ...[
-                    _InfoRow(Icons.class_outlined, 'Class Teacher of',
+                    _InfoRow(Icons.class_outlined, context.tr('classTeacherOf'),
                         t.classTeacherOf!),
                     if (t.section.isNotEmpty)
-                      _InfoRow(Icons.group_work_outlined, 'Section',
+                      _InfoRow(Icons.group_work_outlined, context.tr('sectionWord'),
                           t.section),
                   ],
                   if (!t.isClassTeacher)
-                    const _InfoRow(Icons.person_outline, 'Role',
-                        'Subject Teacher'),
+                    _InfoRow(Icons.person_outline, context.tr('roleLabel'),
+                        context.tr('roleSubjectTeacher')),
                 ]),
 
                 const SizedBox(height: 12),
@@ -1384,8 +1392,8 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
                       onPressed: () => _sendLoginInvite(context),
                       icon: const Icon(Icons.email_outlined,
                           color: AppTheme.primary),
-                      label: const Text('Send Login Invite',
-                          style: TextStyle(
+                      label: Text(context.tr('sendLoginInvite'),
+                          style: const TextStyle(
                               color: AppTheme.primary,
                               fontWeight: FontWeight.w600)),
                       style: OutlinedButton.styleFrom(
@@ -1696,7 +1704,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
       initialDate: _joiningDate ?? DateTime.now(),
       firstDate: DateTime(1980),
       lastDate: DateTime.now(),
-      helpText: 'Select Joining Date',
+      helpText: context.tr('selectJoiningDate'),
     );
     if (picked != null) setState(() => _joiningDate = picked);
   }
@@ -1708,12 +1716,12 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(
             leading: const Icon(Icons.camera_alt),
-            title: const Text('Take Photo'),
+            title: Text(context.tr('takePhoto')),
             onTap: () => Navigator.pop(context, ImageSource.camera),
           ),
           ListTile(
             leading: const Icon(Icons.photo_library),
-            title: const Text('Choose from Gallery'),
+            title: Text(context.tr('chooseFromGallery')),
             onTap: () => Navigator.pop(context, ImageSource.gallery),
           ),
         ]),
@@ -2066,7 +2074,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                   }),
                   activeColor: AppTheme.primary,
                   title: Text(
-                    'Class Teacher',
+                    context.tr('classTeacherLabel'),
                     style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -2076,8 +2084,8 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                   ),
                   subtitle: Text(
                     _isClassTeacher
-                        ? 'Can add & manage students'
-                        : 'Cannot add students',
+                        ? context.tr('canAddAndManageStudents')
+                        : context.tr('cannotAddStudents'),
                     style: TextStyle(
                         fontSize: 11,
                         color: _isClassTeacher
@@ -2125,7 +2133,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                                   _classTeacherOf == null &&
                                   _classes.isNotEmpty &&
                                   !_showAddClass
-                              ? 'Select a class'
+                              ? context.tr('pleaseSelectClass')
                               : null,
                     ),
 
@@ -2137,7 +2145,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                           controller: _newClassCtrl,
                           decoration: InputDecoration(
                             labelText: context.tr('newClassName'),
-                            hintText: 'e.g. Class 6A',
+                            hintText: context.tr('classNameHint'),
                             prefixIcon: const Icon(
                                 Icons.add_circle_outline,
                                 color: AppTheme.primary),
@@ -2163,7 +2171,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                             shape: RoundedRectangleBorder(
                                 borderRadius:
                                     BorderRadius.circular(10))),
-                        child: const Text('Add'),
+                        child: Text(context.tr('add')),
                       ),
                     ]),
                     if (_showAddClass && _classes.isNotEmpty)
@@ -2174,8 +2182,8 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                             _showAddClass = false;
                             _newClassCtrl.clear();
                           }),
-                          child: const Text('Cancel',
-                              style: TextStyle(fontSize: 12)),
+                          child: Text(context.tr('cancel'),
+                              style: const TextStyle(fontSize: 12)),
                         ),
                       ),
                   ],
@@ -2198,7 +2206,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                         height: 20, width: 20,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white))
-                    : Text(_isEdit ? 'Save Changes' : 'Add Teacher',
+                    : Text(_isEdit ? context.tr('saveChanges') : context.tr('addTeacher'),
                         style: const TextStyle(
                             fontSize: 15, fontWeight: FontWeight.bold)),
               ),

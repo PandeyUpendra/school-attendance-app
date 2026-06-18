@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/lead.dart';
 import '../../services/lead_service.dart';
 import '../../services/auth_service.dart';
@@ -92,7 +93,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          _userRole == 'guardian' ? 'Refer a Student' : 'Add Admission Lead',
+          _userRole == 'guardian' ? context.tr('referStudent') : context.tr('addAdmissionLead'),
           style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary),
         ),
         content: SingleChildScrollView(
@@ -103,16 +104,16 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
               children: [
                 TextFormField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Student Name *',
-                    hintText: 'Enter student\'s full name',
+                  decoration: InputDecoration(
+                    labelText: context.tr('studentNameRequired'),
+                    hintText: context.tr('enterStudentFullName'),
                   ),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Enter name' : null,
+                  validator: (v) => v == null || v.trim().isEmpty ? context.tr('enterNameError') : null,
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: selectedClass,
-                  decoration: const InputDecoration(labelText: 'Target Class *'),
+                  decoration: InputDecoration(labelText: context.tr('targetClassRequired')),
                   items: classesList
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
@@ -125,28 +126,28 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: parentCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Parent/Guardian Name *',
-                    hintText: 'Enter parent\'s full name',
+                  decoration: InputDecoration(
+                    labelText: context.tr('parentNameRequired'),
+                    hintText: context.tr('enterParentFullName'),
                   ),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Enter parent name' : null,
+                  validator: (v) => v == null || v.trim().isEmpty ? context.tr('enterParentNameError') : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: phoneCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Contact Phone *',
-                    hintText: 'Enter mobile number',
+                  decoration: InputDecoration(
+                    labelText: context.tr('contactPhoneRequired'),
+                    hintText: context.tr('enterMobileNumber'),
                   ),
                   keyboardType: TextInputType.phone,
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Enter phone' : null,
+                  validator: (v) => v == null || v.trim().isEmpty ? context.tr('enterPhoneError') : null,
                 ),
                 const SizedBox(height: 12),
                 EmailTextFormField(
                   controller: emailCtrl,
                   isOptional: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Email Address (Optional)',
+                  decoration: InputDecoration(
+                    labelText: context.tr('emailAddressOptional'),
                     hintText: 'parent@example.com',
                   ),
                 ),
@@ -154,8 +155,8 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                 TextFormField(
                   controller: noteCtrl,
                   decoration: InputDecoration(
-                    labelText: _userRole == 'guardian' ? 'Notes / Referral Message' : 'Initial Note / Feedback',
-                    hintText: 'Any extra details...',
+                    labelText: _userRole == 'guardian' ? context.tr('notesReferralMessage') : context.tr('initialNoteFeedback'),
+                    hintText: context.tr('anyExtraDetailsHint'),
                   ),
                   maxLines: 2,
                 ),
@@ -166,7 +167,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+            child: Text(context.tr('cancel'), style: const TextStyle(color: AppTheme.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -190,8 +191,8 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                 Navigator.pop(ctx);
               }
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Admission Enquiry saved successfully!'),
+                SnackBar(
+                  content: Text(context.tr('admissionEnquirySaved')),
                   backgroundColor: AppTheme.success,
                 ),
               );
@@ -201,7 +202,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Save'),
+            child: Text(context.tr('save')),
           ),
         ],
       ),
@@ -258,14 +259,14 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                             final confirm = await showDialog<bool>(
                               context: context,
                               builder: (c) => AlertDialog(
-                                title: const Text('Delete Lead'),
-                                content: const Text('Are you sure you want to delete this lead permanently?'),
+                                title: Text(context.tr('deleteLeadQ')),
+                                content: Text(context.tr('deleteLeadConfirm')),
                                 actions: [
-                                  TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('No')),
+                                  TextButton(onPressed: () => Navigator.pop(c, false), child: Text(context.tr('no'))),
                                   TextButton(
                                     onPressed: () => Navigator.pop(c, true),
                                     style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
-                                    child: const Text('Yes, Delete'),
+                                    child: Text(context.tr('yesDelete')),
                                   ),
                                 ],
                               ),
