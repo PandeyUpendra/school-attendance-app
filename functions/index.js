@@ -46,6 +46,70 @@ function escapeHtml(unsafe) {
     .replace(/'/g, "&#039;");
 }
 
+/**
+ * Creates a nodemailer transporter based on school SMTP settings or environment variables.
+ * Falls back to a mock JSON transport in local emulator mode or when SMTP is not configured.
+ */
+async function createMailTransporter(db, schoolId) {
+  const nodemailer = require("nodemailer");
+  const isLocalEmulator = process.env.FUNCTIONS_EMULATOR === "true";
+
+  // 1. Check if the school has custom SMTP settings
+  try {
+    const smtpSnap = await db.collection("schools").doc(schoolId)
+      .collection("settings").doc("smtp").get();
+
+    if (smtpSnap.exists && smtpSnap.data()) {
+      const smtp = smtpSnap.data();
+      if (smtp.host && smtp.username && smtp.password) {
+        return nodemailer.createTransport({
+          host: smtp.host,
+          port: parseInt(smtp.port, 10) || 587,
+          secure: smtp.secure || false,
+          auth: {
+            user: smtp.username,
+            pass: smtp.password,
+          },
+        });
+      }
+    }
+  } catch (err) {
+    logger.warn(`Failed to fetch custom SMTP settings for school ${schoolId}`, err);
+  }
+
+  // 2. Fall back to environment variables
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = parseInt(process.env.SMTP_PORT, 10) || 587;
+  const smtpSecure = process.env.SMTP_SECURE === "true";
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+
+  // Use JSON transport if in emulator, or if credentials are missing/default
+  if (
+    isLocalEmulator ||
+    !smtpHost ||
+    !smtpUser ||
+    !smtpPass ||
+    smtpUser === "noreply@yourschooldomain.com"
+  ) {
+    logger.info(`[createMailTransporter] SMTP credentials not configured (Host: ${smtpHost || "none"}, User: ${smtpUser || "none"}). Using nodemailer JSON transport.`);
+    return nodemailer.createTransport({
+      jsonTransport: true,
+    });
+  }
+
+  return nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  });
+}
+
+
 // ── Data retention / TTL (unbounded collection growth) ───────────────────────
 // notifications and audit_logs grow without bound. Rather than a per-school
 // scheduled purge (purgeOldData is onCall and won't be invoked across 10k
@@ -1421,33 +1485,7 @@ exports.sendReceiptEmail = onDocumentCreated(
       `;
 
       // 4. Configure nodemailer transporter
-      const nodemailer = require("nodemailer");
-      const smtpSnap = await db.collection("schools").doc(sid)
-        .collection("settings").doc("smtp").get();
-      let transporter;
-
-      if (smtpSnap.exists && smtpSnap.data()) {
-        const smtp = smtpSnap.data();
-        transporter = nodemailer.createTransport({
-          host: smtp.host,
-          port: parseInt(smtp.port, 10) || 587,
-          secure: smtp.secure || false,
-          auth: {
-            user: smtp.username,
-            pass: smtp.password,
-          },
-        });
-      } else {
-        transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST || "smtp.gmail.com",
-          port: parseInt(process.env.SMTP_PORT, 10) || 587,
-          secure: process.env.SMTP_SECURE === "true",
-          auth: {
-            user: process.env.SMTP_USER || "noreply@yourschooldomain.com",
-            pass: process.env.SMTP_PASS || "",
-          },
-        });
-      }
+      const transporter = await createMailTransporter(db, sid);
 
       const mailFrom = process.env.MAIL_FROM || "noreply@yourschooldomain.com";
       const mailFromName = process.env.MAIL_FROM_NAME || schoolName;
@@ -3077,32 +3115,10 @@ exports.sendEmailOtp = onCall(
     }
 
     // Send email via nodemailer
-    const nodemailer = require("nodemailer");
-    const smtpSnap = await db.collection("schools").doc(schoolId)
-      .collection("settings").doc("smtp").get();
-    let transporter;
+    const transporter = await createMailTransporter(db, schoolId);
 
-    if (smtpSnap.exists && smtpSnap.data()) {
-      const smtp = smtpSnap.data();
-      transporter = nodemailer.createTransport({
-        host: smtp.host,
-        port: parseInt(smtp.port, 10) || 587,
-        secure: smtp.secure || false,
-        auth: {
-          user: smtp.username,
-          pass: smtp.password,
-        },
-      });
-    } else {
-      transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || "smtp.gmail.com",
-        port: parseInt(process.env.SMTP_PORT, 10) || 587,
-        secure: process.env.SMTP_SECURE === "true",
-        auth: {
-          user: process.env.SMTP_USER || "noreply@yourschooldomain.com",
-          pass: process.env.SMTP_PASS || "",
-        },
-      });
+    if (transporter.options && transporter.options.jsonTransport) {
+      logger.info(`[sendEmailOtp] (JSON Transport / Emulator) OTP for ${email} is: ${otp}`);
     }
 
     const mailFrom = process.env.MAIL_FROM || "noreply@yourschooldomain.com";

@@ -608,7 +608,8 @@ service cloud.firestore {
       // Own document, OR any coordinator / principal / admin in the same school.
       allow read: if isRootAdmin() || (isSignedIn() && (
         userEmail() == email ||
-        (isManagement() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId)
+        (isManagement() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId) ||
+        (isAnyTeacher() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId && 'role' in resource.data && resource.data.role == 'guardian')
       ));
 
       // Client-side writes are allowed for self-updates (e.g., status/school switching) and school management.
@@ -625,7 +626,12 @@ service cloud.firestore {
 
         (isRole('coordinator') &&
          request.resource.data.schoolId == userSchoolId() &&
-         request.resource.data.role in ['teacher', 'subjectTeacher', 'guardian'])
+         request.resource.data.role in ['teacher', 'subjectTeacher', 'guardian']) ||
+
+        // Teachers can provision guardian accounts in their own school
+        (isAnyTeacher() &&
+         request.resource.data.schoolId == userSchoolId() &&
+         request.resource.data.role == 'guardian')
       ));
 
       allow update: if isRootAdmin() || (isSignedIn() && (
@@ -652,7 +658,14 @@ service cloud.firestore {
          resource.data.schoolId == userSchoolId() &&
          request.resource.data.schoolId == userSchoolId() &&
          resource.data.role in ['teacher', 'subjectTeacher', 'guardian'] &&
-         request.resource.data.role == resource.data.role)
+         request.resource.data.role == resource.data.role) ||
+
+        // Teachers can update/link guardian accounts in their own school
+        (isAnyTeacher() &&
+         resource.data.schoolId == userSchoolId() &&
+         request.resource.data.schoolId == userSchoolId() &&
+         resource.data.role == 'guardian' &&
+         request.resource.data.role == 'guardian')
       ));
 
       allow delete: if isRootAdmin() || (isSignedIn() && (

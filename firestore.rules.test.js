@@ -498,8 +498,8 @@ describe('Firestore Security Rules', () => {
       );
     });
 
-    test('DENY — teacher cannot create a guardian allowed_users document directly', async () => {
-      await assertFails(
+    test('ALLOW — teacher can create a guardian allowed_users document directly in their school', async () => {
+      await assertSucceeds(
         setDoc(doc(db(UID.teacher9A), 'allowed_users', 'new-guardian@school.test'), {
           role: 'guardian', schoolId: SCHOOL_ID,
           name: 'New Guardian', email: 'new-guardian@school.test',
@@ -509,7 +509,7 @@ describe('Firestore Security Rules', () => {
       );
     });
 
-    test('DENY — teacher cannot update a guardian allowed_users document directly', async () => {
+    test('ALLOW — teacher can update a guardian allowed_users document directly in their school', async () => {
       // Seed a guardian first
       await testEnv.withSecurityRulesDisabled(async (ctx) => {
         await setDoc(doc(ctx.firestore(), 'allowed_users', 'existing-guardian@school.test'), {
@@ -520,7 +520,7 @@ describe('Firestore Security Rules', () => {
         });
       });
 
-      await assertFails(
+      await assertSucceeds(
         updateDoc(doc(db(UID.teacher9A), 'allowed_users', 'existing-guardian@school.test'), {
           studentRoll: 43,
         }),
