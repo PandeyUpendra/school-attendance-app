@@ -108,6 +108,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -133,6 +134,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
   }
 
   Future<void> _loadMyLog() async {
+    if (!mounted) return;
     setState(() => _logLoading = true);
     try {
       final items = (widget.posterName?.isNotEmpty == true)
@@ -473,7 +475,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
       bodyCtrl.dispose();
     }
 
-    if (posted == true) _load();
+    if (posted == true && mounted) _load();
   }
 
   Future<void> _confirmDelete(Announcement a) async {
