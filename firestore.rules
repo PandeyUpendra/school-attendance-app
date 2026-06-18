@@ -265,6 +265,31 @@ service cloud.firestore {
       );
     }
 
+    /// Optimized notifications write/create permission helper.
+    /// Uses let bindings to evaluate getUserData() exactly once, preventing
+    /// the 1000 expression ceiling evaluation limit from being reached.
+    function canCreateNotification(sid, data) {
+      let userData = getUserData();
+      let role = userData != null ? userData.role : null;
+      let schoolId = userData != null && 'schoolId' in userData ? userData.schoolId : null;
+      return isRootAdmin() || (
+        userData != null && schoolId == sid && (
+          // Management can post to any audience
+          role in ['coordinator', 'principal', 'admin', 'owner', 'ownerPrincipal'] ||
+          
+          // Teachers can post only to targeted audiences they teach
+          (role in ['teacher', 'subjectTeacher']
+            && 'audience' in data
+            && teacherMayPostAudience(data.audience)) ||
+            
+          // Guardians can ONLY post to their child's class teacher
+          (role == 'guardian'
+            && 'audience' in data
+            && data.audience == ('class_teacher:' + ('studentClass' in userData ? userData.studentClass : '')))
+        )
+      );
+    }
+
     /// Optimized exam results read permission helper.
     /// Uses let bindings to evaluate getUserData() exactly once, preventing
     /// the 1000 expression ceiling evaluation limit from being reached.
@@ -1666,24 +1691,7 @@ service cloud.firestore {
       // Targeted flows that must keep working: absent alerts ('guardian:..'),
       // leave-submitted to 'coordinator'/'principal', student-leave to
       // 'class_teacher:..', resolved-leave to 'teacher:..'.
-      allow create: if isSignedIn() && inSchool(sid) && (
-        isManagement() ||
-        // Teachers: targeted audiences ONLY, and class/guardian audiences must
-        // be for a class they teach (M1 — see teacherMayPostAudience). Covers
-        // absent alerts + resolved-leave for their own class, leave-submitted to
-        // coordinator/principal, and class notices — without letting a teacher
-        // address parents of OTHER classes.
-        (isAnyTeacher()
-          && 'audience' in request.resource.data
-          && teacherMayPostAudience(request.resource.data.audience)) ||
-        // Guardians: ONLY the legitimate student-leave notice addressed to their
-        // OWN child's class teacher. Previously a guardian could post to
-        // 'coordinator'/'principal' or 'guardian:<otherClass>:<roll>' with an
-        // arbitrary title/body — an impersonation/phishing vector (review #5).
-        (isRole('guardian')
-          && 'audience' in request.resource.data
-          && request.resource.data.audience == ('class_teacher:' + userStudentClass()))
-      );
+      allow create: if isSignedIn() && canCreateNotification(sid, request.resource.data);
 
       // Editing/deleting an existing notice is a moderation action — management
       // only (a non-management member can no longer alter or remove notices).

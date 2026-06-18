@@ -164,6 +164,7 @@ test('UN-provisioned guardian subscribing to guardian_adm with a matching doc is
     await setDoc(doc(admin.firestore(), `allowed_users/${guardianNoAdm.email}`), {
       role: 'guardian', schoolId: SID,
       studentClass: 'Class 9', studentRoll: 5, studentSection: 'A',
+      status: 'active',
       // studentAdmissionId intentionally absent
     });
   });
