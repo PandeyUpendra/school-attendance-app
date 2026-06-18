@@ -572,14 +572,14 @@ class _OPStaffPageState extends State<_OPStaffPage> {
                       Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       Text('${leave['fromDate'] ?? ''} → ${leave['toDate'] ?? ''}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     ])),
-                    Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: AppTheme.warning.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)), child: const Text('Pending', style: TextStyle(fontSize: 11, color: AppTheme.warning, fontWeight: FontWeight.w600))),
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: AppTheme.warning.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)), child: Text(context.tr('statusPending'), style: const TextStyle(fontSize: 11, color: AppTheme.warning, fontWeight: FontWeight.w600))),
                   ]),
                   if ((leave['reason'] as String? ?? '').isNotEmpty) ...[const SizedBox(height: 6), Text(leave['reason'] as String, style: const TextStyle(fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis)],
                   const SizedBox(height: 8),
                   Row(children: [
-                    Expanded(child: OutlinedButton(style: OutlinedButton.styleFrom(foregroundColor: AppTheme.danger, side: const BorderSide(color: AppTheme.danger), padding: const EdgeInsets.symmetric(vertical: 6)), onPressed: () => _updateLeave(id, 'rejected'), child: const Text('Reject', style: TextStyle(fontSize: 12)))),
+                    Expanded(child: OutlinedButton(style: OutlinedButton.styleFrom(foregroundColor: AppTheme.danger, side: const BorderSide(color: AppTheme.danger), padding: const EdgeInsets.symmetric(vertical: 6)), onPressed: () => _updateLeave(id, 'rejected'), child: Text(context.tr('rejectAction'), style: const TextStyle(fontSize: 12)))),
                     const SizedBox(width: 8),
-                    Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success, padding: const EdgeInsets.symmetric(vertical: 6)), onPressed: () => _updateLeave(id, 'approved'), child: const Text('Approve', style: TextStyle(fontSize: 12)))),
+                    Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success, padding: const EdgeInsets.symmetric(vertical: 6)), onPressed: () => _updateLeave(id, 'approved'), child: Text(context.tr('approveAction'), style: const TextStyle(fontSize: 12)))),
                   ]),
                 ]));
               }).toList(),
@@ -591,7 +591,7 @@ class _OPStaffPageState extends State<_OPStaffPage> {
             onChanged: (v) => setState(() => _search = v.toLowerCase()),
           ))),
           SliverToBoxAdapter(child: filtered.isEmpty
-              ? _opEmpty(Icons.people_outline, 'No staff found')
+              ? _opEmpty(Icons.people_outline, context.tr('noStaffFound'))
               : Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Column(
                   children: filtered.map((t) {
                     final email = t['email'] as String? ?? '';
@@ -617,7 +617,7 @@ class _OPStaffPageState extends State<_OPStaffPage> {
                         StaffStatusPill(status: status),
                         if (isOnLeave) ...[
                           const SizedBox(height: 4),
-                          const Text('On Leave', style: TextStyle(fontSize: 9, color: AppTheme.warning, fontWeight: FontWeight.w600)),
+                          Text(context.tr('onLeaveStatus'), style: const TextStyle(fontSize: 9, color: AppTheme.warning, fontWeight: FontWeight.w600)),
                         ],
                       ]),
                     ]));
@@ -760,20 +760,25 @@ class _OPFinancePageState extends State<_OPFinancePage> {
   }
 
   Future<void> _sendReminders() async {
+    final title = context.tr('sendFeeRemindersTitle');
+    final prompt = context.tr('sendFeeRemindersPrompt').replaceAll('{count}', _defaulters.length.toString());
+    final cancelLabel = context.tr('cancel');
+    final sendAllLabel = context.tr('sendAll');
+    final msgTemplate = context.tr('whatsAppReminderMessageShort');
     final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Send Fee Reminders?'),
-      content: Text('Send WhatsApp reminders to ${_defaulters.length} overdue guardians?'),
+      title: Text(title),
+      content: Text(prompt),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success), onPressed: () => Navigator.pop(context, true), child: const Text('Send All')),
+        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(cancelLabel)),
+        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success), onPressed: () => Navigator.pop(context, true), child: Text(sendAllLabel)),
       ],
     ));
     if (ok != true) return;
     for (final d in _defaulters) {
       final phone = d['phone'] as String;
       if (phone.replaceAll(RegExp(r'\D'), '').isEmpty) continue;
-      final msg = 'Dear Parent of ${d['name']}, your fee of ${CurrencyUtils.formatRupees(d['amount'] as double)} is overdue.';
+      final msg = msgTemplate.replaceAll('{name}', d['name'] as String);
       final url = PhoneUtils.whatsAppUri(phone, text: msg);
       await launchUrl(url, mode: LaunchMode.externalApplication);
       await Future.delayed(const Duration(milliseconds: 800));
@@ -784,31 +789,31 @@ class _OPFinancePageState extends State<_OPFinancePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: const Text('Fee Collection')),
+      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: Text(context.tr('feeCollection'))),
       body: RefreshIndicator(onRefresh: _load, color: _primary, child: _loading ? _opShimmer() : CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
-          SliverToBoxAdapter(child: _opHeader('FEE COLLECTION OVERVIEW')),
+          SliverToBoxAdapter(child: _opHeader(context.tr('feeCollectionOverview').toUpperCase())),
           SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Row(children: [
-            Expanded(child: _OPFeeCard(label: 'Collected', amount: _collected, color: AppTheme.success, icon: Icons.check_circle_outline)),
+            Expanded(child: _OPFeeCard(label: context.tr('collected'), amount: _collected, color: AppTheme.success, icon: Icons.check_circle_outline)),
             const SizedBox(width: 10),
-            Expanded(child: _OPFeeCard(label: 'Pending', amount: _pending, color: AppTheme.warning, icon: Icons.hourglass_bottom_outlined)),
+            Expanded(child: _OPFeeCard(label: context.tr('pendingLabel'), amount: _pending, color: AppTheme.warning, icon: Icons.hourglass_bottom_outlined)),
             const SizedBox(width: 10),
-            Expanded(child: _OPFeeCard(label: 'Overdue', amount: _overdue, color: AppTheme.danger, icon: Icons.warning_amber_outlined)),
+            Expanded(child: _OPFeeCard(label: context.tr('overdue'), amount: _overdue, color: AppTheme.danger, icon: Icons.warning_amber_outlined)),
           ]))),
-          SliverToBoxAdapter(child: _opHeader('TOP DEFAULTERS')),
-          SliverToBoxAdapter(child: _defaulters.isEmpty ? _opEmpty(Icons.mood_outlined, 'No overdue fees — great!') : Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Column(
+          SliverToBoxAdapter(child: _opHeader(context.tr('topDefaulters').toUpperCase())),
+          SliverToBoxAdapter(child: _defaulters.isEmpty ? _opEmpty(Icons.mood_outlined, context.tr('noOverdueFeesGreat')) : Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Column(
             children: _defaulters.map((d) => _OPCard(margin: const EdgeInsets.only(bottom: 8), child: Row(children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(d['name'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 Text('${d['className']}  ·  ${CurrencyUtils.formatRupees(d['amount'] as double)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                Text('${d['daysOverdue']} days overdue', style: const TextStyle(color: AppTheme.danger, fontSize: 11)),
+                Text(context.tr('daysOverdueLabel').replaceAll('{count}', d['daysOverdue'].toString()), style: const TextStyle(color: AppTheme.danger, fontSize: 11)),
               ])),
               if ((d['phone'] as String).isNotEmpty) IconButton(
                 icon: const Icon(Icons.chat_bubble_outline, color: AppTheme.whatsapp),
                 onPressed: () {
                   final phone = d['phone'] as String;
-                  final msg = 'Dear Parent of ${d['name']}, your fee is overdue.';
+                  final msg = context.tr('whatsAppReminderMessageShort').replaceAll('{name}', d['name'] as String);
                   final url = PhoneUtils.whatsAppUri(phone, text: msg);
                   launchUrl(url, mode: LaunchMode.externalApplication);
                 },
@@ -818,7 +823,7 @@ class _OPFinancePageState extends State<_OPFinancePage> {
           if (_defaulters.isNotEmpty)
             SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), child: ElevatedButton.icon(
               icon: const Icon(Icons.chat_outlined),
-              label: const Text('Send WhatsApp Reminder to All Overdue'),
+              label: Text(context.tr('sendWhatsAppReminderToAllOverdue')),
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.whatsapp, padding: const EdgeInsets.symmetric(vertical: 13), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
               onPressed: _sendReminders,
             ))),
@@ -938,7 +943,7 @@ class _OPManagePageState extends State<_OPManagePage> {
         'academicYear': _academicYearCtrl.text.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('School settings saved'), backgroundColor: AppTheme.success));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('settingsSavedSuccess')), backgroundColor: AppTheme.success));
     } catch (e) { if (mounted) _snack('Error: $e'); }
     if (mounted) setState(() => _settingsSaving = false);
   }
@@ -977,11 +982,21 @@ class _OPManagePageState extends State<_OPManagePage> {
   }
 
   Future<void> _createUser() async {
-    final name = _nameCtrl.text.trim();
+    final enterNameMsg = context.tr('enterName');
+    final enterValidEmailMsg = context.tr('enterValidEmail');
+    final noPermissionMsg = context.tr('noPermissionCreateAccounts').replaceAll('{role}', context.tr('role_$_createRole'));
+    final successTemplate = context.tr('accountCreatedForDetail');
+    final roleName = context.tr('role_$_createRole');
+    
+    final name  = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim().toLowerCase();
-    if (name.isEmpty) { _snack('Enter a name'); return; }
-    if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) { _snack('Enter a valid email'); return; }
-    if (!_perm.canCreate(widget.role, _createRole)) { _snack('No permission'); return; }
+    if (name.isEmpty) { _snack(enterNameMsg); return; }
+    if (email.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email)) {
+      _snack(enterValidEmailMsg); return;
+    }
+    if (!_perm.canCreate(widget.role, _createRole)) {
+      _snack(noPermissionMsg); return;
+    }
     setState(() => _saving = true);
     try {
       // No password needed — auto-generated + setup link emailed.
@@ -998,7 +1013,8 @@ class _OPManagePageState extends State<_OPManagePage> {
           ? createdName
           : (name.isNotEmpty ? name : email);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Account created for $displayName – ${RolePermissionService.roleDisplayName(_createRole)}'), backgroundColor: AppTheme.success));
+        final successMsg = successTemplate.replaceAll('{name}', displayName).replaceAll('{role}', roleName);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMsg), backgroundColor: AppTheme.success));
         await _loadUsers();
       }
     } on RoleConflictException catch (e) {
@@ -1014,29 +1030,29 @@ class _OPManagePageState extends State<_OPManagePage> {
     final allowed = _perm.getAllowedToCreate(widget.role);
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: const Text('Manage School')),
+      appBar: AppBar(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, title: Text(context.tr('manageSchool'))),
       body: RefreshIndicator(
         onRefresh: _loadAll, color: _primary,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 32),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _opHeader('CREATE ACCOUNTS'),
-            if (allowed.isEmpty) _opEmpty(Icons.block_outlined, 'No permission to create accounts')
+            _opHeader(context.tr('createAccounts').toUpperCase()),
+            if (allowed.isEmpty) _opEmpty(Icons.block_outlined, context.tr('noPermissionCreateAccounts').replaceAll('{role} ', ''))
             else _OPCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (allowed.length > 1) ...[
                 DropdownButtonFormField<String>(value: _createRole,
-                  decoration: const InputDecoration(labelText: 'Account Role', prefixIcon: Icon(Icons.badge_outlined), isDense: true),
-                  items: allowed.map((r) => DropdownMenuItem(value: r, child: Text(RolePermissionService.roleDisplayName(r)))).toList(),
+                  decoration: InputDecoration(labelText: context.tr('accountRole'), prefixIcon: const Icon(Icons.badge_outlined), isDense: true),
+                  items: allowed.map((r) => DropdownMenuItem(value: r, child: Text(context.tr('role_$r')))).toList(),
                   onChanged: (v) { if (v != null) setState(() => _createRole = v); }),
                 const SizedBox(height: 12),
-              ] else Padding(padding: const EdgeInsets.only(bottom: 12), child: Text('Creating: ${RolePermissionService.roleDisplayName(allowed.first)}', style: const TextStyle(fontWeight: FontWeight.w600, color: _primary))),
-              _opField(_nameCtrl, 'Full Name', Icons.person_outline, keyboardType: TextInputType.name),
+              ] else Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(context.tr('creatingRole').replaceAll('{role}', context.tr('role_${allowed.first}')), style: const TextStyle(fontWeight: FontWeight.w600, color: _primary))),
+              _opField(_nameCtrl, context.tr('fullName'), Icons.person_outline, keyboardType: TextInputType.name),
               const SizedBox(height: 10),
               EmailTextFormField(
                 controller: _emailCtrl,
                 decoration: InputDecoration(
-                  labelText: 'Email',
+                  labelText: context.tr('email'),
                   prefixIcon: const Icon(Icons.email_outlined),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   isDense: true,
@@ -1046,19 +1062,19 @@ class _OPManagePageState extends State<_OPManagePage> {
               Row(children: [
                 const Icon(Icons.info_outline, size: 13, color: _primary),
                 const SizedBox(width: 6),
-                Expanded(child: Text('A password-setup link will be sent to the user\'s email.',
+                Expanded(child: Text(context.tr('passwordSetupLinkSent'),
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600))),
               ]),
               const SizedBox(height: 14),
               SizedBox(width: double.infinity, child: ElevatedButton.icon(
                 icon: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.person_add_outlined),
-                label: Text(_saving ? 'Creating…' : 'Create ${RolePermissionService.roleDisplayName(_createRole)} Account'),
+                label: Text(_saving ? context.tr('creatingEllipsis') : context.tr('createRoleAccount').replaceAll('{role}', context.tr('role_$_createRole'))),
                 style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent, padding: const EdgeInsets.symmetric(vertical: 13), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                 onPressed: _saving ? null : _createUser)),
             ])),
             const SizedBox(height: 8),
             if (_usersLoading) const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: LoadingState())
-            else if (_users.isEmpty) _opEmpty(Icons.group_outlined, 'No accounts created yet')
+            else if (_users.isEmpty) _opEmpty(Icons.group_outlined, context.tr('noAccountsCreatedYet'))
             else Column(children: _users.map((u) {
               final email = u['email'] as String? ?? '';
               final role = u['role'] as String? ?? '';
@@ -1071,21 +1087,21 @@ class _OPManagePageState extends State<_OPManagePage> {
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(email, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), overflow: TextOverflow.ellipsis),
-                  if (dateStr.isNotEmpty) Text('Created: $dateStr', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                  if (dateStr.isNotEmpty) Text(context.tr('createdOnDate').replaceAll('{date}', dateStr), style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
                 ])),
                 Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: _primary.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
-                  child: Text(RolePermissionService.roleDisplayName(role), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _primary))),
+                  child: Text(context.tr('role_$role'), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _primary))),
               ]));
             }).toList()),
-            _opHeader('MY SCHOOL SETTINGS'),
+            _opHeader(context.tr('manageSchoolSettings').toUpperCase()),
             _OPCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _opField(_schoolNameCtrl, 'School Name', Icons.school_outlined),
+              _opField(_schoolNameCtrl, context.tr('schoolNameLabel'), Icons.school_outlined),
               const SizedBox(height: 10),
-              _opField(_schoolPhoneCtrl, 'Phone Number', Icons.phone_outlined, keyboardType: TextInputType.phone),
+              _opField(_schoolPhoneCtrl, context.tr('phoneNumber'), Icons.phone_outlined, keyboardType: TextInputType.phone),
               const SizedBox(height: 10),
               _opField(
                 _schoolAddressCtrl,
-                'Address',
+                context.tr('addressLabel'),
                 Icons.location_on_outlined,
                 suffixIcon: _loadingLocation
                     ? const SizedBox(
@@ -1099,19 +1115,19 @@ class _OPManagePageState extends State<_OPManagePage> {
                     : IconButton(
                         icon: const Icon(Icons.my_location_outlined, color: _primary),
                         onPressed: _pickLocation,
-                        tooltip: 'Use Current Location',
+                        tooltip: context.tr('useCurrentLocationTooltip'),
                       ),
               ),
               const SizedBox(height: 10),
-              _opField(_academicYearCtrl, 'Academic Year', Icons.calendar_today_outlined),
+              _opField(_academicYearCtrl, context.tr('rvAcademicYear'), Icons.calendar_today_outlined),
               const SizedBox(height: 14),
               SizedBox(width: double.infinity, child: ElevatedButton.icon(
                 icon: _settingsSaving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.save_outlined),
-                label: Text(_settingsSaving ? 'Saving…' : 'Save Settings'),
+                label: Text(_settingsSaving ? context.tr('savingLabel') : context.tr('saveSettings')),
                 style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                 onPressed: _settingsSaving ? null : _saveSchoolSettings)),
             ])),
-            _opHeader('ANNOUNCEMENTS'),
+            _opHeader(context.tr('announcements').toUpperCase()),
             _OPCard(child: AnnouncementComposer(
               email: widget.email,
               role:  widget.role,

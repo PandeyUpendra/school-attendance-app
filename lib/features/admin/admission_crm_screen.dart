@@ -41,6 +41,17 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
     'Admitted'
   ];
 
+  String _localizeStage(BuildContext context, String stage) {
+    switch (stage) {
+      case 'Inquiry':      return context.tr('stageInquiry');
+      case 'Visit':        return context.tr('stageVisit');
+      case 'Docs Pending': return context.tr('stageDocsPending');
+      case 'Approved':     return context.tr('stageApproved');
+      case 'Admitted':     return context.tr('stageAdmitted');
+      default:             return stage;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -302,30 +313,30 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                   const SizedBox(height: 16),
                   
                   // Contact Details Section
-                  const Text('Contact Information', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  Text(context.tr('contactInformation'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
                   const SizedBox(height: 8),
-                  _buildDetailRow(Icons.person, 'Parent', lead.parentName),
-                  _buildDetailRow(Icons.phone, 'Phone', lead.parentPhone),
+                  _buildDetailRow(Icons.person, context.tr('parentLabel'), lead.parentName),
+                  _buildDetailRow(Icons.phone, context.tr('phone'), lead.parentPhone),
                   if (lead.parentEmail.isNotEmpty)
-                    _buildDetailRow(Icons.email, 'Email', lead.parentEmail),
+                    _buildDetailRow(Icons.email, context.tr('email'), lead.parentEmail),
                   
                   // Creator Details (requirement: proper track of who created)
                   if (lead.createdByEmail.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     _buildDetailRow(
                       Icons.account_circle_outlined, 
-                      'Logged By', 
+                      context.tr('loggedByLabel'), 
                       '${lead.createdByName} (${_formatRole(lead.createdByRole)})',
                     ),
                   ],
                   const SizedBox(height: 8),
-                  _buildDetailRow(Icons.calendar_today, 'Enquiry Date', _formatDateOnly(lead.createdAt)),
+                  _buildDetailRow(Icons.calendar_today, context.tr('enquiryDate'), _formatDateOnly(lead.createdAt)),
                   
                   const Divider(height: 24),
 
                   // Stage selector & Convert buttons (For Staff Only)
                   if (isStaff) ...[
-                    const Text('Pipeline Stage', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    Text(context.tr('pipelineStage'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       value: currentStage,
@@ -333,7 +344,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
-                      items: _stages.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                      items: _stages.map((s) => DropdownMenuItem(value: s, child: Text(_localizeStage(context, s)))).toList(),
                       onChanged: (val) async {
                         if (val != null) {
                           setS(() => currentStage = val);
@@ -364,7 +375,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                             );
                           },
                           icon: const Icon(Icons.person_add),
-                          label: const Text('Convert to Student Profile', style: TextStyle(fontWeight: FontWeight.bold)),
+                          label: Text(context.tr('convertToStudentProfile'), style: const TextStyle(fontWeight: FontWeight.bold)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.success,
                             foregroundColor: Colors.white,
@@ -377,7 +388,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                   ],
 
                   // Follow-up Log / Timeline
-                  const Text('Follow-Up History & Timeline', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.primary)),
+                  Text(context.tr('followUpHistoryTimeline'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.primary)),
                   const SizedBox(height: 12),
                   
                   _FollowUpTimeline(followUps: lead.followUps),
@@ -385,13 +396,13 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                   // Log New Follow-Up Section (Staff Only)
                   if (isStaff) ...[
                     const Divider(height: 24),
-                    const Text('Log New Follow-Up', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    Text(context.tr('logNewFollowUp'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: followUpCtrl,
                       maxLines: 2,
                       decoration: InputDecoration(
-                        hintText: 'Enter call details, meeting minutes, or notes here...',
+                        hintText: context.tr('enterFollowUpDetailsHint'),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                         contentPadding: const EdgeInsets.all(12),
                       ),
@@ -403,8 +414,8 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                         const SizedBox(width: 8),
                         Text(
                           tempNextDate == null 
-                              ? 'Schedule Next Contact (Optional)' 
-                              : 'Next Contact: ${_formatDateOnly(tempNextDate!)}',
+                              ? context.tr('scheduleNextContactOptional') 
+                              : context.tr('nextContactDateLabel').replaceAll('{date}', _formatDateOnly(tempNextDate!)),
                           style: TextStyle(
                             fontSize: 13, 
                             fontWeight: FontWeight.w600,
@@ -424,7 +435,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                               setS(() => tempNextDate = picked);
                             }
                           },
-                          child: const Text('Select Date'),
+                          child: Text(context.tr('selectDate')),
                         ),
                       ],
                     ),
@@ -437,7 +448,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                           final note = followUpCtrl.text.trim();
                           if (note.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter follow-up details first.')),
+                              SnackBar(content: Text(context.tr('pleaseEnterFollowUpFirst'))),
                             );
                             return;
                           }
@@ -446,8 +457,8 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                           if (ctx.mounted) {
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Follow-up logged successfully.'),
+                              SnackBar(
+                                content: Text(context.tr('followUpLoggedSuccess')),
                                 backgroundColor: AppTheme.success,
                               ),
                             );
@@ -458,7 +469,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        child: const Text('Save Details', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: Text(context.tr('saveDetailsBtn'), style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
@@ -569,7 +580,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Refer a Student'),
+        title: Text(context.tr('referStudentTitle')),
         backgroundColor: AppTheme.primaryDark,
         elevation: 0,
       ),
@@ -595,35 +606,35 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                 )
               ]
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.card_giftcard, color: Colors.white, size: 24),
-                    SizedBox(width: 8),
+                    const Icon(Icons.card_giftcard, color: Colors.white, size: 24),
+                    const SizedBox(width: 8),
                     Text(
-                      'Grow Our School Family!',
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      context.tr('growOurSchoolFamily'),
+                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
-                  'Refer your friends, relatives, or neighbors to join our community. Fill in their details and follow their enrollment progress below.',
-                  style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+                  context.tr('referralDescriptionText'),
+                  style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
                 ),
               ],
             ),
           ),
           
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'My Referrals',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                context.tr('myReferrals'),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
               ),
             ),
           ),
@@ -636,7 +647,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error loading referrals: ${snapshot.error}'));
+                  return Center(child: Text(context.tr('errorLoadingReferrals').replaceAll('{error}', snapshot.error.toString())));
                 }
 
                 final referrals = snapshot.data ?? [];
@@ -648,14 +659,14 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                       children: [
                         Icon(Icons.people_outline, size: 50, color: Colors.grey.shade400),
                         const SizedBox(height: 12),
-                        const Text(
-                          'You haven\'t referred anyone yet.',
-                          style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                        Text(
+                          context.tr('noReferralsYet'),
+                          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Tap the "+" button below to add your first referral!',
-                          style: TextStyle(color: Colors.grey, fontSize: 12),
+                        Text(
+                          context.tr('addFirstReferralPrompt'),
+                          style: const TextStyle(color: Colors.grey, fontSize: 12),
                         ),
                       ],
                     ),
@@ -684,7 +695,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 4),
-                            Text('Class: ${ref.className} • Parent: ${ref.parentName}'),
+                            Text(context.tr('referralClassParentLabel').replaceAll('{class}', ref.className).replaceAll('{parent}', ref.parentName)),
                             const SizedBox(height: 6),
                             Row(
                               children: [
@@ -711,7 +722,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
         onPressed: _showAddLeadDialog,
         backgroundColor: AppTheme.primary,
         icon: const Icon(Icons.add),
-        label: const Text('Add Referral'),
+        label: Text(context.tr('addReferralLabel')),
       ),
     );
   }
@@ -721,7 +732,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Admission CRM'),
+        title: Text(context.tr('admissionCrmTitle')),
         backgroundColor: AppTheme.primaryDark,
         elevation: 0,
         bottom: TabBar(
@@ -730,7 +741,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          tabs: _stages.map((s) => Tab(text: s)).toList(),
+          tabs: _stages.map((s) => Tab(text: _localizeStage(context, s))).toList(),
         ),
       ),
       body: Column(
@@ -756,7 +767,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                             },
                           )
                         : null,
-                    hintText: 'Search by student, parent, or creator...',
+                    hintText: context.tr('searchCrmHint'),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -773,7 +784,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                 Row(
                   children: [
                     FilterChip(
-                      label: const Text('My Enquiries Only'),
+                      label: Text(context.tr('myEnquiriesOnly')),
                       selected: _showMyEnquiriesOnly,
                       selectedColor: AppTheme.primaryLight.withOpacity(0.5),
                       checkmarkColor: AppTheme.primary,

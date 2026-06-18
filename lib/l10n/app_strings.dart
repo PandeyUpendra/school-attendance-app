@@ -2515,6 +2515,13 @@ class AppStrings {
     'noAnnouncementsYet': {'en': 'No announcements yet', 'hi': 'अभी तक कोई घोषणा नहीं'},
     'daysLeftLabel': {'en': '{count}d left', 'hi': '{count} दिन बचे'},
     'whatsAppReminderMessage': {'en': 'Dear Parent of {name}, your fee of {amount} is overdue. Please pay at the earliest.', 'hi': 'प्रिय {name} के अभिभावक, आपका {amount} का शुल्क बकाया है। कृपया जल्द से जल्द भुगतान करें।'},
+    'noOverdueFeesGreat': {'en': 'No overdue fees — great!', 'hi': 'कोई शुल्क बकाया नहीं है — बहुत बढ़िया!'},
+    'daysOverdueLabel': {'en': '{count} days overdue', 'hi': '{count} दिन बकाया'},
+    'whatsAppReminderMessageShort': {'en': 'Dear Parent of {name}, your fee is overdue.', 'hi': 'प्रिय {name} के अभिभावक, आपका शुल्क बकाया है।'},
+    'useCurrentLocationTooltip': {'en': 'Use Current Location', 'hi': 'वर्तमान स्थान का उपयोग करें'},
+    'loggedByLabel': {'en': 'Logged By', 'hi': 'दर्जकर्ता'},
+    'enquiryDate': {'en': 'Enquiry Date', 'hi': 'पूछताछ की तिथि'},
+    'searchCrmHint': {'en': 'Search by student, parent, or creator...', 'hi': 'छात्र, अभिभावक या निर्माता द्वारा खोजें...'},
 
     // Admission CRM Screen (Additional)
     'parentLabel': {'en': 'Parent', 'hi': 'अभिभावक'},

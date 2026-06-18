@@ -1167,17 +1167,21 @@ class _FinancePageState extends State<_FinancePage> {
   }
 
   Future<void> _sendReminders() async {
+    final msgTemplate = context.tr('whatsAppReminderMessage');
+    final title = context.tr('sendFeeRemindersTitle');
+    final prompt = context.tr('sendFeeRemindersPrompt').replaceAll('{count}', _defaulters.length.toString());
+    final cancelLabel = context.tr('cancel');
+    final sendAllLabel = context.tr('sendAll');
     final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(context.tr('sendFeeRemindersTitle')),
-      content: Text(context.tr('sendFeeRemindersPrompt').replaceAll('{count}', _defaulters.length.toString())),
+      title: Text(title),
+      content: Text(prompt),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.tr('cancel'))),
-        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success), onPressed: () => Navigator.pop(context, true), child: Text(context.tr('sendAll'))),
+        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(cancelLabel)),
+        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success), onPressed: () => Navigator.pop(context, true), child: Text(sendAllLabel)),
       ],
     ));
     if (ok != true) return;
-    final msgTemplate = context.tr('whatsAppReminderMessage');
     for (final d in _defaulters) {
       final phone = d['phone'] as String;
       if (phone.replaceAll(RegExp(r'\D'), '').isEmpty) continue;
@@ -1433,6 +1437,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                     : () async {
                         final pw = pwCtrl.text;
                         if (pw.isEmpty) return;
+                        final incorrectPwMsg = dialogCtx.tr('incorrectPassword');
                         setDlg(() => deleting = true);
                         try {
                           await AuthService().reauthenticate(widget.email, pw);
@@ -1440,7 +1445,7 @@ class _CreateAccountsPageState extends State<_CreateAccountsPage> {
                         } catch (_) {
                           if (dialogCtx.mounted) setDlg(() => deleting = false);
                           messenger.showSnackBar(
-                            SnackBar(content: Text(dialogCtx.tr('incorrectPassword'))),
+                            SnackBar(content: Text(incorrectPwMsg)),
                           );
                         }
                       },
