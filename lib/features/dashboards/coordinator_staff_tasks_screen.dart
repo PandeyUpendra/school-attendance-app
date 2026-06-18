@@ -305,7 +305,7 @@ class _AssignTabState extends State<_AssignTab> {
           taskTitle:         title,
           assignedTeacherId: t.id,
           assignedByName:    widget.coordinatorEmail,
-          dueDateStr:        _dueDate != null ? _fmtDate(_dueDate!) : null,
+          dueDateStr:        _dueDate != null ? _fmtDate(context, _dueDate!) : null,
           priority:          _priority.label,
         )));
 
@@ -343,8 +343,7 @@ class _AssignTabState extends State<_AssignTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Task Title ─────────────────────────────────────────────────────
-          const _Label('Task Title'),
+          _Label(context.tr('taskTitleLabel')),
           DropdownButtonFormField<String>(
             decoration: InputDecoration(
               contentPadding: const EdgeInsets.symmetric(
@@ -460,7 +459,7 @@ class _AssignTabState extends State<_AssignTab> {
                 const SizedBox(width: 8),
                 Text(
                   _dueDate != null
-                      ? _fmtDate(_dueDate!)
+                      ? _fmtDate(context, _dueDate!)
                       : context.tr('selectDueDateOptional'),
                   style: TextStyle(
                       fontSize: 13,
@@ -670,8 +669,8 @@ class _AssignTabState extends State<_AssignTab> {
               Expanded(
                 child: Text(
                   _selectedIds.length == 1
-                      ? 'Assigning to: ${_teachers.firstWhere((t) => t.id == _selectedIds.first).name}'
-                      : '${_selectedIds.length} people selected',
+                      ? context.tr('assigningToName').replaceAll('{name}', _teachers.firstWhere((t) => t.id == _selectedIds.first).name)
+                      : context.tr('countPeopleSelected').replaceAll('{count}', _selectedIds.length.toString()),
                   style: const TextStyle(
                       fontSize: 12,
                       color: AppTheme.primary,
@@ -722,10 +721,20 @@ class _AssignTabState extends State<_AssignTab> {
         ),
       );
 
-  String _fmtDate(DateTime dt) {
-    const mo = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  String _fmtDate(BuildContext context, DateTime dt) {
+    final mo = [
+      context.tr('month_Jan'),
+      context.tr('month_Feb'),
+      context.tr('month_Mar'),
+      context.tr('month_Apr'),
+      context.tr('month_May'),
+      context.tr('month_Jun'),
+      context.tr('month_Jul'),
+      context.tr('month_Aug'),
+      context.tr('month_Sep'),
+      context.tr('month_Oct'),
+      context.tr('month_Nov'),
+      context.tr('month_Dec'),
     ];
     return '${dt.day} ${mo[dt.month - 1]} ${dt.year}';
   }
@@ -851,6 +860,15 @@ class _AllTasksTabState extends State<_AllTasksTab> {
   TaskStatus? _filterStatus; // null = All
   String?     _filterTeacher; // null = All teachers
 
+  String _localizeStatus(BuildContext context, TaskStatus status) {
+    switch (status) {
+      case TaskStatus.completed:  return context.tr('completedLabel');
+      case TaskStatus.inProgress: return context.tr('inProgressLabel');
+      case TaskStatus.pending:    return context.tr('statusPending');
+      case TaskStatus.overdue:    return context.tr('hwOverdue');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -863,7 +881,7 @@ class _AllTasksTabState extends State<_AllTasksTab> {
             scrollDirection: Axis.horizontal,
             child: Row(children: [
               _FilterChip(
-                  label: 'All',
+                  label: context.tr('all'),
                   selected: _filterStatus == null,
                   onTap: () => setState(() => _filterStatus = null)),
               const SizedBox(width: 6),
@@ -871,7 +889,7 @@ class _AllTasksTabState extends State<_AllTasksTab> {
                 Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: _FilterChip(
-                      label: s.label,
+                      label: _localizeStatus(context, s),
                       selected: _filterStatus == s,
                       onTap: () => setState(() => _filterStatus = s)),
                 ),
@@ -1041,7 +1059,7 @@ class _CoordTaskCard extends StatelessWidget {
                 Text(
                   overdue
                       ? context.tr('overdueByDays').replaceAll('{days}', task.overdueDays.toString())
-                      : context.tr('dueWithDate').replaceAll('{date}', _fmtDate(task.dueDate!)),
+                      : context.tr('dueWithDate').replaceAll('{date}', _fmtDate(context, task.dueDate!)),
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: overdue
@@ -1083,10 +1101,20 @@ class _CoordTaskCard extends StatelessWidget {
     );
   }
 
-  String _fmtDate(DateTime dt) {
-    const mo = [
-      'Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec'
+  String _fmtDate(BuildContext context, DateTime dt) {
+    final mo = [
+      context.tr('month_Jan'),
+      context.tr('month_Feb'),
+      context.tr('month_Mar'),
+      context.tr('month_Apr'),
+      context.tr('month_May'),
+      context.tr('month_Jun'),
+      context.tr('month_Jul'),
+      context.tr('month_Aug'),
+      context.tr('month_Sep'),
+      context.tr('month_Oct'),
+      context.tr('month_Nov'),
+      context.tr('month_Dec'),
     ];
     return '${dt.day} ${mo[dt.month - 1]} ${dt.year}';
   }
