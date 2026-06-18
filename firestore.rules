@@ -60,6 +60,20 @@ service cloud.firestore {
       );
     }
 
+    /// Derives the Firestore student document ID from className, section, and roll.
+    /// Matches Student.buildDocId logic from the app.
+    function buildStudentId(cls, sec, roll) {
+      let base = replaceSpaces(cls);
+      let section = replaceSpaces(sec);
+      return (sec == '' || sec == null)
+        ? base + '_' + string(roll)
+        : (
+            base.upper().matches('.*-' + section.upper() + '$') || base.upper().matches('.*_' + section.upper() + '$')
+              ? base + '_' + string(roll)
+              : base + '_' + section + '_' + string(roll)
+          );
+    }
+
     function userEmail() {
       return isSignedIn() ? request.auth.token.email.lower() : '';
     }
@@ -180,9 +194,7 @@ service cloud.firestore {
     /// matching how the app builds student doc IDs. Used to scope guardian
     /// access to subcollections that carry no className/roll fields.
     function guardianStudentId() {
-      return userStudentSection() == '' || userStudentSection() == null
-        ? replaceSpaces(userStudentClass()) + '_' + string(userStudentRoll())
-        : replaceSpaces(userStudentClass()) + '_' + replaceSpaces(userStudentSection()) + '_' + string(userStudentRoll());
+      return buildStudentId(userStudentClass(), userStudentSection(), userStudentRoll());
     }
 
     /// True when caller's role exactly equals r.
@@ -265,12 +277,11 @@ service cloud.firestore {
             (targetStudentId != null && 'studentIds' in userData && targetStudentId in userData.studentIds) ||
             ('studentRoll' in userData && roll == string(userData.studentRoll) &&
              targetStudentId != null &&
-             targetStudentId == (
-               !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
-                 ? replaceSpaces(userData.studentClass) + '_' + string(userData.studentRoll)
-                 : replaceSpaces(userData.studentClass) + '_' + replaceSpaces(userData.studentSection) + '_' + string(userData.studentRoll)
-             )
-            )
+             targetStudentId == buildStudentId(
+               userData.studentClass,
+               'studentSection' in userData ? userData.studentSection : '',
+               userData.studentRoll
+             ))
            ))
         )
       );
@@ -291,12 +302,11 @@ service cloud.firestore {
           (role == 'guardian' && (
              ('studentIds' in userData && studentId in userData.studentIds) ||
              ('studentClass' in userData && 'studentRoll' in userData &&
-              studentId == (
-                !('studentSection' in userData) || userData.studentSection == '' || userData.studentSection == null
-                  ? replaceSpaces(userData.studentClass) + '_' + string(userData.studentRoll)
-                  : replaceSpaces(userData.studentClass) + '_' + replaceSpaces(userData.studentSection) + '_' + string(userData.studentRoll)
-              )
-             )
+              studentId == buildStudentId(
+                userData.studentClass,
+                'studentSection' in userData ? userData.studentSection : '',
+                userData.studentRoll
+              ))
           ))
         )
       );
