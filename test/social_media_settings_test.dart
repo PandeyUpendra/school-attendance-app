@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:school_app/services/base_firestore_service.dart';
-import 'package:school_app/services/school_settings_service.dart';
 import 'package:school_app/shared/providers/school_settings_provider.dart';
 
 void main() {

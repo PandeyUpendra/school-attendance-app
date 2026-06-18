@@ -311,7 +311,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
       ctrl.dispose();
     }
     if (!mounted || reason == null) return;
-    final finalReason = reason;
+    final String finalReason = reason;
     setState(() {
       _called[s.roll] = true;
       if (finalReason.isNotEmpty) _reasons[s.roll] = finalReason;

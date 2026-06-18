@@ -68,7 +68,7 @@ class _ParentalConsentFlowState extends State<ParentalConsentFlow> {
   _ConsentMethod _method    = _ConsentMethod.otp;
   bool   _otpSending        = false;
   bool   _otpSent           = false;
-  String _verificationId    = '';
+
   final _otpCtrl            = TextEditingController();
   bool   _verifying         = false;
   String? _otpError;
@@ -151,7 +151,7 @@ class _ParentalConsentFlowState extends State<ParentalConsentFlow> {
       );
       if (!mounted) return;
       setState(() {
-        _verificationId = email;
+
         _otpSent        = true;
         _otpSending     = false;
       });

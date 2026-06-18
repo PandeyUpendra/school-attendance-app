@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme.dart';
 import '../../l10n/app_strings.dart';
 import '../../services/auth_service.dart';
 import '../../services/timetable_service.dart';
 import '../../services/base_firestore_service.dart';
-import '../../shared/utils/validators.dart';
 import '../../shared/utils/app_functions.dart';
 import '../../shared/widgets/email_text_form_field.dart';
 import '../dashboards/guardian_dashboard.dart';
-import '../../shared/utils/app_transitions.dart';
 
 class GuardianRegisterScreen extends StatefulWidget {
   const GuardianRegisterScreen({super.key});
@@ -53,6 +48,8 @@ class _GuardianRegisterScreenState extends State<GuardianRegisterScreen> {
       _error = null;
     });
 
+    final failedToLinkMsg = context.tr('failedToLinkGuardian');
+
     try {
       // 1. Call registration Cloud Function to register and link student
       final result = await appFunctions.httpsCallable('registerGuardianWithInviteCode').call(<String, dynamic>{
@@ -70,7 +67,7 @@ class _GuardianRegisterScreenState extends State<GuardianRegisterScreen> {
       // 3. Fetch linked students
       final links = await TimetableService.instance.getGuardianLinks(email);
       if (links == null || links.isEmpty) {
-        throw Exception(context.tr('failedToLinkGuardian'));
+        throw Exception(failedToLinkMsg);
       }
 
       // 4. Save session and navigate

@@ -125,7 +125,7 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
                   pw.TableRow(
                     children: [
                       _buildInfoCell(AppStrings.get(lang, 'classSectionLabel'), '${s.className} ${s.section}', isHeader: true),
-                      _buildInfoCell(AppStrings.get(lang, 'admissionNumberLabel'), s.admissionId ?? 'N/A', isHeader: true),
+                      _buildInfoCell(AppStrings.get(lang, 'admissionNumberLabel'), s.admissionId.isEmpty ? 'N/A' : s.admissionId, isHeader: true),
                     ],
                   ),
                 ],

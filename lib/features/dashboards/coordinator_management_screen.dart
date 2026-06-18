@@ -422,7 +422,7 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
       } else {
         // Empty password → service generates a temp credential and emails the
         // coordinator an invite link so they set their own password.
-        final uid = await svc.addAllowedUser(
+        await svc.addAllowedUser(
           email, '', 'coordinator',
           name: name,
           // Inherit the principal's own school so the coordinator is created in

@@ -205,7 +205,6 @@ class FirestoreService {
 
       for (final doc in snap.docs) {
         final data = doc.data();
-        if (data == null) continue;
         data.forEach((k, v) {
           final roll = int.tryParse(k);
           if (roll != null) {
@@ -254,7 +253,6 @@ class FirestoreService {
       int totalPresent = 0, totalRecords = 0;
       for (final doc in snap.docs) {
         final data = doc.data();
-        if (data == null) continue;
         data.forEach((k, v) {
           final roll = int.tryParse(k);
           if (roll != null) {
@@ -292,7 +290,6 @@ class FirestoreService {
 
       for (final doc in sortedDocs) {
         final data = doc.data();
-        if (data == null) continue;
         final val = data[studentRoll.toString()];
         if (val != null) {
           history.add({

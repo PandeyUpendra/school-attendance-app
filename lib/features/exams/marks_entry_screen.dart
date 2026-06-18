@@ -284,16 +284,27 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
         futures.add(OfflineQueueService().enqueueExamResult(examId: exam.id, result: result));
       }
     }
-    await Future.wait(futures);
-    await _clearDraft();
-    if (!mounted) return;
-    setState(() => _saving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(isOnline ? context.tr('marksSavedSuccess') : 'Saved offline! Marks will sync automatically when network returns.'),
-        backgroundColor: isOnline ? Colors.green : Colors.orange,
-      ),
-    );
+    try {
+      await Future.wait(futures);
+      await _clearDraft();
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isOnline ? context.tr('marksSavedSuccess') : 'Saved offline! Marks will sync automatically when network returns.'),
+          backgroundColor: isOnline ? Colors.green : Colors.orange,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save marks: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 
   @override

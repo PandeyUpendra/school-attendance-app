@@ -1682,7 +1682,10 @@ class StudentService extends BaseFirestoreService {
             final d = int.tryParse(dateParts[2]);
             if (y != null && m != null && d != null) {
               final date = DateTime(y, m, d);
+              if (date.isBefore(today)) {
+                final cacheKey = '$_schoolId/${doc.id}';
                 _addToCache(cacheKey, doc.data());
+              }
             }
           }
         }

@@ -33,7 +33,6 @@ import '../substitution/substitution_history_screen.dart';
 import '../students/student_remarks_screen.dart';
 import '../students/staff_remarks_screen.dart';
 import '../tasks/staff_tasks_screen.dart';
-import '../meeting/teacher_meeting_tasks_screen.dart';
 import 'package:school_app/services/meeting_service.dart';
 import 'package:school_app/services/substitution_history_service.dart';
 import '../birthdays/birthdays_screen.dart';
@@ -703,9 +702,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _FeatureTile(
             icon: Icons.task_outlined,
             color: AppTheme.primary,
-            title: context.tr('myTasks'),
-            subtitle: context.tr('subMyTasksDesc'),
-            badge: _pendingTaskCount > 0 ? '$_pendingTaskCount' : null,
+            title: 'Tasks & Duties',
+            subtitle: 'Class duties & meeting decisions',
+            badge: (_pendingTaskCount + _pendingMeetingTasks) > 0 ? '${_pendingTaskCount + _pendingMeetingTasks}' : null,
             onTap: () async {
               await Navigator.push(
                 context,
@@ -715,23 +714,6 @@ class _HomeScreenState extends State<HomeScreen> {
               );
               _loadNotifCount();
             },
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.assignment_outlined,
-            color: AppTheme.primary,
-            title: context.tr('meetingTasks'),
-            subtitle: context.tr('subMeetingTasksDesc'),
-            badge: _pendingMeetingTasks > 0 ? '$_pendingMeetingTasks' : null,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TeacherMeetingTasksScreen(
-                  teacherId:   teacher?.id ?? '',
-                  teacherName: teacher?.name ?? '',
-                ),
-              ),
-            ),
           ),
 
           _SectionHeader(context.tr('secAnnouncements')),
@@ -1068,9 +1050,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _FeatureTile(
           icon: Icons.task_outlined,
           color: AppTheme.primary,
-          title: context.tr('myTasks'),
-          subtitle: context.tr('subMyTasksDesc'),
-          badge: _pendingTaskCount > 0 ? '$_pendingTaskCount' : null,
+          title: 'Tasks & Duties',
+          subtitle: 'Class duties & meeting decisions',
+          badge: (_pendingTaskCount + _pendingMeetingTasks) > 0 ? '${_pendingTaskCount + _pendingMeetingTasks}' : null,
           onTap: () async {
             await Navigator.push(
               context,
@@ -1079,23 +1061,6 @@ class _HomeScreenState extends State<HomeScreen> {
             );
             _loadNotifCount();
           },
-        ),
-        const _Divider(),
-        _FeatureTile(
-          icon: Icons.assignment_outlined,
-          color: AppTheme.primary,
-          title: context.tr('meetingTasks'),
-          subtitle: context.tr('subMeetingTasksDesc'),
-          badge: _pendingMeetingTasks > 0 ? '$_pendingMeetingTasks' : null,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TeacherMeetingTasksScreen(
-                teacherId:   teacher?.id ?? '',
-                teacherName: teacher?.name ?? '',
-              ),
-            ),
-          ),
         ),
 
         _SectionHeader(context.tr('secAnnouncements')),

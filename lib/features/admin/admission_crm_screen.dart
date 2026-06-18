@@ -185,15 +185,16 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                 schoolId: '',
               );
               await _leadService.addLead(lead);
+              if (!mounted) return;
               if (ctx.mounted) {
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Admission Enquiry saved successfully!'),
-                    backgroundColor: AppTheme.success,
-                  ),
-                );
               }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Admission Enquiry saved successfully!'),
+                  backgroundColor: AppTheme.success,
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primary,

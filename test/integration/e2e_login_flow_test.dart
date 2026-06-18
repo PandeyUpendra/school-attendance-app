@@ -22,6 +22,7 @@ import 'package:school_app/services/birthday_service.dart';
 import 'package:school_app/services/copy_check_service.dart';
 import 'package:school_app/services/fee_service.dart';
 import 'package:school_app/shared/providers/locale_provider.dart';
+import 'package:school_app/shared/providers/school_settings_provider.dart';
 import 'package:school_app/shared/widgets/email_text_form_field.dart';
 import '../test_helpers.dart';
 
@@ -189,8 +190,11 @@ void main() {
   });
 
   Widget createLoginScreen() {
-    return ChangeNotifierProvider(
-      create: (_) => LocaleProvider('en'),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => SchoolSettingsProvider()),
+        ChangeNotifierProvider(create: (_) => LocaleProvider('en')),
+      ],
       child: const MaterialApp(
         home: LoginScreen(),
       ),

@@ -1588,7 +1588,7 @@ class _GuardianHeroCard extends StatelessWidget {
     const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const dy = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
     final dateStr = '${dy[now.weekday-1]}, ${now.day} ${mo[now.month-1]}'.toUpperCase();
-    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+
 
     return ClipPath(
       clipper: _WaveClipper(),
@@ -2284,81 +2284,7 @@ class _SchoolInfoCard extends StatelessWidget {
 
 // ─── Today's status banner ───────────────────────────────────────────────────
 
-class _TodayBanner extends StatelessWidget {
-  final String? status;
-  final bool hasConsent;
-  const _TodayBanner({required this.status, required this.hasConsent});
 
-  @override
-  Widget build(BuildContext context) {
-    Color color;
-    IconData icon;
-    String title;
-    String sub;
-
-    if (!hasConsent) {
-      color = Colors.orange;
-      icon  = Icons.lock_outline;
-      title = 'Consent Required';
-      sub   = "Today's attendance status is gated on consent.";
-    } else {
-      switch (status) {
-        case 'Present':
-          color = AppTheme.success;
-          icon  = Icons.check_circle_outline;
-          title = 'Present Today';
-          sub   = 'Your child attended school today.';
-          break;
-        case 'Absent':
-          color = AppTheme.danger;
-          icon  = Icons.cancel_outlined;
-          title = 'Absent Today';
-          sub   = 'Your child was marked absent today.';
-          break;
-        case 'Leave':
-          color = AppTheme.warning;
-          icon  = Icons.event_busy_outlined;
-          title = 'On Leave Today';
-          sub   = 'Your child is on approved leave today.';
-          break;
-        default:
-          color = Colors.grey;
-          icon  = Icons.schedule_outlined;
-          title = 'Attendance Not Marked';
-          sub   = "The class teacher hasn't taken attendance yet today.";
-      }
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(children: [
-        Icon(icon, color: color, size: 32),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: color)),
-              const SizedBox(height: 2),
-              Text(sub,
-                  style:
-                      TextStyle(fontSize: 12, color: Colors.grey.shade700)),
-            ],
-          ),
-        ),
-      ]),
-    );
-  }
-}
 
 // ─── Combined attendance calendar card ───────────────────────────────────────
 
