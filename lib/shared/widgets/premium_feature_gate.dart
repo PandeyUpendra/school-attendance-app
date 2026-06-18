@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../services/licensing_service.dart';
 import '../providers/school_settings_provider.dart';
 import '../../theme.dart';
+import '../../l10n/app_strings.dart';
 
 class PremiumFeatureGate extends StatelessWidget {
   final String feature;
@@ -40,8 +41,8 @@ class PremiumFeatureGate extends StatelessWidget {
     final targetPlanLabel = licensing.getPlanDisplayName(targetPlan);
     final targetPlanPrice = licensing.getPlanPrice(targetPlan);
     
-    final featName = featureNameOverride ?? _getDefaultFeatureName(feature);
-    final featDesc = featureDescOverride ?? _getDefaultFeatureDesc(feature);
+    final featName = featureNameOverride ?? _getDefaultFeatureName(context, feature);
+    final featDesc = featureDescOverride ?? _getDefaultFeatureDesc(context, feature);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -120,7 +121,7 @@ class PremiumFeatureGate extends StatelessWidget {
                   const SizedBox(height: 20),
                   // Upgrade callout
                   Text(
-                    'Available on $targetPlanLabel',
+                    context.tr('availableOnPlan').replaceAll('{plan}', targetPlanLabel),
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -130,7 +131,7 @@ class PremiumFeatureGate extends StatelessWidget {
                   const SizedBox(height: 4),
                   if (targetPlanPrice.isNotEmpty)
                     Text(
-                      'Starting at $targetPlanPrice',
+                      context.tr('startingAtPrice').replaceAll('{price}', targetPlanPrice),
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade600,
@@ -152,7 +153,7 @@ class PremiumFeatureGate extends StatelessWidget {
                             side: const BorderSide(color: AppTheme.border),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: const Text('Go Back'),
+                          child: Text(context.tr('goBack')),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -168,7 +169,7 @@ class PremiumFeatureGate extends StatelessWidget {
                             elevation: 0,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: const Text('Upgrade Plan'),
+                          child: Text(context.tr('upgradePlan')),
                         ),
                       ),
                     ],
@@ -182,37 +183,37 @@ class PremiumFeatureGate extends StatelessWidget {
     );
   }
 
-  String _getDefaultFeatureName(String feat) {
+  String _getDefaultFeatureName(BuildContext context, String feat) {
     switch (feat) {
       case 'expense_tracking':
-        return 'Expense Ledger & Budgeting';
+        return context.tr('featExpenseLedger');
       case 'profit_loss':
-        return 'School Profit & Loss Ledger';
+        return context.tr('featProfitLoss');
       case 'advanced_analytics':
-        return 'Advanced Financial Analytics';
+        return context.tr('featAdvancedAnalytics');
       case 'biometric_integration':
-        return 'RFID & Biometric Gate Sync';
+        return context.tr('featBiometricIntegration');
       case 'custom_branding':
-        return 'White-Labeled Branding';
+        return context.tr('featCustomBranding');
       default:
-        return 'Premium Operations Module';
+        return context.tr('featPremiumOperations');
     }
   }
 
-  String _getDefaultFeatureDesc(String feat) {
+  String _getDefaultFeatureDesc(BuildContext context, String feat) {
     switch (feat) {
       case 'expense_tracking':
-        return 'Log, filter, and track salaries, utilities, and maintenance costs to maintain a healthy budget.';
+        return context.tr('featExpenseLedgerDesc');
       case 'profit_loss':
-        return 'Generate statements and visual charts comparing parent fee income against school expenses.';
+        return context.tr('featProfitLossDesc');
       case 'advanced_analytics':
-        return 'Analyze fee collection rates, overdue metrics, and operational cost breakdowns over time.';
+        return context.tr('featAdvancedAnalyticsDesc');
       case 'biometric_integration':
-        return 'Automatically mark students present using physical smart cards, gate scans, or biometric hardware.';
+        return context.tr('featBiometricIntegrationDesc');
       case 'custom_branding':
-        return 'Display your own institution logo, brand colors, custom app store publishing, and subdomain.';
+        return context.tr('featCustomBrandingDesc');
       default:
-        return 'This module is restricted to commercial subscription tiers.';
+        return context.tr('featPremiumOperationsDesc');
     }
   }
 
@@ -221,16 +222,15 @@ class PremiumFeatureGate extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.mark_email_read_outlined, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Request Sent'),
+            const Icon(Icons.mark_email_read_outlined, color: Colors.green),
+            const SizedBox(width: 8),
+            Text(context.tr('requestSent')),
           ],
         ),
         content: Text(
-          'A subscription upgrade request to $targetPlan has been sent to your Account Manager. '
-          'We will reach out to the school administration within 24 hours to activate $featureName.',
+          context.tr('upgradeRequestSentDesc').replaceAll('{plan}', targetPlan).replaceAll('{feature}', featureName),
         ),
         actions: [
           ElevatedButton(
@@ -238,7 +238,7 @@ class PremiumFeatureGate extends StatelessWidget {
               Navigator.pop(ctx);
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary, foregroundColor: Colors.white),
-            child: const Text('OK'),
+            child: Text(context.tr('ok')),
           ),
         ],
       ),

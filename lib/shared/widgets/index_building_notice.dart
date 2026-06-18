@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_strings.dart';
 
 import '../../theme.dart';
 
@@ -41,14 +42,14 @@ class IndexBuildingNotice extends StatelessWidget {
         children: [
           const Icon(Icons.build_circle, color: AppTheme.warning, size: 40),
           const SizedBox(height: 8),
-          const Text(
-            'Setting up... Please wait',
-            style: TextStyle(fontWeight: FontWeight.bold),
+          Text(
+            context.tr('settingUpPleaseWait'),
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Refresh in 2-3 minutes',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+          Text(
+            context.tr('refresh23Minutes'),
+            style: const TextStyle(color: Colors.grey, fontSize: 12),
           ),
           if (onRetry != null) ...[
             const SizedBox(height: 12),
@@ -57,7 +58,7 @@ class IndexBuildingNotice extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
               ),
-              child: const Text('Retry'),
+              child: Text(context.tr('retry')),
             ),
           ],
         ],

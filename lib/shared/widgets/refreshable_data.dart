@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme.dart';
+import '../../l10n/app_strings.dart';
 
 /// A standardized loading indicator with an accompanying message.
 ///
@@ -153,13 +154,17 @@ class RefreshableData extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resolvedLoadingMessage = loadingMessage == 'Loading…' ? context.tr('loadingEllipsis') : loadingMessage;
+    final resolvedEmptyMessage = emptyMessage == 'Nothing here yet' ? context.tr('nothingHereYet') : emptyMessage;
+    final resolvedErrorMessage = errorMessage == 'Could not load data' ? context.tr('couldNotLoadData') : errorMessage;
+
     Widget child;
     if (loading) {
-      child = _scrollable(LoadingState(message: loadingMessage));
+      child = _scrollable(LoadingState(message: resolvedLoadingMessage));
     } else if (hasError) {
-      child = _scrollable(ErrorState(message: errorMessage));
+      child = _scrollable(ErrorState(message: resolvedErrorMessage));
     } else if (isEmpty) {
-      child = _scrollable(EmptyState(message: emptyMessage, icon: emptyIcon));
+      child = _scrollable(EmptyState(message: resolvedEmptyMessage, icon: emptyIcon));
     } else {
       child = builder(context);
     }
