@@ -37,6 +37,7 @@ import '../students/deleted_students_screen.dart';
 import '../tasks/unified_staff_task_screen.dart';
 import '../substitution/absent_teachers_screen.dart';
 import 'package:school_app/services/staff_task_service.dart';
+import 'package:school_app/services/copy_check_service.dart';
 import '../../shared/utils/role_guard.dart';
 import '../../shared/utils/app_transitions.dart';
 import '../exams/exam_datesheet_screen.dart';
@@ -91,6 +92,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
   List<ClassSummary>       _summaries          = [];
   Map<String, Map<int, int>> _streaks          = {}; // className → roll → days
   int  _pendingLeaveCount   = 0;
+  int  _copyCheckingStatusCount = 0;
   int  _unreadNotifCount    = 0;
   int  _teachersAbsent      = 0;
   int  _unassignedBells     = 0;
@@ -202,9 +204,11 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
     // Fire attendance-related reads in parallel (badges handled by streams).
     final summariesFuture  = StudentService.instance.loadTodayFullSummary(classes: classes);
     final absentInfoFuture = TimetableService.instance.getTodayAbsentTeachersInfo();
+    final copyChecksFuture = CopyCheckService().getAllChecks();
 
     final summaries  = await summariesFuture;
     final absentInfo = await absentInfoFuture;
+    final copyChecks = await copyChecksFuture;
 
     // Load consecutive absence streaks for all classes in parallel.
     final streaksList = await Future.wait(
@@ -215,6 +219,14 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
       streaks[classes[i]] = streaksList[i];
     }
 
+    final filteredChecks = copyChecks.where((c) => classes.contains(c.className));
+    int copyCheckingStatus = 0;
+    for (final check in filteredChecks) {
+      if (check.pendingCount != null) {
+        copyCheckingStatus += check.pendingCount!;
+      }
+    }
+
     if (!mounted) return;
     setState(() {
       _coordEmail        = email;
@@ -222,6 +234,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
       _streaks           = streaks;
       _teachersAbsent    = absentInfo['absentCount']    ?? 0;
       _unassignedBells   = absentInfo['unassignedBells'] ?? 0;
+      _copyCheckingStatusCount = copyCheckingStatus;
       _attendanceLoading = false;
     });
   }
@@ -272,7 +285,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
                 delay: const Duration(milliseconds: 50),
                 child: _CoordinatorMorningSummaryCard(
                   absentStudents: _summaries.fold(0, (acc, s) => acc + s.absent),
-                  pendingLeaves: _pendingLeaveCount,
+                  copyCheckingStatus: _copyCheckingStatusCount,
                   absentTeachers: _teachersAbsent,
                   incompleteTasks: _incompleteTaskCount,
                   onViewTasks: () => _navigate(UnifiedStaffTaskScreen(
@@ -1381,14 +1394,14 @@ class _FeatureTile extends StatelessWidget {
 
 class _CoordinatorMorningSummaryCard extends StatelessWidget {
   final int absentStudents;
-  final int pendingLeaves;
+  final int copyCheckingStatus;
   final int absentTeachers;
   final int incompleteTasks;
   final VoidCallback onViewTasks;
 
   const _CoordinatorMorningSummaryCard({
     required this.absentStudents,
-    required this.pendingLeaves,
+    required this.copyCheckingStatus,
     required this.absentTeachers,
     required this.incompleteTasks,
     required this.onViewTasks,
@@ -1458,9 +1471,9 @@ class _CoordinatorMorningSummaryCard extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _buildMetricTile(
-                        icon: Icons.hourglass_top_outlined,
-                        label: 'Pending Leaves',
-                        value: '$pendingLeaves',
+                        icon: Icons.menu_book_outlined,
+                        label: 'Copy Checking Status',
+                        value: '$copyCheckingStatus',
                         color: Colors.orangeAccent.shade100,
                       ),
                     ),
