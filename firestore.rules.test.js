@@ -397,6 +397,60 @@ describe('Firestore Security Rules', () => {
       );
     });
 
+    test('ALLOW — class teacher can update skeleton student in their class', async () => {
+      // Set up skeleton document with only commsConsent
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        const adb = ctx.firestore();
+        await setDoc(doc(adb, schoolPath('students', 'Class_9-A_A_1')), {
+          commsConsent: true,
+        });
+      });
+
+      // Ms. Nair teaches Class 9-A, so she should be able to update Class_9-A_A_1
+      await assertSucceeds(
+        setDoc(
+          doc(db(UID.teacher9A), schoolPath('students', 'Class_9-A_A_1')),
+          {
+            roll: 1,
+            name: 'John Doe',
+            className: 'Class 9-A',
+            section: 'A',
+            fatherName: 'Father Doe',
+            phone: '9999000003',
+            feeStatus: 'Pending',
+            commsConsent: true,
+          },
+        ),
+      );
+    });
+
+    test('DENY — class teacher cannot update skeleton student in another class', async () => {
+      // Set up skeleton document with only commsConsent
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        const adb = ctx.firestore();
+        await setDoc(doc(adb, schoolPath('students', 'Class_9-A_A_1')), {
+          commsConsent: true,
+        });
+      });
+
+      // Mr. Singh teaches Class 10-B, so he should not be able to update Class_9-A_A_1
+      await assertFails(
+        setDoc(
+          doc(db(UID.teacher10B), schoolPath('students', 'Class_9-A_A_1')),
+          {
+            roll: 1,
+            name: 'John Doe',
+            className: 'Class 9-A',
+            section: 'A',
+            fatherName: 'Father Doe',
+            phone: '9999000003',
+            feeStatus: 'Pending',
+            commsConsent: true,
+          },
+        ),
+      );
+    });
+
     test('DENY — CRITICAL: teacher cannot write students in another class', async () => {
       // teacher9A.classIds = ['Class 9-A'] → cannot write Class 10-B
       await assertFails(
