@@ -37,6 +37,8 @@ import './expense_ledger_screen.dart';
 import './profit_loss_screen.dart';
 import './cash_reconciliation_screen.dart';
 import './transport_driver_screen.dart';
+import './coordinator_deletion_requests_screen.dart';
+import '../../services/coordinator_deletion_service.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Owner Home — menu-list entry point
@@ -396,6 +398,15 @@ class _OwnerHomeState extends State<OwnerHome> {
             )),
           ),
           _FeatureTile(
+            icon: Icons.person_remove_outlined,
+            color: AppTheme.primaryMid,
+            title: context.tr('coordinatorDeletionRequests'),
+            subtitle: context.tr('subCoordinatorDeletionDesc'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const CoordinatorDeletionRequestsScreen(),
+            )),
+          ),
+          _FeatureTile(
             icon: Icons.campaign_outlined,
             color: AppTheme.primaryMid,
             title: context.tr('announcements'),
@@ -463,7 +474,7 @@ class _OwnerHomeState extends State<OwnerHome> {
                       '${context.tr('role_owner').toUpperCase()}  ·  $dateStr',
                       style: const TextStyle(
                           color: Colors.white70, fontSize: 11,
-                          fontWeight: FontWeight.w600, letterSpacing: 0.9),
+                          fontWeight: FontWeight.bold, letterSpacing: 0.9),
                     ),
                   ),
                   IconButton(
@@ -600,6 +611,16 @@ class _DashPageState extends State<_DashPage> {
       }
       final leaves = await _svc.getLeaveApplications(status: 'pending');
       if (leaves.length > 3) alerts.add('${leaves.length} leave requests pending approval');
+
+      final coordDelsSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(AuthService.currentSchoolId)
+          .collection('coordinator_deletion_requests')
+          .where('status', isEqualTo: 'pending')
+          .get();
+      if (coordDelsSnap.docs.isNotEmpty) {
+        alerts.add('${coordDelsSnap.docs.length} coordinator deletion request(s) pending approval');
+      }
 
       final studentsByClass = {for (final s in summaries) s.className: s.total};
       final spots = <FlSpot>[];

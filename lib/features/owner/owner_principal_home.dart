@@ -31,6 +31,7 @@ import '../../shared/widgets/refreshable_data.dart';
 import '../../shared/utils/app_logger.dart';
 import '../../shared/utils/phone_utils.dart';
 import '../../shared/utils/currency_utils.dart';
+import './coordinator_deletion_requests_screen.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Owner-Principal Home — menu-list entry point
@@ -190,6 +191,15 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
             subtitle: context.tr('staffOverviewSubtitle'),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _OPStaffPage())),
           ),
+          _FeatureTile(
+            icon: Icons.person_remove_outlined,
+            color: AppTheme.primary,
+            title: context.tr('coordinatorDeletionRequests'),
+            subtitle: context.tr('subCoordinatorDeletionDesc'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const CoordinatorDeletionRequestsScreen(),
+            )),
+          ),
 
           _SectionHeader(context.tr('sectionAcademics')),
           _FeatureTile(
@@ -264,7 +274,7 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
                   Expanded(
                     child: Text(
                       '${context.tr('role_ownerPrincipal').toUpperCase()}  ·  $dateStr',
-                      style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.9),
+                      style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.9),
                     ),
                   ),
                   IconButton(

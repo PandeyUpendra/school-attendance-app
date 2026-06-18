@@ -939,6 +939,44 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
+    // COORDINATOR DELETION REQUESTS
+    // (/schools/{sid}/coordinator_deletion_requests/{requestId})
+    //
+    // Workflow: a principal files a request; only the OWNER (or ownerPrincipal)
+    // reviews and approves/rejects it.
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/coordinator_deletion_requests/{requestId} {
+
+      allow read: if isSignedIn() && inSchool(sid) && isManagement();
+
+      allow create: if isSignedIn() && inSchool(sid)
+        && hasAnyRole(['principal', 'ownerPrincipal'])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.requestedBy == userEmail();
+
+      allow update: if isSignedIn() && inSchool(sid) && (
+        // Owner / ownerPrincipal: approve or reject. May only touch status + reviewer-stamp fields.
+        (hasAnyRole(['owner', 'ownerPrincipal'])
+          && resource.data.status == 'pending'
+          && request.resource.data.status in ['approved', 'rejected']
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'reviewedBy', 'reviewedByRole',
+                         'reviewedByName', 'reviewedAt', 'rejectionNote'])) ||
+
+        // Original requester: cancel their own pending request.
+        (hasAnyRole(['principal', 'ownerPrincipal'])
+          && resource.data.requestedBy == userEmail()
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'cancelled'
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'cancelledAt']))
+      );
+
+      allow delete: if isSignedIn() && inSchool(sid) && isStrictAdmin();
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
     // STUDENT DELETION REQUESTS
     // (/schools/{sid}/student_deletion_requests/{requestId})
     //

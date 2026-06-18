@@ -1045,7 +1045,7 @@ class _CoordHeroCard extends StatelessWidget {
                       style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.bold,
                           letterSpacing: 0.9),
                     ),
                   ),

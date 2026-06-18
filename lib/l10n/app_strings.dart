@@ -298,6 +298,7 @@ class AppStrings {
     'schoolSettings':          {'en': 'School Settings',            'hi': 'स्कूल सेटिंग्स'},
     'announcements':           {'en': 'Announcements',              'hi': 'घोषणाएँ'},
     'teacherDeletionRequests': {'en': 'Teacher Deletion Requests',  'hi': 'शिक्षक हटाने के अनुरोध'},
+    'coordinatorDeletionRequests': {'en': 'Coordinator Deletion Requests', 'hi': 'समन्वयक हटाने के अनुरोध'},
     'studentDeletionRequests': {'en': 'Student Deletion Requests',  'hi': 'छात्र हटाने के अनुरोध'},
     'schoolTimetable':         {'en': 'School Timetable',           'hi': 'स्कूल समय-सारिणी'},
     'studentRecords':          {'en': 'Student Records',            'hi': 'छात्र रिकॉर्ड'},
@@ -315,6 +316,7 @@ class AppStrings {
     'subAnnouncementsPrincipalDesc': {'en': 'Post and view school notices', 'hi': 'स्कूल सूचनाएँ पोस्ट करें और देखें'},
     'subLeaveApproveDesc':           {'en': 'Review & approve pending applications from teachers', 'hi': 'शिक्षकों के लंबित आवेदनों की समीक्षा और स्वीकृति'},
     'subTeacherDeletionDesc':        {'en': 'Review & approve coordinator requests to remove teachers', 'hi': 'शिक्षक हटाने के समन्वयक अनुरोधों की समीक्षा और स्वीकृति'},
+    'subCoordinatorDeletionDesc':    {'en': 'Review & approve principal requests to remove coordinators', 'hi': 'समन्वयक हटाने के प्रधानाचार्य अनुरोधों की समीक्षा और स्वीकृति'},
     'subAttendanceReportsDesc':      {'en': 'Monthly history, % per student & low-attendance flags', 'hi': 'मासिक इतिहास, प्रति छात्र % और कम-उपस्थिति फ़्लैग'},
     'subStudentRecordsDesc':         {'en': 'View student details and contact info by class', 'hi': 'कक्षावार छात्र विवरण और संपर्क जानकारी देखें'},
     'subAuditLogDesc':               {'en': 'View all create/update/delete actions with before/after diff', 'hi': 'सभी क्रियाओं को पहले/बाद के अंतर के साथ देखें'},
@@ -615,6 +617,7 @@ class AppStrings {
     'approveDeletion':       {'en': 'Approve Deletion',    'hi': 'हटाना स्वीकृत करें'},
     'permanentlyRemovePrefix':{'en': 'Permanently remove', 'hi': 'स्थायी रूप से हटाएँ:'},
     'teacherDeletionWarning':{'en': 'This deletes their teacher record, scrubs them from every timetable slot, and revokes their login. This cannot be undone.', 'hi': 'इससे उनका शिक्षक रिकॉर्ड हट जाएगा, हर समय-सारिणी स्लॉट से हट जाएँगे, और लॉगिन रद्द हो जाएगा। इसे पूर्ववत नहीं किया जा सकता।'},
+    'coordinatorDeletionWarning':{'en': 'This deletes their coordinator record and revokes their login. This cannot be undone.', 'hi': 'इससे उनका समन्वयक रिकॉर्ड हट जाएगा और उनका लॉगिन रद्द हो जाएगा। इसे पूर्ववत नहीं किया जा सकता।'},
     'approveAndDelete':      {'en': 'Approve & Delete',    'hi': 'स्वीकृत करें और हटाएँ'},
     'removedSuffix':         {'en': 'removed.',            'hi': 'हटा दिया गया।'},
     'errorPrefix':           {'en': 'Error:',             'hi': 'त्रुटि:'},
@@ -2448,9 +2451,12 @@ class AppStrings {
     'sendLoginInviteConfirm': {'en': 'This will create a login account for {name} and send a password-setup link to {email}.\n\nThey can use it to set their password and sign in.', 'hi': 'इससे {name} के लिए एक लॉगिन खाता बन जाएगा और {email} पर पासवर्ड-सेटअप लिंक भेजा जाएगा।\n\nवे इसका उपयोग अपना पासवर्ड सेट करने और साइन इन करने के लिए कर सकते हैं।'},
 
     'teacherDeletionRequestPending': {'en': 'A deletion request for {name} is already pending.', 'hi': '{name} के लिए हटाने का अनुरोध पहले से लंबित है।'},
+    'coordinatorDeletionRequestPending': {'en': 'A deletion request for {name} is already pending.', 'hi': '{name} के लिए हटाने का अनुरोध पहले से लंबित है।'},
     'requestDeletionTitle': {'en': 'Request Deletion', 'hi': 'हटाने का अनुरोध'},
     'teacherQueuedForReviewSingle': {'en': '{name} will be queued for the principal or owner to review. Add an optional reason:', 'hi': '{name} को प्रधानाचार्य या मालिक की समीक्षा के लिए कतारबद्ध किया जाएगा। एक वैकल्पिक कारण जोड़ें:'},
+    'coordinatorQueuedForReviewSingle': {'en': '{name} will be queued for the owner to review. Add an optional reason:', 'hi': '{name} को मालिक की समीक्षा के लिए कतारबद्ध किया जाएगा। एक वैकल्पिक कारण जोड़ें:'},
     'deletionRequestSentSuccess': {'en': 'Deletion request sent for {name}. The principal will review it.', 'hi': '{name} के लिए हटाने का अनुरोध भेजा गया। प्रधानाचार्य इसकी समीक्षा करेंगे।'},
+    'deletionRequestSentSuccessForCoordinator': {'en': 'Deletion request sent for {name}. The owner will review it.', 'hi': '{name} के लिए हटाने का अनुरोध भेजा गया। स्कूल मालिक इसकी समीक्षा करेंगे।'},
 
     // Days of the Week
     'days_Monday': {'en': 'Monday', 'hi': 'सोमवार'},

@@ -7,6 +7,7 @@ import '../../theme.dart';
 import '../../shared/utils/validators.dart';
 import '../../shared/widgets/email_text_form_field.dart';
 import '../../shared/widgets/refreshable_data.dart';
+import '../../services/coordinator_deletion_service.dart';
 
 /// Principal-only screen to create, edit, and delete coordinator accounts.
 class CoordinatorManagementScreen extends StatefulWidget {
@@ -156,7 +157,6 @@ class _CoordinatorManagementScreenState
                     itemBuilder: (_, i) => _CoordCard(
                       coord: _coordinators[i],
                       onEdit: () => _openForm(existing: _coordinators[i]),
-                      onDelete: () => _delete(_coordinators[i]),
                     ),
                   ),
                 ),
@@ -186,9 +186,8 @@ class _CoordinatorManagementScreenState
 class _CoordCard extends StatelessWidget {
   final Map<String, dynamic> coord;
   final VoidCallback onEdit;
-  final VoidCallback onDelete;
 
-  const _CoordCard({required this.coord, required this.onEdit, required this.onDelete});
+  const _CoordCard({required this.coord, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -207,50 +206,46 @@ class _CoordCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2))],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: AppTheme.primary,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: Colors.white.withValues(alpha: 0.2),
-                  radius: 24,
-                  child: Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : '?',
-                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onEdit,
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: AppTheme.primary,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                      if (desig != null && desig.isNotEmpty)
-                        Text(desig, style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12)),
-                    ],
-                  ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                      radius: 24,
+                      child: Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : '?',
+                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                          if (desig != null && desig.isNotEmpty)
+                            Text(desig, style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right, color: Colors.white70),
+                  ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, color: Colors.white),
-                  onPressed: onEdit,
-                  tooltip: context.tr('edit'),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.white70),
-                  onPressed: onDelete,
-                  tooltip: context.tr('removeAction'),
-                ),
-              ],
-            ),
-          ),
+              ),
           // Details
           Padding(
             padding: const EdgeInsets.all(16),
@@ -629,6 +624,97 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
                                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                       ),
                     ),
+
+                    if (_isEdit) ...[
+                      const SizedBox(height: 16),
+                      StreamBuilder<Map<String, String>>(
+                        stream: CoordinatorDeletionService().streamPendingByCoordinatorEmail(AuthService.currentSchoolId),
+                        builder: (context, snapshot) {
+                          final email = _emailCtrl.text.trim().toLowerCase();
+                          final pendingId = snapshot.data?[email];
+                          final hasPending = pendingId != null;
+
+                          if (hasPending) {
+                            return Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.orange.shade200),
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.hourglass_empty_outlined, color: Colors.orange.shade700, size: 18),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          context.tr('deletionRequestedAwaiting'),
+                                          style: TextStyle(color: Colors.orange.shade800, fontSize: 13, fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.orange.shade800,
+                                      side: BorderSide(color: Colors.orange.shade300),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                    icon: const Icon(Icons.cancel_outlined, size: 16),
+                                    label: Text(context.tr('cancelDeletionRequest'), style: const TextStyle(fontSize: 12)),
+                                    onPressed: _saving ? null : () async {
+                                      setState(() => _saving = true);
+                                      try {
+                                        await CoordinatorDeletionService().cancelMyRequest(
+                                          schoolId: AuthService.currentSchoolId,
+                                          requestId: pendingId,
+                                        );
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text(context.tr('deletionRequestWithdrawn').replaceAll('{name}', _nameCtrl.text))),
+                                          );
+                                          Navigator.pop(context);
+                                          widget.onSaved();
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                                          );
+                                        }
+                                      } finally {
+                                        if (mounted) setState(() => _saving = false);
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          return SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: const BorderSide(color: Colors.red),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              ),
+                              icon: const Icon(Icons.delete_outline),
+                              label: Text(context.tr('requestDeletion'),
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                              onPressed: _saving ? null : () => _promptRequestDeletion(email),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -637,6 +723,90 @@ class _CoordinatorFormState extends State<_CoordinatorForm> {
         ],
       ),
     );
+  }
+
+  Future<void> _promptRequestDeletion(String email) async {
+    final reasonCtrl = TextEditingController();
+    final name = _nameCtrl.text.trim().isNotEmpty ? _nameCtrl.text.trim() : email;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(context.tr('requestDeletionTitle')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              context.tr('coordinatorQueuedForReviewSingle').replaceAll('{name}', name),
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonCtrl,
+              maxLines: 2,
+              decoration: InputDecoration(
+                hintText: 'e.g. Coordinator has resigned',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.all(10),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              context.tr('coordinatorDeletionWarning'),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('cancel'))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(context.tr('requestDeletion')),
+          ),
+        ],
+      ),
+    );
+
+    final reason = reasonCtrl.text.trim();
+    reasonCtrl.dispose();
+    if (ok != true || !mounted) return;
+
+    setState(() => _saving = true);
+    try {
+      final session = await AuthService().getSession();
+      final myEmail = (session?['email'] as String? ?? '').toLowerCase();
+      final myName = session?['name'] as String? ?? myEmail;
+
+      await CoordinatorDeletionService().requestDeletion(
+        schoolId: AuthService.currentSchoolId,
+        coordinatorEmail: email,
+        coordinatorName: name,
+        requestedBy: myEmail,
+        requestedByName: myName,
+        reason: reason,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.tr('deletionRequestSentSuccessForCoordinator').replaceAll('{name}', name)),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+        widget.onSaved();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 }
 
