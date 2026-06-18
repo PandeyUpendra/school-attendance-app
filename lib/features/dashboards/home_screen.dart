@@ -42,6 +42,10 @@ import '../todo/todo_reminder_banner.dart';
 import '../teachers/teacher_morning_summary_card.dart';
 import '../../shared/widgets/social_media_links_screen.dart';
 import '../admin/admission_crm_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../shared/providers/school_settings_provider.dart';
+
 
 class HomeScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -212,6 +216,7 @@ class _HomeScreenState extends State<HomeScreen> {
         : t.isClassTeacher && t.classTeacherOf != null
             ? 'Class Teacher  ·  ${t.classTeacherOf}'
             : 'Teacher  ·  ${t.subject}';
+    final settings = Provider.of<SchoolSettingsProvider>(context);
 
     return ClipPath(
       key: _heroKey,
@@ -227,6 +232,35 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // School name and logo row
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 12,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: settings.schoolLogo.isNotEmpty
+                          ? CachedNetworkImageProvider(settings.schoolLogo)
+                          : null,
+                      child: settings.schoolLogo.isEmpty
+                          ? const Icon(Icons.school, size: 12, color: Colors.white)
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        settings.schoolName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 // ── Top action row (bell + logout) ──────────────────────
                 Row(children: [
                   // Date label
