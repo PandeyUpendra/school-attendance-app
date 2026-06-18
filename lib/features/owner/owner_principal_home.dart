@@ -365,6 +365,16 @@ class _OPDashPageState extends State<_OPDashPage> {
       final leaves = await _svc.getLeaveApplications(status: 'pending');
       if (leaves.length > 3) alerts.add('${leaves.length} leave requests pending approval');
 
+      final coordDelsSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(AuthService.currentSchoolId)
+          .collection('coordinator_deletion_requests')
+          .where('status', isEqualTo: 'pending')
+          .get();
+      if (coordDelsSnap.docs.isNotEmpty) {
+        alerts.add('${coordDelsSnap.docs.length} coordinator deletion request(s) pending approval');
+      }
+
       final byClass = {for (final s in summaries) s.className: s.total};
       final spots = <FlSpot>[];
       final labels = <String>[];
