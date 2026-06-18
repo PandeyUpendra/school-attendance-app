@@ -986,9 +986,7 @@ class StudentService extends BaseFirestoreService {
               .where('className', isEqualTo: className)
               .where('roll', isEqualTo: roll)
               .get(),
-          FirebaseFirestore.instance
-              .collection('copy_checks')
-              .where('schoolId', isEqualTo: _schoolId)
+          schoolCollection(_schoolId, 'copy_checks')
               .where('className', isEqualTo: className)
               .where('section', isEqualTo: section)
               .get(),
@@ -1064,8 +1062,7 @@ class StudentService extends BaseFirestoreService {
 
         // 8. Copy check statuses
         for (final ccDoc in copyChecksSnap.docs) {
-          final ref = FirebaseFirestore.instance
-              .collection('copy_checks')
+          final ref = schoolCollection(_schoolId, 'copy_checks')
               .doc(ccDoc.id)
               .collection('statuses')
               .doc('$roll');

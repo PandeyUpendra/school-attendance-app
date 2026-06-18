@@ -68,7 +68,7 @@ service cloud.firestore {
       return (sec == '' || sec == null)
         ? base + '_' + string(roll)
         : (
-            base.upper().matches('.*-' + section.upper() + '$') || base.upper().matches('.*_' + section.upper() + '$')
+            base.lower().matches('.*-' + section.lower() + '$') || base.lower().matches('.*_' + section.lower() + '$')
               ? base + '_' + string(roll)
               : base + '_' + section + '_' + string(roll)
           );
@@ -80,7 +80,7 @@ service cloud.firestore {
 
     function getUserData() {
       let docPath = /databases/$(database)/documents/allowed_users/$(request.auth.token.email.lower());
-      return exists(docPath) && get(docPath).data.status == 'active' ? get(docPath).data : null;
+      return exists(docPath) && 'status' in get(docPath).data && get(docPath).data.status == 'active' ? get(docPath).data : null;
     }
 
     /// SCALE-05: identity from CUSTOM CLAIMS instead of a document read.

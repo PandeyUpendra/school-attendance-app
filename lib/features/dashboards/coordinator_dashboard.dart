@@ -1572,50 +1572,50 @@ class _CoordinatorMorningSummaryCard extends StatelessWidget {
     required Color color,
     VoidCallback? onTap,
   }) {
-    final container = Ink(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: color.withValues(alpha: 0.2),
-            child: Icon(icon, color: color, size: 16),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+    final tileContent = Row(
+      children: [
+        CircleAvatar(
+          radius: 16,
+          backgroundColor: color.withValues(alpha: 0.2),
+          child: Icon(icon, color: color, size: 16),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 10,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 10,
                 ),
-              ],
-            ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
 
     if (onTap == null) {
-      return container;
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        ),
+        child: tileContent,
+      );
     }
 
     return Material(
@@ -1623,7 +1623,15 @@ class _CoordinatorMorningSummaryCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: container,
+        child: Ink(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+          ),
+          child: tileContent,
+        ),
       ),
     );
   }

@@ -865,10 +865,30 @@ exports.pushOnNotificationCreate = onDocumentCreated(
  */
 const STUDENT_DELETE_ROLES = ["admin", "owner", "ownerPrincipal", "principal"];
 
+function toTitleCase(text) {
+  const trimmed = String(text || "").trim();
+  if (!trimmed) return trimmed;
+  return trimmed.split(/\s+/).map((word) => {
+    if (!word) return "";
+    return word.split("-").map((subWord) => {
+      if (!subWord) return "";
+      return subWord[0].toUpperCase() + subWord.substring(1).toLowerCase();
+    }).join("-");
+  }).join(" ");
+}
+
 function studentDocId(className, section, roll) {
-  const base = String(className).replace(/ /g, "_");
-  const sec = String(section || "").trim().replace(/ /g, "_");
-  return sec ? `${base}_${sec}_${roll}` : `${base}_${roll}`;
+  const base = toTitleCase(className).replace(/ /g, "_");
+  const sec = String(section || "").trim().toUpperCase().replace(/ /g, "_");
+  if (!sec) {
+    return `${base}_${roll}`;
+  }
+  const baseUpper = base.toUpperCase();
+  const secUpper = sec.toUpperCase();
+  if (baseUpper.endsWith(`-${secUpper}`) || baseUpper.endsWith(`_${secUpper}`)) {
+    return `${base}_${roll}`;
+  }
+  return `${base}_${sec}_${roll}`;
 }
 
 async function performStudentDeleteCascade(db, schoolId, className, section, roll) {

@@ -10,7 +10,8 @@ import 'timetable_service.dart';
 ///   copy_checks/{checkId}/statuses/{roll} → CopyStatus doc
 class CopyCheckService {
   static final _db    = FirebaseFirestore.instance;
-  static final _coll  = _db.collection('copy_checks');
+  CollectionReference<Map<String, dynamic>> get _coll =>
+      _db.collection('schools').doc(AuthService.currentSchoolId).collection('copy_checks');
 
   static CopyCheckService? _instance;
   CopyCheckService._();
@@ -146,10 +147,7 @@ class CopyCheckService {
     required String teacherId,
     String? className,
   }) async {
-    // schoolId filter required by the tenant-scoped copy_checks read rule.
-    Query q = _coll
-        .where('schoolId', isEqualTo: AuthService.currentSchoolId)
-        .where('teacherId', isEqualTo: teacherId);
+    Query q = _coll.where('teacherId', isEqualTo: teacherId);
     if (className != null) {
       q = q.where('className', isEqualTo: className);
     }
@@ -164,8 +162,7 @@ class CopyCheckService {
 
   /// Get ALL checking sessions — for coordinator overview.
   Future<List<CopyCheck>> getAllChecks({String? className, DateTime? since}) async {
-    // schoolId filter required by the tenant-scoped copy_checks read rule.
-    Query q = _coll.where('schoolId', isEqualTo: AuthService.currentSchoolId);
+    Query q = _coll;
     if (className != null) {
       q = q.where('className', isEqualTo: className);
     }
