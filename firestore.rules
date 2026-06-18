@@ -738,11 +738,14 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════════════
     match /schools/{sid}/students/{studentId} {
 
-      allow read: if isSignedIn() && ((isAnyStaff() && inSchool(sid)) || (
-        inSchool(sid) && isRole('guardian')
+      // Staff can read all student records in their school.
+      // Evaluated as a pure request-level rule, allowing collection queries.
+      allow read: if isSignedIn() && inSchool(sid) && isAnyStaff();
+
+      // Guardian: only their own child's student record.
+      allow read: if isSignedIn() && inSchool(sid) && isRole('guardian')
         && 'guardianEmail' in resource.data
-        && resource.data.guardianEmail.lower() == request.auth.token.email.lower()
-      ));
+        && resource.data.guardianEmail.lower() == request.auth.token.email.lower();
 
       allow create: if isSignedIn() && inSchool(sid) && (
         isManagement() ||
@@ -1189,9 +1192,12 @@ service cloud.firestore {
              ))
         );
 
+      // Management can read all leave applications in their school.
+      // Evaluated as a pure request-level rule, allowing collection queries.
+      allow read: if isSignedIn() && inSchool(sid) && isManagement();
+
       // Fallback rule: relies on allowed_users doc / isClassTeacher logic (calls get(), works for getDoc but not queries)
       allow read: if isSignedIn() && inSchool(sid) && (
-        isManagement() ||
         (isAnyTeacher() && 'teacherId' in resource.data && resource.data.teacherId == userTeacherId()) ||
         (isRole('guardian')
           && 'applicantType' in resource.data && resource.data.applicantType == 'guardian'

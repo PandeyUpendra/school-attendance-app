@@ -225,14 +225,57 @@ class _BulkStudentImportScreenState extends State<BulkStudentImportScreen>
           }).join(' ');
         }
 
-        final cleanClass = toTitleCase(rawClassName);
+        var cleanClass = toTitleCase(rawClassName);
         final cleanSection = rawSection.trim().isEmpty ? 'A' : rawSection.trim().toUpperCase();
 
-        // Warning/Error if class name does not exist in timetable settings.
+        // Check if the CSV class name is "Pre-Primary" (case-insensitive, space/dash-insensitive)
+        final rawLowerClass = rawClassName.toLowerCase().replaceAll(' ', '').replaceAll('-', '');
+        final isPrePrimaryCsv = rawLowerClass == 'preprimary';
+
         // Check against both the extracted class prefixes (for class-section
         // pair format like "Nursery-A") and the full class+section key.
-        final classLower = cleanClass.toLowerCase();
-        final classWithSection = '$classLower-${cleanSection.toLowerCase()}';
+        var classLower = cleanClass.toLowerCase();
+        var classWithSection = '$classLower-${cleanSection.toLowerCase()}';
+
+        if (isPrePrimaryCsv &&
+            schoolClassPrefixes.isNotEmpty &&
+            !schoolClassPrefixes.contains(classLower) &&
+            !schoolClasses.contains(classWithSection)) {
+          // It's a pre-primary stage name in CSV, but not literally configured in settings.
+          // Let's check which pre-primary classes are configured in settings.
+          final List<String> configuredPrePrimary = [];
+          const prePrimaryOptions = ['playgroup', 'pre-nursery', 'nursery', 'lkg', 'ukg'];
+          for (final p in prePrimaryOptions) {
+            if (schoolClassPrefixes.contains(p)) {
+              configuredPrePrimary.add(p);
+            }
+          }
+
+          if (configuredPrePrimary.isEmpty) {
+            parsedList.add(_ParsedRow(
+              rowIndex: rowIndex,
+              error: 'Class "$cleanClass" is not configured in school settings. No pre-primary classes (Playgroup, Nursery, LKG, UKG) are active.',
+              rawName: rawName, rawClass: rawClassName, rawSection: rawSection, rawRoll: rawRoll,
+            ));
+            continue;
+          } else if (configuredPrePrimary.length == 1) {
+            // Map to the single configured pre-primary class
+            cleanClass = toTitleCase(configuredPrePrimary.first);
+            classLower = cleanClass.toLowerCase();
+            classWithSection = '$classLower-${cleanSection.toLowerCase()}';
+          } else {
+            // Ambiguous pre-primary class
+            final prettyList = configuredPrePrimary.map((e) => toTitleCase(e)).join(', ');
+            parsedList.add(_ParsedRow(
+              rowIndex: rowIndex,
+              error: 'Class "Pre-Primary" is ambiguous because multiple pre-primary classes ($prettyList) are configured in settings. Please specify the exact class name in the CSV.',
+              rawName: rawName, rawClass: rawClassName, rawSection: rawSection, rawRoll: rawRoll,
+            ));
+            continue;
+          }
+        }
+
+        // Warning/Error if class name does not exist in timetable settings.
         if (schoolClassPrefixes.isNotEmpty &&
             !schoolClassPrefixes.contains(classLower) &&
             !schoolClasses.contains(classWithSection)) {
