@@ -50,9 +50,9 @@ class SchoolSettingsService extends BaseFirestoreService {
       final mainDoc = await _settings.doc('main').get();
       final mainData = mainDoc.data() ?? {};
 
-      final periods = data['periodsPerDay'] ?? mainData['periodsPerDay'] ?? 8;
-      final duration = data['periodDuration'] ?? mainData['periodDuration'] ?? 45;
-      final lunchAfter = data['lunchAfterPeriod'] ?? mainData['lunchAfterPeriod'] ?? 4;
+      final int periods = (data['periodsPerDay'] as num?)?.toInt() ?? (mainData['periodsPerDay'] as num?)?.toInt() ?? 8;
+      final int duration = (data['periodDuration'] as num?)?.toInt() ?? (mainData['periodDuration'] as num?)?.toInt() ?? 45;
+      final int lunchAfter = (data['lunchAfterPeriod'] as num?)?.toInt() ?? (mainData['lunchAfterPeriod'] as num?)?.toInt() ?? 4;
 
       final bellsList = <Map<String, dynamic>>[];
       int cursor = 480; // 08:00
@@ -208,9 +208,9 @@ class SchoolSettingsService extends BaseFirestoreService {
 
     // Sync classList to the shared school-scoped settings/main so all screens
     // (coordinator class chips, principal, teacher mgmt, etc.) pick it up.
-    final periods = d['periodsPerDay'] as int? ?? 8;
-    final duration = d['periodDuration'] as int? ?? 45;
-    final lunchAfter = d['lunchAfterPeriod'] as int? ?? 4;
+    final int periods = (d['periodsPerDay'] as num?)?.toInt() ?? 8;
+    final int duration = (d['periodDuration'] as num?)?.toInt() ?? 45;
+    final int lunchAfter = (d['lunchAfterPeriod'] as num?)?.toInt() ?? 4;
 
     final bellsList = <Map<String, dynamic>>[];
     int cursor = 480; // 08:00
