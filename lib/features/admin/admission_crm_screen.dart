@@ -196,14 +196,17 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                 updatedAt: DateTime.now(),
                 schoolId: '',
               );
+              // Capture references before async gap to avoid _dependents.isEmpty error
+              final messenger = ScaffoldMessenger.of(context);
+              final successMsg = context.tr('admissionEnquirySaved');
               await _leadService.addLead(lead);
               if (!mounted) return;
               if (ctx.mounted) {
                 Navigator.pop(ctx);
               }
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
-                  content: Text(context.tr('admissionEnquirySaved')),
+                  content: Text(successMsg),
                   backgroundColor: AppTheme.success,
                 ),
               );
@@ -446,19 +449,22 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                       child: ElevatedButton(
                         onPressed: () async {
                           final note = followUpCtrl.text.trim();
+                          // Capture references before async gap to avoid _dependents.isEmpty error
+                          final messenger = ScaffoldMessenger.of(context);
                           if (note.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(content: Text(context.tr('pleaseEnterFollowUpFirst'))),
                             );
                             return;
                           }
+                          final successMsg = context.tr('followUpLoggedSuccess');
                           await _leadService.addFollowUp(lead.id, note, tempNextDate);
                           if (!mounted) return;
                           if (ctx.mounted) {
                             Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(
-                                content: Text(context.tr('followUpLoggedSuccess')),
+                                content: Text(successMsg),
                                 backgroundColor: AppTheme.success,
                               ),
                             );
