@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme.dart';
+import '../../l10n/app_strings.dart';
 
 /// Shared helpers for the owner / owner-principal "Staff" directory pages, which
 /// list every staff role (teacher, coordinator, principal, …) with their role
@@ -37,17 +38,22 @@ String staffStatusOf(Map<String, dynamic> u) {
   return 'active';
 }
 
-String staffRoleLabel(String role) {
-  switch (role) {
-    case 'teacher':        return 'Teacher';
-    case 'subjectTeacher': return 'Subject Teacher';
-    case 'coordinator':    return 'Coordinator';
-    case 'principal':      return 'Principal';
-    case 'ownerPrincipal': return 'Owner-Principal';
-    case 'owner':          return 'Owner';
-    case 'admin':          return 'Admin';
-    default:               return role.isEmpty ? 'Staff' : role;
+String staffRoleLabel(BuildContext context, String role) {
+  final normalizedRole = role == 'subjectTeacher' ? 'subjectTeacher' : role;
+  final localized = context.trRole(normalizedRole);
+  if (localized == 'role_$normalizedRole') {
+    switch (role) {
+      case 'teacher':        return 'Teacher';
+      case 'subjectTeacher': return 'Subject Teacher';
+      case 'coordinator':    return 'Coordinator';
+      case 'principal':      return 'Principal';
+      case 'ownerPrincipal': return 'Owner-Principal';
+      case 'owner':          return 'Owner';
+      case 'admin':          return 'Admin';
+      default:               return role.isEmpty ? 'Staff' : role;
+    }
   }
+  return localized;
 }
 
 Color staffRoleColor(String role) {
@@ -81,7 +87,7 @@ class StaffRolePill extends StatelessWidget {
       decoration: BoxDecoration(
           color: c.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(6)),
-      child: Text(staffRoleLabel(role),
+      child: Text(staffRoleLabel(context, role),
           style: TextStyle(
               fontSize: 9, fontWeight: FontWeight.w700, color: c)),
     );
@@ -95,8 +101,17 @@ class StaffStatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = staffStatusColor(status);
-    final label =
-        status.isEmpty ? 'Active' : status[0].toUpperCase() + status.substring(1);
+    String label;
+    switch (status) {
+      case 'pending':
+        label = context.tr('statusPending');
+        break;
+      case 'inactive':
+        label = context.tr('statusInactive');
+        break;
+      default:
+        label = context.tr('statusActive');
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
