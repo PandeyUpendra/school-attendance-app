@@ -84,7 +84,7 @@ class _ClassPickerScreenState extends State<ClassPickerScreen> {
 
   void _onClassTap(String cls) {
     final sections = _sectionsByClass[cls] ?? [];
-    if (sections.isNotEmpty) {
+    if (sections.length > 1) {
       // Push a section picker; when it pops with a pick, relay it to the caller.
       Navigator.push<ClassSectionPick>(
         context,
@@ -99,6 +99,9 @@ class _ClassPickerScreenState extends State<ClassPickerScreen> {
       ).then((pick) {
         if (pick != null && mounted) Navigator.pop(context, pick);
       });
+    } else if (sections.length == 1) {
+      // Only one section — skip the picker and go directly.
+      Navigator.pop(context, ClassSectionPick(cls, section: sections.first));
     } else {
       Navigator.pop(context, ClassSectionPick(cls));
     }
