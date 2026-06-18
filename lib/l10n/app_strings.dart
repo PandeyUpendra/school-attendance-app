@@ -1462,7 +1462,9 @@ class AppStrings {
     'biometricSecurity':       {'en': 'Biometric Security',   'hi': 'बायोमेट्रिक सुरक्षा'},
     'enableBiometric':         {'en': 'Enable Fingerprint / Face ID', 'hi': 'फिंगरप्रिंट / फेस आईडी सक्षम करें'},
     'enterPasswordToEnable':   {'en': 'Enter your password to enable biometric security', 'hi': 'बायोमेट्रिक सुरक्षा सक्षम करने के लिए अपना पासवर्ड दर्ज करें'},
-    'biometricReason':         {'en': 'Please authenticate to log in', 'hi': 'लॉग इन करने के लिए कृपया प्रमाणित करें'},
+    'biometricReason':         {'en': 'Please authenticate to open the app', 'hi': 'ऐप खोलने के लिए कृपया प्रमाणित करें'},
+    'appLocked':               {'en': 'App Locked',           'hi': 'ऐप लॉक है'},
+    'tapToUnlock':             {'en': 'Tap the button to unlock the app', 'hi': 'ऐप को अनलॉक करने के लिए बटन दबाएं'},
     'privacySection':          {'en': 'PRIVACY',              'hi': 'गोपनीयता'},
     'dangerZone':              {'en': 'DANGER ZONE',          'hi': 'खतरे का क्षेत्र'},
     'deletionRequestSentTo':   {'en': 'Deletion request sent to:', 'hi': 'खाता हटाने का अनुरोध भेजा गया है:'},
@@ -2611,7 +2613,6 @@ class AppStrings {
     'percentHeader': {'en': '%', 'hi': '%'},
     'maxMarksLabel': {'en': 'Max Marks', 'hi': 'अधिकतम अंक'},
     'deletionRequestWithdrawn': {'en': 'Request for {name} withdrawn.', 'hi': '{name} के लिए अनुरोध वापस ले लिया गया है।'},
-    'qualificationHint': {'en': 'e.g. M.Sc, B.Ed', 'hi': 'जैसे: M.Sc, B.Ed'},
   };
 
   /// Returns the translation for [key] in [code], falling back to English then

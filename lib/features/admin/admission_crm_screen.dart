@@ -554,8 +554,13 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
   }
 
   String _formatRole(String role) {
-    if (role.isEmpty) return 'Staff';
-    return role.substring(0, 1).toUpperCase() + role.substring(1);
+    if (role.isEmpty) role = 'staff';
+    final normalizedRole = role.toLowerCase();
+    final localized = context.trRole(normalizedRole);
+    if (localized == 'role_$normalizedRole') {
+      return role.substring(0, 1).toUpperCase() + role.substring(1);
+    }
+    return localized;
   }
 
   @override
@@ -916,7 +921,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                                 if (lead.createdByEmail.isNotEmpty) ...[
                                   const SizedBox(height: 2),
                                   Text(
-                                    context.tr('loggedByDetail').replaceAll('{name}', lead.createdByName).replaceAll('{role}', _formatRole(context, lead.createdByRole)),
+                                    context.tr('loggedByDetail').replaceAll('{name}', lead.createdByName).replaceAll('{role}', _formatRole(lead.createdByRole)),
                                     style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                                   ),
                                 ],
@@ -970,8 +975,8 @@ class _FollowUpTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (followUps.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 12.0),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12.0),
         child: Text(
           context.tr('noFollowUpRecords'),
           style: const TextStyle(fontStyle: FontStyle.italic, color: AppTheme.textSecondary, fontSize: 13),

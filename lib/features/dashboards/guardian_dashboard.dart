@@ -1603,35 +1603,51 @@ class _GuardianHeroCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // School name and logo row
+                // School name & logo  |  App name & logo
                 Row(
                   children: [
+                    // ── School branding ──
                     Consumer<SchoolSettingsProvider>(
                       builder: (context, sProvider, _) => CircleAvatar(
-                        radius: 12,
+                        radius: 14,
                         backgroundColor: Colors.white24,
                         backgroundImage: sProvider.schoolLogo.isNotEmpty
                             ? CachedNetworkImageProvider(sProvider.schoolLogo)
                             : null,
                         child: sProvider.schoolLogo.isEmpty
-                            ? const Icon(Icons.school, size: 12, color: Colors.white)
+                            ? const Icon(Icons.school, size: 14, color: Colors.white)
                             : null,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Consumer<SchoolSettingsProvider>(
                         builder: (context, sProvider, _) => Text(
                           sProvider.schoolName,
                           style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                             color: Colors.white,
-                            letterSpacing: 0.5,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // ── App branding ──
+                    const CircleAvatar(
+                      radius: 14,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: AssetImage('assets/images/logo.png'),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Klassivo',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],

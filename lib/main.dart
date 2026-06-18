@@ -32,6 +32,7 @@ import 'services/base_firestore_service.dart';
 import 'services/birthday_service.dart';
 import 'services/timetable_service.dart';
 import './shared/utils/app_transitions.dart';
+import './features/auth/biometric_lock_screen.dart';
 final RouteObserver<PageRoute<dynamic>> routeObserver = RouteObserver<PageRoute<dynamic>>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -153,9 +154,22 @@ class _SchoolAppState extends State<SchoolApp> with WidgetsBindingObserver {
     final since = _backgroundedAt;
     _backgroundedAt = null;
     if (since == null) return;
+
+    final session = await AuthService().getSession();
+    if (session != null) {
+      final isBioEnabled = await AuthService().isBiometricEnabled();
+      if (isBioEnabled) {
+        if (!BiometricLockScreen.isVisible) {
+          rootNavigatorKey.currentState?.push(
+            AppPageRoute(child: const BiometricLockScreen(isResume: true)),
+          );
+        }
+        return;
+      }
+    }
+
     if (DateTime.now().difference(since) < _idleLockThreshold) return;
     // Only force a re-login when there is actually a session to protect.
-    final session = await AuthService().getSession();
     if (session == null) return;
     await AuthService().clearSession();
     rootNavigatorKey.currentState?.pushAndRemoveUntil(
@@ -473,6 +487,9 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
       }
     }
 
+    final isBioEnabled = await AuthService().isBiometricEnabled();
+
+    Widget destination;
     switch (role) {
       case 'admin':
         // Admin is a privileged, non-persistent role reached only via the
@@ -483,32 +500,33 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
         return;
 
       case 'coordinator':
-        _go(const CoordinatorDashboard());
-        return;
+        destination = const CoordinatorDashboard();
+        break;
 
       case 'principal':
-        _go(const PrincipalDashboard());
-        return;
+        destination = const PrincipalDashboard();
+        break;
 
       case 'owner':
-        _go(const OwnerHome());
-        return;
+        destination = const OwnerHome();
+        break;
 
       case 'ownerPrincipal':
-        _go(const OwnerPrincipalHome());
-        return;
+        destination = const OwnerPrincipalHome();
+        break;
 
       case 'guardian':
         final sClass   = session['studentClass']   as String?;
         final sRoll    = session['studentRoll']    as int?;
         final sSection = session['studentSection'] as String? ?? '';
         if (sClass != null && sRoll != null) {
-          _go(GuardianDashboard(
-              studentClass: sClass, studentRoll: sRoll, studentSection: sSection));
+          destination = GuardianDashboard(
+              studentClass: sClass, studentRoll: sRoll, studentSection: sSection);
+        } else {
+          _go(const RoleSelectionScreen());
           return;
         }
-        _go(const RoleSelectionScreen());
-        return;
+        break;
 
       case 'teacher':
       case 'subjectTeacher':
@@ -518,15 +536,26 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
               await TimetableService.instance.getTeacherById(id: teacherId);
           if (!mounted) return;
           if (teacher != null) {
-            _go(HomeScreen(teacher: teacher));
+            destination = HomeScreen(teacher: teacher);
+          } else {
+            _go(const LoginScreen());
             return;
           }
+        } else {
+          _go(const LoginScreen());
+          return;
         }
-        _go(const LoginScreen());
-        return;
+        break;
 
       default:
         _go(const LoginScreen());
+        return;
+    }
+
+    if (isBioEnabled) {
+      _go(BiometricLockScreen(targetScreen: destination));
+    } else {
+      _go(destination);
     }
   }
 
