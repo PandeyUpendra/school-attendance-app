@@ -120,11 +120,28 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
         cursor = start + dur;
       }
     } else {
-      final n = settings['numberOfBells'] as int? ?? 8;
-      bells = List.generate(
-        n,
-        (i) => _Bell(startMinutes: defaultStart + i * 45, durationMinutes: 45),
-      );
+      final periods = settings['periodsPerDay'] as int? ?? settings['numberOfBells'] as int? ?? 8;
+      final duration = settings['periodDuration'] as int? ?? 45;
+      final lunchAfter = settings['lunchAfterPeriod'] as int? ?? 4;
+
+      bells = [];
+      int cursor = defaultStart;
+      for (int i = 1; i <= periods; i++) {
+        bells.add(_Bell(
+          startMinutes: cursor,
+          durationMinutes: duration,
+        ));
+        cursor += duration;
+
+        if (i == lunchAfter) {
+          bells.add(_Bell(
+            startMinutes: cursor,
+            durationMinutes: 30, // default lunch duration
+            isLunch: true,
+          ));
+          cursor += 30;
+        }
+      }
     }
 
     setState(() {

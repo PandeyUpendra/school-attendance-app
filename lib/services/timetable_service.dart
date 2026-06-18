@@ -334,9 +334,34 @@ class TimetableService extends BaseFirestoreService {
 
     if (!result.containsKey('bells') ||
         (result['bells'] as List?)?.isEmpty != false) {
-      final n = result['numberOfBells'] as int? ?? 8;
-      result['bells'] =
-          List.generate(n, (_) => {'duration': 45, 'isLunch': false});
+      final periods = result['periodsPerDay'] as int? ?? result['numberOfBells'] as int? ?? 8;
+      final duration = result['periodDuration'] as int? ?? 45;
+      final lunchAfter = result['lunchAfterPeriod'] as int? ?? 4;
+
+      final bellsList = <Map<String, dynamic>>[];
+      int cursor = 480; // 08:00 in minutes
+      for (int i = 1; i <= periods; i++) {
+        final startStr = '${(cursor ~/ 60).toString().padLeft(2, '0')}:${(cursor % 60).toString().padLeft(2, '0')}';
+        bellsList.add({
+          'duration': duration,
+          'isLunch': false,
+          'start': startStr,
+          'name': '',
+        });
+        cursor += duration;
+
+        if (i == lunchAfter) {
+          final lunchStartStr = '${(cursor ~/ 60).toString().padLeft(2, '0')}:${(cursor % 60).toString().padLeft(2, '0')}';
+          bellsList.add({
+            'duration': 30, // default lunch duration
+            'isLunch': true,
+            'start': lunchStartStr,
+            'name': '',
+          });
+          cursor += 30;
+        }
+      }
+      result['bells'] = bellsList;
       result['firstBellTime'] = '08:00';
     } else {
       result['bells'] = List<Map<String, dynamic>>.from(
@@ -352,7 +377,7 @@ class TimetableService extends BaseFirestoreService {
   Future<void> saveSettings(String schoolId, Map<String, dynamic> settings) async {
     _settingsCache   = null; // invalidate so next getSettings re-fetches
     _settingsCacheAt = null;
-    await _settings.doc('main').set(settings);
+    await _settings.doc('main').set(settings, SetOptions(merge: true));
   }
 
   /// Drops the in-memory settings cache so the next [getSettings] re-fetches.

@@ -44,6 +44,53 @@ class SchoolSettingsService extends BaseFirestoreService {
     if (data['workingDays'] != null) syncData['workingDays'] = data['workingDays'];
     if (data['lunchAfterPeriod'] != null) syncData['lunchAfterPeriod'] = data['lunchAfterPeriod'];
     if (data['periodDuration'] != null) syncData['periodDuration'] = data['periodDuration'];
+
+    // If we are updating periods, duration, or lunch period, regenerate the bells list
+    if (data['periodsPerDay'] != null || data['periodDuration'] != null || data['lunchAfterPeriod'] != null) {
+      final mainDoc = await _settings.doc('main').get();
+      final mainData = mainDoc.data() ?? {};
+
+      final periods = data['periodsPerDay'] ?? mainData['periodsPerDay'] ?? 8;
+      final duration = data['periodDuration'] ?? mainData['periodDuration'] ?? 45;
+      final lunchAfter = data['lunchAfterPeriod'] ?? mainData['lunchAfterPeriod'] ?? 4;
+
+      final bellsList = <Map<String, dynamic>>[];
+      int cursor = 480; // 08:00
+
+      // Preserve existing first bell time if available
+      String firstBellTime = mainData['firstBellTime'] as String? ?? '08:00';
+      final parts = firstBellTime.split(':');
+      if (parts.length >= 2) {
+        cursor = (int.tryParse(parts[0]) ?? 8) * 60 + (int.tryParse(parts[1]) ?? 0);
+      }
+
+      for (int i = 1; i <= periods; i++) {
+        final startStr = '${(cursor ~/ 60).toString().padLeft(2, '0')}:${(cursor % 60).toString().padLeft(2, '0')}';
+        bellsList.add({
+          'duration': duration,
+          'isLunch': false,
+          'start': startStr,
+          'name': '',
+        });
+        cursor += duration;
+
+        if (i == lunchAfter) {
+          final lunchStartStr = '${(cursor ~/ 60).toString().padLeft(2, '0')}:${(cursor % 60).toString().padLeft(2, '0')}';
+          bellsList.add({
+            'duration': 30, // default lunch duration
+            'isLunch': true,
+            'start': lunchStartStr,
+            'name': '',
+          });
+          cursor += 30;
+        }
+      }
+
+      syncData['bells'] = bellsList;
+      syncData['numberOfBells'] = bellsList.length;
+      syncData['firstBellTime'] = firstBellTime;
+    }
+
     if (syncData.isNotEmpty) {
       await _settings.doc('main').set(syncData, SetOptions(merge: true));
       // Drop TimetableService's cached settings so screens reading the class
@@ -161,13 +208,44 @@ class SchoolSettingsService extends BaseFirestoreService {
 
     // Sync classList to the shared school-scoped settings/main so all screens
     // (coordinator class chips, principal, teacher mgmt, etc.) pick it up.
+    final periods = d['periodsPerDay'] as int? ?? 8;
+    final duration = d['periodDuration'] as int? ?? 45;
+    final lunchAfter = d['lunchAfterPeriod'] as int? ?? 4;
+
+    final bellsList = <Map<String, dynamic>>[];
+    int cursor = 480; // 08:00
+    for (int i = 1; i <= periods; i++) {
+      final startStr = '${(cursor ~/ 60).toString().padLeft(2, '0')}:${(cursor % 60).toString().padLeft(2, '0')}';
+      bellsList.add({
+        'duration': duration,
+        'isLunch': false,
+        'start': startStr,
+        'name': '',
+      });
+      cursor += duration;
+
+      if (i == lunchAfter) {
+        final lunchStartStr = '${(cursor ~/ 60).toString().padLeft(2, '0')}:${(cursor % 60).toString().padLeft(2, '0')}';
+        bellsList.add({
+          'duration': 30, // default lunch duration
+          'isLunch': true,
+          'start': lunchStartStr,
+          'name': '',
+        });
+        cursor += 30;
+      }
+    }
+
     await _settings.doc('main').set({
       'classes': classList,
       'schoolName': d['schoolName'] ?? '',
-      'periodsPerDay': d['periodsPerDay'] ?? 8,
+      'periodsPerDay': periods,
       'workingDays': d['workingDays'] ?? 'Mon-Sat',
-      'lunchAfterPeriod': d['lunchAfterPeriod'] ?? 4,
-      'periodDuration': d['periodDuration'] ?? 45,
+      'lunchAfterPeriod': lunchAfter,
+      'periodDuration': duration,
+      'bells': bellsList,
+      'numberOfBells': bellsList.length,
+      'firstBellTime': '08:00',
     }, SetOptions(merge: true));
     TimetableService.invalidateSettingsCache();
 
