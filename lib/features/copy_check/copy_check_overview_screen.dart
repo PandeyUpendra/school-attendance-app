@@ -20,36 +20,49 @@ class CopyCheckOverviewScreen extends StatefulWidget {
 }
 
 class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
-  final _service = CopyCheckService();
-
   bool _loading = true;
-  List<String>    _classes  = [];
-  String?         _selectedClass;
-  List<CopyCheck> _checks   = [];
+  List<String> _classes = [];
+  String? _selectedClass;
+  late PageController _pageController;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController();
     _loadClasses();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadClasses() async {
     final settings = await TimetableService.instance.getSettings();
-    final classes  = List<String>.from(settings['classes'] as List? ?? []);
+    final classes = List<String>.from(settings['classes'] as List? ?? []);
     if (!mounted) return;
-    setState(() { _classes = classes; });
-    if (classes.isNotEmpty) {
-      await _selectClass(classes.first);
-    } else {
-      setState(() => _loading = false);
-    }
+    setState(() {
+      _classes = classes;
+      if (classes.isNotEmpty) {
+        _selectedClass = classes.first;
+      }
+      _loading = false;
+    });
   }
 
-  Future<void> _selectClass(String cls) async {
-    setState(() { _selectedClass = cls; _loading = true; });
-    final checks = await _service.getAllChecks(className: cls);
-    if (!mounted) return;
-    setState(() { _checks = checks; _loading = false; });
+  void _onChipSelected(String cls) {
+    final index = _classes.indexOf(cls);
+    if (index != -1 && cls != _selectedClass) {
+      setState(() {
+        _selectedClass = cls;
+      });
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   Future<void> _openDetail(CopyCheck check) async {
@@ -107,7 +120,7 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
                                       ? FontWeight.bold
                                       : FontWeight.normal,
                                 ),
-                                onSelected: (_) => _selectClass(cls),
+                                onSelected: (_) => _onChipSelected(cls),
                               ),
                             );
                           }).toList(),
@@ -116,99 +129,158 @@ class _CopyCheckOverviewScreenState extends State<CopyCheckOverviewScreen> {
                     ),
                     const Divider(height: 1),
                     Expanded(
-                      child: _checks.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.menu_book_outlined,
-                                      size: 56,
-                                      color: Colors.grey.shade300),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    context.tr('noCopyCheckSessions'),
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                        color: Colors.grey.shade500),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : RefreshIndicator(
-                              onRefresh: () =>
-                                  _selectClass(_selectedClass!),
-                              color: AppTheme.primary,
-                              child: ListView.separated(
-                                physics:
-                                    const AlwaysScrollableScrollPhysics(),
-                                padding: const EdgeInsets.all(12),
-                                itemCount: _checks.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(height: 8),
-                                itemBuilder: (_, i) {
-                                  final c = _checks[i];
-                                  final date =
-                                      '${c.checkDate.day}/${c.checkDate.month}/${c.checkDate.year}';
-                                  return InkWell(
-                                    onTap: () => _openDetail(c),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(14),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                        border: Border.all(
-                                            color: Colors.grey.shade200),
-                                      ),
-                                      child: Row(children: [
-                                        Container(
-                                          width: 42, height: 42,
-                                          decoration: BoxDecoration(
-                                            color: AppTheme.primary
-                                                .withValues(alpha: 0.1),
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                          ),
-                                          child: const Icon(
-                                              Icons.menu_book_outlined,
-                                              color: AppTheme.primary,
-                                              size: 22),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                '$date  •  ${c.subject}',
-                                                style: const TextStyle(
-                                                    fontSize: 14,
-                                                    fontWeight:
-                                                        FontWeight.bold),
-                                              ),
-                                              Text(
-                                                '${context.tr('by')} ${c.teacherName}  •  ${c.className} ${c.section}',
-                                                style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors
-                                                        .grey.shade500),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Icon(Icons.chevron_right,
-                                            color: Colors.grey.shade400,
-                                            size: 20),
-                                      ]),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
+                      child: PageView.builder(
+                        controller: _pageController,
+                        itemCount: _classes.length,
+                        onPageChanged: (index) {
+                          setState(() {
+                            _selectedClass = _classes[index];
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          return _ClassSessionsList(
+                            className: _classes[index],
+                            onTapCheck: _openDetail,
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
+    );
+  }
+}
+
+class _ClassSessionsList extends StatefulWidget {
+  final String className;
+  final ValueChanged<CopyCheck> onTapCheck;
+
+  const _ClassSessionsList({
+    required this.className,
+    required this.onTapCheck,
+  });
+
+  @override
+  State<_ClassSessionsList> createState() => _ClassSessionsListState();
+}
+
+class _ClassSessionsListState extends State<_ClassSessionsList>
+    with AutomaticKeepAliveClientMixin {
+  final _service = CopyCheckService();
+  bool _loading = true;
+  List<CopyCheck> _checks = [];
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final checks = await _service.getAllChecks(className: widget.className);
+      if (!mounted) return;
+      setState(() {
+        _checks = checks;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    if (_loading) {
+      return const LoadingState();
+    }
+    if (_checks.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.menu_book_outlined,
+                size: 56,
+                color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text(
+              context.tr('noCopyCheckSessions'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: AppTheme.primary,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(12),
+        itemCount: _checks.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (_, i) {
+          final c = _checks[i];
+          final date =
+              '${c.checkDate.day}/${c.checkDate.month}/${c.checkDate.year}';
+          return InkWell(
+            onTap: () => widget.onTapCheck(c),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                      Icons.menu_book_outlined,
+                      color: AppTheme.primary,
+                      size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$date  •  ${c.subject}',
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '${context.tr('by')} ${c.teacherName}  •  ${c.className} ${c.section}',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right,
+                    color: Colors.grey.shade400,
+                    size: 20),
+              ]),
+            ),
+          );
+        },
+      ),
     );
   }
 }
