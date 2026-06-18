@@ -5,6 +5,7 @@ import '../../models/teacher.dart';
 import '../../models/timetable_entry.dart';
 import '../../services/timetable_service.dart';
 import '../../services/base_firestore_service.dart';
+import '../../services/school_settings_service.dart';
 import '../../theme.dart';
 import '../../shared/utils/timetable_conflict_detector.dart';
 import '../../shared/utils/app_transitions.dart';
@@ -490,12 +491,46 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
         });
     final firstBell = _bells.isNotEmpty ? _fmt(_startOf(0)) : '08:00';
 
+    int periodsCount = 0;
+    int lunchAfter = 0;
+    bool foundLunch = false;
+    for (final b in _bells) {
+      if (b.isLunch) {
+        if (!foundLunch) {
+          lunchAfter = periodsCount;
+          foundLunch = true;
+        }
+      } else {
+        periodsCount++;
+      }
+    }
+
+    int periodDuration = 45;
+    if (_bells.isNotEmpty) {
+      final firstNonLunch = _bells.firstWhere((b) => !b.isLunch, orElse: () => _bells.first);
+      periodDuration = firstNonLunch.durationMinutes;
+    }
+
     await _service.saveSettings(BaseFirestoreService.currentSchoolId ?? 'default_school', {
       'numberOfBells': _bells.length,
       'classes': _classes,
       'firstBellTime': firstBell,
       'bells': bellsData,
+      'periodsPerDay': periodsCount,
+      'lunchAfterPeriod': foundLunch ? lunchAfter : 0,
+      'periodDuration': periodDuration,
     });
+
+    try {
+      await SchoolSettingsService().updateAcademicSettings({
+        'periodsPerDay': periodsCount,
+        'lunchAfterPeriod': foundLunch ? lunchAfter : 0,
+        'periodDuration': periodDuration,
+      });
+    } catch (_) {
+      // Ignore if user has no write access to academic settings
+    }
+
     if (!mounted) return;
     setState(() => _settingsEditing = false);
     ScaffoldMessenger.of(context).showSnackBar(
