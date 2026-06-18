@@ -416,11 +416,9 @@ exports.deleteAccount = onCall(
 
     // Always remove the target's own login record + Auth account (idempotent —
     // the owner loop above may have already handled it).
-    if (targetSnap) {
-      await deleteAuthUid(targetSnap.id);
+    await deleteAuth(email);
+    if (targetSnap && targetSnap.exists) {
       await targetSnap.ref.delete().catch(() => {});
-    } else {
-      await deleteAuth(email);
     }
 
     return { ok: true, role: targetRole || "unknown" };
@@ -516,6 +514,14 @@ exports.createAllowedUser = onCall(
     let user;
     try {
       user = await admin.auth().getUserByEmail(email);
+      // If the user exists in Auth, but NOT in Firestore (allowed_users),
+      // they are an orphan/remnant from a previous deletion.
+      // We must delete the Auth record and create a fresh one to reset their password/credentials.
+      if (!docSnap.exists) {
+        logger.info(`Orphan Auth user found for ${email}. Deleting and recreating.`);
+        await admin.auth().deleteUser(user.uid);
+        throw { code: "auth/user-not-found" };
+      }
     } catch (e) {
       if (e.code === "auth/user-not-found") {
         try {
@@ -800,10 +806,11 @@ async function performStudentDeleteCascade(db, schoolId, className, section, rol
           await guardianRef.delete();
           // Delete Auth account
           try {
-            await admin.auth().deleteUser(guardianSnap.id);
+            const u = await admin.auth().getUserByEmail(guardianSnap.id);
+            await admin.auth().deleteUser(u.uid);
           } catch (authErr) {
             if (!authErr || authErr.code !== "auth/user-not-found") {
-              logger.warn(`deleteAuth failed for guardian UID ${guardianSnap.id}`, authErr && authErr.code);
+              logger.warn(`deleteAuth failed for guardian ${guardianSnap.id}`, authErr && authErr.code);
             }
           }
         } else {
@@ -2837,7 +2844,18 @@ exports.registerGuardianWithInviteCode = onCall(
       });
     } catch (err) {
       if (err.code === "auth/email-already-in-use") {
-        userRecord = await admin.auth().getUserByEmail(email);
+        if (!userQuery.exists) {
+          logger.info(`Orphan Auth user found during registerGuardianWithInviteCode for ${email}. Deleting and recreating.`);
+          const existingUser = await admin.auth().getUserByEmail(email);
+          await admin.auth().deleteUser(existingUser.uid);
+          userRecord = await admin.auth().createUser({
+            email: email,
+            password: password,
+            displayName: name || studentData.fatherName || "Guardian",
+          });
+        } else {
+          userRecord = await admin.auth().getUserByEmail(email);
+        }
       } else {
         throw new HttpsError("internal", err.message);
       }
