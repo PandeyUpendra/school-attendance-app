@@ -38,4 +38,35 @@ void main() {
     // Now error should show
     expect(find.text('Enter a valid email address'), findsOneWidget);
   });
+
+  testWidgets('EmailTextFormField does not show error on blur when empty', (WidgetTester tester) async {
+    final controller = TextEditingController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              EmailTextFormField(
+                controller: controller,
+                decoration: const InputDecoration(labelText: 'Email'),
+              ),
+              const TextField(key: Key('other_field')),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Initial state: no error
+    expect(find.text('Enter an email address'), findsNothing);
+
+    // Tap to focus, then tap outside (on the other field) to trigger blur
+    await tester.tap(find.byType(EmailTextFormField));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('other_field')));
+    await tester.pump();
+
+    // Still no error since it was never populated/dirty
+    expect(find.text('Enter an email address'), findsNothing);
+  });
 }
