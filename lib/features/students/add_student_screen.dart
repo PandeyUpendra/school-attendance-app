@@ -895,102 +895,6 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 14),
-            DropdownButtonFormField<String>(
-              value: _feeStatus,
-              decoration: InputDecoration(
-                labelText: context.tr('feeStatus'),
-                prefixIcon: const Icon(Icons.currency_rupee),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 14),
-              ),
-              items: [
-                DropdownMenuItem(
-                    value: 'Paid',
-                    child: Row(children: [
-                      const Icon(Icons.check_circle,
-                          color: Colors.green, size: 18),
-                      const SizedBox(width: 8),
-                      Text(context.tr('paidLabel')),
-                    ])),
-                DropdownMenuItem(
-                    value: 'Pending',
-                    child: Row(children: [
-                      const Icon(Icons.cancel, color: Colors.red, size: 18),
-                      const SizedBox(width: 8),
-                      Text(context.tr('statusPending')),
-                    ])),
-                DropdownMenuItem(
-                    value: 'Partial',
-                    child: Row(children: [
-                      const Icon(Icons.timelapse,
-                          color: Colors.orange, size: 18),
-                      const SizedBox(width: 8),
-                      Text(context.tr('partialLabel')),
-                    ])),
-              ],
-              onChanged: (v) => setState(() => _feeStatus = v!),
-            ),
-            const SizedBox(height: 14),
-
-            // Fee Amount (optional)
-            _Field(
-              controller: _feeAmountCtrl,
-              label: context.tr('feeAmountOpt'),
-              icon: Icons.currency_rupee,
-              keyboard: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            // Fee Due Date (optional)
-            GestureDetector(
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _feeDueDate != null
-                      ? (DateTime.tryParse(_feeDueDate!) ?? DateTime.now())
-                      : DateTime.now().add(const Duration(days: 30)),
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2100),
-                );
-                if (picked != null) {
-                  setState(() {
-                    _feeDueDate =
-                        '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
-                  });
-                }
-              },
-              child: InputDecorator(
-                decoration: InputDecoration(
-                  labelText: context.tr('feeDueDateOpt'),
-                  prefixIcon: const Icon(Icons.calendar_today_outlined),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 14),
-                  suffixIcon: _feeDueDate != null
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 18),
-                          onPressed: () =>
-                              setState(() => _feeDueDate = null),
-                        )
-                      : null,
-                ),
-                child: Text(
-                  _feeDueDate ?? context.tr('tapToSelectDate'),
-                  style: TextStyle(
-                      fontSize: 15,
-                      color: _feeDueDate != null
-                          ? Colors.black87
-                          : Colors.grey.shade500),
-                ),
-              ),
-            ),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
@@ -1010,32 +914,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                         fontSize: 16, fontWeight: FontWeight.w600)),
               ),
             ),
-            if (!_isEdit) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: _saving
-                      ? null
-                      : () {
-                          _saveAndAddAnother = true;
-                          _save();
-                        },
-                  style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.primary,
-                      side: const BorderSide(color: AppTheme.primary),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10))),
-                  child: Text(
-                      _saving && _saveAndAddAnother
-                          ? context.tr('savingEllipsis')
-                          : context.tr('saveAndAddAnother'),
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ],
+
           ]),
         ),
       ),
