@@ -161,7 +161,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
           _errorMessage = e.toString();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load P&L: $e'), backgroundColor: AppTheme.danger),
+          SnackBar(content: Text(context.tr('failedToLoadPL').replaceFirst('{error}', e.toString())), backgroundColor: AppTheme.danger),
         );
       }
     }
@@ -174,7 +174,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
       child: Scaffold(
         backgroundColor: AppTheme.background,
         appBar: AppBar(
-          title: const Text('Profit & Loss Summary'),
+          title: Text(context.tr('profitLossSummary')),
           backgroundColor: AppTheme.primaryDark,
           elevation: 0,
           actions: [
@@ -219,9 +219,9 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.bar_chart_outlined, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No transaction data found for the last 6 months', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Icon(Icons.bar_chart_outlined, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(context.tr('noTransactionData6Months'), style: const TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -238,7 +238,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
             const Icon(Icons.error_outline, size: 64, color: AppTheme.danger),
             const SizedBox(height: 16),
             Text(
-              'Failed to load P&L data:\n$_errorMessage',
+              context.tr('failedToLoadPLData').replaceFirst('{error}', _errorMessage ?? ''),
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
@@ -246,7 +246,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
             ElevatedButton.icon(
               onPressed: _loadData,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(context.tr('retry')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
@@ -272,9 +272,9 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Focused Month:',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+            Text(
+              context.tr('focusedMonth'),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
             ),
             DropdownButton<_MonthlyData>(
               value: _selectedMonth,
@@ -309,7 +309,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
           children: [
             Expanded(
               child: _buildMetricCard(
-                label: 'TOTAL INCOME',
+                label: context.tr('totalIncomeUpper'),
                 value: CurrencyUtils.formatRupees(data.income),
                 color: AppTheme.success,
                 icon: Icons.trending_up,
@@ -318,7 +318,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _buildMetricCard(
-                label: 'TOTAL EXPENSES',
+                label: context.tr('totalExpensesUpper'),
                 value: CurrencyUtils.formatRupees(data.expenses),
                 color: AppTheme.danger,
                 icon: Icons.trending_down,
@@ -349,7 +349,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isProfit ? 'NET PROFIT' : 'NET LOSS',
+                        isProfit ? context.tr('netProfitUpper') : context.tr('netLossUpper'),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -377,7 +377,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () => _exportPLReport(data),
-                  label: const Text('Export PDF'),
+                  label: Text(context.tr('exportPdf')),
                 ),
               ],
             ),
@@ -442,9 +442,9 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Income by Mode',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primary),
+                  Text(
+                    context.tr('incomeByMode'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primary),
                   ),
                   const Divider(height: 16),
                   ...data.incomeByMode.entries.map((e) {
@@ -494,15 +494,15 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Expenses by Category',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primary),
+                  Text(
+                    context.tr('expensesByCategory'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primary),
                   ),
                   const Divider(height: 16),
                   if (data.expenseByCategory.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: Text('No expenses logged', style: TextStyle(color: Colors.grey, fontSize: 12))),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: Text(context.tr('noExpensesLogged'), style: const TextStyle(color: Colors.grey, fontSize: 12))),
                     )
                   else
                     ...data.expenseByCategory.entries.map((e) {
@@ -569,16 +569,16 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '6-Month Financial Trend',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primary),
+            Text(
+              context.tr('financialTrend6Month'),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primary),
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                _legendIndicator(color: AppTheme.success, label: 'Income'),
+                _legendIndicator(color: AppTheme.success, label: context.tr('income')),
                 const SizedBox(width: 16),
-                _legendIndicator(color: AppTheme.danger, label: 'Expenses'),
+                _legendIndicator(color: AppTheme.danger, label: context.tr('expenses')),
               ],
             ),
             const SizedBox(height: 24),
@@ -679,6 +679,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
   }
 
   Future<void> _exportPLReport(_MonthlyData data) async {
+    final langCode = Provider.of<LocaleProvider>(context, listen: false).code;
     final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
     final branding = await PdfBrandingHelper.load(
       schoolName: settings.schoolName,
@@ -702,14 +703,14 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('MONTHLY FINANCIAL REPORT', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
-                    pw.Text('Profit & Loss Statement for ${data.monthName}', style: const pw.TextStyle(fontSize: 12, color: PdfTheme.textLight)),
+                    pw.Text(AppStrings.get(langCode, 'monthlyFinancialReport'), style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
+                    pw.Text(AppStrings.get(langCode, 'profitLossStatementFor').replaceFirst('{month}', data.monthName), style: const pw.TextStyle(fontSize: 12, color: PdfTheme.textLight)),
                   ],
                 ),
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
-                    pw.Text('Exported: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}', style: const pw.TextStyle(fontSize: 9, color: PdfTheme.textLight)),
+                    pw.Text(AppStrings.get(langCode, 'exportedDate').replaceFirst('{date}', '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}'), style: const pw.TextStyle(fontSize: 9, color: PdfTheme.textLight)),
                   ],
                 ),
               ],
@@ -719,7 +720,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
             pw.SizedBox(height: 12),
 
             // Summary Table
-            pw.Text('Executive Summary', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
+            pw.Text(AppStrings.get(langCode, 'executiveSummary'), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
             pw.SizedBox(height: 8),
             pw.Table(
               border: pw.TableBorder.all(color: PdfTheme.grey200),
@@ -727,19 +728,19 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
                 pw.TableRow(
                   decoration: const pw.BoxDecoration(color: PdfTheme.primaryTint),
                   children: [
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Metric', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Amount', style: pw.TextStyle(fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.right)),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(AppStrings.get(langCode, 'metric'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(AppStrings.get(langCode, 'amount'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.right)),
                   ],
                 ),
                 pw.TableRow(
                   children: [
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Total Income (Fees Collected)')),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(AppStrings.get(langCode, 'totalIncomeFeesCollected'))),
                     pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(CurrencyUtils.formatRupees(data.income), textAlign: pw.TextAlign.right)),
                   ],
                 ),
                 pw.TableRow(
                   children: [
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Total Operating Expenses')),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(AppStrings.get(langCode, 'totalOperatingExpenses'))),
                     pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(CurrencyUtils.formatRupees(data.expenses), textAlign: pw.TextAlign.right)),
                   ],
                 ),
@@ -748,7 +749,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
                     color: data.netProfit >= 0 ? PdfTheme.successTint : PdfTheme.dangerTint,
                   ),
                   children: [
-                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(data.netProfit >= 0 ? 'Net Profit' : 'Net Loss', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: data.netProfit >= 0 ? PdfTheme.success : PdfTheme.danger))),
+                    pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(data.netProfit >= 0 ? AppStrings.get(langCode, 'netProfit') : AppStrings.get(langCode, 'netLoss'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: data.netProfit >= 0 ? PdfTheme.success : PdfTheme.danger))),
                     pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(CurrencyUtils.formatRupees(data.netProfit), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: data.netProfit >= 0 ? PdfTheme.success : PdfTheme.danger), textAlign: pw.TextAlign.right)),
                   ],
                 ),
@@ -764,7 +765,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text('Income Breakdown', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
+                      pw.Text(AppStrings.get(langCode, 'incomeByMode'), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
                       pw.SizedBox(height: 6),
                       ...data.incomeByMode.entries.map((e) {
                         return pw.Padding(
@@ -786,10 +787,10 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text('Expense Breakdown', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
+                      pw.Text(AppStrings.get(langCode, 'expensesByCategory'), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
                       pw.SizedBox(height: 6),
                       if (data.expenseByCategory.isEmpty)
-                        pw.Text('No expenses logged.', style: const pw.TextStyle(fontSize: 10, color: PdfTheme.textLight))
+                        pw.Text(AppStrings.get(langCode, 'noExpensesPeriod'), style: const pw.TextStyle(fontSize: 10, color: PdfTheme.textLight))
                       else
                         ...data.expenseByCategory.entries.map((e) {
                           return pw.Padding(
@@ -811,10 +812,10 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
             pw.SizedBox(height: 24),
 
             // Detailed Expenses List
-            pw.Text('Detailed Expenses', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
+            pw.Text(AppStrings.get(langCode, 'detailedExpenses'), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
             pw.SizedBox(height: 8),
             if (data.rawExpenses.isEmpty)
-              pw.Text('No expenses recorded in this period.', style: const pw.TextStyle(fontSize: 10, color: PdfTheme.textLight))
+              pw.Text(AppStrings.get(langCode, 'noExpensesPeriod'), style: const pw.TextStyle(fontSize: 10, color: PdfTheme.textLight))
             else
               pw.Table(
                 border: pw.TableBorder.all(color: PdfTheme.grey200),
@@ -822,11 +823,11 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
                   pw.TableRow(
                     decoration: const pw.BoxDecoration(color: PdfTheme.grey50),
                     children: [
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Date', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Category', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Description', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Payment Mode', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Amount', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9), textAlign: pw.TextAlign.right)),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(AppStrings.get(langCode, 'dateLabel'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(AppStrings.get(langCode, 'categoryLabel'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(AppStrings.get(langCode, 'description'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(AppStrings.get(langCode, 'paymentMode'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(AppStrings.get(langCode, 'amount'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9), textAlign: pw.TextAlign.right)),
                     ],
                   ),
                   ...data.rawExpenses.map((exp) {
@@ -856,7 +857,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
       AppLogger.e('ProfitLossScreen', 'PDF printing failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to print PDF: $e'), backgroundColor: AppTheme.danger),
+          SnackBar(content: Text(context.tr('failedToPrintPdfError').replaceFirst('{error}', e.toString())), backgroundColor: AppTheme.danger),
         );
       }
     }
