@@ -4,6 +4,7 @@ import '../../services/fee_service.dart';
 import '../../models/fee.dart';
 import '../../theme.dart';
 import '../../shared/utils/currency_utils.dart';
+import '../../l10n/app_strings.dart';
 
 class PaymentGatewaySimulator extends StatefulWidget {
   final String className;
@@ -65,18 +66,10 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
   final _cardCvvController = TextEditingController(text: '123');
   final _cardNameController = TextEditingController(text: 'Guardian User');
 
-  String _currentMilestone = 'Initializing secure payment session...';
+  String _currentMilestone = '';
   double _progress = 0.1;
   String _receiptNo = '';
   String _failureReason = '';
-
-  final List<String> _milestones = [
-    'Connecting to secure gateway...',
-    'Verifying account credentials...',
-    'Authorizing transaction of amount...',
-    'Reconciling payments with school ledger...',
-    'Generating receipt and closing transaction...'
-  ];
 
   @override
   void dispose() {
@@ -92,17 +85,25 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
     setState(() {
       _step = 1;
       _progress = 0.1;
-      _currentMilestone = 'Initializing secure payment session...';
+      _currentMilestone = context.tr('initiatingSecurePayment');
     });
 
+    final milestones = [
+      context.tr('connectingSecureGateway'),
+      context.tr('verifyingAccountCredentials'),
+      context.tr('authorizingTransactionAmount'),
+      context.tr('reconcilingPaymentsLedger'),
+      context.tr('generatingReceiptClosing')
+    ];
+
     // Run milestones simulation with visual updates
-    for (int i = 0; i < _milestones.length; i++) {
+    for (int i = 0; i < milestones.length; i++) {
       await Future.delayed(const Duration(milliseconds: 650));
       if (!mounted) return;
       setState(() {
-        _currentMilestone = _milestones[i];
+        _currentMilestone = milestones[i];
         if (i == 2) {
-          _currentMilestone = 'Authorizing ${CurrencyUtils.formatRupees(widget.amount)}...';
+          _currentMilestone = context.tr('authorizingTransactionAmount') + ' ${CurrencyUtils.formatRupees(widget.amount)}...';
         }
         _progress = 0.2 + (i * 0.15);
       });
@@ -113,7 +114,7 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
       if (!mounted) return;
       setState(() {
         _step = 3;
-        _failureReason = 'Transaction declined by issuer bank (MOCK_DECLINED_503)';
+        _failureReason = context.tr('mockDeclinedReason');
       });
       widget.onFailure(_failureReason);
       return;
@@ -205,9 +206,9 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Secure Payment Gateway',
-              style: TextStyle(
+            Text(
+              context.tr('securePaymentGateway'),
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.primary,
@@ -219,13 +220,13 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
                 color: Colors.amber.shade100,
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.shield_outlined, size: 14, color: Colors.amber),
-                  SizedBox(width: 4),
+                  const Icon(Icons.shield_outlined, size: 14, color: Colors.amber),
+                  const SizedBox(width: 4),
                   Text(
-                    'Simulator Mode',
-                    style: TextStyle(
+                    context.tr('simulatorMode'),
+                    style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                       color: Colors.amber,
@@ -249,9 +250,9 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Total Amount to Pay:',
-                style: TextStyle(
+              Text(
+                context.tr('totalAmountToPay'),
+                style: const TextStyle(
                   fontWeight: FontWeight.w500,
                   color: AppTheme.textSecondary,
                 ),
@@ -284,9 +285,9 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
         const SizedBox(height: 16),
 
         if (_paymentMethod == 'UPI') ...[
-          const Text(
-            'Enter UPI ID',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textPrimary),
+          Text(
+            context.tr('enterUpiId'),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textPrimary),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -310,16 +311,16 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
             ),
           ),
         ] else ...[
-          const Text(
-            'Card Details',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textPrimary),
+          Text(
+            context.tr('cardDetails'),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textPrimary),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _cardNumberController,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              hintText: 'Card Number',
+              hintText: context.tr('cardNumber'),
               filled: true,
               fillColor: Colors.grey.shade50,
               border: OutlineInputBorder(
@@ -372,7 +373,7 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                child: const Text('Simulate Failure', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(context.tr('simulateFailure'), style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(width: 12),
@@ -385,7 +386,7 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                child: const Text('Simulate Success', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(context.tr('simulateSuccess'), style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -462,7 +463,7 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
           ),
           const SizedBox(height: 8),
           Text(
-            '${(_progress * 100).round()}% Completed',
+            context.tr('percentCompleted').replaceAll('{percent}', (_progress * 100).round().toString()),
             style: const TextStyle(
               fontSize: 12,
               color: AppTheme.textSecondary,
@@ -493,9 +494,9 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Payment Successful!',
-            style: TextStyle(
+          Text(
+            context.tr('paymentSuccessful'),
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: AppTheme.success,
@@ -503,7 +504,7 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Receipt No: $_receiptNo',
+            context.tr('receiptNoColon').replaceAll('{receiptNo}', _receiptNo),
             style: const TextStyle(
               fontSize: 14,
               color: AppTheme.textSecondary,
@@ -511,9 +512,9 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Reconciling with the school system...',
-            style: TextStyle(
+          Text(
+            context.tr('reconcilingSchoolSystem'),
+            style: const TextStyle(
               fontSize: 12,
               fontStyle: FontStyle.italic,
               color: AppTheme.textSecondary,
@@ -543,9 +544,9 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Payment Failed',
-            style: TextStyle(
+          Text(
+            context.tr('paymentFailed'),
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: AppTheme.danger,
@@ -579,7 +580,7 @@ class _PaymentGatewaySimulatorState extends State<PaymentGatewaySimulator> {
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(context.tr('retry'), style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           ),
         ],
