@@ -1059,9 +1059,13 @@ class AppStrings {
     // ── Role selection ───────────────────────────────────────────────────
     'chooseHowToSignIn':   {'en': 'Choose how to sign in', 'hi': 'साइन इन का तरीका चुनें'},
     'staffLogin':          {'en': 'Staff Login',         'hi': 'स्टाफ़ लॉगिन'},
-    'staffLoginSubtitle':  {'en': 'Teacher, Coordinator, Principal, Owner', 'hi': 'शिक्षक, समन्वयक, प्रधानाचार्य, मालिक'},
+    'staffLoginSubtitle':  {'en': 'Teacher, Coordinator, Principal', 'hi': 'शिक्षक, समन्वयक, प्रधानाचार्य'},
+    'ownerLogin':          {'en': 'Owner Login',         'hi': 'मालिक लॉगिन'},
+    'ownerLoginSubtitle':  {'en': 'Manage your school, subscription & staff', 'hi': 'अपने स्कूल, सदस्यता और कर्मचारियों को प्रबंधित करें'},
     'guardianSubtitle':    {'en': "View your child's attendance & progress", 'hi': 'अपने बच्चे की उपस्थिति और प्रगति देखें'},
     'adminSubtitle':       {'en': 'Manage registered users & login access', 'hi': 'पंजीकृत उपयोगकर्ता और लॉगिन प्रबंधित करें'},
+    'onlyOwnersAllowed':   {'en': 'Only school owners can sign in here. Staff should use Staff Login.', 'hi': 'केवल स्कूल मालिक ही यहाँ साइन इन कर सकते हैं। स्टाफ़ को स्टाफ़ लॉगिन का उपयोग करना चाहिए।'},
+    'ownersUseOwnerLogin': {'en': 'School owners must sign in through the Owner Login section.', 'hi': 'स्कूल मालिकों को मालिक लॉगिन अनुभाग के माध्यम से साइन इन करना होगा।'},
 
     // ── Guardian ─────────────────────────────────────────────────────────
     'viewing':         {'en': 'VIEWING',           'hi': 'देख रहे हैं'},

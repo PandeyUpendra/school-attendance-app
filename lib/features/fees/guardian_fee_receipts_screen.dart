@@ -12,6 +12,7 @@ import '../../services/student_service.dart';
 import '../../services/fee_service.dart';
 import '../../shared/utils/currency_utils.dart';
 import '../../shared/utils/pdf_theme.dart';
+import '../../shared/utils/pdf_branding_helper.dart';
 import '../../shared/providers/school_settings_provider.dart';
 
 class GuardianFeeReceiptsScreen extends StatefulWidget {
@@ -99,7 +100,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
     return 1.0;
   }
 
-  pw.Document _buildReceiptPdf(Payment p) {
+  pw.Document _buildReceiptPdf(Payment p, PdfBrandingData branding) {
     final doc = pw.Document();
     final s = _student!;
     final st = _structure!;
@@ -132,6 +133,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
+              PdfBrandingHelper.buildHeader(branding),
               pw.Center(
                 child: pw.Text(
                   schoolName.toUpperCase(),
@@ -239,7 +241,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
     return doc;
   }
 
-  pw.Document _buildTaxCertificatePdf() {
+  pw.Document _buildTaxCertificatePdf(PdfBrandingData branding) {
     final doc = pw.Document();
     final s = _student!;
     final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
@@ -257,6 +259,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
       build: (pw.Context context) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
+          PdfBrandingHelper.buildHeader(branding),
           pw.Center(
             child: pw.Text(
               settings.schoolName.toUpperCase(),
@@ -498,17 +501,32 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
   }
 
   Future<void> _printReceipt(Payment p) async {
-    final doc = _buildReceiptPdf(p);
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final branding = await PdfBrandingHelper.load(
+      schoolName: settings.schoolName,
+      schoolLogoUrl: settings.schoolLogo,
+    );
+    final doc = _buildReceiptPdf(p, branding);
     await Printing.layoutPdf(onLayout: (format) async => doc.save(), name: 'receipt_${p.receiptNo}');
   }
 
   Future<void> _shareReceipt(Payment p) async {
-    final doc = _buildReceiptPdf(p);
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final branding = await PdfBrandingHelper.load(
+      schoolName: settings.schoolName,
+      schoolLogoUrl: settings.schoolLogo,
+    );
+    final doc = _buildReceiptPdf(p, branding);
     await Printing.sharePdf(bytes: await doc.save(), filename: 'receipt_${p.receiptNo}.pdf');
   }
 
   Future<void> _printTaxCertificate() async {
-    final doc = _buildTaxCertificatePdf();
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final branding = await PdfBrandingHelper.load(
+      schoolName: settings.schoolName,
+      schoolLogoUrl: settings.schoolLogo,
+    );
+    final doc = _buildTaxCertificatePdf(branding);
     final name = _student?.name ?? 'student';
     await Printing.layoutPdf(
       onLayout: (format) async => doc.save(),
@@ -517,7 +535,12 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
   }
 
   Future<void> _shareTaxCertificate() async {
-    final doc = _buildTaxCertificatePdf();
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final branding = await PdfBrandingHelper.load(
+      schoolName: settings.schoolName,
+      schoolLogoUrl: settings.schoolLogo,
+    );
+    final doc = _buildTaxCertificatePdf(branding);
     final name = _student?.name ?? 'student';
     await Printing.sharePdf(
       bytes: await doc.save(),

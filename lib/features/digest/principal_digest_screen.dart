@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:provider/provider.dart';
+import '../../shared/providers/school_settings_provider.dart';
+import '../../shared/utils/pdf_branding_helper.dart';
 import '../../shared/utils/pdf_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../l10n/app_strings.dart';
@@ -65,15 +68,25 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
 
   Future<void> _previewPdf() async {
     if (_snap == null) return;
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final branding = await PdfBrandingHelper.load(
+      schoolName: settings.schoolName,
+      schoolLogoUrl: settings.schoolLogo,
+    );
     await Printing.layoutPdf(
-      onLayout: (_) async => _buildPdf(_snap!).save(),
+      onLayout: (_) async => _buildPdf(_snap!, branding).save(),
       name: _pdfFileName(_snap!),
     );
   }
 
   Future<void> _sharePdf() async {
     if (_snap == null) return;
-    final bytes = await _buildPdf(_snap!).save();
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final branding = await PdfBrandingHelper.load(
+      schoolName: settings.schoolName,
+      schoolLogoUrl: settings.schoolLogo,
+    );
+    final bytes = await _buildPdf(_snap!, branding).save();
     await Printing.sharePdf(bytes: bytes, filename: _pdfFileName(_snap!));
   }
 
@@ -184,7 +197,7 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
 
   // ── PDF ─────────────────────────────────────────────────────────────────────
 
-  pw.Document _buildPdf(DigestSnapshot s) {
+  pw.Document _buildPdf(DigestSnapshot s, PdfBrandingData branding) {
     final doc = pw.Document();
 
     pw.Widget kv(String k, String v, {PdfColor? color}) => pw.Padding(
@@ -232,19 +245,15 @@ class _PrincipalDigestScreenState extends State<PrincipalDigestScreen> {
     final attColor = s.attendancePct >= 90
         ? PdfColors.green800
         : s.attendancePct >= 75
-            ? PdfColors.orange700
-            : PdfColors.red700;
+        ? PdfColors.orange700
+        : PdfColors.red700;
 
     doc.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(36),
       build: (ctx) => [
         // Header
-        pw.Text(s.schoolName.toUpperCase(),
-            style: pw.TextStyle(
-                fontSize: 18, fontWeight: pw.FontWeight.bold,
-                color: PdfTheme.primaryDark)),
-        pw.SizedBox(height: 2),
+        PdfBrandingHelper.buildHeader(branding),
         pw.Text("End-of-Day Principal Digest",
             style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
         pw.SizedBox(height: 2),

@@ -1,5 +1,6 @@
 import 'package:provider/provider.dart';
 import '../../shared/providers/locale_provider.dart';
+import '../../shared/providers/school_settings_provider.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
@@ -177,11 +178,14 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
     final pdfErr = context.tr('pdfError');
     await _pickTemplateAndRun((template) async {
       try {
+        final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
         final bytes = await buildReportCardPdf(
           template: template,
           result:   r,
           student:  s,
           exam:     widget.exam,
+          schoolName: settings.schoolName,
+          schoolLogoUrl: settings.schoolLogo,
           rank:     template.showRank ? _ranks[s.roll] : null,
           languageCode: Provider.of<LocaleProvider>(context, listen: false).code,
         );
@@ -203,12 +207,15 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
     final pdfErr = context.tr('pdfError');
     await _pickTemplateAndRun((template) async {
       try {
+        final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
         final bytes = await buildClassReportCardPdf(
           template:  template,
           results:   _results,
           students:  _students,
           exam:      widget.exam,
           ranks:     _ranks,
+          schoolName: settings.schoolName,
+          schoolLogoUrl: settings.schoolLogo,
           languageCode: Provider.of<LocaleProvider>(context, listen: false).code,
         );
         await Printing.sharePdf(

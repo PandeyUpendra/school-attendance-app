@@ -6,6 +6,9 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../shared/utils/pdf_theme.dart';
+import 'package:provider/provider.dart';
+import '../../shared/providers/school_settings_provider.dart';
+import '../../shared/utils/pdf_branding_helper.dart';
 import '../../models/fee.dart';
 import '../../models/student.dart';
 import '../../services/auth_service.dart';
@@ -1064,7 +1067,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
 
   // ── Print receipt ────────────────────────────────────────────────────────
 
-  pw.Document _buildReceiptPdf(Payment p) {
+  pw.Document _buildReceiptPdf(Payment p, PdfBrandingData branding) {
     final doc = pw.Document();
     final s   = widget.student;
     final st  = widget.structure;
@@ -1090,6 +1093,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
+              PdfBrandingHelper.buildHeader(branding),
               pw.Center(
                 child: pw.Text(p.reversed ? 'VOID / REVERSED RECEIPT' : 'FEE RECEIPT',
                     style: pw.TextStyle(
@@ -1199,7 +1203,12 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
 
   Future<void> _printReceipt(Payment p) async {
     if (!await _assertPdfRole()) return;
-    final doc = _buildReceiptPdf(p);
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final branding = await PdfBrandingHelper.load(
+      schoolName: settings.schoolName,
+      schoolLogoUrl: settings.schoolLogo,
+    );
+    final doc = _buildReceiptPdf(p, branding);
     await Printing.layoutPdf(
       onLayout: (_) => doc.save(),
       name: 'receipt_${p.receiptNo}',
@@ -1208,7 +1217,12 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
 
   Future<void> _shareReceipt(Payment p) async {
     if (!await _assertPdfRole()) return;
-    final doc = _buildReceiptPdf(p);
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final branding = await PdfBrandingHelper.load(
+      schoolName: settings.schoolName,
+      schoolLogoUrl: settings.schoolLogo,
+    );
+    final doc = _buildReceiptPdf(p, branding);
     final bytes = await doc.save();
     await Printing.sharePdf(
       bytes: bytes,

@@ -3,6 +3,9 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../shared/utils/pdf_theme.dart';
+import 'package:provider/provider.dart';
+import '../../shared/providers/school_settings_provider.dart';
+import '../../shared/utils/pdf_branding_helper.dart';
 import '../../models/teacher.dart';
 import '../../models/timetable_entry.dart';
 import '../../services/timetable_service.dart';
@@ -134,6 +137,12 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
   // ── PDF generation ───────────────────────────────────────────────────────────
 
   Future<void> _sharePdf(String? forClass) async {
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final branding = await PdfBrandingHelper.load(
+      schoolName: settings.schoolName,
+      schoolLogoUrl: settings.schoolLogo,
+    );
+
     final pdf = pw.Document();
 
     // Collect data
@@ -144,6 +153,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
         pageFormat: PdfPageFormat.a4.landscape,
         margin: const pw.EdgeInsets.all(24),
         build: (ctx) => [
+          PdfBrandingHelper.buildHeader(branding),
           pw.Text(
             forClass != null
                 ? '$forClass — Timetable'

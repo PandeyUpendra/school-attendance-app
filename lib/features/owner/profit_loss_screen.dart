@@ -12,6 +12,9 @@ import '../../theme.dart';
 import '../../shared/utils/app_logger.dart';
 import '../../shared/utils/currency_utils.dart';
 import '../../shared/utils/pdf_theme.dart';
+import 'package:provider/provider.dart';
+import '../../shared/providers/school_settings_provider.dart';
+import '../../shared/utils/pdf_branding_helper.dart';
 import '../../shared/widgets/premium_feature_gate.dart';
 
 class ProfitLossScreen extends StatefulWidget {
@@ -675,6 +678,12 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
   }
 
   Future<void> _exportPLReport(_MonthlyData data) async {
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final branding = await PdfBrandingHelper.load(
+      schoolName: settings.schoolName,
+      schoolLogoUrl: settings.schoolLogo,
+    );
+
     final pdf = pw.Document();
     
     // Load logo if exists or draw a nice text title
@@ -685,6 +694,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
         build: (pw.Context context) {
           return [
             // Header
+            PdfBrandingHelper.buildHeader(branding),
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
@@ -703,7 +713,7 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
                 ),
               ],
             ),
-            pw.SizedBox(height: 16),
+            pw.SizedBox(height: 8),
             pw.Divider(thickness: 1, color: PdfTheme.primaryLight),
             pw.SizedBox(height: 12),
 

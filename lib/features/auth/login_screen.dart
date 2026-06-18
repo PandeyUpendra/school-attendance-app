@@ -24,7 +24,8 @@ import '../owner/owner_principal_home.dart';
 import '../../shared/utils/app_transitions.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final bool isOwnerLogin;
+  const LoginScreen({super.key, this.isOwnerLogin = false});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -128,6 +129,24 @@ class _LoginScreenState extends State<LoginScreen> {
       final schoolId  = userData['schoolId'] as String? ?? '';
       final status    = userData['status']   as String? ?? 'active';
       final teacherId = userData['teacherId'] as String?;
+
+      final isOwnerRole = role == 'owner' || role == 'ownerPrincipal';
+      if (widget.isOwnerLogin && !isOwnerRole) {
+        await AuthService().signOut();
+        setState(() {
+          _loading = false;
+          _error = context.tr('onlyOwnersAllowed');
+        });
+        return;
+      }
+      if (!widget.isOwnerLogin && isOwnerRole) {
+        await AuthService().signOut();
+        setState(() {
+          _loading = false;
+          _error = context.tr('ownersUseOwnerLogin');
+        });
+        return;
+      }
 
       // Block both suspended AND disabled here. Previously only 'suspended' was
       // checked, so a 'disabled' account could still sign in fresh and was only
@@ -390,8 +409,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                Text(
-                                  context.tr('signInSubtitle'),
+                                 Text(
+                                  widget.isOwnerLogin
+                                      ? context.tr('ownerLoginSubtitle')
+                                      : context.tr('signInSubtitle'),
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                       fontSize: 15, color: Colors.white.withValues(alpha: 0.75)),

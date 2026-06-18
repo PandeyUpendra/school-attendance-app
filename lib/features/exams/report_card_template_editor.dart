@@ -1,5 +1,6 @@
 import 'package:provider/provider.dart';
 import '../../shared/providers/locale_provider.dart';
+import '../../shared/providers/school_settings_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:printing/printing.dart';
@@ -554,11 +555,14 @@ class _ReportCardTemplateEditorState
         enteredBy:   'preview',
       );
 
+      final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
       final bytes = await buildReportCardPdf(
         template: template,
         result:   sampleResult,
         student:  sampleStudent,
         exam:     sampleExam,
+        schoolName: settings.schoolName,
+        schoolLogoUrl: settings.schoolLogo,
         rank:     template.showRank ? 3 : null,
         totalPresent: template.showAttendance ? 182 : null,
         totalDays:    template.showAttendance ? 210 : null,

@@ -6,6 +6,8 @@ import '../../services/meeting_service.dart';
 import '../../theme.dart';
 import '../../shared/widgets/index_building_notice.dart';
 import './meeting_detail_screen.dart';
+import 'package:provider/provider.dart';
+import '../../shared/providers/school_settings_provider.dart';
 
 /// Localised label for a meeting filter (filter values stay English).
 String _localizedFilter(BuildContext c, String f) => switch (f) {
@@ -255,7 +257,12 @@ class _PrincipalMeetingRecordsScreenState
 
   Future<void> _sharePdf(Meeting m) async {
     try {
-      await shareMeetingPdf(m);
+      final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+      await shareMeetingPdf(
+        m,
+        schoolName: settings.schoolName,
+        schoolLogoUrl: settings.schoolLogo,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

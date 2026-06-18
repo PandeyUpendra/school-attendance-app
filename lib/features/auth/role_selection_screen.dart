@@ -111,16 +111,35 @@ class RoleSelectionScreen extends StatelessWidget {
                           
                           const Spacer(flex: 2), // Spacing before the cards
 
-                          // ── Staff (teacher / coordinator / principal / owner) ───────
+                          // ── Owner ──────────────────────────────────────────────────
                           FadeInUp(
                             delay: const Duration(milliseconds: 100),
+                            child: _RoleCard(
+                              icon: Icons.corporate_fare_outlined,
+                              title: context.tr('ownerLogin'),
+                              subtitle: context.tr('ownerLoginSubtitle'),
+                              onTap: () => Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const LoginScreen(isOwnerLogin: true),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // ── Staff (teacher / coordinator / principal) ───────────────
+                          FadeInUp(
+                            delay: const Duration(milliseconds: 180),
                             child: _RoleCard(
                               icon: Icons.badge_outlined,
                               title: context.tr('staffLogin'),
                               subtitle: context.tr('staffLoginSubtitle'),
                               onTap: () => Navigator.pushReplacement(
                                 context,
-                                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                MaterialPageRoute(
+                                  builder: (_) => const LoginScreen(isOwnerLogin: false),
+                                ),
                               ),
                             ),
                           ),
@@ -128,7 +147,7 @@ class RoleSelectionScreen extends StatelessWidget {
 
                           // ── Guardian ──────────────────────────────────────────────
                           FadeInUp(
-                            delay: const Duration(milliseconds: 180),
+                            delay: const Duration(milliseconds: 260),
                             child: _RoleCard(
                               icon: Icons.family_restroom_outlined,
                               title: context.tr('role_guardian'),
@@ -144,7 +163,7 @@ class RoleSelectionScreen extends StatelessWidget {
 
                           // ── Admin ─────────────────────────────────────────────────
                           FadeInUp(
-                            delay: const Duration(milliseconds: 260),
+                            delay: const Duration(milliseconds: 340),
                             child: _RoleCard(
                               icon: Icons.manage_accounts_outlined,
                               title: context.tr('role_admin'),

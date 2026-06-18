@@ -12,6 +12,7 @@ import '../../services/timetable_service.dart';
 import '../../shared/providers/school_settings_provider.dart';
 import '../../theme.dart';
 import '../../shared/utils/pdf_theme.dart';
+import '../../shared/utils/pdf_branding_helper.dart';
 
 class IdCardGeneratorScreen extends StatefulWidget {
   const IdCardGeneratorScreen({super.key});
@@ -99,6 +100,12 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
         client.close();
       }
 
+      final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+      final branding = await PdfBrandingHelper.load(
+        schoolName: settings.schoolName,
+        schoolLogoUrl: settings.schoolLogo,
+      );
+
       // Compile PDF Document
       final pdf = pw.Document();
 
@@ -133,7 +140,44 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
                       ],
                     ),
                     if (row < 3) pw.SizedBox(height: 10),
-                  ]
+                  ],
+                  pw.SizedBox(height: 10),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
+                    children: [
+                      pw.Row(
+                        children: [
+                          if (branding.schoolLogo != null)
+                            pw.Container(
+                              width: 14,
+                              height: 14,
+                              margin: const pw.EdgeInsets.only(right: 4),
+                              child: pw.Image(branding.schoolLogo!),
+                            ),
+                          pw.Text(
+                            branding.schoolName,
+                            style: pw.TextStyle(fontSize: 7.5, color: PdfColors.grey600),
+                          ),
+                        ],
+                      ),
+                      pw.Row(
+                        children: [
+                          if (branding.appLogo != null)
+                            pw.Container(
+                              width: 10,
+                              height: 10,
+                              margin: const pw.EdgeInsets.only(right: 3),
+                              child: pw.Image(branding.appLogo!),
+                            ),
+                          pw.Text(
+                            'Powered by ${branding.appName}',
+                            style: pw.TextStyle(fontSize: 7.5, color: PdfColors.grey600),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ],
               );
             },

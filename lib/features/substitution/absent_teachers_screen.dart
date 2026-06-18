@@ -5,6 +5,9 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../shared/utils/pdf_theme.dart';
+import 'package:provider/provider.dart';
+import '../../shared/providers/school_settings_provider.dart';
+import '../../shared/utils/pdf_branding_helper.dart';
 import '../../models/substitution_record.dart';
 import '../../models/teacher.dart';
 import '../../models/timetable_entry.dart';
@@ -549,6 +552,12 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
   }
 
   Future<void> _exportPdf() async {
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final branding = await PdfBrandingHelper.load(
+      schoolName: settings.schoolName,
+      schoolLogoUrl: settings.schoolLogo,
+    );
+
     final now     = DateTime.now();
     final dateStr = '${now.day} ${_months[now.month]} ${now.year}';
     final subs    = await TimetableService.instance.getTodaySubstitutions();
@@ -583,6 +592,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         build: (ctx) => [
+          PdfBrandingHelper.buildHeader(branding),
           pw.Text(context.tr('substitutionPlanTitle').replaceAll('{date}', dateStr),
               style: pw.TextStyle(
                   fontSize: 18, fontWeight: pw.FontWeight.bold,

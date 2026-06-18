@@ -2,7 +2,7 @@ import '../../models/timetable_entry.dart';
 import '../../models/teacher.dart';
 
 class TimetableConflict {
-  final String type; // 'clash' | 'overload' | 'consecutive' | 'empty'
+  final String type; // 'clash' | 'overload' | 'consecutive'
   final String day;
   final int bell;
   final String className;
@@ -147,30 +147,7 @@ class TimetableConflictDetector {
       });
     }
 
-    // 3. Detect Unassigned Regular Classes (excluding Lunch periods)
-    for (final cls in classes) {
-      for (final day in days) {
-        for (int bell = 1; bell <= bellsCount; bell++) {
-          if (lunchBells.contains(bell)) continue; // ignore lunch
 
-          final entry = timetable[cls]?[day]?[bell];
-          if (entry == null || entry.isEmpty) {
-            // Unassigned period
-            conflicts.add(
-              TimetableConflict(
-                type: 'empty',
-                day: day,
-                bell: bell,
-                className: cls,
-                teacherId: '',
-                teacherName: '',
-                details: 'Class $cls has an unassigned period at Bell $bell on $day',
-              ),
-            );
-          }
-        }
-      }
-    }
 
     return conflicts;
   }

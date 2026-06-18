@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:provider/provider.dart';
+import '../../shared/providers/school_settings_provider.dart';
+import '../../shared/utils/pdf_branding_helper.dart';
 import '../../l10n/app_strings.dart';
 import '../../shared/utils/consent_gate.dart';
 import '../../shared/utils/pdf_theme.dart';
@@ -144,14 +147,19 @@ class _AttendanceCertificateScreenState
     // Exporting/sharing the certificate is third-party egress of a minor's
     // data — gate on parental consent (#17).
     if (!await ConsentGate.allowsForStudent(context, widget.student)) return;
-    final pdf = _buildPdf();
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final branding = await PdfBrandingHelper.load(
+      schoolName: settings.schoolName,
+      schoolLogoUrl: settings.schoolLogo,
+    );
+    final pdf = _buildPdf(branding);
     await Printing.layoutPdf(
       onLayout: (_) async => pdf.save(),
       name: 'Attendance_Certificate_${widget.student.name.replaceAll(' ', '_')}.pdf',
     );
   }
 
-  pw.Document _buildPdf() {
+  pw.Document _buildPdf(PdfBrandingData branding) {
     final doc = pw.Document();
     final s   = widget.student;
     final fromStr = _fmtDate(_from);
@@ -165,6 +173,7 @@ class _AttendanceCertificateScreenState
         build: (ctx) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
+            PdfBrandingHelper.buildHeader(branding),
             // ── Header ─────────────────────────────────────────────────────
             pw.Text(
               _schoolName.toUpperCase(),

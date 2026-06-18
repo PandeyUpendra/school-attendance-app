@@ -12,6 +12,7 @@ import '../../services/exam_service.dart';
 import '../../shared/providers/school_settings_provider.dart';
 import '../../theme.dart';
 import '../../shared/utils/pdf_theme.dart';
+import '../../shared/utils/pdf_branding_helper.dart';
 
 class GuardianDatesheetScreen extends StatefulWidget {
   final Student student;
@@ -79,7 +80,7 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
     }
   }
 
-  pw.Document _buildAdmitCardPdf(String schoolName) {
+  pw.Document _buildAdmitCardPdf(PdfBrandingData branding) {
     final pdf = pw.Document();
     final s = widget.student;
     final ex = _selectedExam!;
@@ -93,18 +94,17 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
+              PdfBrandingHelper.buildHeader(branding),
               // Header Block
               pw.Center(
                 child: pw.Column(
                   children: [
-                    pw.Text(schoolName.toUpperCase(), style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
-                    pw.SizedBox(height: 4),
                     pw.Text('EXAM ADMIT CARD / HALL TICKET', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
                     pw.Text('${ex.name} - Academic Term', style: pw.TextStyle(fontSize: 11, color: PdfTheme.textLight)),
                   ],
                 ),
               ),
-              pw.SizedBox(height: 16),
+              pw.SizedBox(height: 12),
               pw.Divider(thickness: 1, color: PdfTheme.primaryLight),
               pw.SizedBox(height: 12),
 
@@ -218,7 +218,12 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
   Future<void> _printAdmitCard(String schoolName) async {
     if (_datesheet == null || _datesheet!.schedules.isEmpty) return;
     try {
-      final pdf = _buildAdmitCardPdf(schoolName);
+      final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+      final branding = await PdfBrandingHelper.load(
+        schoolName: settings.schoolName,
+        schoolLogoUrl: settings.schoolLogo,
+      );
+      final pdf = _buildAdmitCardPdf(branding);
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => pdf.save(),
         name: 'AdmitCard_${widget.student.name.replaceAll(' ', '_')}.pdf',

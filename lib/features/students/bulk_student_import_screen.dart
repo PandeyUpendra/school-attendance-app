@@ -49,6 +49,7 @@ class _BulkStudentImportScreenState extends State<BulkStudentImportScreen>
   String? _fileName;
   List<_ParsedRow> _parsedRows = [];
   bool _assertConsent = false;
+  final ScrollController _exampleScrollController = ScrollController();
 
   @override
   void initState() {
@@ -59,6 +60,7 @@ class _BulkStudentImportScreenState extends State<BulkStudentImportScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _exampleScrollController.dispose();
     super.dispose();
   }
 
@@ -478,12 +480,73 @@ class _BulkStudentImportScreenState extends State<BulkStudentImportScreen>
                   'REQUIRED CSV FORMAT HEADER EXAMPLE:',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppTheme.primaryDark, letterSpacing: 0.5),
                 ),
-                const SizedBox(height: 10),
-                const SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Text(
-                    'Class, Section, Roll, Name, Father Name, Phone, Guardian Email\nClass 9, A, 1, Amit Sharma, Raj Sharma, 9876543210, amit@mail.com\nClass 9, A, 2, Pooja Verma, Vijay Verma, 9876500000, pooja@mail.com',
-                    style: TextStyle(fontFamily: 'monospace', fontSize: 11, height: 1.5, color: Colors.blueGrey),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    border: Border.all(color: Colors.grey.shade200),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Scrollbar(
+                      controller: _exampleScrollController,
+                      thumbVisibility: true,
+                      child: SingleChildScrollView(
+                        controller: _exampleScrollController,
+                        scrollDirection: Axis.horizontal,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Table(
+                            defaultColumnWidth: const IntrinsicColumnWidth(),
+                            border: TableBorder(
+                              horizontalInside: BorderSide(color: Colors.grey.shade200, width: 0.5),
+                              verticalInside: BorderSide(color: Colors.grey.shade100, width: 0.5),
+                            ),
+                            children: [
+                              TableRow(
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 1.5)),
+                                ),
+                                children: [
+                                  _buildTableHeader('Class', isRequired: true),
+                                  _buildTableHeader('Section'),
+                                  _buildTableHeader('Roll', isRequired: true),
+                                  _buildTableHeader('Name', isRequired: true),
+                                  _buildTableHeader('Father Name'),
+                                  _buildTableHeader('Phone'),
+                                  _buildTableHeader('Guardian Email'),
+                                ],
+                              ),
+                              TableRow(
+                                children: [
+                                  _buildTableCell('Class 9'),
+                                  _buildTableCell('A'),
+                                  _buildTableCell('1'),
+                                  _buildTableCell('Amit Sharma'),
+                                  _buildTableCell('Raj Sharma'),
+                                  _buildTableCell('9876543210'),
+                                  _buildTableCell('amit@mail.com'),
+                                ],
+                              ),
+                              TableRow(
+                                children: [
+                                  _buildTableCell('Class 9'),
+                                  _buildTableCell('A'),
+                                  _buildTableCell('2'),
+                                  _buildTableCell('Pooja Verma'),
+                                  _buildTableCell('Vijay Verma'),
+                                  _buildTableCell('9876500000'),
+                                  _buildTableCell('pooja@mail.com'),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 const Divider(height: 20),
@@ -506,6 +569,47 @@ class _BulkStudentImportScreenState extends State<BulkStudentImportScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTableHeader(String text, {bool isRequired = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            text,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+              color: isRequired ? AppTheme.primary : Colors.grey.shade700,
+            ),
+          ),
+          if (isRequired)
+            const Text(
+              ' *',
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTableCell(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          color: Colors.grey.shade800,
+        ),
       ),
     );
   }

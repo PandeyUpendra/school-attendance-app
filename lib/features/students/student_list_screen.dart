@@ -15,6 +15,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../shared/utils/pdf_theme.dart';
+import '../../shared/utils/pdf_branding_helper.dart';
 import '../../services/auth_service.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/guardian_student_details.dart';
@@ -496,10 +497,13 @@ class _StudentListScreenState extends State<StudentListScreen> {
     ];
     final cls = widget.className.replaceAll(' ', '_');
     final sec = widget.section.trim().isEmpty ? '' : '_${widget.section.trim()}';
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
     try {
       await CsvExport.share(
         filename: 'students_$cls$sec.csv',
         rows: rows,
+        schoolName: settings.schoolName,
+        schoolLogo: settings.schoolLogo,
         shareText: '${widget.className} student list (${students.length})',
       );
     } catch (e) {
@@ -513,6 +517,12 @@ class _StudentListScreenState extends State<StudentListScreen> {
     final students = [..._students]..sort((a, b) => a.roll.compareTo(b.roll));
     if (students.isEmpty) return;
 
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final branding = await PdfBrandingHelper.load(
+      schoolName: settings.schoolName,
+      schoolLogoUrl: settings.schoolLogo,
+    );
+
     final doc = pw.Document();
     final now = DateTime.now();
 
@@ -523,6 +533,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
         header: (_) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
+            PdfBrandingHelper.buildHeader(branding),
             pw.Text(context.tr('studentListReport'),
                 style: pw.TextStyle(
                     fontSize: 20, fontWeight: pw.FontWeight.bold,

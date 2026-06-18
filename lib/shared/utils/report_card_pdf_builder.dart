@@ -6,6 +6,7 @@ import '../../models/exam.dart';
 import '../../models/report_card_template.dart';
 import '../../models/student.dart';
 import './pdf_theme.dart';
+import 'pdf_branding_helper.dart';
 
 // ─── Shared PDF constants ─────────────────────────────────────────────────────
 
@@ -51,11 +52,18 @@ Future<Uint8List> buildReportCardPdf({
   required ExamResult         result,
   required Student            student,
   required Exam               exam,
+  required String             schoolName,
+  required String             schoolLogoUrl,
   int?    rank,
   int?    totalPresent,
   int?    totalDays,
   String languageCode = 'en',
 }) async {
+  final branding = await PdfBrandingHelper.load(
+    schoolName: schoolName,
+    schoolLogoUrl: schoolLogoUrl,
+  );
+
   final doc  = pw.Document();
   final fmt  = _pageFormat(template);
   final pct  = result.percentage;
@@ -115,6 +123,7 @@ Future<Uint8List> buildReportCardPdf({
     build: (ctx) => pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
+        PdfBrandingHelper.buildHeader(branding),
         // ── Header ──────────────────────────────────────────────────────────
         _buildHeader(template, exam),
         pw.SizedBox(height: 8),
@@ -164,15 +173,21 @@ Future<Uint8List> buildReportCardPdf({
 // Class-wide report card (multi-page)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// Builds a class-wide report card PDF with one row per student.
 Future<Uint8List> buildClassReportCardPdf({
   required ReportCardTemplate   template,
   required List<ExamResult>     results,
   required List<Student>        students,
   required Exam                 exam,
   required Map<int, int>        ranks,
+  required String               schoolName,
+  required String               schoolLogoUrl,
   String languageCode = 'en',
 }) async {
+  final branding = await PdfBrandingHelper.load(
+    schoolName: schoolName,
+    schoolLogoUrl: schoolLogoUrl,
+  );
+
   final doc = pw.Document();
   final fmt = _pageFormat(template);
 
@@ -225,7 +240,12 @@ Future<Uint8List> buildClassReportCardPdf({
         ),
       ),
     ),
-    header: (ctx) => _buildHeader(template, exam),
+    header: (ctx) => pw.Column(
+      children: [
+        PdfBrandingHelper.buildHeader(branding),
+        _buildHeader(template, exam),
+      ],
+    ),
     footer: (ctx) => _buildFooter(template, languageCode),
     build: (ctx) => [
       pw.SizedBox(height: 8),

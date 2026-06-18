@@ -7,7 +7,7 @@ class TimetableEntry {
 
   const TimetableEntry({this.teacherId, this.subject});
 
-  bool get isEmpty => teacherId == null;
+  bool get isEmpty => teacherId == null || teacherId!.trim().isEmpty;
 
   Map<String, dynamic> toJson() => {
         'teacherId': teacherId,

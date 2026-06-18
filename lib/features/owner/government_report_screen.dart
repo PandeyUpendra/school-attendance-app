@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:provider/provider.dart';
+import '../../shared/providers/school_settings_provider.dart';
 import '../../services/student_service.dart';
 import '../../theme.dart';
 
@@ -95,8 +97,16 @@ class _GovernmentReportScreenState extends State<GovernmentReportScreen> {
         ]);
       }
 
+      final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+      final brandedRows = [
+        ['App Name', 'Klassivo', 'App Logo', 'assets/images/logo.png'],
+        ['School Name', settings.schoolName, 'School Logo', settings.schoolLogo.isNotEmpty ? settings.schoolLogo : 'N/A'],
+        [],
+        ...rows,
+      ];
+
       // Convert to CSV string format
-      final csvData = const ListToCsvConverter().convert(rows);
+      final csvData = const ListToCsvConverter().convert(brandedRows);
 
       // Save to temp directory and open share dialog
       final directory = await getTemporaryDirectory();

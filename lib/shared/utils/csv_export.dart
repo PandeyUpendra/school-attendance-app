@@ -15,10 +15,18 @@ abstract class CsvExport {
   static Future<bool> share({
     required String filename,
     required List<List<dynamic>> rows,
+    required String schoolName,
+    required String schoolLogo,
     String? shareText,
   }) async {
     if (rows.isEmpty) return false;
-    final csv = const ListToCsvConverter().convert(rows);
+    final brandedRows = [
+      ['App Name', 'Klassivo', 'App Logo', 'assets/images/logo.png'],
+      ['School Name', schoolName, 'School Logo', schoolLogo.isNotEmpty ? schoolLogo : 'N/A'],
+      [],
+      ...rows,
+    ];
+    final csv = const ListToCsvConverter().convert(brandedRows);
     final dir = await getTemporaryDirectory();
     final safeName = filename.endsWith('.csv') ? filename : '$filename.csv';
     final file = File('${dir.path}/$safeName');
@@ -31,12 +39,16 @@ abstract class CsvExport {
   static Future<bool> shareRaw({
     required String filename,
     required String content,
+    required String schoolName,
+    required String schoolLogo,
     String? shareText,
   }) async {
     final dir = await getTemporaryDirectory();
     final safeName = filename.endsWith('.csv') ? filename : '$filename.csv';
     final file = File('${dir.path}/$safeName');
-    await file.writeAsString(content);
+    final branding = "App Name,Klassivo,App Logo,assets/images/logo.png\n"
+        "School Name,\"${schoolName.replaceAll('"', '""')}\",School Logo,${schoolLogo.isNotEmpty ? schoolLogo : 'N/A'}\n\n";
+    await file.writeAsString(branding + content);
     await Share.shareXFiles([XFile(file.path)], text: shareText);
     return true;
   }

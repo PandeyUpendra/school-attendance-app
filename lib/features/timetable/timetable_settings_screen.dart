@@ -202,9 +202,6 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                   if (conflict.type == 'clash') {
                     icon = Icons.error_outline;
                     color = Colors.red;
-                  } else if (conflict.type == 'empty') {
-                    icon = Icons.hourglass_empty;
-                    color = Colors.blue;
                   }
                   
                   return ListTile(

@@ -7,11 +7,15 @@ import 'dart:io';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:provider/provider.dart';
+import '../../shared/providers/school_settings_provider.dart';
 import '../../shared/utils/pdf_theme.dart';
 import '../../l10n/app_strings.dart';
 import '../../services/audit_log_service.dart';
 import '../../theme.dart';
 import '../../shared/utils/app_logger.dart';
+import '../../shared/utils/csv_export.dart';
+import '../../shared/utils/pdf_branding_helper.dart';
 
 // ─── Entity labels ────────────────────────────────────────────────────────────
 
@@ -181,15 +185,14 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         ]),
       ];
 
-      final csv = const ListToCsvConverter().convert(rows);
-      final dir  = await getTemporaryDirectory();
-      final ts   = DateTime.now().millisecondsSinceEpoch;
-      final file = File('${dir.path}/audit_log_$ts.csv');
-      await file.writeAsString(csv);
-
-      await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'text/csv')],
-        subject: 'Audit Log Export',
+      final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      await CsvExport.share(
+        filename: 'audit_log_$ts.csv',
+        rows: rows,
+        schoolName: settings.schoolName,
+        schoolLogo: settings.schoolLogo,
+        shareText: 'Audit Log Export',
       );
     } catch (e) {
       if (mounted) {
@@ -212,6 +215,12 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         to:           _to,
       );
 
+      final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+      final branding = await PdfBrandingHelper.load(
+        schoolName: settings.schoolName,
+        schoolLogoUrl: settings.schoolLogo,
+      );
+
       final doc = pw.Document();
       final now = DateTime.now();
 
@@ -222,6 +231,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           header: (_) => pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
+              PdfBrandingHelper.buildHeader(branding),
               pw.Text(context.tr('auditLogReport'),
                   style: pw.TextStyle(
                       fontSize: 18, fontWeight: pw.FontWeight.bold,

@@ -6,6 +6,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../../shared/utils/pdf_theme.dart';
+import 'package:provider/provider.dart';
+import '../../shared/providers/school_settings_provider.dart';
+import '../../shared/utils/pdf_branding_helper.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/meeting.dart';
@@ -278,7 +281,12 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
   Future<void> _generatePdf(Meeting m) async {
     setState(() => _generatingPdf = true);
     try {
-      await shareMeetingPdf(m);
+      final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+      await shareMeetingPdf(
+        m,
+        schoolName: settings.schoolName,
+        schoolLogoUrl: settings.schoolLogo,
+      );
     } catch (e) {
       if (mounted) _snack('${context.tr('pdfError')} $e');
     } finally {
@@ -286,7 +294,12 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
     }
   }
 
-  Future<Uint8List> buildMeetingPdf(Meeting m) async {
+  Future<Uint8List> buildMeetingPdf(Meeting m, {required String schoolName, required String schoolLogoUrl}) async {
+    final branding = await PdfBrandingHelper.load(
+      schoolName: schoolName,
+      schoolLogoUrl: schoolLogoUrl,
+    );
+
     final doc = pw.Document();
     const purple = PdfTheme.primary; // app brand violet
 
@@ -303,6 +316,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
       header: (_) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
+          PdfBrandingHelper.buildHeader(branding),
           pw.Text('MEETING RECORD',
               style: pw.TextStyle(
                   fontSize: 22,
@@ -723,7 +737,12 @@ String _fmtMeetingDate(DateTime d) {
   return '${d.day} ${mo[d.month - 1]} ${d.year}';
 }
 
-Future<void> shareMeetingPdf(Meeting m) async {
+Future<void> shareMeetingPdf(Meeting m, {required String schoolName, required String schoolLogoUrl}) async {
+  final branding = await PdfBrandingHelper.load(
+    schoolName: schoolName,
+    schoolLogoUrl: schoolLogoUrl,
+  );
+
   final doc = pw.Document();
   const purple = PdfColor.fromInt(0xFF003D33);
   final dateStr = _fmtMeetingDate(m.date);
@@ -738,6 +757,7 @@ Future<void> shareMeetingPdf(Meeting m) async {
     header: (_) => pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
+        PdfBrandingHelper.buildHeader(branding),
         pw.Text('MEETING RECORD',
             style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: purple)),
         pw.SizedBox(height: 4),

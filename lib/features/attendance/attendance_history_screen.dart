@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:provider/provider.dart';
+import '../../shared/providers/school_settings_provider.dart';
+import '../../shared/utils/pdf_branding_helper.dart';
 import '../../l10n/app_strings.dart';
 import '../../shared/utils/pdf_theme.dart';
 import '../../shared/utils/csv_export.dart';
@@ -156,6 +159,12 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
   // ── PDF Export ───────────────────────────────────────────────────────────────
 
   Future<void> _exportPdf() async {
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final branding = await PdfBrandingHelper.load(
+      schoolName: settings.schoolName,
+      schoolLogoUrl: settings.schoolLogo,
+    );
+
     final doc = pw.Document();
     final now = DateTime.now();
 
@@ -166,6 +175,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
         header: (_) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
+            PdfBrandingHelper.buildHeader(branding),
             pw.Text('Attendance Report',
                 style: pw.TextStyle(
                     fontSize: 20, fontWeight: pw.FontWeight.bold,
@@ -301,10 +311,13 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     ];
     final cls = widget.className.replaceAll(' ', '_');
     final monthStr = '${_month.year}_${_month.month}';
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
     try {
       await CsvExport.share(
         filename: 'attendance_${cls}_$monthStr.csv',
         rows: rows,
+        schoolName: settings.schoolName,
+        schoolLogo: settings.schoolLogo,
         shareText: 'Attendance history for ${ClassName.format(widget.className, widget.section)} - ${_monthLabel(_month)}',
       );
     } catch (e) {

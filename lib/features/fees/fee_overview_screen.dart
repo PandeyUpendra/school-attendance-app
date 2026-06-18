@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../shared/providers/school_settings_provider.dart';
 import '../../theme.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/fee.dart';
@@ -188,10 +190,13 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
        _schoolTotalCollected.toStringAsFixed(2),
        (_schoolTotalDue - _schoolTotalCollected).toStringAsFixed(2), ''],
     ];
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
     try {
       await CsvExport.share(
         filename: 'fee_collection_summary.csv',
         rows: rows,
+        schoolName: settings.schoolName,
+        schoolLogo: settings.schoolLogo,
         shareText: 'Fee collection summary',
       );
     } catch (e) {
@@ -204,10 +209,13 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
   /// Exports Tally import-compatible ledger to CSV and shares it.
   Future<void> _exportTallyLedger() async {
     try {
+      final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
       final csvContent = await _feeService.exportLedgerToCsv();
       await CsvExport.shareRaw(
         filename: 'tally_ledger_import.csv',
         content: csvContent,
+        schoolName: settings.schoolName,
+        schoolLogo: settings.schoolLogo,
         shareText: 'Tally ERP Ledger Import',
       );
     } catch (e) {
