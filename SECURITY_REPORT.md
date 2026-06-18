@@ -1,18 +1,18 @@
 # Security Audit Report: School Attendance Application (`school_app`)
 
-This document presents the findings from a comprehensive security audit of the `school_app` codebase. The audit covered Firestore Security Rules (`firestore.rules`), Cloud Functions (`functions/index.js`), Flutter client-side logic, authentication mechanisms, data leakage risks, hardcoded secrets, role escalation paths, and input validations.
+This document presents the findings from a comprehensive security audit of the `school_app` codebase. The audit covers Firestore Security Rules (`firestore.rules`), Cloud Storage Rules (`storage.rules`), Cloud Functions (`functions/index.js`), Flutter client-side logic, authentication mechanisms, data leakage risks, hardcoded secrets, role escalation paths, and input validations.
 
 ---
 
 ## Executive Summary
 
-The codebase implements a robust, tenant-isolated architecture. However, several critical and high-severity security vulnerabilities were identified that could compromise tenant boundary integrity, allow database and workflow spoofing, and permit unauthorized access by suspended users.
+While the `school_app` codebase features tenant-isolated database access and offline synchronization, several critical and high-severity security vulnerabilities were identified. These issues could compromise tenant isolation boundaries, allow database spoofing, permit unauthorized access by suspended users, expose API keys/SMTP credentials, or cause Denial of Service (DoS) across AI operations.
 
-The most critical vulnerabilities are:
-1. **ReferenceError in `callGemini` Cloud Function (Critical / DoS)**: A missing database reference definition causes a server-side crash on invocation.
-2. **Account Suspension Bypass & Self-Reactivation (Critical)**: Suspended users can bypass UI blocks, retain their Firestore access, and self-reactivate their accounts to `'active'` status directly via client-side writes.
-3. **Privilege Escalation in Leave Applications (High)**: Missing creation-time status checks allow teachers and guardians to write pre-approved leave documents directly to the database.
-4. **Permissive Writes/Deletions on Financial Records (High)**: Financial admins can directly edit or delete transaction receipts in Firestore, bypassing the immutable audit ledger.
+The audit has identified **22 distinct security findings**, categorized as follows:
+* **Critical**: 4 findings (Immediate remediation required)
+* **High**: 9 findings (Remediation required before next release)
+* **Medium**: 6 findings (Remediation recommended)
+* **Low**: 3 findings (Best practices / hygiene improvements)
 
 ---
 
@@ -20,40 +20,49 @@ The most critical vulnerabilities are:
 
 | ID | Finding Title | Severity | Area | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **SEC-01** | [ReferenceError in `callGemini` Cloud Function](#sec-01-referenceerror-in-callgemini-cloud-function) | **Critical** | Code Correctness / DoS | Open |
-| **SEC-02** | [Complete Bypass of Account Suspension / Disabling](#sec-02-complete-bypass-of-account-suspension--disabling) | **Critical** | Privilege Escalation / Access Control | Open |
-| **SEC-03** | [Self-Reactivation of Suspended Accounts](#sec-03-self-reactivation-of-suspended-accounts) | **Critical** | Privilege Escalation | Open |
-| **SEC-04** | [Privilege Escalation via Pre-Approved Leave Applications](#sec-04-privilege-escalation-via-pre-approved-leave-applications) | **High** | Privilege Escalation / Workflow Bypass | Open |
-| **SEC-05** | [Lack of Write/Delete Restrictions on Payment Records](#sec-05-lack-of-writedelete-restrictions-on-payment-records) | **High** | Access Control / Audit Integrity | Open |
-| **SEC-06** | [Gemini API Key Stored in Publicly Readable Settings](#sec-06-gemini-api-key-stored-in-publicly-readable-settings) | **High** | Data Leakage | Open |
-| **SEC-07** | [SMTP Cleartext Credentials Accessible to Lower Management](#sec-07-smtp-cleartext-credentials-accessible-to-lower-management) | **High** | Data Leakage | Open |
-| **SEC-08** | [Client-Side Deletions Bypass in allowed_users (Owner Lockout)](#sec-08-client-side-deletions-bypass-in-allowed_users-owner-lockout) | **High** | Denial of Service / Bypass | Open |
-| **SEC-09** | [Invite Code Enumeration / Brute-Force in Guardian Registration](#sec-09-invite-code-enumeration--brute-force-in-guardian-registration) | **Medium** | Authentication / Brute-Force | Open |
-| **SEC-10** | [Bypass of Cloud Function Audit Safeguards via Direct Client Creation](#sec-10-bypass-of-cloud-function-audit-safeguards-via-direct-client-creation) | **Medium** | Audit Log Integrity | Open |
-| **SEC-11** | [Permissive Write Access to Main Settings for Coordinators](#sec-11-permissive-write-access-to-main-settings-for-coordinators) | **Medium** | Access Control | Open |
-| **SEC-12** | [Audit Log Spoofing in `createAllowedUser` Cloud Function](#sec-12-audit-log-spoofing-in-createalloweduser-cloud-function) | **Medium** | Audit Log Integrity | Open |
-| **SEC-13** | [Notification Impersonation / Phishing Vector](#sec-13-notification-impersonation--phishing-vector) | **Medium** | Input Validation / Impersonation | Open |
-| **SEC-14** | [Impersonation & Lack of Input Validation in CRM Leads](#sec-14-impersonation--lack-of-input-validation-in-crm-leads) | **Low** | Input Validation | Open |
+| **SEC-01** | [ReferenceError in `callGemini` Cloud Function](#sec-01-referenceerror-in-callgemini-cloud-function) | 🔴 **Critical** | Unsafe API Calls / DoS | Open |
+| **SEC-02** | [Complete Bypass of Account Suspension / Disabling](#sec-02-complete-bypass-of-account-suspension--disabling) | 🔴 **Critical** | Firestore Rules / Access Control | Open |
+| **SEC-03** | [Self-Reactivation of Suspended Accounts](#sec-03-self-reactivation-of-suspended-accounts) | 🔴 **Critical** | Role Escalation | Open |
+| **SEC-04** | [Privilege Escalation via Pre-Approved Leave Applications](#sec-04-privilege-escalation-via-pre-approved-leave-applications) | 🟠 **High** | Role Escalation | Open |
+| **SEC-05** | [Lack of Write/Delete Restrictions on Payment Records](#sec-05-lack-of-writedelete-restrictions-on-payment-records) | 🟠 **High** | Firestore Rules / Audit Integrity | Open |
+| **SEC-06** | [Gemini API Key Stored in Publicly Readable Settings](#sec-06-gemini-api-key-stored-in-publicly-readable-settings) | 🟠 **High** | Data Leakage / Secrets | Open |
+| **SEC-07** | [SMTP Cleartext Credentials Accessible to Lower Management](#sec-07-smtp-cleartext-credentials-accessible-to-lower-management) | 🟠 **High** | Data Leakage / Secrets | Open |
+| **SEC-08** | [Client-Side Deletions Bypass in allowed_users (Owner Lockout)](#sec-08-client-side-deletions-bypass-in-allowed_users-owner-lockout) | 🟠 **High** | Firestore Rules / DoS | Open |
+| **SEC-09** | [Root-Admin Privilege Compromise via Hardcoded Email Addresses](#sec-09-root-admin-privilege-compromise-via-hardcoded-email-addresses) | 🟠 **High** | Hardcoded Secrets / Role Escalation | Open |
+| **SEC-10** | [Bypass of Cloud Function Audit Safeguards via Direct Client Creation](#sec-10-bypass-of-cloud-function-audit-safeguards-via-direct-client-creation) | 🟠 **High** | Firestore Rules / Audit Integrity | Open |
+| **SEC-11** | [Audit Log Poisoning via Direct Client Writes](#sec-11-audit-log-poisoning-via-direct-client-writes) | 🟠 **High** | Firestore Rules / Audit Integrity | Open |
+| **SEC-12** | [Missing Firebase App Check Integration](#sec-12-missing-firebase-app-check-integration) | 🟠 **High** | Authentication Weakness | Open |
+| **SEC-13** | [Audit Log Spoofing in `createAllowedUser` Cloud Function](#sec-13-audit-log-spoofing-in-createalloweduser-cloud-function) | 🟠 **High** | Unsafe API Calls / Audit Integrity | Open |
+| **SEC-14** | [Invite Code Enumeration / Brute-Force in Guardian Registration](#sec-14-invite-code-enumeration--brute-force-in-guardian-registration) | 🟡 **Medium** | Authentication Weakness | Open |
+| **SEC-15** | [Permissive Write Access to Main Settings for Coordinators](#sec-15-permissive-write-access-to-main-settings-for-coordinators) | 🟡 **Medium** | Firestore Rules / Access Control | Open |
+| **SEC-16** | [Notification Impersonation / Phishing Vector](#sec-16-notification-impersonation--phishing-vector) | 🟡 **Medium** | Missing Input Validation | Open |
+| **SEC-17** | [Suspended/Fired Staff Retain Access Offline (Session Persistence)](#sec-17-suspendedfired-staff-retain-access-offline-session-persistence) | 🟡 **Medium** | Authentication Weakness | Open |
+| **SEC-18** | [Phone-OTP Guardians Session Validation Drift on Child Removal](#sec-18-phone-otp-guardians-session-validation-drift-on-child-removal) | 🟡 **Medium** | Authentication Weakness | Open |
+| **SEC-19** | [Device Clock Dependency for Session Timeouts](#sec-19-device-clock-dependency-for-session-timeouts) | 🟡 **Medium** | Authentication Weakness | Open |
+| **SEC-20** | [Unsanitized URL Launcher Injection via Phone/WhatsApp Fields](#sec-20-unsanitized-url-launcher-injection-via-phonewhatsapp-fields) | 🔵 **Low** | Unsafe API Calls | Open |
+| **SEC-21** | [Report-Card Division-by-Zero Crash Vector](#sec-21-report-card-division-by-zero-crash-vector) | 🔵 **Low** | Missing Input Validation / DoS | Open |
+| **SEC-22** | [Impersonation & Lack of Input Validation in CRM Leads](#sec-22-impersonation--lack-of-input-validation-in-crm-leads) | 🔵 **Low** | Missing Input Validation | Open |
 
 ---
 
 ## Detailed Findings & Remediation Plans
 
 ### SEC-01: ReferenceError in `callGemini` Cloud Function
-* **Severity:** **Critical**
+* **Severity:** 🔴 **Critical**
+* **Area:** Unsafe API Calls / DoS
 * **Vulnerable Files:** 
-  * [functions/index.js](file:///Users/upendrapandey/school_app/functions/index.js#L2896)
+  * [functions/index.js](file:///Users/upendrapandey/school_app/functions/index.js#L2980)
 * **Description:** 
-  In the `callGemini` Cloud Function, the code attempts to fetch the caller's allowed_users document on line 2896:
+  In the `callGemini` Cloud Function, the code attempts to fetch the caller's `allowed_users` document on line 2980:
   ```javascript
   const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
   ```
-  However, the Firestore database instance `db` is not declared or initialized until line 2909:
+  However, the Firestore database instance variable `db` is not declared or initialized until line 2993:
   ```javascript
   const db = admin.firestore();
   ```
 * **Threat Vector:** 
-  Every time a user calls the `callGemini` Cloud Function, it encounters a `ReferenceError: db is not defined` and crashes, causing a denial of service (DoS) for all AI-enabled features (e.g. AI report card remark generation, homework checking, risk predictions).
+  Every call to `callGemini` encounters a `ReferenceError: db is not defined` and crashes. This creates a Denial of Service (DoS) for all AI-enabled features (e.g., AI report card remark generation, homework checking, risk predictions).
 * **Impact:** 
   Complete breakdown of the server-side AI integration layer.
 * **Remediation Plan:**
@@ -92,23 +101,24 @@ The most critical vulnerabilities are:
 ---
 
 ### SEC-02: Complete Bypass of Account Suspension / Disabling
-* **Severity:** **Critical**
+* **Severity:** 🔴 **Critical**
+* **Area:** Firestore Rules / Access Control
 * **Vulnerable Files:** 
-  * [functions/index.js](file:///Users/upendrapandey/school_app/functions/index.js#L108-L190)
-  * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L67-L69)
+  * [functions/index.js](file:///Users/upendrapandey/school_app/functions/index.js#L117)
+  * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L130)
 * **Description:** 
   When a school administrator suspends or disables an account, the user's status in their `allowed_users` document transitions to `'suspended'` or `'disabled'`.
-  However, this status check is only enforced on the client side (e.g. during splash checks or UI flows). 
+  However, this status check is only enforced on the client side (e.g. during splash screen checks or UI flows). 
   1. The Cloud Function trigger `syncUserClaims` still assigns custom claims (role, schoolId) to suspended users upon document updates.
-  2. Firestore security rules do not check the `status` field in `allowed_users` when validating permissions.
+  2. Firestore security rules do not verify the `status` field in `allowed_users` when validating permissions.
   3. Sensitive Cloud Functions (like `deleteStudent`, `createAllowedUser`, etc.) do not verify the caller's status before execution.
 * **Threat Vector:** 
-  A suspended user bypasses the UI constraints (e.g. by using direct REST API requests or custom scripts with their current ID token). Since their custom claims are intact and rules do not verify status, they can continue to query and mutate Firestore or invoke admin Cloud Functions.
+  A suspended user bypasses client-side UI constraints (e.g. by using direct REST API requests or custom scripts with their current ID token). Since their custom claims are intact and rules do not verify status, they can continue to query and mutate Firestore or invoke admin Cloud Functions.
 * **Impact:** 
-  Complete failure of the suspension mechanism, allowing rogue or fired employees to steal or alter school data.
+  Complete failure of the suspension mechanism, allowing terminated or rogue employees to steal or alter school data.
 * **Remediation Plan:**
   1. Update `syncUserClaims` to wipe or omit custom claims if the user is suspended or disabled.
-  2. Update the `getUserData()` helper in `firestore.rules` to return `null` if the user's status is not `'active'`, effectively failing closed.
+  2. Update the `getUserData()` helper in `firestore.rules` to return `null` if the user's status is not `'active'`, causing rules to fail closed.
   3. Validate caller status in Cloud Functions.
 
 #### Code Fix:
@@ -122,7 +132,7 @@ The most critical vulnerabilities are:
 +        return;
 +      }
 +
-       // Auto-backfill studentLinks, studentIds, and classIds for guardians if missing or outdated
+        // Auto-backfill studentLinks, studentIds, and classIds for guardians if missing or outdated
 ```
 
 **In `firestore.rules` (`getUserData`):**
@@ -137,9 +147,10 @@ The most critical vulnerabilities are:
 ---
 
 ### SEC-03: Self-Reactivation of Suspended Accounts
-* **Severity:** **Critical**
+* **Severity:** 🔴 **Critical**
+* **Area:** Role Escalation
 * **Vulnerable Files:** 
-  * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L629-L636)
+  * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L629)
 * **Description:** 
   The Firestore update rule for `allowed_users` allows a user to update their own document's status:
   ```javascript
@@ -149,7 +160,7 @@ The most critical vulnerabilities are:
   ```
   This is designed to allow new users in `'pending'` status to set their status to `'active'` upon first login. However, the rule does not check the *prior* status of the document.
 * **Threat Vector:** 
-  A user who has been suspended or disabled issues a direct Firestore update request on their own `allowed_users` document, changing `status` from `'suspended'` to `'active'`.
+  A suspended or disabled user issues a direct Firestore update request on their own `allowed_users` document, changing `status` from `'suspended'` to `'active'`.
 * **Impact:** 
   Suspended users can reactivate their own accounts without administrative consent, restoring their database permissions.
 * **Remediation Plan:**
@@ -172,7 +183,8 @@ The most critical vulnerabilities are:
 ---
 
 ### SEC-04: Privilege Escalation via Pre-Approved Leave Applications
-* **Severity:** **High**
+* **Severity:** 🟠 **High**
+* **Area:** Role Escalation
 * **Vulnerable Files:** 
   * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L1133-L1144)
 * **Description:** 
@@ -210,15 +222,15 @@ The most critical vulnerabilities are:
 ---
 
 ### SEC-05: Lack of Write/Delete Restrictions on Payment Records
-* **Severity:** **High**
+* **Severity:** 🟠 **High**
+* **Area:** Firestore Rules / Audit Integrity
 * **Vulnerable Files:** 
   * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L1316-L1329)
-  * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L1264-L1283)
 * **Description:** 
-  The rules for `/schools/{sid}/payments/{paymentId}` and `/schools/{sid}/fee_payments/{classId}` use general `allow write: if isFinanceAdmin()`. The `write` helper implicitly includes `update` and `delete` permissions.
+  The rules for `/schools/{sid}/payments/{paymentId}` use general `allow write: if isFinanceAdmin()`. The `write` helper implicitly includes `update` and `delete` permissions.
   According to business guidelines, fee payments must be immutable; they can only be *reversed* (using a `reversed` flag) and never deleted.
 * **Threat Vector:** 
-  A compromised finance admin (or principal/owner) bypasses the client-side reversal logic and directly issues a Firestore `delete` or `update` to alter/remove a transaction record.
+  A compromised finance admin (or principal/owner) bypasses client-side reversal logic and directly issues a Firestore `delete` or `update` to alter/remove a transaction record.
 * **Impact:** 
   Irreversible loss of financial audit trails, making financial reconciliation, fraud detection, and auditing impossible.
 * **Remediation Plan:**
@@ -243,7 +255,8 @@ The most critical vulnerabilities are:
 ---
 
 ### SEC-06: Gemini API Key Stored in Publicly Readable Settings
-* **Severity:** **High**
+* **Severity:** 🟠 **High**
+* **Area:** Data Leakage / Secrets
 * **Vulnerable Files:** 
   * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L1601-L1610)
   * [lib/services/ai_service.dart](file:///Users/upendrapandey/school_app/lib/services/ai_service.dart)
@@ -269,7 +282,8 @@ The most critical vulnerabilities are:
 ---
 
 ### SEC-07: SMTP Cleartext Credentials Accessible to Lower Management
-* **Severity:** **High**
+* **Severity:** 🟠 **High**
+* **Area:** Data Leakage / Secrets
 * **Vulnerable Files:** 
   * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L1601-L1610)
 * **Description:** 
@@ -295,7 +309,8 @@ The most critical vulnerabilities are:
 ---
 
 ### SEC-08: Client-Side Deletions Bypass in allowed_users (Owner Lockout)
-* **Severity:** **High**
+* **Severity:** 🟠 **High**
+* **Area:** Firestore Rules / DoS
 * **Vulnerable Files:** 
   * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L656-L660)
 * **Description:** 
@@ -321,23 +336,28 @@ The most critical vulnerabilities are:
 
 ---
 
-### SEC-09: Invite Code Enumeration / Brute-Force in Guardian Registration
-* **Severity:** **Medium**
+### SEC-09: Root-Admin Privilege Compromise via Hardcoded Email Addresses
+* **Severity:** 🟠 **High**
+* **Area:** Hardcoded Secrets / Role Escalation
 * **Vulnerable Files:** 
-  * [functions/index.js](file:///Users/upendrapandey/school_app/functions/index.js#L2775-L2880)
+  * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L417)
+  * [storage.rules](file:///Users/upendrapandey/school_app/storage.rules#L37)
+  * [functions/index.js](file:///Users/upendrapandey/school_app/functions/index.js#L291)
+  * [lib/services/auth_service.dart](file:///Users/upendrapandey/school_app/lib/services/auth_service.dart#L77)
 * **Description:** 
-  The Cloud Function `registerGuardianWithInviteCode` registers a guardian using a 6-character alphanumeric code (`parentInviteCode`). Since the function is publicly invokable, has App Check disabled (`enforceAppCheck: false`), and does not implement rate limiting, it is vulnerable to automated brute-force attacks.
+  System root-admin functions are gated on hardcoded emails (`mandvishal@gmail.com` and `admin@schoolapp.org`) inside Firestore rules, storage rules, server functions, and client auth services. 
 * **Threat Vector:** 
-  An attacker runs a script that calls `registerGuardianWithInviteCode` repeatedly, brute-forcing the 6-character codes.
+  A compromise of either email yields administrative control over all tenants. Additionally, these root admin accounts cannot be rotated or revoked without a full codebase rebuild and redeploy.
 * **Impact:** 
-  The attacker gains access to random students' dashboards, exposing grades, attendance, and fee history.
+  Complete takeover of multi-tenant boundaries.
 * **Remediation Plan:**
-  Enable App Check (`enforceAppCheck: true`) and enforce API rate-limiting.
+  Migrate root-admin authorization from hardcoded strings to custom user claims (e.g. `rootAdmin: true`) checked dynamically, or verify membership in a dedicated system admin collection that is strictly locked down.
 
 ---
 
 ### SEC-10: Bypass of Cloud Function Audit Safeguards via Direct Client Creation
-* **Severity:** **Medium**
+* **Severity:** 🟠 **High**
+* **Area:** Firestore Rules / Audit Integrity
 * **Vulnerable Files:** 
   * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L614-L627)
 * **Description:** 
@@ -373,43 +393,63 @@ The most critical vulnerabilities are:
 
 ---
 
-### SEC-11: Permissive Write Access to Main Settings for Coordinators
-* **Severity:** **Medium**
+### SEC-11: Audit Log Poisoning via Direct Client Writes
+* **Severity:** 🟠 **High**
+* **Area:** Firestore Rules / Audit Integrity
 * **Vulnerable Files:** 
-  * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L1601-L1610)
+  * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules)
 * **Description:** 
-  The write permission rule for `/schools/{sid}/settings/{docId}` allows any user in `isManagement()` to update setting documents. This includes coordinators and class teachers who are not supposed to modify core school properties.
+  The `audit_logs` collection permits clients to perform direct `create` writes. Although the rule binds `actorUid` to the caller's auth UID, it does not validate fields like `action`, `entity`, `before`, or `after`.
 * **Threat Vector:** 
-  A coordinator account overwrites the school's SMTP settings or Gemini key, causing functional failure.
+  A compromised school member scripts fake audit logs to cover up illicit actions, creating false records of changes to grades, fees, or permissions.
 * **Impact:** 
-  Unauthorized configuration modifications and Denial of Service.
+  Destruction of audit log trustworthiness.
 * **Remediation Plan:**
-  Restrict setting write operations to `isStrictAdmin()` (admin and owner) only.
+  Remove direct client-side write access to `audit_logs` collection. Emit all audit entries server-side via Cloud Functions or Admin SDK triggers.
 
 #### Code Fix:
 **In `firestore.rules`:**
 ```diff
-     match /schools/{sid}/settings/{docId} {
-       ...
--      allow write: if isSignedIn() && inSchool(sid) && isManagement();
-+      allow write: if isSignedIn() && inSchool(sid) && isStrictAdmin();
+     match /schools/{sid}/audit_logs/{logId} {
+       allow read: if isSignedIn() && inSchool(sid) && isManagement();
+-      allow create: if isSignedIn() && inSchool(sid) && request.resource.data.actorUid == request.auth.uid;
++      allow create: if false; // Only written server-side
+       allow update, delete: if false;
      }
 ```
 
 ---
 
-### SEC-12: Audit Log Spoofing in `createAllowedUser` Cloud Function
-* **Severity:** **Medium**
+### SEC-12: Missing Firebase App Check Integration
+* **Severity:** 🟠 **High**
+* **Area:** Authentication Weakness
+* **Vulnerable Files:** 
+  * [pubspec.yaml](file:///Users/upendrapandey/school_app/pubspec.yaml)
+  * [lib/main.dart](file:///Users/upendrapandey/school_app/lib/main.dart)
+* **Description:** 
+  The application does not integrate Firebase App Check. No app attestation provider (Device Check, Play Integrity, reCAPTCHA Enterprise) is configured.
+* **Threat Vector:** 
+  Attackers or curious students reverse-engineer the Firestore rules and execute automated scrapers directly using raw API credentials, extracting personal details of students/staff or spamming functions.
+* **Impact:** 
+  Massive scale data harvesting and endpoint abuse.
+* **Remediation Plan:**
+  Add the `firebase_app_check` package to `pubspec.yaml`, initialize it in `lib/main.dart`, and enforce App Check verification in the Firebase Console and Cloud Functions.
+
+---
+
+### SEC-13: Audit Log Spoofing in `createAllowedUser` Cloud Function
+* **Severity:** 🟠 **High**
+* **Area:** Unsafe API Calls / Audit Integrity
 * **Vulnerable Files:** 
   * [functions/index.js](file:///Users/upendrapandey/school_app/functions/index.js#L542-L543)
 * **Description:** 
-  The `createAllowedUser` function prioritized client-supplied values for creator metadata if they were passed in the request body.
+  The `createAllowedUser` Cloud Function prioritized client-supplied values for creator metadata if they were passed in the request body.
 * **Threat Vector:** 
-  A caller passes `createdByEmail: 'principal@school.test'` to forge the log entry.
+  A caller passes `createdByEmail: 'principal@school.test'` or `createdByRole: 'owner'` in the request payload to falsify the audit logs.
 * **Impact:** 
   Falsified audit trail for account provisioning.
 * **Remediation Plan:**
-  Always populate metadata fields from verified context token claims.
+  Always populate log metadata fields from verified context token claims.
 
 #### Code Fix:
 **In `functions/index.js`:**
@@ -430,8 +470,51 @@ The most critical vulnerabilities are:
 
 ---
 
-### SEC-13: Notification Impersonation / Phishing Vector
-* **Severity:** **Medium**
+### SEC-14: Invite Code Enumeration / Brute-Force in Guardian Registration
+* **Severity:** 🟡 **Medium**
+* **Area:** Authentication Weakness
+* **Vulnerable Files:** 
+  * [functions/index.js](file:///Users/upendrapandey/school_app/functions/index.js#L2775-L2880)
+* **Description:** 
+  The Cloud Function `registerGuardianWithInviteCode` registers a guardian using a 6-character alphanumeric code (`parentInviteCode`). Since the function has App Check disabled (`enforceAppCheck: false`) and does not implement rate limiting, it is vulnerable to automated brute-force attacks.
+* **Threat Vector:** 
+  An attacker runs a script calling `registerGuardianWithInviteCode` repeatedly, brute-forcing the 6-character codes.
+* **Impact:** 
+  Gaining unauthorized access to random students' dashboards, exposing grades, attendance, and fee history.
+* **Remediation Plan:**
+  Enable App Check on this function (`enforceAppCheck: true`) and implement rate-limiting or backoff logic.
+
+---
+
+### SEC-15: Permissive Write Access to Main Settings for Coordinators
+* **Severity:** 🟡 **Medium**
+* **Area:** Firestore Rules / Access Control
+* **Vulnerable Files:** 
+  * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L1601-L1610)
+* **Description:** 
+  The write permission rule for `/schools/{sid}/settings/{docId}` allows any user in `isManagement()` to update settings documents. This includes coordinators and class teachers who are not supposed to modify core school properties.
+* **Threat Vector:** 
+  A coordinator account overwrites the school's SMTP settings or Gemini key, causing functional failure.
+* **Impact:** 
+  Unauthorized configuration modifications and Denial of Service.
+* **Remediation Plan:**
+  Restrict settings write operations to `isStrictAdmin()` (admin and owner) only.
+
+#### Code Fix:
+**In `firestore.rules`:**
+```diff
+     match /schools/{sid}/settings/{docId} {
+       ...
+-      allow write: if isSignedIn() && inSchool(sid) && isManagement();
++      allow write: if isSignedIn() && inSchool(sid) && isStrictAdmin();
+     }
+```
+
+---
+
+### SEC-16: Notification Impersonation / Phishing Vector
+* **Severity:** 🟡 **Medium**
+* **Area:** Missing Input Validation
 * **Vulnerable Files:** 
   * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L1552-L1570)
 * **Description:** 
@@ -464,14 +547,116 @@ The most critical vulnerabilities are:
 
 ---
 
-### SEC-14: Impersonation & Lack of Input Validation in CRM Leads
-* **Severity:** **Low**
+### SEC-17: Suspended/Fired Staff Retain Access Offline (Session Persistence)
+* **Severity:** 🟡 **Medium**
+* **Area:** Authentication Weakness
+* **Vulnerable Files:** 
+  * [lib/main.dart](file:///Users/upendrapandey/school_app/lib/main.dart)
+  * [lib/services/auth_service.dart](file:///Users/upendrapandey/school_app/lib/services/auth_service.dart)
+* **Description:** 
+  The application utilizes a splash-gate revalidation flow. If a dismissed/suspended teacher is offline (e.g. airplane mode), the network call to retrieve their `allowed_users` status fails. The application falls back to local cached session data, keeping the user logged in for up to 7 days.
+* **Threat Vector:** 
+  A terminated teacher goes offline and continues to browse local caches of student records, grades, and contact lists.
+* **Impact:** 
+  PII exposure and data confidentiality breach.
+* **Remediation Plan:**
+  Force an online status refresh check regularly, and reduce the offline validation window for high-privilege roles.
+
+---
+
+### SEC-18: Phone-OTP Guardians Session Validation Drift on Child Removal
+* **Severity:** 🟡 **Medium**
+* **Area:** Authentication Weakness
+* **Vulnerable Files:** 
+  * [lib/services/auth_service.dart](file:///Users/upendrapandey/school_app/lib/services/auth_service.dart)
+* **Description:** 
+  Guardians who sign in via Phone-OTP do not get their linked children checked regularly. If a child is removed from the roster, the parent's session remains active on their phone. They see a broken dashboard and can still read historic caches.
+* **Threat Vector:** 
+  A parent whose child was expelled or transferred keeps access to old databases.
+* **Impact:** 
+  Unauthorized access to historical school information.
+* **Remediation Plan:**
+  Periodically refresh student links on app resume.
+
+---
+
+### SEC-19: Device Clock Dependency for Session Timeouts
+* **Severity:** 🟡 **Medium**
+* **Area:** Authentication Weakness
+* **Vulnerable Files:** 
+  * [lib/services/auth_service.dart](file:///Users/upendrapandey/school_app/lib/services/auth_service.dart)
+* **Description:** 
+  The 7-day session timeout validation checks the device's clock.
+* **Threat Vector:** 
+  A user rolls back their phone's clock to prevent session expiration.
+* **Impact:** 
+  Bypass of session security controls.
+* **Remediation Plan:**
+  Validate session expiry using the Firebase ID Token expiration or server-side sync dates.
+
+---
+
+### SEC-20: Unsanitized URL Launcher Injection via Phone/WhatsApp Fields
+* **Severity:** 🔵 **Low**
+* **Area:** Unsafe API Calls
+* **Vulnerable Files:** 
+  * client contact widgets utilizing `url_launcher`
+* **Description:** 
+  The application builds `tel:` and `wa.me` links using raw values stored in phone fields of the database.
+* **Threat Vector:** 
+  If an administrator inputs a malicious string in a phone number field, the phone launcher executes arbitrary URL paths or injects control commands.
+* **Impact:** 
+  App crashes or unintended URL redirections.
+* **Remediation Plan:**
+  Sanitize all phone numbers before building URI strings.
+
+#### Code Fix:
+```dart
+// Before calling launchUrl, sanitize input
+String sanitizePhoneNumber(String rawPhone) {
+  return rawPhone.replaceAll(RegExp(r'[^0-9+]'), '');
+}
+```
+
+---
+
+### SEC-21: Report-Card Division-by-Zero Crash Vector
+* **Severity:** 🔵 **Low**
+* **Area:** Missing Input Validation / DoS
+* **Vulnerable Files:** 
+  * `lib/shared/utils/report_card_pdf_builder.dart:345`
+* **Description:** 
+  The report card PDF builder calculates student mark percentages using the formula:
+  ```dart
+  double percent = (marks / maxMarks) * 100;
+  ```
+  If an exam is misconfigured or has no subjects, and `maxMarks` is set to `0`, this results in division by zero.
+* **Threat Vector:** 
+  Generating report cards for classes with 0 max marks throws an unhandled exception (`Infinity` / `NaN`), crashing the UI.
+* **Impact:** 
+  Denial of Service of the report card generation screen.
+* **Remediation Plan:**
+  Add input validation checks ensuring `maxMarks > 0` before calculating percentages.
+
+#### Code Fix:
+```dart
+double calculatePercentage(double marks, double maxMarks) {
+  if (maxMarks <= 0) return 0.0;
+  return (marks / maxMarks) * 100;
+}
+```
+
+---
+
+### SEC-22: Impersonation & Lack of Input Validation in CRM Leads
+* **Severity:** 🔵 **Low**
+* **Area:** Missing Input Validation
 * **Vulnerable Files:** 
   * [firestore.rules](file:///Users/upendrapandey/school_app/firestore.rules#L986-L997)
 * **Description:** 
-  The rules for the `leads` collection allow guardians to create admission enquiries, but they do not enforce that `createdByEmail` in `request.resource.data` matches the authenticated user's email.
+  The rules for the `leads` collection allow guardians to create admission enquiries, but they do not enforce that `createdByEmail` matches the authenticated user's email.
 * **Threat Vector:** 
-  A user creates a lead document and sets the `createdByEmail` to another user's email address.
+  A user creates a lead document and sets the `createdByEmail` to another user's email address to pollute the records.
 * **Impact:** 
   Impersonation and database record pollution.
 * **Remediation Plan:**

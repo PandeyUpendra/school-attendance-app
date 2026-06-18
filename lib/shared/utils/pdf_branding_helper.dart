@@ -1,7 +1,5 @@
-import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'pdf_theme.dart';
 
@@ -98,7 +96,7 @@ class PdfBrandingHelper {
                     data.appName,
                     style: pw.TextStyle(
                       fontSize: 9,
-                      fontWeight: pw.FontWeight.bold,
+                      fontWeight: pw.FontWeight.normal,
                       color: PdfTheme.textLight,
                     ),
                   ),
