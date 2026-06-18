@@ -232,10 +232,9 @@ class _StaffRemarksScreenState extends State<StaffRemarksScreen> {
       final audience = recipient.role == 'coordinator'
           ? 'coordinator'
           : 'teacher:${recipient.teacherId}';
-      await NotificationService().addStaffTaskNotice(
-        taskTitle: 'New remark from ${widget.userName}',
-        assignedTeacherId: recipient.teacherId ?? '',
-        assignedByName: widget.userName,
+      await NotificationService().addStaffRemarkNotice(
+        remarkText: text.trim(),
+        fromName: widget.userName,
         audience: audience,
       );
     } catch (_) {

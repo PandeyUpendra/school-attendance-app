@@ -15,6 +15,7 @@ import '../tasks/staff_tasks_screen.dart';
 import '../substitution/substitution_history_screen.dart';
 import '../meeting/teacher_meeting_tasks_screen.dart';
 import '../leave/guardian_leave_application_screen.dart';
+import '../students/staff_remarks_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final String   role;
@@ -46,6 +47,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   List<Map<String, dynamic>> _items = [];
   StreamSubscription? _sub;
   int _lastSeenMs = 0;
+  String? _myEmail;
+  String? _myName;
+  String? _myTeacherId;
 
   // ── Multi-select state ────────────────────────────────────────────────────
   bool _selectionMode = false;
@@ -66,6 +70,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     _lastSeenMs = prefs.getInt('notif_last_seen_ms') ?? 0;
+    _myEmail = prefs.getString('auth_email');
+    _myName = prefs.getString('auth_name');
+    _myTeacherId = prefs.getString('auth_teacher_id');
 
     _sub = _service
         .streamFor(
@@ -220,6 +227,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'staff_task':
       case 'task':
         return widget.teacherId != null;
+      case 'staff_remark':
+        return true;
       case 'substitution_assigned':
       case 'meeting_task':
         return widget.role == 'teacher';
@@ -268,6 +277,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             builder: (_) => StaffTasksScreen(teacherId: widget.teacherId),
           ));
         }
+        break;
+
+      case 'staff_remark':
+        final email = _myEmail ?? widget.teacher?.email ?? '';
+        final name = _myName ?? widget.teacher?.name ?? '';
+        final tid = widget.teacherId ?? widget.teacher?.id ?? _myTeacherId;
+        await Navigator.push(context, MaterialPageRoute(
+          builder: (_) => StaffRemarksScreen(
+            role: widget.role,
+            userEmail: email,
+            userName: name,
+            teacherId: tid,
+          ),
+        ));
         break;
 
       case 'substitution_assigned':
@@ -326,6 +349,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'staff_task':            return Icons.assignment_outlined;
       case 'substitution_assigned': return Icons.swap_horiz_outlined;
       case 'meeting_task':          return Icons.groups_outlined;
+      case 'staff_remark':          return Icons.rate_review_outlined;
       default:                      return Icons.notifications_outlined;
     }
   }
@@ -342,6 +366,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'staff_task':            return AppTheme.primary;
       case 'substitution_assigned': return AppTheme.primaryMid;
       case 'meeting_task':          return AppTheme.primary;
+      case 'staff_remark':          return Colors.purple;
       default:                      return AppTheme.primary;
     }
   }

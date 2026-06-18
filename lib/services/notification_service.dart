@@ -215,6 +215,26 @@ class NotificationService extends BaseFirestoreService {
     });
   }
 
+  /// Sends a targeted notification to a specific teacher or coordinator when a staff remark
+  /// is given to them.
+  Future<void> addStaffRemarkNotice({
+    required String remarkText,
+    required String fromName,
+    required String audience,
+  }) async {
+    final body = remarkText.length > 100
+        ? '${remarkText.substring(0, 97)}…'
+        : remarkText;
+    await _addAndLog({
+      'type':      'staff_remark',
+      'title':     'New Remark Received',
+      'body':      'From $fromName: $body',
+      'audience':  audience,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+
   /// Called when a meeting task is assigned to a teacher.
   Future<void> addMeetingTaskNotification({
     required String teacherId,
