@@ -50,6 +50,20 @@ class _PrincipalMeetingRecordsScreenState
 
   static const _filters = ['All', 'This Month', 'Completed', 'Draft'];
 
+  // ── Swipe support ───────────────────────────────────────────────────
+
+  void _onHorizontalDragEnd(DragEndDetails d) {
+    final dx = d.primaryVelocity ?? 0;
+    final idx = _filters.indexOf(_filter);
+    if (dx < -200 && idx < _filters.length - 1) {
+      // Swipe left → next tab
+      setState(() => _filter = _filters[idx + 1]);
+    } else if (dx > 200 && idx > 0) {
+      // Swipe right → previous tab
+      setState(() => _filter = _filters[idx - 1]);
+    }
+  }
+
   @override
   void dispose() {
     _searchCtrl.dispose();
@@ -168,9 +182,12 @@ class _PrincipalMeetingRecordsScreenState
             ),
           ),
 
-          // ── Meeting list ─────────────────────────────────────────────────
+          // ── Meeting list (swipeable) ────────────────────────────────────
           Expanded(
-            child: StreamBuilder<List<Meeting>>(
+            child: GestureDetector(
+              onHorizontalDragEnd: _onHorizontalDragEnd,
+              behavior: HitTestBehavior.translucent,
+              child: StreamBuilder<List<Meeting>>(
               stream: _svc.streamAllMeetings(),
               builder: (context, snap) {
                 if (snap.connectionState == ConnectionState.waiting &&
@@ -233,6 +250,7 @@ class _PrincipalMeetingRecordsScreenState
                   ),
                 );
               },
+            ),
             ),
           ),
         ],
