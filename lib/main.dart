@@ -260,7 +260,7 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
       ),
     );
 
-    _logoSize = Tween<double>(begin: 90.0, end: 130.0).animate(
+    _logoSize = Tween<double>(begin: 75.0, end: 130.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: Curves.easeOutCubic,
