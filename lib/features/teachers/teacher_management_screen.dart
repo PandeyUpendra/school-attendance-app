@@ -633,12 +633,12 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
           schoolId: _schoolId, requestId: requestId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Request for ${teacher.name} withdrawn.'),
+        content: Text(context.tr('deletionRequestWithdrawn').replaceAll('{name}', teacher.name)),
       ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not cancel: $e'),
+        content: Text(context.tr('couldNotCancelRequest').replaceAll('{error}', e.toString())),
         backgroundColor: Colors.red,
       ));
     }
@@ -981,8 +981,8 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                                             color: AppTheme.primary
                                                 .withValues(alpha: 0.3)),
                                       ),
-                                      child: const Text('Class Teacher',
-                                          style: TextStyle(
+                                      child: Text(context.tr('classTeacherLabel'),
+                                          style: const TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.w600,
                                               color: AppTheme.primary)),
@@ -1294,7 +1294,7 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
                 // ── Timetable section ──────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                  child: Text('TIMETABLE',
+                  child: Text(context.tr('timetableTabCaps'),
                       style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -1416,7 +1416,7 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
                     icon: const Icon(Icons.delete_outline,
                         color: Colors.red),
                     label: Text(context.tr('deleteTeacher'),
-                        style: TextStyle(
+                        style: const TextStyle(
                             color: Colors.red,
                             fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
@@ -1526,7 +1526,7 @@ class _SlotRow extends StatelessWidget {
                     fontSize: 12, color: Colors.grey.shade500)),
         ]),
       ),
-      Text('Bell ${slot.bell}',
+      Text(context.tr('bellWithNum').replaceAll('{num}', '${slot.bell}'),
           style: TextStyle(
               fontSize: 11,
               color: color,
@@ -1581,7 +1581,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location loaded successfully.'), backgroundColor: AppTheme.success),
+          SnackBar(content: Text(context.tr('locationLoadedSuccess')), backgroundColor: AppTheme.success),
         );
       }
     } catch (e) {
@@ -1803,7 +1803,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not save: $e'),
+        content: Text(context.tr('couldNotSave').replaceAll('{error}', e.toString())),
         backgroundColor: Colors.red,
       ));
     }
@@ -1814,7 +1814,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Text(_isEdit ? 'Edit Teacher Details' : 'Add Teacher'),
+        title: Text(_isEdit ? context.tr('editTeacherDetails') : context.tr('addTeacher')),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -1859,7 +1859,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                   if (v != 'Other (specify)') _subjectCtrl.clear();
                 }),
                 validator: (_) =>
-                    _selectedSubject == null ? 'Please select a subject' : null,
+                    _selectedSubject == null ? context.tr('pleaseSelectSubject') : null,
               ),
               // Custom subject field shown only when "Other (specify)" is chosen
               if (_isOtherSubject) ...[
@@ -1868,7 +1868,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                   controller: _subjectCtrl,
                   decoration: InputDecoration(
                     labelText: context.tr('specifySubject'),
-                    prefixIcon: Icon(Icons.edit_outlined),
+                    prefixIcon: const Icon(Icons.edit_outlined),
                   ),
                   textCapitalization: TextCapitalization.words,
                   inputFormatters: [
@@ -1878,29 +1878,29 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                   maxLengthEnforcement: MaxLengthEnforcement.enforced,
                   autofocus: true,
                   validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      (v == null || v.trim().isEmpty) ? context.tr('validationRequired') : null,
                 ),
               ],
               const SizedBox(height: 12),
               EmailTextFormField(
                 controller: _emailCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Email Address',
-                    prefixIcon: Icon(Icons.email_outlined)),
+                decoration: InputDecoration(
+                    labelText: context.tr('emailAddress'),
+                    prefixIcon: const Icon(Icons.email_outlined)),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _phoneCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Phone Number',
-                    prefixIcon: Icon(Icons.phone_outlined)),
+                decoration: InputDecoration(
+                    labelText: context.tr('phoneNumber'),
+                    prefixIcon: const Icon(Icons.phone_outlined)),
                 keyboardType: TextInputType.phone,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 maxLength: 10,
                 maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return null; // optional
-                  if (v.trim().length != 10) return 'Must be 10 digits';
+                  if (v.trim().length != 10) return context.tr('emergencyContactMustBe10Digits');
                   return null;
                 },
               ),
@@ -1910,7 +1910,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                 onTap: _pickDOB,
                 child: InputDecorator(
                   decoration: InputDecoration(
-                    labelText: 'Date of Birth',
+                    labelText: context.tr('dobLabel'),
                     prefixIcon: const Icon(Icons.cake_outlined),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
@@ -1929,7 +1929,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                         ? '${_dateOfBirth!.day.toString().padLeft(2, '0')} / '
                             '${_dateOfBirth!.month.toString().padLeft(2, '0')} / '
                             '${_dateOfBirth!.year}'
-                        : 'Tap to select',
+                        : context.tr('tapToSelect'),
                     style: TextStyle(
                         fontSize: 15,
                         color: _dateOfBirth != null
@@ -1946,7 +1946,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                 decoration: InputDecoration(
                     labelText: context.tr('designation'),
                     hintText: context.tr('designationHint'),
-                    prefixIcon: Icon(Icons.badge_outlined),
+                    prefixIcon: const Icon(Icons.badge_outlined),
                     counterText: ''),
                 textCapitalization: TextCapitalization.words,
                 maxLength: 40,
@@ -1959,8 +1959,8 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                 controller: _qualificationCtrl,
                 decoration: InputDecoration(
                     labelText: context.tr('qualification'),
-                    hintText: 'e.g. M.Sc, B.Ed',
-                    prefixIcon: Icon(Icons.school_outlined),
+                    hintText: context.tr('qualificationHint'),
+                    prefixIcon: const Icon(Icons.school_outlined),
                     counterText: ''),
                 textCapitalization: TextCapitalization.characters,
                 maxLength: 60,
@@ -1992,7 +1992,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                         ? '${_joiningDate!.day.toString().padLeft(2, '0')} / '
                             '${_joiningDate!.month.toString().padLeft(2, '0')} / '
                             '${_joiningDate!.year}'
-                        : 'Tap to select',
+                        : context.tr('tapToSelect'),
                     style: TextStyle(
                         fontSize: 15,
                         color: _joiningDate != null
@@ -2006,9 +2006,9 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
               // ── Emergency contact ───────────────────────────────────────
               TextFormField(
                 controller: _emergencyCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Emergency Contact',
-                    prefixIcon: Icon(Icons.contact_phone_outlined),
+                decoration: InputDecoration(
+                    labelText: context.tr('emergencyContact'),
+                    prefixIcon: const Icon(Icons.contact_phone_outlined),
                     counterText: ''),
                 keyboardType: TextInputType.phone,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -2016,7 +2016,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                 maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) return null; // optional
-                  if (v.trim().length != 10) return 'Must be 10 digits';
+                  if (v.trim().length != 10) return context.tr('emergencyContactMustBe10Digits');
                   return null;
                 },
               ),
@@ -2026,7 +2026,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
               TextFormField(
                 controller: _addressCtrl,
                 decoration: InputDecoration(
-                  labelText: 'Address',
+                  labelText: context.tr('addressLabel'),
                   alignLabelWithHint: true,
                   prefixIcon: const Icon(Icons.home_outlined),
                   suffixIcon: _loadingLocation
@@ -2041,7 +2041,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
                       : IconButton(
                           icon: const Icon(Icons.my_location_outlined, color: AppTheme.primary),
                           onPressed: _pickLocation,
-                          tooltip: 'Use Current Location',
+                          tooltip: context.tr('useCurrentLocationTooltip'),
                         ),
                 ),
                 textCapitalization: TextCapitalization.sentences,
@@ -2262,7 +2262,7 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
         const SizedBox(height: 6),
         TextButton(
           onPressed: hasPhoto ? _removePhoto : _pickPhoto,
-          child: Text(hasPhoto ? 'Remove Photo' : 'Add Photo',
+          child: Text(hasPhoto ? context.tr('removePhoto') : context.tr('addPhoto'),
               style: TextStyle(
                   fontSize: 12,
                   color: hasPhoto ? Colors.red : AppTheme.primary)),

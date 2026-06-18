@@ -104,9 +104,8 @@ Future<Uint8List> buildReportCardPdf({
                       color: PdfColors.grey,
                     ),
                   ),
-                  pw.SizedBox(height: 10),
                   pw.Text(
-                    'OFFICIAL REPORT CARD',
+                    AppStrings.get(languageCode, 'officialReportCard'),
                     style: pw.TextStyle(
                       fontSize: 12,
                       fontWeight: pw.FontWeight.bold,
@@ -125,11 +124,11 @@ Future<Uint8List> buildReportCardPdf({
       children: [
         PdfBrandingHelper.buildHeader(branding),
         // ── Header ──────────────────────────────────────────────────────────
-        _buildHeader(template, exam),
+        _buildHeader(template, exam, languageCode),
         pw.SizedBox(height: 8),
 
         // ── Student info ─────────────────────────────────────────────────────
-        _buildStudentInfo(student, exam),
+        _buildStudentInfo(student, exam, languageCode),
         pw.SizedBox(height: 8),
 
         // ── Subject table ────────────────────────────────────────────────────
@@ -143,6 +142,7 @@ Future<Uint8List> buildReportCardPdf({
           gpa:    gpa,
           rank:   template.showRank ? rank : null,
           exam:   exam,
+          languageCode: languageCode,
         ),
 
         // ── Attendance ───────────────────────────────────────────────────────
@@ -226,7 +226,7 @@ Future<Uint8List> buildClassReportCardPdf({
                   ),
                   pw.SizedBox(height: 10),
                   pw.Text(
-                    'OFFICIAL REPORT CARD',
+                    AppStrings.get(languageCode, 'officialReportCard'),
                     style: pw.TextStyle(
                       fontSize: 12,
                       fontWeight: pw.FontWeight.bold,
@@ -243,13 +243,13 @@ Future<Uint8List> buildClassReportCardPdf({
     header: (ctx) => pw.Column(
       children: [
         PdfBrandingHelper.buildHeader(branding),
-        _buildHeader(template, exam),
+        _buildHeader(template, exam, languageCode),
       ],
     ),
     footer: (ctx) => _buildFooter(template, languageCode),
     build: (ctx) => [
       pw.SizedBox(height: 8),
-      _buildClassStatsRow(results, exam),
+      _buildClassStatsRow(results, exam, languageCode),
       pw.SizedBox(height: 8),
       _buildClassTable(
         template: template,
@@ -257,6 +257,7 @@ Future<Uint8List> buildClassReportCardPdf({
         resultMap: resultMap,
         exam: exam,
         ranks: ranks,
+        languageCode: languageCode,
       ),
     ],
   ));
@@ -266,7 +267,7 @@ Future<Uint8List> buildClassReportCardPdf({
 
 // ─── Header ───────────────────────────────────────────────────────────────────
 
-pw.Widget _buildHeader(ReportCardTemplate template, Exam exam) {
+pw.Widget _buildHeader(ReportCardTemplate template, Exam exam, String languageCode) {
   final examDate = exam.examDate;
   final dateStr  =
       '${examDate.day.toString().padLeft(2, '0')}/'
@@ -297,7 +298,7 @@ pw.Widget _buildHeader(ReportCardTemplate template, Exam exam) {
                 ),
               pw.SizedBox(height: 2),
               pw.Text(
-                'REPORT CARD  •  ${exam.name}',
+                '${AppStrings.get(languageCode, 'reportCard').toUpperCase()}  •  ${exam.name}',
                 style: const pw.TextStyle(
                   fontSize: 10,
                   color: _kWhite70,
@@ -343,7 +344,7 @@ pw.Widget _buildHeader(ReportCardTemplate template, Exam exam) {
 
 // ─── Student info box ─────────────────────────────────────────────────────────
 
-pw.Widget _buildStudentInfo(Student student, Exam exam) {
+pw.Widget _buildStudentInfo(Student student, Exam exam, String languageCode) {
   return pw.Container(
     padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     decoration: pw.BoxDecoration(
@@ -353,10 +354,10 @@ pw.Widget _buildStudentInfo(Student student, Exam exam) {
     ),
     child: pw.Row(
       children: [
-        _infoCell('Student Name', student.name, flex: 3),
-        _infoCell('Roll No', '${student.roll}'),
-        _infoCell('Class', exam.className),
-        _infoCell('Max / Subject', '${exam.maxMarks}'),
+        _infoCell(AppStrings.get(languageCode, 'studentNameLabel'), student.name, flex: 3),
+        _infoCell(AppStrings.get(languageCode, 'rollNoLabel'), '${student.roll}'),
+        _infoCell(AppStrings.get(languageCode, 'classLabel'), exam.className),
+        _infoCell(AppStrings.get(languageCode, 'maxPerSubjectLabel'), '${exam.maxMarks}'),
       ],
     ),
   );
@@ -419,12 +420,12 @@ pw.Widget _buildSubjectTable(
         children: [
           // Header
           pw.TableRow(children: [
-            headerCell('Subject'),
-            headerCell('Marks'),
-            headerCell('Max'),
-            headerCell('%'),
-            if (showGrade)   headerCell('Grade'),
-            if (showRemarks) headerCell('Remarks'),
+            headerCell(AppStrings.get(languageCode, 'subjectHeader')),
+            headerCell(AppStrings.get(languageCode, 'marksHeader')),
+            headerCell(AppStrings.get(languageCode, 'maxMarksHeader')),
+            headerCell(AppStrings.get(languageCode, 'percentHeader')),
+            if (showGrade)   headerCell(AppStrings.get(languageCode, 'gradeHeader')),
+            if (showRemarks) headerCell(AppStrings.get(languageCode, 'remarksHeader')),
           ]),
           // Rows
           for (final sub in exam.subjects) ...[
@@ -493,17 +494,19 @@ pw.Widget _buildSummaryStrip({
   required double     gpa,
   required int?       rank,
   required Exam       exam,
+  required String     languageCode,
 }) {
   final totalMax = exam.maxMarks * exam.subjects.length;
   final cols = [
-    _summaryCol('Total',
+    _summaryCol(AppStrings.get(languageCode, 'totalHeader'),
         '${result.total.toStringAsFixed(0)} / $totalMax'),
-    _summaryCol('Percentage',
+    _summaryCol(AppStrings.get(languageCode, 'percentageHeader'),
         '${result.percentage.toStringAsFixed(1)}%'),
-    _summaryCol('Grade', grade),
-    if (gpa > 0) _summaryCol('GPA', gpa.toStringAsFixed(1)),
-    if (rank != null) _summaryCol('Rank', '#$rank'),
-    _summaryCol('Result', result.isPassed ? 'PASS' : 'FAIL',
+    _summaryCol(AppStrings.get(languageCode, 'gradeHeader'), grade),
+    if (gpa > 0) _summaryCol(AppStrings.get(languageCode, 'gpaColLabel'), gpa.toStringAsFixed(1)),
+    if (rank != null) _summaryCol(AppStrings.get(languageCode, 'rankHeader'), '#$rank'),
+    _summaryCol(AppStrings.get(languageCode, 'resultHeader'),
+        result.isPassed ? AppStrings.get(languageCode, 'resultPass') : AppStrings.get(languageCode, 'resultFail'),
         valueColor: result.isPassed ? _kGreenDk : _kRedDk),
   ];
 
@@ -555,11 +558,15 @@ pw.Widget _buildAttendanceRow(int present, int total, String languageCode) {
           style: pw.TextStyle(
               fontSize: 9, fontWeight: pw.FontWeight.bold)),
       pw.SizedBox(width: 6),
-      pw.Text('$present / $total days  ($pct%)',
+      pw.Text(
+          AppStrings.get(languageCode, 'daysOfAttendanceDetail')
+              .replaceAll('{present}', '$present')
+              .replaceAll('{total}', '$total')
+              .replaceAll('{pct}', pct),
           style: const pw.TextStyle(fontSize: 9)),
       pw.Spacer(),
       pw.Text(
-        good ? 'Satisfactory' : 'Short Attendance',
+        good ? AppStrings.get(languageCode, 'satisfactory') : AppStrings.get(languageCode, 'shortAttendance'),
         style: pw.TextStyle(
           fontSize: 9,
           fontWeight: pw.FontWeight.bold,
@@ -591,9 +598,9 @@ pw.Widget _buildCoCurricularTable(String languageCode) {
         },
         children: [
           pw.TableRow(children: [
-            _cell('Activity', bold: true, bg: _kGrey200),
-            _cell('Grade', bold: true, bg: _kGrey200),
-            _cell('Remarks', bold: true, bg: _kGrey200),
+            _cell(AppStrings.get(languageCode, 'activityHeader'), bold: true, bg: _kGrey200),
+            _cell(AppStrings.get(languageCode, 'gradeHeader'), bold: true, bg: _kGrey200),
+            _cell(AppStrings.get(languageCode, 'remarksHeader'), bold: true, bg: _kGrey200),
           ]),
           for (int i = 0; i < 3; i++)
             pw.TableRow(children: [
@@ -645,7 +652,7 @@ pw.Widget _buildFooter(ReportCardTemplate template, String languageCode) {
                 ),
               ),
               pw.SizedBox(height: 3),
-              pw.Text('Principal Signature', style: const pw.TextStyle(fontSize: 8, color: _kTextLight)),
+              pw.Text(AppStrings.get(languageCode, 'principalSignature'), style: const pw.TextStyle(fontSize: 8, color: _kTextLight)),
             ],
           ),
         ],
@@ -661,19 +668,19 @@ pw.Widget _buildFooter(ReportCardTemplate template, String languageCode) {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(
-                  template.footerText.isNotEmpty ? template.footerText : 'Disclaimer: This report card contains confidential student information.',
+                  template.footerText.isNotEmpty ? template.footerText : AppStrings.get(languageCode, 'reportCardDisclaimer'),
                   style: const pw.TextStyle(fontSize: 8, color: _kTextLight),
                 ),
                 pw.SizedBox(height: 2),
                 pw.Text(
-                  'Generated on: $timestampStr  •  This is a computer generated document. No signature required.',
+                  AppStrings.get(languageCode, 'reportCardGenerationNote').replaceAll('{timestamp}', timestampStr),
                   style: const pw.TextStyle(fontSize: 7, color: _kTextLight),
                 ),
               ],
             ),
           ),
           pw.Text(
-            'Generated by Klassivo',
+            AppStrings.get(languageCode, 'generatedByKlassivo'),
             style: const pw.TextStyle(fontSize: 7, color: _kGrey400),
           ),
         ],
@@ -684,7 +691,7 @@ pw.Widget _buildFooter(ReportCardTemplate template, String languageCode) {
 
 // ─── Class-wide stats row ─────────────────────────────────────────────────────
 
-pw.Widget _buildClassStatsRow(List<ExamResult> results, Exam exam) {
+pw.Widget _buildClassStatsRow(List<ExamResult> results, Exam exam, String languageCode) {
   // All elements are non-nullable; validResults retains the variable for clarity.
   final validResults = results;
   final passCount = validResults.where((r) => r.isPassed).length;
@@ -702,11 +709,11 @@ pw.Widget _buildClassStatsRow(List<ExamResult> results, Exam exam) {
     child: pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
       children: [
-        _statChip('Students',  '${results.length}',      _kViolet),
-        _statChip('Passed',    '$passCount',              _kGreenDk),
-        _statChip('Failed',    '${results.length - passCount}', _kRedDk),
-        _statChip('Avg %',     '${avgPct.toStringAsFixed(1)}%', _kAccent),
-        _statChip('Max Marks', '${exam.maxMarks}/sub',   _kTextLight),
+        _statChip(AppStrings.get(languageCode, 'studentsHeader'),  '${results.length}',      _kViolet),
+        _statChip(AppStrings.get(languageCode, 'passedHeader'),    '$passCount',              _kGreenDk),
+        _statChip(AppStrings.get(languageCode, 'failedHeader'),    '${results.length - passCount}', _kRedDk),
+        _statChip(AppStrings.get(languageCode, 'avgPctHeader'),     '${avgPct.toStringAsFixed(1)}%', _kAccent),
+        _statChip(AppStrings.get(languageCode, 'maxMarksLabel'), '${exam.maxMarks}${AppStrings.get(languageCode, 'perSubjectSuffix')}',   _kTextLight),
       ],
     ),
   );
@@ -736,6 +743,7 @@ pw.Widget _buildClassTable({
   required Map<int, ExamResult> resultMap,
   required Exam                 exam,
   required Map<int, int>        ranks,
+  required String               languageCode,
 }) {
   final showRank = template.showRank;
   final subjects = exam.subjects;
@@ -759,13 +767,13 @@ pw.Widget _buildClassTable({
   final rows = <pw.TableRow>[
     // Header
     pw.TableRow(children: [
-      h('Roll'),
-      h('Name'),
+      h(AppStrings.get(languageCode, 'rollHeader')),
+      h(AppStrings.get(languageCode, 'nameHeader')),
       ...subjects.map(h),
-      h('Total'),
-      h('%'),
-      h('Grade'),
-      if (showRank) h('Rank'),
+      h(AppStrings.get(languageCode, 'totalHeader')),
+      h(AppStrings.get(languageCode, 'percentHeader')),
+      h(AppStrings.get(languageCode, 'gradeHeader')),
+      if (showRank) h(AppStrings.get(languageCode, 'rankHeader')),
     ]),
     // Student rows
     for (final s in students) ...[
