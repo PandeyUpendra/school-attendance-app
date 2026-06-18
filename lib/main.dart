@@ -229,6 +229,8 @@ class _SplashGate extends StatefulWidget {
 class _SplashGateState extends State<_SplashGate> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _brandOpacity;
+  late Animation<double> _logoSize;
+  late Animation<double> _textSlide;
 
   bool _animationCompleted = false;
   bool _sessionCheckCompleted = false;
@@ -251,10 +253,24 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
       duration: const Duration(milliseconds: 600),
     );
 
-    _brandOpacity = Tween<double>(begin: 1.0, end: 1.0).animate(
+    _brandOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: Curves.easeOut,
+        curve: const Interval(0.2, 1.0, curve: Curves.easeInOut),
+      ),
+    );
+
+    _logoSize = Tween<double>(begin: 90.0, end: 130.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    _textSlide = Tween<double>(begin: 12.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
       ),
     );
 
@@ -528,57 +544,48 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final logoHeight = screenHeight * 0.22; // 22% of screen height
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: logoHeight,
-              height: logoHeight,
-              child: Stack(
-                children: [
-                  SvgPicture.asset(
-                    'assets/images/logo_cap.svg',
-                    width: logoHeight,
-                    height: logoHeight,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            final size = _logoSize.value;
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: size,
+                  height: size,
+                  child: SvgPicture.asset(
+                    'assets/images/logo.svg',
+                    width: size,
+                    height: size,
                     fit: BoxFit.contain,
                   ),
-                  SvgPicture.asset(
-                    'assets/images/logo_k.svg',
-                    width: logoHeight,
-                    height: logoHeight,
-                    fit: BoxFit.contain,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            AnimatedBuilder(
-              animation: _brandOpacity,
-              builder: (context, child) {
-                return Opacity(
-                  opacity: _brandOpacity.value,
-                  child: const Text(
-                    'KLASSIVO',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w600, // SemiBold
-                      color: Color(0xFF002B24),
-                      fontSize: 26,
-                      letterSpacing: 3.0,
+                ),
+                const SizedBox(height: 28),
+                Transform.translate(
+                  offset: Offset(0, _textSlide.value),
+                  child: Opacity(
+                    opacity: _brandOpacity.value,
+                    child: const Text(
+                      'KLASSIVO',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w600, // SemiBold
+                        color: Color(0xFF002B24),
+                        fontSize: 26,
+                        letterSpacing: 3.0,
+                      ),
                     ),
                   ),
-                );
-              },
-            ),
-          ],
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
