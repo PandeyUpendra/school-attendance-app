@@ -293,6 +293,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
                     userEmail: _coordEmail,
                     userName: _coordEmail,
                   )),
+                  onAbsentTeachersTap: () => _navigate(const AbsentTeachersScreen()),
                 ),
               ),
 
@@ -682,6 +683,8 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
                   role: 'coordinator'));
                 _refreshLastSeen();
               },
+              onTeachersAbsentTap: () => _navigate(const AbsentTeachersScreen()),
+              onBellsTap: () => _navigate(const FreeBellsScreen()),
             ),
           ),
         ],
@@ -987,6 +990,8 @@ class _CoordHeroCard extends StatelessWidget {
   final int  unassignedBells;
   final int  unreadNotifCount;
   final VoidCallback onNotifTap;
+  final VoidCallback? onTeachersAbsentTap;
+  final VoidCallback? onBellsTap;
 
   const _CoordHeroCard({
     super.key,
@@ -995,6 +1000,8 @@ class _CoordHeroCard extends StatelessWidget {
     required this.unassignedBells,
     required this.unreadNotifCount,
     required this.onNotifTap,
+    this.onTeachersAbsentTap,
+    this.onBellsTap,
   });
 
   @override
@@ -1140,6 +1147,7 @@ class _CoordHeroCard extends StatelessWidget {
                       alertColor: teachersAbsent > 0
                           ? AppTheme.dangerLight
                           : Colors.white70,
+                      onTap: onTeachersAbsentTap,
                     ),
                     const SizedBox(width: 10),
                     _HeroInfoCard(
@@ -1151,6 +1159,7 @@ class _CoordHeroCard extends StatelessWidget {
                       alertColor: unassignedBells > 0
                           ? AppTheme.warningLight
                           : Colors.white70,
+                      onTap: onBellsTap,
                     ),
                   ]),
               ],
@@ -1166,43 +1175,52 @@ class _HeroInfoCard extends StatelessWidget {
   final IconData icon;
   final String   value, label;
   final Color    alertColor;
+  final VoidCallback? onTap;
   const _HeroInfoCard({
     required this.icon,
     required this.value,
     required this.label,
     required this.alertColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) => Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.12),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
             borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(children: [
-            Icon(icon, color: alertColor, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(value,
-                      style: TextStyle(
-                          color: alertColor,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          height: 1.1)),
-                  const SizedBox(height: 1),
-                  Text(label,
-                      style: const TextStyle(
-                          color: Colors.white60, fontSize: 10.5),
-                      maxLines: 2),
-                ],
+            child: Ink(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
               ),
+              child: Row(children: [
+                Icon(icon, color: alertColor, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(value,
+                          style: TextStyle(
+                              color: alertColor,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              height: 1.1)),
+                      const SizedBox(height: 1),
+                      Text(label,
+                          style: const TextStyle(
+                              color: Colors.white60, fontSize: 10.5),
+                          maxLines: 2),
+                    ],
+                  ),
+                ),
+              ]),
             ),
-          ]),
+          ),
         ),
       );
 }
@@ -1398,6 +1416,7 @@ class _CoordinatorMorningSummaryCard extends StatelessWidget {
   final int absentTeachers;
   final int incompleteTasks;
   final VoidCallback onViewTasks;
+  final VoidCallback? onAbsentTeachersTap;
 
   const _CoordinatorMorningSummaryCard({
     required this.absentStudents,
@@ -1405,6 +1424,7 @@ class _CoordinatorMorningSummaryCard extends StatelessWidget {
     required this.absentTeachers,
     required this.incompleteTasks,
     required this.onViewTasks,
+    this.onAbsentTeachersTap,
   });
 
   @override
@@ -1488,6 +1508,7 @@ class _CoordinatorMorningSummaryCard extends StatelessWidget {
                         label: 'Absent Teachers',
                         value: '$absentTeachers',
                         color: Colors.amberAccent.shade100,
+                        onTap: onAbsentTeachersTap,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -1534,8 +1555,9 @@ class _CoordinatorMorningSummaryCard extends StatelessWidget {
     required String label,
     required String value,
     required Color color,
+    VoidCallback? onTap,
   }) {
-    return Container(
+    final container = Ink(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
@@ -1574,6 +1596,19 @@ class _CoordinatorMorningSummaryCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+
+    if (onTap == null) {
+      return container;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: container,
       ),
     );
   }
