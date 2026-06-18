@@ -952,7 +952,7 @@ class StudentService extends BaseFirestoreService {
       } else {
         final studentDocId = student.id;
         final audience = 'guardian:$className:$roll';
-        final attKey = section.trim().isEmpty ? className : '$className ${section.trim()}';
+        final attKey = Student.buildAttendanceKey(className, section);
         final prefix = '${attKey.replaceAll(' ', '_')}_';
         final wantTitle = 'Leave request: ${student.name}';
         final wantSection = section.trim();

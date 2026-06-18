@@ -495,12 +495,11 @@ class _StudentListScreenState extends State<StudentListScreen> {
           ];
         }())
     ];
-    final cls = widget.className.replaceAll(' ', '_');
-    final sec = widget.section.trim().isEmpty ? '' : '_${widget.section.trim()}';
+    final filenameKey = Student.buildAttendanceKey(widget.className, widget.section).replaceAll(' ', '_');
     final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
     try {
       await CsvExport.share(
-        filename: 'students_$cls$sec.csv',
+        filename: 'students_$filenameKey.csv',
         rows: rows,
         schoolName: settings.schoolName,
         schoolLogo: settings.schoolLogo,
@@ -625,12 +624,11 @@ class _StudentListScreenState extends State<StudentListScreen> {
       ),
     );
 
-    final cls = widget.className.replaceAll(' ', '_');
-    final sec = widget.section.trim().isEmpty ? '' : '_${widget.section.trim()}';
+    final filenameKey = Student.buildAttendanceKey(widget.className, widget.section).replaceAll(' ', '_');
     try {
       await Printing.sharePdf(
         bytes: await doc.save(),
-        filename: 'students_$cls$sec.pdf',
+        filename: 'students_$filenameKey.pdf',
       );
     } catch (e) {
       if (!mounted) return;

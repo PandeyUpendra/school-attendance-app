@@ -152,6 +152,30 @@ class Student {
     return '${base}_${sec}_$roll';
   }
 
+  static String buildAttendanceKey(String className, String section) {
+    final cleanClass = className.trim();
+    final cleanSec = section.trim();
+    if (cleanSec.isEmpty) return cleanClass;
+
+    final upperClass = cleanClass.toUpperCase();
+    final upperSec = cleanSec.toUpperCase();
+
+    if (upperClass.endsWith(upperSec)) {
+      final startIdx = upperClass.length - upperSec.length;
+      if (startIdx > 0) {
+        final before = upperClass.substring(startIdx - 1, startIdx);
+        if (before == '-' || before == '_' || before == ' ' || RegExp(r'\d').hasMatch(before)) {
+          return cleanClass;
+        }
+      } else {
+        return cleanClass;
+      }
+    }
+    return '$cleanClass $cleanSec';
+  }
+
+
+
   factory Student.fromJson(Map<String, dynamic> json) {
     try {
       final rollVal = (json['roll'] as num?)?.toInt() ??

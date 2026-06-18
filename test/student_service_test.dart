@@ -483,5 +483,20 @@ void main() {
     final docId5 = Student.buildDocId(1, '6_B', 'B');
     expect(docId5, '6_b_1');
   });
+
+  // ── 20. Student.buildAttendanceKey normalisation ───────────────────────────
+
+  test('Student.buildAttendanceKey correctly handles className and section formatting without duplication', () {
+    expect(Student.buildAttendanceKey('6-A', 'A'), '6-A');
+    expect(Student.buildAttendanceKey('6A', 'A'), '6A');
+    expect(Student.buildAttendanceKey('6 A', 'A'), '6 A');
+    expect(Student.buildAttendanceKey('6_A', 'A'), '6_A');
+    expect(Student.buildAttendanceKey('6', 'A'), '6 A');
+    expect(Student.buildAttendanceKey('LKG', 'G'), 'LKG G');
+    expect(Student.buildAttendanceKey('Class A', 'A'), 'Class A');
+    expect(Student.buildAttendanceKey('Class', 'A'), 'Class A');
+    expect(Student.buildAttendanceKey('Class 6', ''), 'Class 6');
+  });
 }
+
 

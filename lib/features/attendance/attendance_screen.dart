@@ -118,9 +118,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
   // When section is set, use a section-scoped key for attendance storage
   // so Section A and Section B never overwrite each other's attendance doc.
   String get _attendanceKey =>
-      _section.trim().isEmpty
-          ? _className
-          : '$_className ${_section.trim()}';
+      Student.buildAttendanceKey(_className, _section);
 
   // ── Derived counts ──────────────────────────────────────────────────────────
   int get _total   => _students.length;

@@ -129,9 +129,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   // the identical key or the lookup misses every doc and history shows blank —
   // matches AttendanceScreen._attendanceKey / AttendanceHistoryScreen._attendanceKey.
   String get _attendanceKey =>
-      _activeSection.trim().isEmpty
-          ? _activeClass
-          : '$_activeClass ${_activeSection.trim()}';
+      Student.buildAttendanceKey(_activeClass, _activeSection);
 
   // Fee
   FeeStructure? _feeStructure;
@@ -1603,56 +1601,6 @@ class _GuardianHeroCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // School name & logo  |  App name & logo
-                Row(
-                  children: [
-                    // ── School branding ──
-                    Consumer<SchoolSettingsProvider>(
-                      builder: (context, sProvider, _) => CircleAvatar(
-                        radius: 14,
-                        backgroundColor: Colors.white24,
-                        backgroundImage: sProvider.schoolLogo.isNotEmpty
-                            ? CachedNetworkImageProvider(sProvider.schoolLogo)
-                            : null,
-                        child: sProvider.schoolLogo.isEmpty
-                            ? const Icon(Icons.school, size: 14, color: Colors.white)
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Consumer<SchoolSettingsProvider>(
-                        builder: (context, sProvider, _) => Text(
-                          sProvider.schoolName,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // ── App branding ──
-                    const CircleAvatar(
-                      radius: 14,
-                      backgroundColor: Colors.white24,
-                      backgroundImage: AssetImage('assets/images/logo.png'),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'Klassivo',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
                 // ── Top action row ──────────────────────────────────
                 Row(children: [
                   const Icon(Icons.family_restroom_outlined,
@@ -1732,6 +1680,56 @@ class _GuardianHeroCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                 ]),
+                const SizedBox(height: 8),
+                // School name & logo  |  App name & logo
+                Row(
+                  children: [
+                    // ── School branding ──
+                    Consumer<SchoolSettingsProvider>(
+                      builder: (context, sProvider, _) => CircleAvatar(
+                        radius: 14,
+                        backgroundColor: Colors.white24,
+                        backgroundImage: sProvider.schoolLogo.isNotEmpty
+                            ? CachedNetworkImageProvider(sProvider.schoolLogo)
+                            : null,
+                        child: sProvider.schoolLogo.isEmpty
+                            ? const Icon(Icons.school, size: 14, color: Colors.white)
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Consumer<SchoolSettingsProvider>(
+                        builder: (context, sProvider, _) => Text(
+                          sProvider.schoolName,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // ── App branding ──
+                    const CircleAvatar(
+                      radius: 14,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: AssetImage('assets/images/logo.png'),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Klassivo',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
 
                 if (loading)

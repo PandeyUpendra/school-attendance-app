@@ -108,9 +108,7 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
   Map<int, bool>   _called      = {};
   bool _loading = true;
 
-  String get _attendanceKey => widget.section.trim().isEmpty
-      ? widget.className
-      : '${widget.className} ${widget.section.trim()}';
+  String get _attendanceKey => Student.buildAttendanceKey(widget.className, widget.section);
 
   List<Student> get _absentLeave => _students
       .where((s) =>
@@ -826,9 +824,7 @@ class _HistoryTabState extends State<_HistoryTab> {
   List<_DayRecord> _records = [];
   bool _loading = true;
 
-  String get _attendanceKey => widget.section.trim().isEmpty
-      ? widget.className
-      : '${widget.className} ${widget.section.trim()}';
+  String get _attendanceKey => Student.buildAttendanceKey(widget.className, widget.section);
 
   @override
   void initState() {

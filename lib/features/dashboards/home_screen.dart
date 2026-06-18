@@ -231,52 +231,6 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // School name & logo  |  App name & logo
-                Row(
-                  children: [
-                    // ── School branding ──
-                    CircleAvatar(
-                      radius: 14,
-                      backgroundColor: Colors.white24,
-                      backgroundImage: settings.schoolLogo.isNotEmpty
-                          ? CachedNetworkImageProvider(settings.schoolLogo)
-                          : null,
-                      child: settings.schoolLogo.isEmpty
-                          ? const Icon(Icons.school, size: 14, color: Colors.white)
-                          : null,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        settings.schoolName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // ── App branding ──
-                    const CircleAvatar(
-                      radius: 14,
-                      backgroundColor: Colors.white24,
-                      backgroundImage: AssetImage('assets/images/logo.png'),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'Klassivo',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
                 // ── Top action row (bell + logout) ──────────────────────
                 Row(children: [
                   // Date label
@@ -348,6 +302,52 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ]),
+                const SizedBox(height: 8),
+                // School name & logo  |  App name & logo
+                Row(
+                  children: [
+                    // ── School branding ──
+                    CircleAvatar(
+                      radius: 14,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: settings.schoolLogo.isNotEmpty
+                          ? CachedNetworkImageProvider(settings.schoolLogo)
+                          : null,
+                      child: settings.schoolLogo.isEmpty
+                          ? const Icon(Icons.school, size: 14, color: Colors.white)
+                          : null,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        settings.schoolName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // ── App branding ──
+                    const CircleAvatar(
+                      radius: 14,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: AssetImage('assets/images/logo.png'),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Klassivo',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
 
                 const SizedBox(height: 6),
 

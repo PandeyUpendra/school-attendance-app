@@ -76,9 +76,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
 
   // Must match the key used by AttendanceScreen — includes section when present.
   String get _attendanceKey =>
-      widget.section.trim().isEmpty
-          ? widget.className
-          : '${widget.className} ${widget.section.trim()}';
+      Student.buildAttendanceKey(widget.className, widget.section);
 
   List<Student> _students = [];
   Map<int, Map<int, String>> _monthData = {};
@@ -701,9 +699,7 @@ class _StudentCalendarScreenState extends State<_StudentCalendarScreen> {
 
   Future<void> _changeMonth(DateTime newMonth) async {
     setState(() { _month = newMonth; _loading = true; });
-    final attKey = widget.student.section.trim().isEmpty
-        ? widget.student.className
-        : '${widget.student.className} ${widget.student.section.trim()}';
+    final attKey = Student.buildAttendanceKey(widget.student.className, widget.student.section);
     final data = await StudentService.instance.loadMonthAttendance(
         className: attKey, year: newMonth.year, month: newMonth.month);
     if (!mounted) return;

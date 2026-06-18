@@ -53,9 +53,7 @@ class _AttendanceCertificateScreenState
   // alone misses every doc, so the certificate would report 0 days. Mirror
   // AttendanceScreen._attendanceKey exactly.
   String get _attendanceKey =>
-      widget.student.section.trim().isEmpty
-          ? widget.student.className
-          : '${widget.student.className} ${widget.student.section.trim()}';
+      Student.buildAttendanceKey(widget.student.className, widget.student.section);
 
   @override
   void initState() {
