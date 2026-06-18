@@ -12,6 +12,9 @@ class SchoolSettingsService extends BaseFirestoreService {
   Stream<Map<String, dynamic>> getSchoolSettings() =>
       _settings.doc('school').snapshots().map((s) => s.data() ?? {});
 
+  Stream<Map<String, dynamic>> getSchoolDoc() =>
+      db.collection('schools').doc(_sid).snapshots().map((s) => s.data() ?? {});
+
   Stream<Map<String, dynamic>> getAcademicSettings() =>
       _settings.doc('academic').snapshots().map((s) => s.data() ?? {});
 

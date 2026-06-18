@@ -33,6 +33,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl  = TextEditingController();
+  final _emailFocusNode = FocusNode();
+  final _passFocusNode  = FocusNode();
   bool _loading    = false;
   bool _showPass   = false;
   String? _error;
@@ -79,6 +81,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _emailFocusNode.dispose();
+    _passFocusNode.dispose();
     super.dispose();
   }
 
@@ -421,6 +425,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   // Email
                                 EmailTextFormField(
                                   controller: _emailCtrl,
+                                  focusNode: _emailFocusNode,
+                                  nextFocusNode: _passFocusNode,
                                   maxLength: 254,
                                   textInputAction: TextInputAction.next,
                                   decoration: InputDecoration(
@@ -436,6 +442,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 // Password
                                 TextField(
                                   controller: _passCtrl,
+                                  focusNode: _passFocusNode,
                                   obscureText: !_showPass,
                                   maxLength: 100,
                                   maxLengthEnforcement: MaxLengthEnforcement.enforced,

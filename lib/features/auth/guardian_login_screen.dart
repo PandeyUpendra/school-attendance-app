@@ -26,6 +26,8 @@ class GuardianLoginScreen extends StatefulWidget {
 class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl  = TextEditingController();
+  final _emailFocusNode = FocusNode();
+  final _passFocusNode  = FocusNode();
   bool _loading    = false;
   bool _showPass   = false;
   String? _error;
@@ -72,6 +74,8 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _emailFocusNode.dispose();
+    _passFocusNode.dispose();
     super.dispose();
   }
 
@@ -272,6 +276,8 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
                                   // Email
                                   EmailTextFormField(
                                     controller: _emailCtrl,
+                                    focusNode: _emailFocusNode,
+                                    nextFocusNode: _passFocusNode,
                                     textInputAction: TextInputAction.next,
                                     decoration: InputDecoration(
                                       labelText: context.tr('emailAddress'),
@@ -285,6 +291,7 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
                                   // Password
                                   TextField(
                                     controller: _passCtrl,
+                                    focusNode: _passFocusNode,
                                     obscureText: !_showPass,
                                     textInputAction: TextInputAction.done,
                                     onSubmitted: (_) => _loading ? null : _signIn(),

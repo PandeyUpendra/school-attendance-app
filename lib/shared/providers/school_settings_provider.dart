@@ -8,6 +8,7 @@ class SchoolSettingsProvider extends ChangeNotifier {
   final _svc = SchoolSettingsService();
 
   Map<String, dynamic> _school = {};
+  Map<String, dynamic> _schoolDoc = {};
   Map<String, dynamic> _academic = {};
   Map<String, dynamic> _fees = {};
   Map<String, dynamic> _comm = {};
@@ -18,6 +19,7 @@ class SchoolSettingsProvider extends ChangeNotifier {
   String? _boundSchoolId;
 
   StreamSubscription? _schoolSub;
+  StreamSubscription? _schoolDocSub;
   StreamSubscription? _academicSub;
   StreamSubscription? _feesSub;
   StreamSubscription? _commSub;
@@ -62,10 +64,11 @@ class SchoolSettingsProvider extends ChangeNotifier {
       // Do not listen to any streams yet; wait for _onActiveSchoolChanged to re-bind.
       _boundSchoolId = null;
       _schoolSub?.cancel(); _schoolSub = null;
+      _schoolDocSub?.cancel(); _schoolDocSub = null;
       _academicSub?.cancel(); _academicSub = null;
       _feesSub?.cancel(); _feesSub = null;
       _commSub?.cancel(); _commSub = null;
-      _school = {}; _academic = {}; _fees = {}; _comm = {};
+      _school = {}; _schoolDoc = {}; _academic = {}; _fees = {}; _comm = {};
       _loaded = false;
       return;
     }
@@ -73,6 +76,8 @@ class SchoolSettingsProvider extends ChangeNotifier {
     _boundSchoolId = schoolId;
     _schoolSub?.cancel();
     _schoolSub = null;
+    _schoolDocSub?.cancel();
+    _schoolDocSub = null;
     _academicSub?.cancel();
     _academicSub = null;
     _feesSub?.cancel();
@@ -80,6 +85,7 @@ class SchoolSettingsProvider extends ChangeNotifier {
     _commSub?.cancel();
     _commSub = null;
     _school = {};
+    _schoolDoc = {};
     _academic = {};
     _fees = {};
     _comm = {};
@@ -88,6 +94,10 @@ class SchoolSettingsProvider extends ChangeNotifier {
   }
 
   void _init() {
+    _schoolDocSub = _svc.getSchoolDoc().listen((data) {
+      _schoolDoc = data;
+      _notifyDebounced();
+    });
     _schoolSub = _svc.getSchoolSettings().listen((data) {
       _school = data;
       _loaded = true;
@@ -112,6 +122,7 @@ class SchoolSettingsProvider extends ChangeNotifier {
   void dispose() {
     BaseFirestoreService.schoolIdNotifier.removeListener(_onActiveSchoolChanged);
     _schoolSub?.cancel();
+    _schoolDocSub?.cancel();
     _academicSub?.cancel();
     _feesSub?.cancel();
     _commSub?.cancel();
@@ -135,7 +146,7 @@ class SchoolSettingsProvider extends ChangeNotifier {
   String get schoolTagline => _school['tagline'] as String? ?? '';
   String get schoolWebsite => _school['website'] as String? ?? '';
   String get establishedYear => _school['establishedYear'] as String? ?? '';
-  String get subscriptionPlan => _school['subscriptionPlan'] as String? ?? 'free';
+  String get subscriptionPlan => _schoolDoc['subscriptionPlan'] as String? ?? 'free';
 
   // ── Social Media ──────────────────────────────────────────────────────────
   String get facebookUrl => _school['facebookUrl'] as String? ?? '';

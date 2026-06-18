@@ -23,6 +23,8 @@ class EmailTextFormField extends StatefulWidget {
   final bool isOptional;
   final List<TextInputFormatter>? inputFormatters;
   final TextCapitalization textCapitalization;
+  final FocusNode? focusNode;
+  final FocusNode? nextFocusNode;
 
   const EmailTextFormField({
     super.key,
@@ -38,6 +40,8 @@ class EmailTextFormField extends StatefulWidget {
     this.isOptional = false,
     this.inputFormatters,
     this.textCapitalization = TextCapitalization.none,
+    this.focusNode,
+    this.nextFocusNode,
   });
 
   @override
@@ -46,13 +50,15 @@ class EmailTextFormField extends StatefulWidget {
 
 class _EmailTextFormFieldState extends State<EmailTextFormField> {
   late final FocusNode _focusNode;
+  late final bool _isInternalFocusNode;
   bool _touched = false;
   bool _hasAutoPrompted = false;
 
   @override
   void initState() {
     super.initState();
-    _focusNode = FocusNode();
+    _isInternalFocusNode = widget.focusNode == null;
+    _focusNode = widget.focusNode ?? FocusNode();
     _focusNode.addListener(_onFocusChange);
     widget.controller.addListener(_onTextChanged);
   }
@@ -61,7 +67,9 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
   void dispose() {
     widget.controller.removeListener(_onTextChanged);
     _focusNode.removeListener(_onFocusChange);
-    _focusNode.dispose();
+    if (_isInternalFocusNode) {
+      _focusNode.dispose();
+    }
     super.dispose();
   }
 
@@ -208,13 +216,21 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
     if (widget.textInputAction == TextInputAction.next) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          _focusNode.nextFocus();
+          if (widget.nextFocusNode != null) {
+            widget.nextFocusNode!.requestFocus();
+          } else {
+            _focusNode.nextFocus();
+          }
         }
       });
       // Safety delay to ensure focus shifts even if route animations/system focus shifts are still occurring
       Future.delayed(const Duration(milliseconds: 150), () {
         if (mounted && _focusNode.hasFocus) {
-          _focusNode.nextFocus();
+          if (widget.nextFocusNode != null) {
+            widget.nextFocusNode!.requestFocus();
+          } else {
+            _focusNode.nextFocus();
+          }
         }
       });
     }
@@ -344,7 +360,9 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
           ? MaxLengthEnforcement.enforced
           : MaxLengthEnforcement.none,
       textInputAction: widget.textInputAction,
-      onFieldSubmitted: widget.onFieldSubmitted,
+      onFieldSubmitted: widget.onFieldSubmitted ?? (widget.nextFocusNode != null 
+          ? (_) => widget.nextFocusNode!.requestFocus()
+          : null),
       onChanged: widget.onChanged,
       inputFormatters: widget.inputFormatters,
       textCapitalization: widget.textCapitalization,

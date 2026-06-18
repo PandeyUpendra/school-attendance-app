@@ -28,6 +28,8 @@ class AdminLoginScreen extends StatefulWidget {
 class _AdminLoginScreenState extends State<AdminLoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl  = TextEditingController();
+  final _emailFocusNode = FocusNode();
+  final _passFocusNode  = FocusNode();
   bool _loading  = false;
   bool _showPass = false;
   String? _error;
@@ -37,6 +39,8 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   void dispose() {
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _emailFocusNode.dispose();
+    _passFocusNode.dispose();
     super.dispose();
   }
 
@@ -247,6 +251,8 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                                   // Email
                                 EmailTextFormField(
                                   controller: _emailCtrl,
+                                  focusNode: _emailFocusNode,
+                                  nextFocusNode: _passFocusNode,
                                   enabled: !_loading,
                                   maxLength: 100,
                                   textInputAction: TextInputAction.next,
@@ -263,6 +269,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                                 // Password
                                 TextField(
                                   controller: _passCtrl,
+                                  focusNode: _passFocusNode,
                                   enabled: !_loading,
                                   obscureText: !_showPass,
                                   maxLength: 100,
