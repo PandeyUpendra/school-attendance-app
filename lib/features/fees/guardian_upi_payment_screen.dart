@@ -8,6 +8,7 @@ import '../../shared/providers/school_settings_provider.dart';
 import '../../services/auth_service.dart';
 import '../../theme.dart';
 import '../../shared/utils/currency_utils.dart';
+import '../../l10n/app_strings.dart';
 
 class GuardianUpiPaymentScreen extends StatefulWidget {
   final Student student;
@@ -77,10 +78,10 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('UPI App launched. After payment completes, please paste the Transaction ID below.'),
+          SnackBar(
+            content: Text(context.tr('upiAppLaunched')),
             backgroundColor: Colors.blue,
-            duration: Duration(seconds: 8),
+            duration: const Duration(seconds: 8),
           ),
         );
       }
@@ -89,16 +90,12 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('UPI App Not Found'),
-            content: const Text(
-              'No UPI payment apps (like GPay, PhonePe, Paytm) were detected on this device. '
-              'You can still transfer the amount manually to the school bank account, '
-              'or enter the transaction details if you paid using another device.',
-            ),
+            title: Text(context.tr('upiAppNotFound')),
+            content: Text(context.tr('upiAppNotFoundDesc')),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('OK'),
+                child: Text(context.tr('ok')),
               ),
             ],
           ),
@@ -113,8 +110,8 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
     final txnId = _txnIdController.text.trim();
     if (txnId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter the UPI Transaction ID / UTR reference number.'),
+        SnackBar(
+          content: Text(context.tr('pleaseEnterTxnId')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -166,14 +163,10 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
               children: [
                 const Icon(Icons.check_circle, color: Colors.green, size: 28),
                 const SizedBox(width: 8),
-                const Text('Claim Submitted'),
+                Text(context.tr('claimSubmitted')),
               ],
             ),
-            content: const Text(
-              'Your payment claim has been submitted successfully. '
-              'School administrators will verify the receipt of funds and approve this claim. '
-              'Once approved, your fee status will be updated automatically.',
-            ),
+            content: Text(context.tr('claimSubmittedDesc')),
             actions: [
               ElevatedButton(
                 onPressed: () {
@@ -184,7 +177,7 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('Back to Portal'),
+                child: Text(context.tr('backToPortal')),
               ),
             ],
           ),
@@ -194,7 +187,7 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error submitting claim: $e'),
+            content: Text(context.tr('errorSubmittingClaim').replaceAll('{error}', e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -216,7 +209,7 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Pay Fees via UPI'),
+        title: Text(context.tr('payFeesViaUpi')),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -234,9 +227,9 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Student Details',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                      Text(
+                        context.tr('studentDetails'),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -244,14 +237,16 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        'Class ${widget.student.className} • Roll ${widget.student.roll}',
+                        context.tr('classAndRoll')
+                            .replaceAll('{class}', widget.student.className)
+                            .replaceAll('{roll}', widget.student.roll.toString()),
                         style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
                       ),
                       const Divider(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Outstanding Dues:', style: TextStyle(fontSize: 14)),
+                          Text('${context.tr('outstandingDue')}:', style: const TextStyle(fontSize: 14)),
                           Text(
                             CurrencyUtils.formatRupees(widget.outstandingAmount),
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.danger),
@@ -264,9 +259,9 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
               ),
               const SizedBox(height: 20),
 
-              const Text(
-                'Payment Options',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+              Text(
+                context.tr('paymentOptions'),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
               ),
               const SizedBox(height: 8),
 
@@ -274,8 +269,8 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
               if (widget.structure.installments.isNotEmpty) ...[
                 DropdownButtonFormField<String>(
                   value: _selectedInstallment,
-                  decoration: const InputDecoration(
-                    labelText: 'Select Installment',
+                  decoration: InputDecoration(
+                    labelText: context.tr('selectInstallment'),
                     fillColor: Colors.white,
                     filled: true,
                   ),
@@ -300,16 +295,16 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
               TextFormField(
                 controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Amount to Pay (₹)',
+                decoration: InputDecoration(
+                  labelText: context.tr('amountToPay'),
                   fillColor: Colors.white,
                   filled: true,
                 ),
                 validator: (val) {
-                  if (val == null || val.trim().isEmpty) return 'Please enter amount';
+                  if (val == null || val.trim().isEmpty) return context.tr('pleaseEnterAmount');
                   final amt = double.tryParse(val.trim());
-                  if (amt == null || amt <= 0) return 'Please enter a valid amount';
-                  if (amt > widget.outstandingAmount) return 'Amount exceeds total outstanding fees';
+                  if (amt == null || amt <= 0) return context.tr('pleaseEnterValidAmount');
+                  if (amt > widget.outstandingAmount) return context.tr('amountExceedsOutstanding');
                   return null;
                 },
               ),
@@ -326,7 +321,7 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
                     backgroundColor: Colors.green.shade700,
                     foregroundColor: Colors.white,
                   ),
-                  label: const Text('Pay via UPI Apps (PhonePe/GPay)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  label: Text(context.tr('payViaUpi'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 24),
@@ -334,29 +329,29 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
               const Divider(height: 32),
 
               // Verification Claim Details
-              const Text(
-                'Submit Payment Proof',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+              Text(
+                context.tr('submitPaymentProof'),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'After transferring the money, please enter the transaction reference details to confirm receipt of fees.',
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              Text(
+                context.tr('submitPaymentProofDesc'),
+                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 12),
 
               // Transaction ID
               TextFormField(
                 controller: _txnIdController,
-                decoration: const InputDecoration(
-                  labelText: 'UPI Transaction ID / Reference (UTR)',
-                  hintText: '12-digit number (e.g., 314567890123)',
+                decoration: InputDecoration(
+                  labelText: context.tr('upiTransactionId'),
+                  hintText: context.tr('upiTransactionIdHint'),
                   fillColor: Colors.white,
                   filled: true,
                 ),
                 validator: (val) {
                   if (val == null || val.trim().isEmpty) {
-                    return 'Please enter transaction ID / UTR reference';
+                    return context.tr('pleaseEnterTransactionId');
                   }
                   return null;
                 },
@@ -366,9 +361,9 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
               // Payment Note
               TextFormField(
                 controller: _noteController,
-                decoration: const InputDecoration(
-                  labelText: 'Payment Note (Optional)',
-                  hintText: 'e.g., Paid via father\'s GPay account',
+                decoration: InputDecoration(
+                  labelText: context.tr('paymentNote'),
+                  hintText: context.tr('paymentNoteHint'),
                   fillColor: Colors.white,
                   filled: true,
                 ),
@@ -391,7 +386,7 @@ class _GuardianUpiPaymentScreenState extends State<GuardianUpiPaymentScreen> {
                           height: 20,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
-                      : const Text('Submit Claim to School', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                      : Text(context.tr('submitClaimToSchool'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 30),

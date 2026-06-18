@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 import '../../shared/providers/school_settings_provider.dart';
 import '../../shared/utils/pdf_branding_helper.dart';
 import '../../shared/widgets/premium_feature_gate.dart';
+import '../../l10n/app_strings.dart';
 
 class ProfitLossScreen extends StatefulWidget {
   const ProfitLossScreen({super.key});

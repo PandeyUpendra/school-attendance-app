@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/student.dart';
 import '../../theme.dart';
 import '../../services/auth_service.dart';
+import '../../l10n/app_strings.dart';
 
 class GuardianDocumentUploadScreen extends StatefulWidget {
   final Student student;
@@ -83,14 +84,15 @@ class _GuardianDocumentUploadScreenState extends State<GuardianDocumentUploadScr
 
       await _loadDocumentsStatus();
       if (mounted) {
+        final translatedDocType = context.tr(docType.toLowerCase().replaceAll(' ', '_'));
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$docType uploaded successfully and is pending review.'), backgroundColor: AppTheme.success),
+          SnackBar(content: Text(context.tr('uploadSuccessPendingReview').replaceAll('{docType}', translatedDocType)), backgroundColor: AppTheme.success),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e'), backgroundColor: AppTheme.danger),
+          SnackBar(content: Text(context.tr('uploadFailed').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
         );
       }
     }
@@ -114,7 +116,7 @@ class _GuardianDocumentUploadScreenState extends State<GuardianDocumentUploadScr
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Upload Verification Files'),
+        title: Text(context.tr('uploadVerificationFiles')),
         backgroundColor: AppTheme.primaryDark,
       ),
       body: _loading
@@ -128,6 +130,21 @@ class _GuardianDocumentUploadScreenState extends State<GuardianDocumentUploadScr
                 final status = statusData?['status'] as String? ?? 'not_uploaded';
                 final fileName = statusData?['fileName'] as String? ?? '';
 
+                String statusLabel(String st) {
+                  switch (st) {
+                    case 'not_uploaded':
+                      return context.tr('statusNotUploaded');
+                    case 'pending':
+                      return context.tr('statusPending');
+                    case 'approved':
+                      return context.tr('statusApproved');
+                    case 'rejected':
+                      return context.tr('statusRejected');
+                    default:
+                      return st.toUpperCase().replaceAll('_', ' ');
+                  }
+                }
+
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -140,7 +157,7 @@ class _GuardianDocumentUploadScreenState extends State<GuardianDocumentUploadScr
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              docType,
+                              context.tr(docType.toLowerCase().replaceAll(' ', '_')),
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                             Container(
@@ -151,7 +168,7 @@ class _GuardianDocumentUploadScreenState extends State<GuardianDocumentUploadScr
                                 border: Border.all(color: _getStatusColor(status).withValues(alpha: 0.3)),
                               ),
                               child: Text(
-                                status.toUpperCase().replaceAll('_', ' '),
+                                statusLabel(status),
                                 style: TextStyle(color: _getStatusColor(status), fontSize: 11, fontWeight: FontWeight.bold),
                               ),
                             )
@@ -159,7 +176,7 @@ class _GuardianDocumentUploadScreenState extends State<GuardianDocumentUploadScr
                         ),
                         if (fileName.isNotEmpty) ...[
                           const SizedBox(height: 8),
-                          Text('File: $fileName', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                          Text(context.tr('fileLabel').replaceAll('{fileName}', fileName), style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
                         ],
                         const SizedBox(height: 16),
                         if (status == 'not_uploaded' || status == 'rejected')
@@ -175,13 +192,13 @@ class _GuardianDocumentUploadScreenState extends State<GuardianDocumentUploadScr
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
-                              label: const Text('Select & Upload File', style: TextStyle(fontWeight: FontWeight.bold)),
+                              label: Text(context.tr('selectAndUploadFile'), style: const TextStyle(fontWeight: FontWeight.bold)),
                             ),
                           )
                         else
-                          const Text(
-                            'Verification files are locked under review and cannot be modified.',
-                            style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey),
+                          Text(
+                            context.tr('verificationFilesLocked'),
+                            style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey),
                           ),
                       ],
                     ),

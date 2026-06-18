@@ -1877,7 +1877,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(isAllAbsent ? 'Absent' : '${pct.toStringAsFixed(1)}%',
+                        Text(isAllAbsent ? context.tr('absentLabel') : '${pct.toStringAsFixed(1)}%',
                             style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
@@ -1913,8 +1913,8 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                       // Column headers
                       Row(children: [
                         Expanded(
-                            child: Text('Subject',
-                                style: TextStyle(
+                            child: Text(context.tr('subjectLabel'),
+                                style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                     color: Colors.black54))),
@@ -1964,7 +1964,7 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                               width: 60,
                               child: Text(
                                 marks == -1.0
-                                    ? 'Absent'
+                                    ? context.tr('absentLabel')
                                     : (marks != null
                                         ? '${marks.toStringAsFixed(0)}/${result.maxMarks}'
                                         : '—'),
@@ -1992,9 +1992,9 @@ class _ExamResultsSectionState extends State<_ExamResultsSection> {
                       }),
                       const Divider(height: 10),
                       Row(children: [
-                        const Expanded(
-                          child: Text('Total',
-                              style: TextStyle(
+                        Expanded(
+                          child: Text(context.tr('totalLabel'),
+                              style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold)),
                         ),
@@ -3284,7 +3284,7 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Exam Results'),
+        title: Text(context.tr('examResults')),
       ),
       body: widget.examData.isEmpty
           ? Center(
@@ -3360,7 +3360,7 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text(isAllAbsent ? 'Absent' : '${pct.toStringAsFixed(1)}%',
+                                Text(isAllAbsent ? context.tr('absentLabel') : '${pct.toStringAsFixed(1)}%',
                                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: gradeColor)),
                                 Text(isAllAbsent ? '' : '$total/$maxTotal', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
                               ],
@@ -3381,7 +3381,7 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
                           child: Column(
                             children: [
                               Row(children: [
-                                Expanded(child: Text('Subject', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                                Expanded(child: Text(context.tr('subjectLabel'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                                 SizedBox(width: 60, child: Text(context.tr('marksLabel'), textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                                 SizedBox(width: 50, child: Text('%', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                               ]),
@@ -3405,7 +3405,7 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
                                       width: 60,
                                       child: Text(
                                         marks == -1.0
-                                            ? 'Absent'
+                                            ? context.tr('absentLabel')
                                             : (marks != null
                                                 ? '${marks.toStringAsFixed(0)}/${result.maxMarks}'
                                                 : '—'),
@@ -3426,7 +3426,7 @@ class _GuardianExamResultsScreenState extends State<GuardianExamResultsScreen> {
                               }),
                               const Divider(height: 16),
                               Row(children: [
-                                const Expanded(child: Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                                Expanded(child: Text(context.tr('totalLabel'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                                 SizedBox(
                                   width: 60,
                                   child: Text('$total/$maxTotal',

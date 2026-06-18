@@ -107,6 +107,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
     final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
     final schoolName = settings.schoolName;
     final schoolAddress = '${settings.schoolAddress}, ${settings.schoolCity}, ${settings.schoolState} - ${settings.schoolPinCode}';
+    final lang = Provider.of<LocaleProvider>(context, listen: false).code;
     
     final tuitionRatio = _getTuitionRatio();
     final tuitionPaid = p.amount * tuitionRatio;
@@ -121,7 +122,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
               child: pw.Transform.rotate(
                 angle: -0.5,
                 child: pw.Text(
-                  'VOID',
+                  AppStrings.get(lang, 'voidLabel'),
                   style: pw.TextStyle(
                     fontSize: 80,
                     fontWeight: pw.FontWeight.bold,
@@ -154,7 +155,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
               pw.SizedBox(height: 8),
               pw.Center(
                 child: pw.Text(
-                  p.reversed ? 'VOID / REVERSED RECEIPT' : 'FEE RECEIPT',
+                  p.reversed ? AppStrings.get(lang, 'voidReversedReceipt') : AppStrings.get(lang, 'feeReceiptPdfTitle'),
                   style: pw.TextStyle(
                     fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
@@ -168,31 +169,31 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
                   child: pw.Container(
                     padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.red, width: 2)),
-                    child: pw.Text('VOID', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.red)),
+                    child: pw.Text(AppStrings.get(lang, 'voidLabel'), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.red)),
                   ),
                 ),
               ],
               pw.SizedBox(height: 6),
-              pw.Center(child: pw.Text('Receipt No: ${p.receiptNo}', style: const pw.TextStyle(fontSize: 11))),
+              pw.Center(child: pw.Text('${AppStrings.get(lang, 'receiptNoLabel')} ${p.receiptNo}', style: const pw.TextStyle(fontSize: 11))),
               pw.Divider(height: 20, color: PdfTheme.primaryLight),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Student: ${s.name}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  pw.Text('Date: ${p.paidOn.day}/${p.paidOn.month}/${p.paidOn.year}'),
+                  pw.Text('${AppStrings.get(lang, 'studentLabel')} ${s.name}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  pw.Text('${AppStrings.get(lang, 'dateLabel')}: ${p.paidOn.day}/${p.paidOn.month}/${p.paidOn.year}'),
                 ],
               ),
               pw.SizedBox(height: 4),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Class: ${s.className}  •  Roll: ${s.roll}'),
-                  pw.Text('Mode: ${p.mode}'),
+                  pw.Text('${AppStrings.get(lang, 'classLabel')}: ${s.className}  •  ${AppStrings.get(lang, 'roll')}: ${s.roll}'),
+                  pw.Text('${AppStrings.get(lang, 'modePrefix')}${p.mode}'),
                 ],
               ),
               if (p.installmentName != null) ...[
                 pw.SizedBox(height: 4),
-                pw.Text('Instalment: ${p.installmentName}'),
+                pw.Text('${AppStrings.get(lang, 'installmentLabel')}: ${p.installmentName}'),
               ],
               pw.Divider(height: 20, color: PdfTheme.primaryLight),
               pw.Row(
@@ -207,7 +208,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Tuition Fee (Sec 80C eligible)', style: const pw.TextStyle(fontSize: 9)),
+                  pw.Text(AppStrings.get(lang, 'tuitionFeeSec80C'), style: const pw.TextStyle(fontSize: 9)),
                   pw.Text('₹${CurrencyUtils.formatValues(tuitionPaid)}', style: const pw.TextStyle(fontSize: 9)),
                 ],
               ),
@@ -215,23 +216,23 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Other Component Fees', style: const pw.TextStyle(fontSize: 9)),
+                  pw.Text(AppStrings.get(lang, 'otherComponentFees'), style: const pw.TextStyle(fontSize: 9)),
                   pw.Text('₹${CurrencyUtils.formatValues(otherPaid)}', style: const pw.TextStyle(fontSize: 9)),
                 ],
               ),
 
               if (st.totalAnnualFee > 0) ...[
                 pw.SizedBox(height: 8),
-                pw.Text('Annual Fee: ${CurrencyUtils.formatRupees(st.totalAnnualFee)}'),
-                pw.Text('Total Paid: ${CurrencyUtils.formatRupees(_totalPaid)}   Balance Due: ${CurrencyUtils.formatRupees(_due)}'),
+                pw.Text('${AppStrings.get(lang, 'annualFeeLabel')}: ${CurrencyUtils.formatRupees(st.totalAnnualFee)}'),
+                pw.Text('${AppStrings.get(lang, 'totalPaidLabel')}: ${CurrencyUtils.formatRupees(_totalPaid)}   ${AppStrings.get(lang, 'balanceDueLabel')}: ${CurrencyUtils.formatRupees(_due)}'),
               ],
               if (p.note != null && p.note!.isNotEmpty) ...[
                 pw.SizedBox(height: 8),
-                pw.Text('Note: ${p.note}'),
+                pw.Text('${AppStrings.get(lang, 'noteLabel')}: ${p.note}'),
               ],
               pw.Divider(height: 24, color: PdfTheme.primaryLight),
               pw.Center(
-                child: pw.Text('This is a computer-generated receipt.', style: const pw.TextStyle(fontSize: 9)),
+                child: pw.Text(AppStrings.get(lang, 'computerGeneratedReceipt'), style: const pw.TextStyle(fontSize: 9)),
               ),
             ],
           ),
@@ -245,6 +246,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
     final doc = pw.Document();
     final s = _student!;
     final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+    final lang = Provider.of<LocaleProvider>(context, listen: false).code;
     
     final activePayments = _payments.where((p) => !p.reversed).toList();
     final totalPaidAmt = activePayments.fold<double>(0.0, (sum, p) => sum + p.amount);
@@ -292,7 +294,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
             pw.SizedBox(height: 4),
             pw.Center(
               child: pw.Text(
-                'Affiliated to ${settings.board}',
+                AppStrings.get(lang, 'affiliatedTo').replaceAll('{board}', settings.board),
                 style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic, color: PdfColors.grey700),
               ),
             ),
@@ -304,7 +306,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
           
           pw.Center(
             child: pw.Text(
-              'TUITION FEE CERTIFICATE',
+              AppStrings.get(lang, 'tuitionFeeCertificateTitle'),
               style: pw.TextStyle(
                 fontSize: 16,
                 fontWeight: pw.FontWeight.bold,
@@ -315,7 +317,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
           ),
           pw.Center(
             child: pw.Text(
-              'For the Purpose of Section 80C of the Income Tax Act, 1961',
+              AppStrings.get(lang, 'purposeOfSection80C'),
               style: const pw.TextStyle(
                 fontSize: 9,
                 color: PdfColors.grey600,
@@ -329,11 +331,11 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               pw.Text(
-                'Ref No: TXC-${DateTime.now().year}-${s.roll}-${s.admissionId.hashCode.abs()}',
+                AppStrings.get(lang, 'refNoLabel').replaceAll('{refNo}', 'TXC-${DateTime.now().year}-${s.roll}-${s.admissionId.hashCode.abs()}'),
                 style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
               ),
               pw.Text(
-                'Date: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+                '${AppStrings.get(lang, 'dateLabel')}: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
                 style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
               ),
             ],
@@ -345,22 +347,22 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
             text: pw.TextSpan(
               style: const pw.TextStyle(fontSize: 11, color: PdfColors.black, height: 1.5),
               children: [
-                const pw.TextSpan(text: 'This is to certify that '),
+                pw.TextSpan(text: AppStrings.get(lang, 'thisIsToCertifyThat')),
                 pw.TextSpan(text: s.name, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                const pw.TextSpan(text: ', son/daughter of '),
+                pw.TextSpan(text: AppStrings.get(lang, 'sonDaughterOf')),
                 pw.TextSpan(text: s.fatherName.isNotEmpty ? s.fatherName : (s.motherName ?? 'Guardian'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                const pw.TextSpan(text: ', is a bonafide student of class '),
+                pw.TextSpan(text: AppStrings.get(lang, 'bonafideStudentOfClass')),
                 pw.TextSpan(text: s.className, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                 if (s.section.isNotEmpty) ...[
-                  const pw.TextSpan(text: ' (Section: '),
+                  pw.TextSpan(text: AppStrings.get(lang, 'sectionPrefix')),
                   pw.TextSpan(text: s.section, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                   const pw.TextSpan(text: ')'),
                 ],
-                const pw.TextSpan(text: ', Roll No: '),
+                pw.TextSpan(text: AppStrings.get(lang, 'rollNoPrefix')),
                 pw.TextSpan(text: '${s.roll}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                const pw.TextSpan(text: ', Admission No: '),
+                pw.TextSpan(text: AppStrings.get(lang, 'admissionNoPrefix')),
                 pw.TextSpan(text: s.admissionId, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                const pw.TextSpan(text: ', in our institution.'),
+                pw.TextSpan(text: AppStrings.get(lang, 'inOurInstitution')),
               ],
             ),
           ),
@@ -368,7 +370,9 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
           pw.SizedBox(height: 15),
           
           pw.Paragraph(
-            text: 'Certified that the school has received fees for the academic year ${settings.academicYearStart} ${DateTime.now().year - 1} to ${DateTime.now().year} as per the payment history details listed below. Out of the total amount paid, the portion eligible for tax deduction under Section 80C is detailed below:',
+            text: AppStrings.get(lang, 'taxCertificateBody')
+                .replaceAll('{yearStart}', '${settings.academicYearStart}')
+                .replaceAll('{yearEnd}', '${DateTime.now().year}'),
             style: const pw.TextStyle(fontSize: 11, height: 1.5),
           ),
           
@@ -383,18 +387,18 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
             cellAlignments: {
               1: pw.Alignment.centerRight,
             },
-            headers: ['Fee Category / Description', 'Amount Paid (INR)'],
+            headers: [AppStrings.get(lang, 'feeCategoryDescription'), AppStrings.get(lang, 'amountPaidInr')],
             data: [
-              ['Tuition Fee Component (Eligible under Sec 80C)', 'Rs. ${CurrencyUtils.formatValues(totalTuitionPaid, showDecimals: true)}'],
-              ['Other Component Fees (Not eligible under Sec 80C)', 'Rs. ${CurrencyUtils.formatValues(totalOtherPaid, showDecimals: true)}'],
-              ['Total Fees Paid (Net of Reversals)', 'Rs. ${CurrencyUtils.formatValues(totalPaidAmt, showDecimals: true)}'],
+              [AppStrings.get(lang, 'tuitionFeeEligibleCategory'), 'Rs. ${CurrencyUtils.formatValues(totalTuitionPaid, showDecimals: true)}'],
+              [AppStrings.get(lang, 'otherFeesNotEligibleCategory'), 'Rs. ${CurrencyUtils.formatValues(totalOtherPaid, showDecimals: true)}'],
+              [AppStrings.get(lang, 'totalFeesPaidCategory'), 'Rs. ${CurrencyUtils.formatValues(totalPaidAmt, showDecimals: true)}'],
             ],
           ),
           
           pw.SizedBox(height: 30),
           
           pw.Text(
-            'Total Tuition Fee Eligible (in words): Rupees ${_convertToWords(totalTuitionPaid.toInt())} Only',
+            AppStrings.get(lang, 'totalTuitionFeeEligibleInWords').replaceAll('{words}', _convertToWords(totalTuitionPaid.toInt())),
             style: pw.TextStyle(fontStyle: pw.FontStyle.italic, fontSize: 10, fontWeight: pw.FontWeight.bold),
           ),
           
@@ -408,14 +412,14 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
                 children: [
                   pw.Container(width: 120, height: 1, color: PdfColors.black),
                   pw.SizedBox(height: 4),
-                  pw.Text('School Accountant', style: const pw.TextStyle(fontSize: 9)),
+                  pw.Text(AppStrings.get(lang, 'schoolAccountant'), style: const pw.TextStyle(fontSize: 9)),
                 ],
               ),
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.center,
                 children: [
                   pw.SizedBox(height: 15),
-                  pw.Text('(School Seal)', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500)),
+                  pw.Text(AppStrings.get(lang, 'schoolSeal'), style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500)),
                 ],
               ),
               pw.Column(
@@ -423,7 +427,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
                 children: [
                   pw.Container(width: 120, height: 1, color: PdfColors.black),
                   pw.SizedBox(height: 4),
-                  pw.Text('Principal / Authorized Signatory', style: const pw.TextStyle(fontSize: 9)),
+                  pw.Text(AppStrings.get(lang, 'principalAuthorizedSignatory'), style: const pw.TextStyle(fontSize: 9)),
                 ],
               ),
             ],
@@ -435,13 +439,13 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
           pw.SizedBox(height: 4),
           pw.Center(
             child: pw.Text(
-              'Declaration: This certificate is issued to enable the parent/guardian to claim deduction under Section 80C of the Income Tax Act, 1961.',
+              AppStrings.get(lang, 'feeReceiptSec80CDeclaration'),
               style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
             ),
           ),
           pw.Center(
             child: pw.Text(
-              'This is a certified school document generated on behalf of ${settings.schoolName}.',
+              AppStrings.get(lang, 'feeReceiptCertifiedDocument').replaceAll('{schoolName}', settings.schoolName),
               style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
             ),
           ),
@@ -577,9 +581,9 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Section 80C Tax Certificate',
-                    style: TextStyle(
+                  Text(
+                    context.tr('taxCertificateTitle'),
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                       color: Colors.teal,
@@ -587,7 +591,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Consolidated tuition fee statement for tax claims.',
+                    context.tr('taxCertificateDesc'),
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey.shade700,
@@ -623,14 +627,14 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Fee Receipts'),
+        title: Text(context.tr('tileFeeReceipts')),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? _errorState()
               : _payments.isEmpty
-                  ? const Center(child: Text('No receipts found'))
+                  ? Center(child: Text(context.tr('noReceiptsFound')))
                   : Column(
                   children: [
                     _buildTaxCertificateCard(),
@@ -642,7 +646,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
                         itemBuilder: (ctx, i) {
                           final p = _payments[i];
                           return ListTile(
-                            title: Text('Receipt ${p.receiptNo.isEmpty ? "-" : p.receiptNo}'),
+                            title: Text(context.tr('receiptPrefix').replaceAll('{receiptNo}', p.receiptNo.isEmpty ? "-" : p.receiptNo)),
                             subtitle: Text('₹${CurrencyUtils.formatValues(p.amount)} • ${p.paidOn.day}/${p.paidOn.month}/${p.paidOn.year}'),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -676,9 +680,9 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
             children: [
               Icon(Icons.error_outline, size: 56, color: Colors.red.shade300),
               const SizedBox(height: 14),
-              const Text(
-                'Failed to load fee receipts',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Text(
+                context.tr('failedToLoadFeeReceipts'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 8),
               Text(
@@ -690,7 +694,7 @@ class _GuardianFeeReceiptsScreenState extends State<GuardianFeeReceiptsScreen> {
               ElevatedButton.icon(
                 onPressed: _loadData,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text(context.tr('retry')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,

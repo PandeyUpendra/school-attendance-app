@@ -70,7 +70,7 @@ class _GuardianRegisterScreenState extends State<GuardianRegisterScreen> {
       // 3. Fetch linked students
       final links = await TimetableService.instance.getGuardianLinks(email);
       if (links == null || links.isEmpty) {
-        throw Exception('Failed to link guardian account. Please contact the school.');
+        throw Exception(context.tr('failedToLinkGuardian'));
       }
 
       // 4. Save session and navigate
@@ -142,10 +142,10 @@ class _GuardianRegisterScreenState extends State<GuardianRegisterScreen> {
                   // Title
                   const Icon(Icons.family_restroom, size: 54, color: Colors.white),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Guardian Registration',
+                  Text(
+                    context.tr('guardianRegistration'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -153,7 +153,7 @@ class _GuardianRegisterScreenState extends State<GuardianRegisterScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Enter your child\'s invite code to register',
+                    context.tr('enterInviteCodeDesc'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
@@ -193,14 +193,14 @@ class _GuardianRegisterScreenState extends State<GuardianRegisterScreen> {
                             controller: _inviteCtrl,
                             textCapitalization: TextCapitalization.characters,
                             decoration: InputDecoration(
-                              labelText: 'Parent Invite Code',
-                              hintText: 'e.g. INV-A1B2C3',
+                              labelText: context.tr('parentInviteCode'),
+                              hintText: context.tr('inviteCodeHint'),
                               prefixIcon: const Icon(Icons.vpn_key_outlined),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                             ),
                             validator: (val) {
                               if (val == null || val.trim().isEmpty) {
-                                return 'Please enter the invite code';
+                                return context.tr('pleaseEnterInviteCode');
                               }
                               return null;
                             },
@@ -212,13 +212,13 @@ class _GuardianRegisterScreenState extends State<GuardianRegisterScreen> {
                             controller: _nameCtrl,
                             keyboardType: TextInputType.name,
                             decoration: InputDecoration(
-                              labelText: 'Your Full Name',
+                              labelText: context.tr('yourFullName'),
                               prefixIcon: const Icon(Icons.person_outline),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                             ),
                             validator: (val) {
                               if (val == null || val.trim().isEmpty) {
-                                return 'Please enter your name';
+                                return context.tr('pleaseEnterName');
                               }
                               return null;
                             },
@@ -229,7 +229,7 @@ class _GuardianRegisterScreenState extends State<GuardianRegisterScreen> {
                           EmailTextFormField(
                             controller: _emailCtrl,
                             decoration: InputDecoration(
-                              labelText: 'Email Address',
+                              labelText: context.tr('emailAddress'),
                               prefixIcon: const Icon(Icons.email_outlined),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                             ),
@@ -241,7 +241,7 @@ class _GuardianRegisterScreenState extends State<GuardianRegisterScreen> {
                             controller: _passCtrl,
                             obscureText: !_showPass,
                             decoration: InputDecoration(
-                              labelText: 'Password',
+                              labelText: context.tr('password'),
                               prefixIcon: const Icon(Icons.lock_outline),
                               suffixIcon: IconButton(
                                 icon: Icon(_showPass ? Icons.visibility : Icons.visibility_off),
@@ -251,10 +251,10 @@ class _GuardianRegisterScreenState extends State<GuardianRegisterScreen> {
                             ),
                             validator: (val) {
                               if (val == null || val.isEmpty) {
-                                return 'Please enter password';
+                                return context.tr('pleaseEnterPassword');
                               }
                               if (val.length < 6) {
-                                return 'Password must be at least 6 characters';
+                                return context.tr('passwordMinLength');
                               }
                               return null;
                             },
@@ -277,9 +277,9 @@ class _GuardianRegisterScreenState extends State<GuardianRegisterScreen> {
                                       height: 22,
                                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                     )
-                                  : const Text(
-                                      'Register & Link Child',
-                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  : Text(
+                                      context.tr('registerAndLinkChild'),
+                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                     ),
                             ),
                           ),

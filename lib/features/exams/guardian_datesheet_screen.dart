@@ -85,6 +85,7 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
     final s = widget.student;
     final ex = _selectedExam!;
     final ds = _datesheet!;
+    final lang = Provider.of<LocaleProvider>(context, listen: false).code;
 
     pdf.addPage(
       pw.Page(
@@ -99,8 +100,8 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
               pw.Center(
                 child: pw.Column(
                   children: [
-                    pw.Text('EXAM ADMIT CARD / HALL TICKET', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
-                    pw.Text('${ex.name} - Academic Term', style: pw.TextStyle(fontSize: 11, color: PdfTheme.textLight)),
+                    pw.Text(AppStrings.get(lang, 'examAdmitCardHallTicket'), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
+                    pw.Text('${ex.name} - ${AppStrings.get(lang, 'academicTerm')}', style: pw.TextStyle(fontSize: 11, color: PdfTheme.textLight)),
                   ],
                 ),
               ),
@@ -109,21 +110,21 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
               pw.SizedBox(height: 12),
 
               // Student Details Grid
-              pw.Text('Student Information', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
+              pw.Text(AppStrings.get(lang, 'studentInformation'), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
               pw.SizedBox(height: 6),
               pw.Table(
                 border: pw.TableBorder.all(color: PdfTheme.grey200, width: 0.5),
                 children: [
                   pw.TableRow(
                     children: [
-                      _buildInfoCell('Candidate Name:', s.name, isHeader: true),
-                      _buildInfoCell('Roll Number:', '${s.roll}', isHeader: true),
+                      _buildInfoCell(AppStrings.get(lang, 'candidateNameLabel'), s.name, isHeader: true),
+                      _buildInfoCell(AppStrings.get(lang, 'rollNumberLabel'), '${s.roll}', isHeader: true),
                     ],
                   ),
                   pw.TableRow(
                     children: [
-                      _buildInfoCell('Class & Section:', '${s.className} ${s.section}', isHeader: true),
-                      _buildInfoCell('Admission Number:', s.admissionId ?? 'N/A', isHeader: true),
+                      _buildInfoCell(AppStrings.get(lang, 'classSectionLabel'), '${s.className} ${s.section}', isHeader: true),
+                      _buildInfoCell(AppStrings.get(lang, 'admissionNumberLabel'), s.admissionId ?? 'N/A', isHeader: true),
                     ],
                   ),
                 ],
@@ -131,7 +132,7 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
               pw.SizedBox(height: 20),
 
               // Exam Schedule Table
-              pw.Text('Exam Schedule', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
+              pw.Text(AppStrings.get(lang, 'examSchedule'), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfTheme.primary)),
               pw.SizedBox(height: 8),
               pw.Table(
                 border: pw.TableBorder.all(color: PdfTheme.grey400),
@@ -139,9 +140,9 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
                   pw.TableRow(
                     decoration: const pw.BoxDecoration(color: PdfTheme.primaryTint),
                     children: [
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Subject', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Date', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Time / Duration', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(AppStrings.get(lang, 'subjectLabel'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(AppStrings.get(lang, 'dateLabel'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10))),
+                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(AppStrings.get(lang, 'timeDuration'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10))),
                     ],
                   ),
                   ...ds.schedules.map((sched) {
@@ -160,10 +161,10 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
               // Instructions
               pw.Text(context.tr('candidateInstructions'), style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 4),
-              _buildInstructionBullet('1. Please carry a physical printout of this admit card to the examination hall.'),
-              _buildInstructionBullet('2. Candidates must report at least 15 minutes before the scheduled start time.'),
-              _buildInstructionBullet('3. Calculators, mobile phones, smartwatches, and study materials are strictly prohibited.'),
-              _buildInstructionBullet('4. Cooperate with the invigilation staff for identity check verification.'),
+              _buildInstructionBullet(AppStrings.get(lang, 'admitCardInstruction1')),
+              _buildInstructionBullet(AppStrings.get(lang, 'admitCardInstruction2')),
+              _buildInstructionBullet(AppStrings.get(lang, 'admitCardInstruction3')),
+              _buildInstructionBullet(AppStrings.get(lang, 'admitCardInstruction4')),
 
               pw.Spacer(),
               
@@ -182,7 +183,7 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
                     children: [
                       pw.Container(width: 100, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 4),
-                      pw.Text('Principal Signature', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                      pw.Text(AppStrings.get(lang, 'principalSignature'), style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
                     ],
                   ),
                 ],
@@ -230,7 +231,7 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to print admit card: $e'), backgroundColor: AppTheme.danger),
+        SnackBar(content: Text(context.tr('failedToPrintAdmitCard').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
       );
     }
   }
@@ -302,15 +303,15 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
           children: [
             Icon(Icons.assignment_outlined, size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            const Text(
-              'No exams scheduled',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
+            Text(
+              context.tr('noExamsScheduled'),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'There are no active exam schedules posted for your class.',
+            Text(
+              context.tr('noExamsScheduledDesc'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
             ),
           ],
         ),
@@ -327,15 +328,15 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
           children: [
             Icon(Icons.calendar_today, size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            const Text(
-              'Schedule pending',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
+            Text(
+              context.tr('schedulePending'),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'The exam has been created, but the coordinator has not yet published the datesheet schedule.',
+            Text(
+              context.tr('schedulePendingDesc'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
             ),
           ],
         ),
@@ -367,13 +368,13 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Exam Hall Ticket Ready',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primary),
+                        Text(
+                          context.tr('examHallTicketReady'),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primary),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Generate and print the official admit card for ${widget.student.name}.',
+                          context.tr('generateAdmitCardFor').replaceAll('{name}', widget.student.name),
                           style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                         ),
                       ],
@@ -388,7 +389,7 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: Text(context.tr('print'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    child: Text(context.tr('print'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -396,9 +397,9 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
           ),
           const SizedBox(height: 20),
 
-          const Text(
-            'EXAMINATION TIMETABLE',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppTheme.textSecondary, letterSpacing: 0.8),
+          Text(
+            context.tr('examinationTimetable'),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppTheme.textSecondary, letterSpacing: 0.8),
           ),
           const SizedBox(height: 8),
 
@@ -421,7 +422,7 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
                     child: const Icon(Icons.quiz_outlined, color: AppTheme.primary, size: 20),
                   ),
                   title: Text(sched.subject, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: Text('Date: ${sched.dateStr}\nTime: ${sched.timeStr}', style: const TextStyle(fontSize: 12)),
+                  subtitle: Text('${context.tr('dateLabel')}: ${sched.dateStr}\n${context.tr('timeLabel')}: ${sched.timeStr}', style: const TextStyle(fontSize: 12)),
                   isThreeLine: true,
                 ),
               );
