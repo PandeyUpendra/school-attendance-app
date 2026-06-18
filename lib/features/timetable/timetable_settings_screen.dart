@@ -1229,7 +1229,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                 ? entry.subject!
                 : t.subject;
           }
-          if (t.id == teacher.id) dayDots.add(_dayAbbr[day]!);
+          if (t.id == teacher.id) dayDots.add(context.tr('days_${_dayAbbr[day]}'));
         }
       }
     }
@@ -1685,7 +1685,7 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                                     : Colors.grey.shade300)),
                       ),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text(widget.dayAbbr[d]!,
+                        Text(context.tr('days_${widget.dayAbbr[d]}'),
                             style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,

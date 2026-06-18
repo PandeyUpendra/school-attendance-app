@@ -254,7 +254,7 @@ class _AdminScreenState extends State<AdminScreen> {
       return;
     }
     if (_users.any((u) => u['email'] == email)) {
-      _snack('This email is already registered as an owner.');
+      _snack(context.tr('emailAlreadyRegisteredOwner'));
       return;
     }
 
@@ -1061,7 +1061,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
     final formattedDate = createdAt != null
         ? '${createdAt.toDate().day}/${createdAt.toDate().month}/${createdAt.toDate().year}'
-        : 'Unknown';
+        : context.tr('unknownLabel');
 
     final schoolOwners = _users
         .where((u) => u['schoolId'] == schoolId)
@@ -1143,7 +1143,7 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
           const Divider(height: 20, thickness: 0.8),
           
-          _fieldLabel('REGISTERED OWNERS'),
+          _fieldLabel(context.tr('registeredOwnersCaps')),
           const SizedBox(height: 6),
           Wrap(
             spacing: 6,

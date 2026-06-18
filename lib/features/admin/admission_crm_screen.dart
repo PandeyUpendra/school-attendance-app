@@ -823,7 +823,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error loading pipeline: ${snapshot.error}'));
+                  return Center(child: Text(context.tr('errorLoadingPipeline').replaceAll('{error}', snapshot.error.toString())));
                 }
 
                 var leads = snapshot.data ?? [];
@@ -856,7 +856,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                             Icon(Icons.folder_open_outlined, size: 50, color: Colors.grey.shade400),
                             const SizedBox(height: 12),
                             Text(
-                              'No enquiries in "$stage"',
+                              context.tr('noEnquiriesInStage').replaceAll('{stage}', _localizeStage(context, stage)),
                               style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
                             ),
                           ],
@@ -901,9 +901,9 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                                       color: AppTheme.dangerLight,
                                       borderRadius: BorderRadius.circular(4),
                                     ),
-                                    child: const Text(
-                                      'Overdue',
-                                      style: TextStyle(fontSize: 10, color: AppTheme.danger, fontWeight: FontWeight.bold),
+                                    child: Text(
+                                      context.tr('hwOverdue'),
+                                      style: const TextStyle(fontSize: 10, color: AppTheme.danger, fontWeight: FontWeight.bold),
                                     ),
                                   ),
                               ],
@@ -912,11 +912,11 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: 4),
-                                Text('Class: ${lead.className} • Parent: ${lead.parentName}'),
+                                Text(context.tr('referralClassParentLabel').replaceAll('{class}', lead.className).replaceAll('{parent}', lead.parentName)),
                                 if (lead.createdByEmail.isNotEmpty) ...[
                                   const SizedBox(height: 2),
                                   Text(
-                                    'Logged by: ${lead.createdByName} (${_formatRole(lead.createdByRole)})',
+                                    context.tr('loggedByDetail').replaceAll('{name}', lead.createdByName).replaceAll('{role}', _formatRole(context, lead.createdByRole)),
                                     style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                                   ),
                                 ],
@@ -927,7 +927,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                                       const Icon(Icons.alarm, size: 12, color: AppTheme.accent),
                                       const SizedBox(width: 4),
                                       Text(
-                                        'Next Call: ${_formatDateOnly(lead.nextFollowUpDate!)}',
+                                        context.tr('nextCallLabel').replaceAll('{date}', _formatDateOnly(lead.nextFollowUpDate!)),
                                         style: TextStyle(
                                           fontSize: 11, 
                                           fontWeight: FontWeight.bold,
@@ -973,8 +973,8 @@ class _FollowUpTimeline extends StatelessWidget {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 12.0),
         child: Text(
-          'No follow-up records found. Add follow-up logs below.',
-          style: TextStyle(fontStyle: FontStyle.italic, color: AppTheme.textSecondary, fontSize: 13),
+          context.tr('noFollowUpRecords'),
+          style: const TextStyle(fontStyle: FontStyle.italic, color: AppTheme.textSecondary, fontSize: 13),
         ),
       );
     }
@@ -1018,7 +1018,7 @@ class _FollowUpTimeline extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'By ${f.byName} (${_formatRole(f.byRole)}) • ${_formatDateTime(f.date)}',
+                    context.tr('byUserWithRoleAndDate').replaceAll('{name}', f.byName).replaceAll('{role}', _formatRole(context, f.byRole)).replaceAll('{date}', _formatDateTime(f.date)),
                     style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                   ),
                   const SizedBox(height: 12),
@@ -1035,8 +1035,13 @@ class _FollowUpTimeline extends StatelessWidget {
     return '${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
-  String _formatRole(String role) {
-    if (role.isEmpty) return 'Staff';
-    return role.substring(0, 1).toUpperCase() + role.substring(1);
+  String _formatRole(BuildContext context, String role) {
+    if (role.isEmpty) role = 'staff';
+    final normalizedRole = role.toLowerCase();
+    final localized = context.trRole(normalizedRole);
+    if (localized == 'role_$normalizedRole') {
+      return role.substring(0, 1).toUpperCase() + role.substring(1);
+    }
+    return localized;
   }
 }
