@@ -27,6 +27,7 @@ class _GovernmentReportScreenState extends State<GovernmentReportScreen> {
       // window. Using the capped stream here silently truncated the official
       // UDISE export to the first 500 students by roll (SCALE-01).
       final students = await _studentService.getStudents();
+      if (!mounted) return;
 
       if (students.isEmpty) {
         if (mounted) {

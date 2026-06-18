@@ -153,7 +153,6 @@ class FeeReminderService {
   Future<void> logReminderSent(
       String studentId, String type, String channel) async {
     final schoolId = AuthService.currentSchoolId;
-    if (schoolId == null) return;
     await _db
         .collection('schools')
         .doc(schoolId)
@@ -173,7 +172,6 @@ class FeeReminderService {
     if (classNames.isEmpty) return [];
 
     final schoolId = AuthService.currentSchoolId;
-    if (schoolId == null) return [];
 
     final futures = classNames.map((cls) async {
       final snap = await _db

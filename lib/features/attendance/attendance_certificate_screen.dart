@@ -147,6 +147,7 @@ class _AttendanceCertificateScreenState
     // Exporting/sharing the certificate is third-party egress of a minor's
     // data — gate on parental consent (#17).
     if (!await ConsentGate.allowsForStudent(context, widget.student)) return;
+    if (!mounted) return;
     final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
     final branding = await PdfBrandingHelper.load(
       schoolName: settings.schoolName,

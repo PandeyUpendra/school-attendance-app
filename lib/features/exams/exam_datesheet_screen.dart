@@ -227,9 +227,11 @@ class _ExamDatesheetScreenState extends State<ExamDatesheetScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save datesheet: $e'), backgroundColor: AppTheme.danger),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save datesheet: $e'), backgroundColor: AppTheme.danger),
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }

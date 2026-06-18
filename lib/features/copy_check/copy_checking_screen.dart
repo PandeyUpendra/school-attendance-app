@@ -657,15 +657,16 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
     _autosave();
   }
 
-  void _runAiVerification(int roll) {
+  void _runAiVerification(int roll) async {
     final statusObj = _statuses.firstWhere((s) => s.roll == roll);
     final aiService = AIService();
     final typedCtrl = TextEditingController();
     bool evaluating = false;
     Map<String, dynamic>? result;
 
-    showDialog(
-      context: context,
+    try {
+      await showDialog(
+        context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
@@ -830,6 +831,9 @@ class _CheckSessionScreenState extends State<_CheckSessionScreen>
         }
       ),
     );
+    } finally {
+      typedCtrl.dispose();
+    }
   }
 
   void _checkAll() {

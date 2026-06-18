@@ -14,6 +14,7 @@ import '../../shared/utils/currency_utils.dart';
 import '../../shared/utils/pdf_theme.dart';
 import 'package:provider/provider.dart';
 import '../../shared/providers/school_settings_provider.dart';
+import '../../shared/providers/locale_provider.dart';
 import '../../shared/utils/pdf_branding_helper.dart';
 import '../../shared/widgets/premium_feature_gate.dart';
 import '../../l10n/app_strings.dart';
@@ -213,9 +214,9 @@ class _ProfitLossScreenState extends State<ProfitLossScreen> {
   }
 
   Widget _buildEmptyState() {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(32),
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

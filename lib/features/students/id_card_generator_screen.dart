@@ -100,6 +100,7 @@ class _IdCardGeneratorScreenState extends State<IdCardGeneratorScreen> {
         client.close();
       }
 
+      if (!mounted) return;
       final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
       final branding = await PdfBrandingHelper.load(
         schoolName: settings.schoolName,

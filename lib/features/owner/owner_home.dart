@@ -229,7 +229,7 @@ class _OwnerHomeState extends State<OwnerHome> {
       final schoolName = _schoolsMap[targetSchoolId] ?? targetSchoolId;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Switched school to $schoolName'),
+          content: Text(context.tr('switchedSchool').replaceFirst('{name}', schoolName)),
           backgroundColor: AppTheme.success,
         ),
       );
@@ -240,7 +240,7 @@ class _OwnerHomeState extends State<OwnerHome> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to switch school: $e'),
+          content: Text(context.tr('failedToSwitchSchool').replaceFirst('{error}', e.toString())),
           backgroundColor: AppTheme.danger,
         ),
       );
@@ -290,45 +290,45 @@ class _OwnerHomeState extends State<OwnerHome> {
                       teachersAbsent: _teachersAbsent,
                       pendingLeaves: _pendingLeaves,
                     ),
-                  const _SectionHeader('OVERVIEW'),
+                  _SectionHeader(context.tr('sectionOverview')),
           _FeatureTile(
             icon: Icons.dashboard_outlined,
             color: AppTheme.primary,
             title: context.tr('schoolDashboard'),
-            subtitle: 'Today\'s health, attendance & weekly trend',
+            subtitle: context.tr('dashboardSubtitle'),
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const _DashPage(),
             )),
           ),
 
-          const _SectionHeader('STAFF'),
+          _SectionHeader(context.tr('sectionStaff')),
           _FeatureTile(
             icon: Icons.people_outline,
             color: AppTheme.primary,
-            title: 'Staff Overview',
-            subtitle: 'Teachers, leave requests & activity',
+            title: context.tr('staffOverview'),
+            subtitle: context.tr('staffOverviewSubtitle'),
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const _StaffPage(),
             )),
           ),
 
-          const _SectionHeader('ACADEMICS'),
+          _SectionHeader(context.tr('sectionAcademics')),
           _FeatureTile(
             icon: Icons.menu_book_outlined,
             color: AppTheme.primary,
             title: context.tr('academics'),
-            subtitle: 'Recent tests & upcoming exam calendar',
+            subtitle: context.tr('academicsSubtitle'),
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const _AcademicsPage(),
             )),
           ),
 
-          const _SectionHeader('FINANCE'),
+          _SectionHeader(context.tr('sectionFinance')),
           _FeatureTile(
             icon: Icons.currency_rupee_outlined,
             color: AppTheme.success,
-            title: 'Fee Collection',
-            subtitle: 'Class-wise collection, instalments & payment history',
+            title: context.tr('feeCollection'),
+            subtitle: context.tr('feeCollectionSubtitle'),
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const FeeOverviewScreen(role: 'owner'),
             )),
@@ -336,8 +336,8 @@ class _OwnerHomeState extends State<OwnerHome> {
           _FeatureTile(
             icon: Icons.bar_chart_outlined,
             color: AppTheme.primary,
-            title: 'Fee Summary & Defaulters',
-            subtitle: 'School-wide collected, pending, overdue & defaulters',
+            title: context.tr('feeSummaryDefaulters'),
+            subtitle: context.tr('feeSummarySubtitle'),
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const _FinancePage(),
             )),
@@ -346,7 +346,7 @@ class _OwnerHomeState extends State<OwnerHome> {
             icon: Icons.receipt_long_outlined,
             color: AppTheme.primary,
             title: context.tr('expenseLedger'),
-            subtitle: 'Log, filter and track operating outlays',
+            subtitle: context.tr('expenseLedgerSubtitle'),
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const ExpenseLedgerScreen(),
             )),
@@ -354,8 +354,8 @@ class _OwnerHomeState extends State<OwnerHome> {
           _FeatureTile(
             icon: Icons.pie_chart_outline,
             color: AppTheme.primary,
-            title: 'Profit & Loss Statement',
-            subtitle: 'Real-time Income vs Expense reports & trend charts',
+            title: context.tr('profitLossStatement'),
+            subtitle: context.tr('profitLossSubtitle'),
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const ProfitLossScreen(),
             )),
@@ -364,33 +364,33 @@ class _OwnerHomeState extends State<OwnerHome> {
             icon: Icons.account_balance_wallet_outlined,
             color: AppTheme.primary,
             title: context.tr('cashReconciliation'),
-            subtitle: 'Verify and deposit cash payments grouped by collector',
+            subtitle: context.tr('cashReconciliationSubtitle'),
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const CashReconciliationScreen(),
             )),
           ),
 
-          const _SectionHeader('MANAGE'),
+          _SectionHeader(context.tr('sectionManage')),
           // ── Government Reports ────────────────────────────────────────
           _FeatureTile(
             icon: Icons.bar_chart_outlined,
             color: AppTheme.primary,
-            title: 'Government Reports (UDISE+)',
-            subtitle: 'Export UDISE+ CSV',
+            title: context.tr('governmentReportsUdise'),
+            subtitle: context.tr('exportUdiseCsv'),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GovernmentReportScreen())),
           ),
           _FeatureTile(
             icon: Icons.directions_bus_outlined,
             color: AppTheme.primary,
-            title: 'Transport Tracking',
-            subtitle: 'Manage bus routes, drivers, and update stops',
+            title: context.tr('transportTracking'),
+            subtitle: context.tr('transportTrackingSubtitle'),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransportDriverScreen())),
           ),
           _FeatureTile(
             icon: Icons.person_add_outlined,
             color: AppTheme.accent,
-            title: 'Create Accounts',
-            subtitle: 'Add principal, coordinator & other staff logins',
+            title: context.tr('createAccounts'),
+            subtitle: context.tr('createAccountsSubtitle'),
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => _CreateAccountsPage(email: _myEmail, role: _myRole),
             )),
@@ -398,8 +398,8 @@ class _OwnerHomeState extends State<OwnerHome> {
           _FeatureTile(
             icon: Icons.campaign_outlined,
             color: AppTheme.primaryMid,
-            title: 'Announcements',
-            subtitle: 'Broadcast messages to staff, guardians or everyone',
+            title: context.tr('announcements'),
+            subtitle: context.tr('announcementsSubtitle'),
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => _AnnouncementsPage(email: _myEmail, role: _myRole),
             )),
@@ -407,8 +407,8 @@ class _OwnerHomeState extends State<OwnerHome> {
           _FeatureTile(
             icon: Icons.tune_outlined,
             color: AppTheme.primaryMid,
-            title: 'Advanced Settings',
-            subtitle: 'Edit basic info, academic, fees & communication',
+            title: context.tr('advancedSettings'),
+            subtitle: context.tr('advancedSettingsSubtitle'),
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const EditSchoolSettingsScreen(),
             )),
@@ -460,7 +460,7 @@ class _OwnerHomeState extends State<OwnerHome> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'OWNER  ·  $dateStr',
+                      '${context.tr('role_owner').toUpperCase()}  ·  $dateStr',
                       style: const TextStyle(
                           color: Colors.white70, fontSize: 11,
                           fontWeight: FontWeight.w600, letterSpacing: 0.9),
@@ -468,7 +468,7 @@ class _OwnerHomeState extends State<OwnerHome> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.account_circle_outlined, color: Colors.white, size: 22),
-                    tooltip: 'My Profile',
+                    tooltip: context.tr('myProfile'),
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const ProfileScreen()),
@@ -1982,10 +1982,10 @@ class _OwnerMorningSummaryCard extends StatelessWidget {
               children: [
                 const Icon(Icons.wb_sunny_outlined, color: Colors.amber, size: 20),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'School Today',
-                    style: TextStyle(
+                    context.tr('schoolToday'),
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -2013,7 +2013,7 @@ class _OwnerMorningSummaryCard extends StatelessWidget {
                     Expanded(
                       child: _buildMetricTile(
                         icon: Icons.people_outline,
-                        label: 'Total Students',
+                        label: context.tr('totalStudents'),
                         value: '$totalStudents',
                         color: Colors.greenAccent.shade100,
                       ),
@@ -2022,7 +2022,7 @@ class _OwnerMorningSummaryCard extends StatelessWidget {
                     Expanded(
                       child: _buildMetricTile(
                         icon: Icons.person_off_outlined,
-                        label: 'Absent Students',
+                        label: context.tr('absentStudents'),
                         value: '$absentStudents',
                         color: Colors.redAccent.shade100,
                       ),
@@ -2035,7 +2035,7 @@ class _OwnerMorningSummaryCard extends StatelessWidget {
                     Expanded(
                       child: _buildMetricTile(
                         icon: Icons.people_outline,
-                        label: 'Absent Teachers',
+                        label: context.tr('absentTeachers'),
                         value: '$teachersAbsent',
                         color: Colors.amberAccent.shade100,
                       ),
@@ -2044,7 +2044,7 @@ class _OwnerMorningSummaryCard extends StatelessWidget {
                     Expanded(
                       child: _buildMetricTile(
                         icon: Icons.hourglass_top_outlined,
-                        label: 'Pending Leaves',
+                        label: context.tr('pendingLeaves'),
                         value: '$pendingLeaves',
                         color: Colors.orangeAccent.shade100,
                       ),

@@ -1203,6 +1203,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
 
   Future<void> _printReceipt(Payment p) async {
     if (!await _assertPdfRole()) return;
+    if (!mounted) return;
     final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
     final branding = await PdfBrandingHelper.load(
       schoolName: settings.schoolName,
@@ -1217,6 +1218,7 @@ class _StudentFeeDetailScreenState extends State<_StudentFeeDetailScreen> {
 
   Future<void> _shareReceipt(Payment p) async {
     if (!await _assertPdfRole()) return;
+    if (!mounted) return;
     final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
     final branding = await PdfBrandingHelper.load(
       schoolName: settings.schoolName,

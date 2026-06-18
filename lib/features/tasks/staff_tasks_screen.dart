@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../theme.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/staff_task.dart';
+import '../../models/meeting.dart';
 import '../../services/auth_service.dart';
 import '../../services/staff_task_service.dart';
+import '../../services/meeting_service.dart';
 import '../../shared/widgets/index_building_notice.dart';
 import './task_badge_widgets.dart';
 import './create_staff_task_screen.dart';
@@ -24,11 +27,28 @@ class _StaffTasksScreenState extends State<StaffTasksScreen> {
   String _email = '';
   String _role  = '';
   String _name  = '';
+  late Stream<List<StaffTask>> _tasksStream;
+
+  String _meetingFilter = 'All'; // All | Pending | Completed
+  static const _meetingFilters = ['All', 'Pending', 'Completed'];
 
   @override
   void initState() {
     super.initState();
+    _initStream();
     _loadUser();
+  }
+
+  void _initStream() {
+    _tasksStream = StaffTaskService().getTasksForTeacherStream(widget.teacherId ?? '');
+  }
+
+  @override
+  void didUpdateWidget(StaffTasksScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.teacherId != widget.teacherId) {
+      _initStream();
+    }
   }
 
   Future<void> _loadUser() async {
@@ -39,6 +59,30 @@ class _StaffTasksScreenState extends State<StaffTasksScreen> {
         _role  = session['role'] as String? ?? '';
         _name  = session['name'] as String? ?? _email;
       });
+    }
+  }
+
+  List<MeetingTask> _applyMeetingFilter(List<MeetingTask> tasks) {
+    if (_meetingFilter == 'Pending')   return tasks.where((t) => !t.isCompleted).toList();
+    if (_meetingFilter == 'Completed') return tasks.where((t) =>  t.isCompleted).toList();
+    return tasks;
+  }
+
+  String _fmtMeetingDate(DateTime d) {
+    const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${d.day} ${mo[d.month - 1]} ${d.year}';
+  }
+
+  Future<void> _markMeetingTaskDone(MeetingTask task) async {
+    await MeetingService().completeMeetingTask(
+      meetingTaskId: task.id,
+      staffTaskId:   task.staffTaskId,
+      meetingId:     task.meetingId,
+      pointTaskId:   task.id,
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('taskMarkedComplete'))));
     }
   }
 
@@ -58,7 +102,7 @@ class _StaffTasksScreenState extends State<StaffTasksScreen> {
           ? _emptyState()
           : StreamBuilder<List<StaffTask>>(
               key: ValueKey(_refreshTick),
-              stream: StaffTaskService().getTasksForTeacherStream(tid),
+              stream: _tasksStream,
               builder: (context, snap) {
                 if (snap.connectionState == ConnectionState.waiting &&
                     !snap.hasData) {
@@ -68,7 +112,10 @@ class _StaffTasksScreenState extends State<StaffTasksScreen> {
                 }
                 if (snap.hasError && isIndexBuildingError(snap.error)) {
                   return IndexBuildingNotice(
-                      onRetry: () => setState(() => _refreshTick++));
+                      onRetry: () => setState(() {
+                        _initStream();
+                        _refreshTick++;
+                      }));
                 }
                 if (snap.hasError) {
                   return Center(
@@ -78,8 +125,12 @@ class _StaffTasksScreenState extends State<StaffTasksScreen> {
                 final tasks = snap.data ?? [];
                 if (tasks.isEmpty) return _emptyState();
                 return RefreshIndicator(
-                  onRefresh: () async =>
-                      setState(() => _refreshTick++),
+                  onRefresh: () async {
+                    setState(() {
+                      _initStream();
+                      _refreshTick++;
+                    });
+                  },
                   color: AppTheme.primary,
                   child: ListView.builder(
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),

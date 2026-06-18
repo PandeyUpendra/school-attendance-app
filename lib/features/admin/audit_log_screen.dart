@@ -185,6 +185,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         ]),
       ];
 
+      if (!mounted) return;
       final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
       final ts = DateTime.now().millisecondsSinceEpoch;
       await CsvExport.share(
@@ -215,6 +216,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         to:           _to,
       );
 
+      if (!mounted) return;
       final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
       final branding = await PdfBrandingHelper.load(
         schoolName: settings.schoolName,

@@ -561,11 +561,10 @@ class _TransportDriverScreenState extends State<TransportDriverScreen>
                               transportRouteId: newRouteId ?? '',
                             );
                             await _studentService.updateStudent(updated: updated);
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Assigned ${student.name} to route!')),
-                              );
-                            }
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Assigned ${student.name} to route!')),
+                            );
                           },
                         ),
                       ],

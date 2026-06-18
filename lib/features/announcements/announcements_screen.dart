@@ -218,8 +218,10 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
     bool pinned = editing?.isPinned ?? false;
     bool saving = false;
 
-    final posted = await showModalBottomSheet<bool>(
-      context: context,
+    bool? posted;
+    try {
+      posted = await showModalBottomSheet<bool>(
+        context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -466,6 +468,10 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen>
         },
       ),
     );
+    } finally {
+      customTitleCtrl.dispose();
+      bodyCtrl.dispose();
+    }
 
     if (posted == true) _load();
   }

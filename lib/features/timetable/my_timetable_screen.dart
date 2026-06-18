@@ -114,7 +114,8 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
   /// where this teacher is assigned.
   List<_PersonalSlot> get _mySlots {
     if (!_isPersonal) return [];
-    final tid = widget.teacher!.id;
+    final tid = widget.teacher?.id;
+    if (tid == null) return [];
     final slots = <_PersonalSlot>[];
     for (final cls in _classes) {
       for (int b = 1; b <= _bellCount; b++) {

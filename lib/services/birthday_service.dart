@@ -76,13 +76,7 @@ class BirthdayService extends BaseFirestoreService {
           .toList();
     } catch (e, stack) {
       handleError(e, stack);
-      final snap = await _teachers.get();
-      return snap.docs
-          .where((d) =>
-              d.data()['dateOfBirth'] != null &&
-              isBirthdayToday(d.data()['dateOfBirth'] as Timestamp))
-          .map((d) => {...d.data(), 'id': d.id, 'daysLeft': 0, 'type': 'staff'})
-          .toList();
+      rethrow;
     }
   }
 
@@ -98,13 +92,7 @@ class BirthdayService extends BaseFirestoreService {
           .toList();
     } catch (e, stack) {
       handleError(e, stack);
-      final snap = await _teachers.get();
-      return snap.docs
-          .where((d) =>
-              d.data()['dateOfBirth'] != null &&
-              daysUntilBirthday(d.data()['dateOfBirth'] as Timestamp) == 1)
-          .map((d) => {...d.data(), 'id': d.id, 'daysLeft': 1, 'type': 'staff'})
-          .toList();
+      rethrow;
     }
   }
 
@@ -135,17 +123,7 @@ class BirthdayService extends BaseFirestoreService {
       return list;
     } catch (e, stack) {
       handleError(e, stack);
-      final snap = await _teachers.get();
-      final list = snap.docs
-          .where((d) => d.data()['dateOfBirth'] != null)
-          .map((d) {
-            final daysLeft = daysUntilBirthday(d.data()['dateOfBirth'] as Timestamp);
-            return {...d.data(), 'id': d.id, 'daysLeft': daysLeft, 'type': 'staff'};
-          })
-          .where((m) => (m['daysLeft'] as int) <= days)
-          .toList()
-        ..sort((a, b) => (a['daysLeft'] as int).compareTo(b['daysLeft'] as int));
-      return list;
+      rethrow;
     }
   }
 
@@ -184,17 +162,7 @@ class BirthdayService extends BaseFirestoreService {
           .toList();
     } catch (e, stack) {
       handleError(e, stack);
-      final snap = await _buildStudentQuery(
-        className: className,
-        section: section,
-        classNames: classNames,
-      ).get();
-      return snap.docs
-          .where((d) =>
-              d.data()['dateOfBirth'] != null &&
-              isBirthdayToday(d.data()['dateOfBirth'] as Timestamp))
-          .map((d) => {...d.data(), 'id': d.id, 'daysLeft': 0, 'type': 'student'})
-          .toList();
+      rethrow;
     }
   }
 
@@ -218,17 +186,7 @@ class BirthdayService extends BaseFirestoreService {
           .toList();
     } catch (e, stack) {
       handleError(e, stack);
-      final snap = await _buildStudentQuery(
-        className: className,
-        section: section,
-        classNames: classNames,
-      ).get();
-      return snap.docs
-          .where((d) =>
-              d.data()['dateOfBirth'] != null &&
-              daysUntilBirthday(d.data()['dateOfBirth'] as Timestamp) == 1)
-          .map((d) => {...d.data(), 'id': d.id, 'daysLeft': 1, 'type': 'student'})
-          .toList();
+      rethrow;
     }
   }
 
@@ -270,21 +228,7 @@ class BirthdayService extends BaseFirestoreService {
       return list;
     } catch (e, stack) {
       handleError(e, stack);
-      final snap = await _buildStudentQuery(
-        className: className,
-        section: section,
-        classNames: classNames,
-      ).get();
-      final list = snap.docs
-          .where((d) => d.data()['dateOfBirth'] != null)
-          .map((d) {
-            final daysLeft = daysUntilBirthday(d.data()['dateOfBirth'] as Timestamp);
-            return {...d.data(), 'id': d.id, 'daysLeft': daysLeft, 'type': 'student'};
-          })
-          .where((m) => (m['daysLeft'] as int) <= days)
-          .toList()
-        ..sort((a, b) => (a['daysLeft'] as int).compareTo(b['daysLeft'] as int));
-      return list;
+      rethrow;
     }
   }
 
@@ -356,18 +300,7 @@ class BirthdayService extends BaseFirestoreService {
       return list;
     } catch (e, stack) {
       handleError(e, stack);
-      final snap = await _teachers.get();
-      final list = snap.docs
-          .where((d) =>
-              d.data()['dateOfBirth'] != null &&
-              (d.data()['dateOfBirth'] as Timestamp).toDate().month == month)
-          .map((d) {
-            final daysLeft = daysUntilBirthday(d.data()['dateOfBirth'] as Timestamp);
-            return {...d.data(), 'id': d.id, 'daysLeft': daysLeft, 'type': 'staff'};
-          })
-          .toList()
-        ..sort((a, b) => (a['daysLeft'] as int).compareTo(b['daysLeft'] as int));
-      return list;
+      rethrow;
     }
   }
 
@@ -395,22 +328,7 @@ class BirthdayService extends BaseFirestoreService {
       return list;
     } catch (e, stack) {
       handleError(e, stack);
-      final snap = await _buildStudentQuery(
-        className: className,
-        section: section,
-        classNames: classNames,
-      ).get();
-      final list = snap.docs
-          .where((d) =>
-              d.data()['dateOfBirth'] != null &&
-              (d.data()['dateOfBirth'] as Timestamp).toDate().month == month)
-          .map((d) {
-            final daysLeft = daysUntilBirthday(d.data()['dateOfBirth'] as Timestamp);
-            return {...d.data(), 'id': d.id, 'daysLeft': daysLeft, 'type': 'student'};
-          })
-          .toList()
-        ..sort((a, b) => (a['daysLeft'] as int).compareTo(b['daysLeft'] as int));
-      return list;
+      rethrow;
     }
   }
 

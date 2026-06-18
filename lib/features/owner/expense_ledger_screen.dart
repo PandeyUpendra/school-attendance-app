@@ -137,7 +137,7 @@ class _ExpenseLedgerScreenState extends State<ExpenseLedgerScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Showing $count transactions based on active filters',
+            context.tr('showingTransactionsFiltered').replaceFirst('{count}', count.toString()),
             style: const TextStyle(
               color: Colors.white70,
               fontSize: 13,
@@ -158,11 +158,11 @@ class _ExpenseLedgerScreenState extends State<ExpenseLedgerScreen> {
           Expanded(
             child: DropdownButtonFormField<String>(
               value: _selectedCategory,
-              decoration: const InputDecoration(
-                labelText: 'Category',
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: InputDecoration(
+                labelText: context.tr('categoryLabel'),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 isDense: true,
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
               ),
               items: ['All', ..._categories].map((cat) {
                 return DropdownMenuItem(value: cat, child: Text(cat));
@@ -180,7 +180,7 @@ class _ExpenseLedgerScreenState extends State<ExpenseLedgerScreen> {
             icon: const Icon(Icons.date_range, size: 16),
             label: Text(
               _selectedDateRange == null
-                  ? 'All Dates'
+                  ? context.tr('allDates')
                   : '${_selectedDateRange!.start.day}/${_selectedDateRange!.start.month} - ${_selectedDateRange!.end.day}/${_selectedDateRange!.end.month}',
               style: const TextStyle(fontSize: 12),
             ),
@@ -235,7 +235,7 @@ class _ExpenseLedgerScreenState extends State<ExpenseLedgerScreen> {
           Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
-            'No expenses found',
+            context.tr('noExpensesFound'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -244,7 +244,7 @@ class _ExpenseLedgerScreenState extends State<ExpenseLedgerScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Change filters or log a new expense.',
+            context.tr('changeFiltersLogExpense'),
             style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
           ),
         ],
@@ -331,9 +331,9 @@ class _ExpenseLedgerScreenState extends State<ExpenseLedgerScreen> {
             expandedCrossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (exp.description.isNotEmpty) ...[
-                const Text(
-                  'Description:',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.textSecondary),
+                Text(
+                  '${context.tr('description')}:',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.textSecondary),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -349,12 +349,12 @@ class _ExpenseLedgerScreenState extends State<ExpenseLedgerScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Logged By: ${exp.recordedBy}',
+                        context.tr('loggedBy').replaceFirst('{user}', exp.recordedBy),
                         style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                       ),
                       if (exp.createdAt != null)
                         Text(
-                          'Created At: ${exp.createdAt!.day}/${exp.createdAt!.month} ${exp.createdAt!.hour}:${exp.createdAt!.minute.toString().padLeft(2, '0')}',
+                          context.tr('createdAtTime').replaceFirst('{time}', '${exp.createdAt!.day}/${exp.createdAt!.month} ${exp.createdAt!.hour}:${exp.createdAt!.minute.toString().padLeft(2, '0')}'),
                           style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                         ),
                     ],
@@ -376,17 +376,17 @@ class _ExpenseLedgerScreenState extends State<ExpenseLedgerScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Expense?'),
-        content: Text('Are you sure you want to delete this expense of ${CurrencyUtils.formatRupees(exp.amount)}?'),
+        title: Text(context.tr('deleteExpenseConfirmTitle')),
+        content: Text(context.tr('deleteExpenseConfirmMsg').replaceFirst('{amount}', CurrencyUtils.formatRupees(exp.amount))),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('cancel')),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(context.tr('delete')),
           ),
         ],
       ),
@@ -395,18 +395,16 @@ class _ExpenseLedgerScreenState extends State<ExpenseLedgerScreen> {
     if (ok == true) {
       try {
         await _expenseService.deleteExpense(exp.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Expense deleted successfully'), backgroundColor: AppTheme.success),
-          );
-        }
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('expenseDeletedSuccess')), backgroundColor: AppTheme.success),
+        );
       } catch (e) {
         AppLogger.e('ExpenseLedgerScreen', 'Delete failed: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to delete expense: $e'), backgroundColor: AppTheme.danger),
-          );
-        }
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('expenseDeleteFailed').replaceFirst('{error}', e.toString())), backgroundColor: AppTheme.danger),
+        );
       }
     }
   }
@@ -508,14 +506,14 @@ class _AddExpenseBottomSheetState extends State<_AddExpenseBottomSheet> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Expense logged successfully'), backgroundColor: AppTheme.success),
+          SnackBar(content: Text(context.tr('expenseLoggedSuccess')), backgroundColor: AppTheme.success),
         );
       }
     } catch (e) {
       AppLogger.e('AddExpenseBottomSheet', 'Save failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: $e'), backgroundColor: AppTheme.danger),
+          SnackBar(content: Text(context.tr('expenseSaveFailed').replaceFirst('{error}', e.toString())), backgroundColor: AppTheme.danger),
         );
       }
     } finally {
@@ -544,9 +542,9 @@ class _AddExpenseBottomSheetState extends State<_AddExpenseBottomSheet> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Log Expense',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                  Text(
+                    context.tr('logExpense'),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primary),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -563,18 +561,18 @@ class _AddExpenseBottomSheetState extends State<_AddExpenseBottomSheet> {
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
                 ],
-                decoration: const InputDecoration(
-                  labelText: 'Amount (Rupees) *',
+                decoration: InputDecoration(
+                  labelText: context.tr('amountRupeesRequired'),
                   prefixText: '₹ ',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (val) {
                   if (val == null || val.trim().isEmpty) {
-                    return 'Please enter amount';
+                    return context.tr('pleaseEnterAmount');
                   }
                   final n = double.tryParse(val.trim());
                   if (n == null || n <= 0) {
-                    return 'Please enter a valid amount';
+                    return context.tr('pleaseEnterValidAmount');
                   }
                   return null;
                 },
@@ -583,9 +581,9 @@ class _AddExpenseBottomSheetState extends State<_AddExpenseBottomSheet> {
               // Category field
               DropdownButtonFormField<String>(
                 value: _category,
-                decoration: const InputDecoration(
-                  labelText: 'Category *',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: context.tr('categoryRequired'),
+                  border: const OutlineInputBorder(),
                 ),
                 items: _categories.map((cat) {
                   return DropdownMenuItem(value: cat, child: Text(cat));
@@ -600,9 +598,9 @@ class _AddExpenseBottomSheetState extends State<_AddExpenseBottomSheet> {
               // Payment Mode field
               DropdownButtonFormField<String>(
                 value: _paymentMode,
-                decoration: const InputDecoration(
-                  labelText: 'Payment Mode *',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: context.tr('paymentModeRequired'),
+                  border: const OutlineInputBorder(),
                 ),
                 items: _paymentModes.map((mode) {
                   return DropdownMenuItem(value: mode, child: Text(mode));
@@ -618,9 +616,9 @@ class _AddExpenseBottomSheetState extends State<_AddExpenseBottomSheet> {
               InkWell(
                 onTap: _selectDate,
                 child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Expense Date *',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.tr('expenseDateRequired'),
+                    border: const OutlineInputBorder(),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -639,9 +637,9 @@ class _AddExpenseBottomSheetState extends State<_AddExpenseBottomSheet> {
               TextFormField(
                 controller: _descriptionController,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Description / Notes',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: context.tr('descriptionNotes'),
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 24),
@@ -658,9 +656,9 @@ class _AddExpenseBottomSheetState extends State<_AddExpenseBottomSheet> {
                         width: 20,
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                       )
-                    : const Text(
-                        'Save Expense',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    : Text(
+                        context.tr('saveExpense'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
             ],

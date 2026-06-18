@@ -183,13 +183,15 @@ class _SchoolAppState extends State<SchoolApp> with WidgetsBindingObserver {
         ),
         child: Consumer<LocaleProvider>(
           builder: (context, localeProvider, _) {
-            final settings = Provider.of<SchoolSettingsProvider>(context);
             return MaterialApp(
               scrollBehavior: const AppScrollBehavior(),
               navigatorKey: rootNavigatorKey,
               debugShowCheckedModeBanner: false,
               navigatorObservers: [routeObserver],
-              title: settings.schoolName == 'My School' ? 'Klassivo' : settings.schoolName,
+              onGenerateTitle: (context) {
+                final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
+                return settings.schoolName == 'My School' ? 'Klassivo' : settings.schoolName;
+              },
               theme: AppTheme.light,
               locale: localeProvider.locale,
               supportedLocales: LocaleProvider.supported.keys.map(Locale.new),

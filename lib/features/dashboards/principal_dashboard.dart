@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -286,7 +287,9 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               userId: _principalEmail,
               role: _sessionRole,
             ),
-            if (!_loading) ...[
+            if (_loading)
+              _buildShimmerLoader()
+            else ...[
               FadeInUp(
                 delay: const Duration(milliseconds: 50),
                 child: _PrincipalMorningSummaryCard(
@@ -673,6 +676,77 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     if (s.absent > 0) return AppTheme.danger;
     if (s.leave  > 0) return AppTheme.warning;
     return AppTheme.success;
+  }
+
+  Widget _buildShimmerLoader() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Morning summary card skeleton
+            Container(
+              height: 160,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            // Section header skeleton
+            Container(
+              width: 120,
+              height: 16,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            // Tasks skeleton
+            Container(
+              height: 100,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            // Section header skeleton
+            Container(
+              width: 120,
+              height: 16,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            // Birthday banner skeleton
+            Container(
+              height: 70,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            // Tiles skeleton
+            ...List.generate(3, (index) => Container(
+              height: 60,
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            )),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildTasksSection() {

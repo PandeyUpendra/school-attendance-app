@@ -106,6 +106,28 @@ class StudentService extends BaseFirestoreService {
   // cached (it mutates as marks come in), and any write invalidates its key.
   static const Duration _dayDocTtl = Duration(seconds: 30);
   static final Map<String, _DayDocEntry> _dayDocCache = {};
+  static const int _maxCacheSize = 100;
+
+  static void _addToCache(String key, Map<String, dynamic>? data) {
+    final now = DateTime.now();
+    // Evict expired entries
+    _dayDocCache.removeWhere((k, entry) => now.difference(entry.at) >= _dayDocTtl);
+    
+    if (_dayDocCache.length >= _maxCacheSize) {
+      // Evict oldest entry
+      String? oldestKey;
+      DateTime? oldestTime;
+      _dayDocCache.forEach((k, entry) {
+        if (oldestTime == null || entry.at.isBefore(oldestTime!)) {
+          oldestTime = entry.at;
+          oldestKey = k;
+        }
+      });
+      if (oldestKey != null) _dayDocCache.remove(oldestKey);
+    }
+    
+    _dayDocCache[key] = _DayDocEntry(data, now);
+  }
 
   /// Fetches an attendance day doc's data, served from the short-TTL cache when
   /// [cacheable] (i.e. a past day). Returns null when the doc doesn't exist.
@@ -123,7 +145,7 @@ class StudentService extends BaseFirestoreService {
     }
     final doc  = await _attendance.doc(key).get();
     final data = doc.exists ? doc.data() : null;
-    if (cacheable) _dayDocCache[cacheKey] = _DayDocEntry(data, DateTime.now());
+    if (cacheable) _addToCache(cacheKey, data);
     return data;
   }
 
@@ -1660,10 +1682,7 @@ class StudentService extends BaseFirestoreService {
             final d = int.tryParse(dateParts[2]);
             if (y != null && m != null && d != null) {
               final date = DateTime(y, m, d);
-              if (date.isBefore(today)) {
-                final cacheKey = '$_schoolId/${doc.id}';
-                _dayDocCache[cacheKey] = _DayDocEntry(doc.data(), DateTime.now());
-              }
+                _addToCache(cacheKey, doc.data());
             }
           }
         }

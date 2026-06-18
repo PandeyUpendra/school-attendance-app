@@ -75,9 +75,11 @@ class _StudyMaterialListScreenState extends State<StudyMaterialListScreen> {
         throw 'Could not launch $url';
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('cannotOpenFile').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('cannotOpenFile').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
+        );
+      }
     }
   }
 

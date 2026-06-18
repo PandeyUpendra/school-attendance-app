@@ -91,248 +91,256 @@ class _ExamManagementScreenState extends State<ExamManagementScreen> {
         lastDate: DateTime(2030),
       );
       if (picked != null) setS(() => examDate = picked);
-    }
-
-    final saved = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => Padding(
-          padding: EdgeInsets.only(
-            left: 18, right: 18, top: 16,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 18,
-          ),
-          child: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
+    }    final bool? saved;
+    try {
+      saved = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setS) => Padding(
+            padding: EdgeInsets.only(
+              left: 18, right: 18, top: 16,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 18,
+            ),
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40, height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(editing == null ? 'New Exam' : 'Edit Exam',
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: nameCtrl,
-                  maxLength: 60,
-                  maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                  decoration: InputDecoration(
-                    labelText: context.tr('examName'),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    counterText: '',
-                  ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Exam name is required' : null,
-                ),
-                const SizedBox(height: 10),
-                Row(children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: maxMarksCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    const SizedBox(height: 12),
+                    Text(editing == null ? 'New Exam' : 'Edit Exam',
+                        style: const TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: nameCtrl,
+                      maxLength: 60,
+                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
                       decoration: InputDecoration(
-                        labelText: context.tr('maxMarksPerSubject'),
+                        labelText: context.tr('examName'),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10)),
+                        counterText: '',
                       ),
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Required';
-                        final n = int.tryParse(v.trim());
-                        if (n == null || n < 1 || n > 200) return '1–200';
-                        return null;
-                      },
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Exam name is required' : null,
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => pickDate(setS),
-                      child: InputDecorator(
-                        decoration: InputDecoration(
-                          labelText: context.tr('examDate'),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                        child: Text(
-                          '${examDate.day}/${examDate.month}/${examDate.year}',
-                        ),
-                      ),
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 14),
-                // Class selection (multi for new, locked for edit)
-                if (editing == null) ...[
-                  const Text('Classes',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  StatefulBuilder(
-                    builder: (_, setChips) => Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: _classes.map((cls) {
-                        final sel = selectedClasses.contains(cls);
-                        return FilterChip(
-                          label: Text(cls),
-                          selected: sel,
-                          selectedColor: AppTheme.primary.withValues(alpha: 0.15),
-                          checkmarkColor: AppTheme.primary,
-                          labelStyle: TextStyle(
-                            color: sel ? AppTheme.primary : null,
-                            fontWeight: sel
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
-                          onSelected: (v) {
-                            setChips(() {
-                              if (v) {
-                                selectedClasses.add(cls);
-                              } else if (selectedClasses.length > 1) {
-                                selectedClasses.remove(cls);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(context.tr('subjectsLabel'),
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600)),
-                    TextButton.icon(
-                      onPressed: () =>
-                          setS(() => subjectCtrls.add(TextEditingController())),
-                      icon: const Icon(Icons.add, size: 16),
-                      label: Text(context.tr('addLabel')),
-                      style: TextButton.styleFrom(
-                          foregroundColor: AppTheme.primary),
-                    ),
-                  ],
-                ),
-                for (int i = 0; i < subjectCtrls.length; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(children: [
+                    const SizedBox(height: 10),
+                    Row(children: [
                       Expanded(
                         child: TextFormField(
-                          controller: subjectCtrls[i],
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                                RegExp(r'[a-zA-Z ]')),
-                          ],
-                          maxLength: 30,
-                          maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                          controller: maxMarksCtrl,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                           decoration: InputDecoration(
-                            labelText: 'Subject ${i + 1}',
+                            labelText: context.tr('maxMarksPerSubject'),
                             border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 10),
-                            counterText: '',
+                                borderRadius: BorderRadius.circular(10)),
                           ),
-                          validator: (v) =>
-                              (v == null || v.trim().isEmpty) ? 'Required' : null,
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return 'Required';
+                            final n = int.tryParse(v.trim());
+                            if (n == null || n < 1 || n > 200) return '1–200';
+                            return null;
+                          },
                         ),
                       ),
-                      if (subjectCtrls.length > 1)
-                        IconButton(
-                          icon: const Icon(Icons.remove_circle_outline,
-                              color: Colors.red, size: 20),
-                          onPressed: () =>
-                              setS(() => subjectCtrls.removeAt(i)),
-                          padding: EdgeInsets.zero,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => pickDate(setS),
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: context.tr('examDate'),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: Text(
+                              '${examDate.day}/${examDate.month}/${examDate.year}',
+                            ),
+                          ),
                         ),
+                      ),
                     ]),
-                  ),
-                const SizedBox(height: 12),
-                Row(children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: Text(context.tr('cancel')),
-                  ),
-                  const Spacer(),
-                  ElevatedButton.icon(
-                    onPressed: saving
-                        ? null
-                        : () async {
-                            if (!formKey.currentState!.validate()) return;
-                            final name = nameCtrl.text.trim();
-                            final subjects = subjectCtrls
-                                .map((c) => c.text.trim())
-                                .where((s) => s.isNotEmpty)
-                                .toList();
-                            setS(() => saving = true);
-                            final maxMarksVal = int.tryParse(
-                                    maxMarksCtrl.text.trim()) ??
-                                100;
-                            if (editing == null) {
-                              await Future.wait(
-                                selectedClasses.map((cls) =>
-                                  _examService.createExam(exam: Exam(
-                                    id:        '',
+                    const SizedBox(height: 14),
+                    // Class selection (multi for new, locked for edit)
+                    if (editing == null) ...[
+                      const Text('Classes',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 6),
+                      StatefulBuilder(
+                        builder: (_, setChips) => Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: _classes.map((cls) {
+                            final sel = selectedClasses.contains(cls);
+                            return FilterChip(
+                              label: Text(cls),
+                              selected: sel,
+                              selectedColor: AppTheme.primary.withValues(alpha: 0.15),
+                              checkmarkColor: AppTheme.primary,
+                              labelStyle: TextStyle(
+                                color: sel ? AppTheme.primary : null,
+                                fontWeight: sel
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                              onSelected: (v) {
+                                setChips(() {
+                                  if (v) {
+                                    selectedClasses.add(cls);
+                                  } else if (selectedClasses.length > 1) {
+                                    selectedClasses.remove(cls);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(context.tr('subjectsLabel'),
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600)),
+                        TextButton.icon(
+                          onPressed: () =>
+                              setS(() => subjectCtrls.add(TextEditingController())),
+                          icon: const Icon(Icons.add, size: 16),
+                          label: Text(context.tr('addLabel')),
+                          style: TextButton.styleFrom(
+                              foregroundColor: AppTheme.primary),
+                        ),
+                      ],
+                    ),
+                    for (int i = 0; i < subjectCtrls.length; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: subjectCtrls[i],
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                    RegExp(r'[a-zA-Z ]')),
+                              ],
+                              maxLength: 30,
+                              maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                              decoration: InputDecoration(
+                                labelText: 'Subject ${i + 1}',
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 10),
+                                counterText: '',
+                              ),
+                              validator: (v) =>
+                                  (v == null || v.trim().isEmpty) ? 'Required' : null,
+                            ),
+                          ),
+                          if (subjectCtrls.length > 1)
+                            IconButton(
+                              icon: const Icon(Icons.remove_circle_outline,
+                                  color: Colors.red, size: 20),
+                              onPressed: () => setS(() {
+                                final ctrl = subjectCtrls.removeAt(i);
+                                ctrl.dispose();
+                              }),
+                              padding: EdgeInsets.zero,
+                            ),
+                        ]),
+                      ),
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: Text(context.tr('cancel')),
+                      ),
+                      const Spacer(),
+                      ElevatedButton.icon(
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                if (!formKey.currentState!.validate()) return;
+                                final name = nameCtrl.text.trim();
+                                final subjects = subjectCtrls
+                                    .map((c) => c.text.trim())
+                                    .where((s) => s.isNotEmpty)
+                                    .toList();
+                                setS(() => saving = true);
+                                final maxMarksVal = int.tryParse(
+                                        maxMarksCtrl.text.trim()) ??
+                                    100;
+                                if (editing == null) {
+                                  await Future.wait(
+                                    selectedClasses.map((cls) =>
+                                      _examService.createExam(exam: Exam(
+                                        id:        '',
+                                        name:      name,
+                                        className: cls,
+                                        subjects:  subjects,
+                                        maxMarks:  maxMarksVal,
+                                        examDate:  examDate,
+                                        createdBy: '',
+                                      )),
+                                    ),
+                                  );
+                                } else {
+                                  await _examService.updateExam(exam: Exam(
+                                    id:        editing.id,
                                     name:      name,
-                                    className: cls,
+                                    className: editing.className,
                                     subjects:  subjects,
                                     maxMarks:  maxMarksVal,
                                     examDate:  examDate,
                                     createdBy: '',
-                                  )),
-                                ),
-                              );
-                            } else {
-                              await _examService.updateExam(exam: Exam(
-                                id:        editing.id,
-                                name:      name,
-                                className: editing.className,
-                                subjects:  subjects,
-                                maxMarks:  maxMarksVal,
-                                examDate:  examDate,
-                                createdBy: '',
-                              ));
-                            }
-                            if (ctx.mounted) Navigator.pop(ctx, true);
-                          },
-                    icon: const Icon(Icons.save_outlined, size: 18),
-                    label: Text(editing == null ? 'Create' : 'Save'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ]),
-              ],
-            ),
+                                  ));
+                                }
+                                if (ctx.mounted) Navigator.pop(ctx, true);
+                              },
+                        icon: const Icon(Icons.save_outlined, size: 18),
+                        label: Text(editing == null ? 'Create' : 'Save'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ]),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    } finally {
+      nameCtrl.dispose();
+      maxMarksCtrl.dispose();
+      for (final ctrl in subjectCtrls) {
+        ctrl.dispose();
+      }
+    }
 
     if (saved == true && _selectedClass != null) {
       _selectClass(_selectedClass!);
-    }
-  }
+    }   }
 
   Future<void> _deleteExam(Exam exam) async {
     final ok = await showDialog<bool>(

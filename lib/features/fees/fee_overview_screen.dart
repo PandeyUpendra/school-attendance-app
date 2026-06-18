@@ -262,7 +262,7 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
               Icon(Icons.error_outline, size: 56, color: Colors.red.shade300),
               const SizedBox(height: 14),
               Text(
-                context.tr('failedToLoadFeeOverview') ?? 'Failed to load fee summaries',
+                context.tr('failedToLoadFeeOverview'),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 8),
@@ -275,7 +275,7 @@ class _FeeOverviewScreenState extends State<FeeOverviewScreen> {
               ElevatedButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh),
-                label: Text(context.tr('retry') ?? 'Retry'),
+                label: Text(context.tr('retry')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,

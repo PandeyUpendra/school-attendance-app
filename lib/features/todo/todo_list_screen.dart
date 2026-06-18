@@ -24,11 +24,23 @@ class _TodoListScreenState extends State<TodoListScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tab;
   final _svc = TodoService();
+  late Stream<List<TodoItem>> _todoStream;
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 2, vsync: this);
+    _todoStream = _svc.streamForUser(widget.userId);
+  }
+
+  @override
+  void didUpdateWidget(TodoListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      setState(() {
+        _todoStream = _svc.streamForUser(widget.userId);
+      });
+    }
   }
 
   @override
@@ -58,14 +70,18 @@ class _TodoListScreenState extends State<TodoListScreen>
         ),
       ),
       body: StreamBuilder<List<TodoItem>>(
-        stream: _svc.streamForUser(widget.userId),
+        stream: _todoStream,
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(
                 child: CircularProgressIndicator(color: AppTheme.primary));
           }
           if (snap.hasError && isIndexBuildingError(snap.error)) {
-            return IndexBuildingNotice(onRetry: () => setState(() {}));
+            return IndexBuildingNotice(
+              onRetry: () => setState(() {
+                _todoStream = _svc.streamForUser(widget.userId);
+              }),
+            );
           }
           final all = snap.data ?? [];
           final pending   = all.where((t) => !t.isCompleted).toList();

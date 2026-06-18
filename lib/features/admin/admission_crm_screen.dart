@@ -73,7 +73,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
     }
   }
 
-  void _showAddLeadDialog() {
+  void _showAddLeadDialog() async {
     final nameCtrl = TextEditingController();
     final parentCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
@@ -87,7 +87,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
     
     String selectedClass = classesList.contains('Class 6') ? 'Class 6' : classesList.first;
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -204,10 +204,16 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
           ),
         ],
       ),
-    );
+    ).then((_) {
+      nameCtrl.dispose();
+      parentCtrl.dispose();
+      phoneCtrl.dispose();
+      emailCtrl.dispose();
+      noteCtrl.dispose();
+    });
   }
 
-  void _showLeadDetailsSheet(Lead lead) {
+  void _showLeadDetailsSheet(Lead lead) async {
     final isGuardian = _userRole == 'guardian';
     final isStaff = !isGuardian;
     final isMgmt = _userRole == 'principal' || _userRole == 'coordinator';
@@ -216,7 +222,8 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
     DateTime? tempNextDate;
     String currentStage = lead.stage;
 
-    showModalBottomSheet(
+    try {
+      await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -433,6 +440,7 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
                             return;
                           }
                           await _leadService.addFollowUp(lead.id, note, tempNextDate);
+                          if (!mounted) return;
                           if (ctx.mounted) {
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -460,6 +468,9 @@ class _AdmissionCrmScreenState extends State<AdmissionCrmScreen>
         },
       ),
     );
+    } finally {
+      followUpCtrl.dispose();
+    }
   }
 
   Widget _buildDetailRow(IconData icon, String label, String value) {

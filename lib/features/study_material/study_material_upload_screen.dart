@@ -99,9 +99,11 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
         if (file.size > 10 * 1024 * 1024) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.tr('fileSizeLimitError')), backgroundColor: AppTheme.danger),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(context.tr('fileSizeLimitError')), backgroundColor: AppTheme.danger),
+            );
+          }
           return;
         }
         setState(() {
@@ -110,9 +112,11 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('errorPickingFile').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('errorPickingFile').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
+        );
+      }
     }
   }
 
@@ -171,9 +175,11 @@ class _StudyMaterialUploadScreenState extends State<StudyMaterialUploadScreen> {
         _loadUploadHistory();
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('uploadFailed').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('uploadFailed').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
+        );
+      }
     } finally {
       if (mounted) setState(() => _uploading = false);
     }

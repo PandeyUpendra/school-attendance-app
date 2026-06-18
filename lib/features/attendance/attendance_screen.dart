@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -432,6 +433,46 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
 
     await _updatePendingCounts();
 
+    // Query approved student leave applications to pre-fill attendance
+    final Map<int, String> approvedLeaves = {};
+    if (_isOnline) {
+      try {
+        final target = widget.date ?? DateTime.now();
+        final targetDay = DateTime(target.year, target.month, target.day);
+        final leaveSnap = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(BaseFirestoreService.currentSchoolId ?? 'default_school')
+            .collection('leave_applications')
+            .where('applicantType', isEqualTo: 'guardian')
+            .where('studentClass', isEqualTo: _className)
+            .where('status', isEqualTo: 'approved')
+            .get();
+        for (final doc in leaveSnap.docs) {
+          final data = doc.data();
+          final roll = data['studentRoll'] as int?;
+          final startStr = data['startDate'] as String?;
+          final numDays = data['numberOfDays'] as int? ?? 1;
+          if (roll != null && startStr != null) {
+            final parts = startStr.split('-');
+            if (parts.length == 3) {
+              final y = int.tryParse(parts[0]);
+              final m = int.tryParse(parts[1]);
+              final d = int.tryParse(parts[2]);
+              if (y != null && m != null && d != null) {
+                final start = DateTime(y, m, d);
+                final end = start.add(Duration(days: numDays - 1));
+                if (!targetDay.isBefore(start) && !targetDay.isAfter(end)) {
+                  approvedLeaves[roll] = 'Leave';
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        AppLogger.e('AttendanceScreen', 'Failed to fetch approved student leaves: $e');
+      }
+    }
+
     // Debug: verify section correctness before committing to state
     AppLogger.d('Attendance', 'Teacher: (id=$_teacherId)');
     AppLogger.d('Attendance', 'Class: $_className');
@@ -451,8 +492,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
       _students     = students;
       _alreadySaved = saved.isNotEmpty;
       for (final s in students) {
-        // Initial state is unmarked ('') so counter starts at 0
-        _attendance[s.roll] = saved[s.roll] ?? '';
+        // Default to saved status, approved leave, or default to Present
+        _attendance[s.roll] = saved[s.roll] ?? approvedLeaves[s.roll] ?? 'Present';
       }
       // Seed the last-persisted snapshot so the first save only notifies
       // genuinely new absences (#74).
@@ -1029,7 +1070,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
       leading: (_isMarking && _alreadySaved)
           ? IconButton(
               icon: const Icon(Icons.close, color: Colors.white),
-              tooltip: context.tr('close') ?? 'Close',
+              tooltip: context.tr('close'),
               onPressed: () => setState(() => _isMarking = false),
             )
           : null,
@@ -1061,45 +1102,49 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
     );
   }
 
-  void _showSearchRollDialog() {
+  void _showSearchRollDialog() async {
     final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.tr('goToRollNumber')),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(hintText: context.tr('enterRollNumberHint')),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('cancel'))),
-          ElevatedButton(
-            onPressed: () {
-              final roll = int.tryParse(controller.text);
-              if (roll != null) {
-                final idx = _students.indexWhere((s) => s.roll == roll);
-                if (idx != -1) {
-                  FocusScope.of(context).unfocus();
-                  Navigator.pop(ctx);
-                  _pageController.animateToPage(
-                    idx,
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.easeInOut,
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(context.tr('rollNotFound'))),
-                  );
-                }
-              }
-            },
-            child: Text(context.tr('go')),
+    try {
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(context.tr('goToRollNumber')),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(hintText: context.tr('enterRollNumberHint')),
+            autofocus: true,
           ),
-        ],
-      ),
-    );
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('cancel'))),
+            ElevatedButton(
+              onPressed: () {
+                final roll = int.tryParse(controller.text);
+                if (roll != null) {
+                  final idx = _students.indexWhere((s) => s.roll == roll);
+                  if (idx != -1) {
+                    FocusScope.of(context).unfocus();
+                    Navigator.pop(ctx);
+                    _pageController.animateToPage(
+                      idx,
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeInOut,
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(context.tr('rollNotFound'))),
+                    );
+                  }
+                }
+              },
+              child: Text(context.tr('go')),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
   }
 
   Widget _buildBody() {

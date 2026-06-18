@@ -111,7 +111,7 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load collections: $e'), backgroundColor: AppTheme.danger),
+          SnackBar(content: Text(context.tr('failedToLoadCollections').replaceFirst('{error}', e.toString())), backgroundColor: AppTheme.danger),
         );
       }
     }
@@ -123,14 +123,14 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Confirm Deposit?'),
-        content: Text('Mark ${_selectedDocPaths.length} cash collections as deposited into the school bank account? This action is audited.'),
+        title: Text(context.tr('confirmDeposit')),
+        content: Text(context.tr('reconcileConfirmMsg').replaceFirst('{count}', _selectedDocPaths.length.toString())),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Confirm Deposit'),
+            child: Text(context.tr('confirmDepositBtn')),
           ),
         ],
       ),
@@ -153,7 +153,7 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Successfully reconciled ${refs.length} cash payments'), backgroundColor: AppTheme.success),
+          SnackBar(content: Text(context.tr('reconciledPaymentsSuccess').replaceFirst('{count}', refs.length.toString())), backgroundColor: AppTheme.success),
         );
       }
       _loadCollections();
@@ -162,7 +162,7 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to reconcile: $e'), backgroundColor: AppTheme.danger),
+          SnackBar(content: Text(context.tr('reconciliationFailed').replaceFirst('{error}', e.toString())), backgroundColor: AppTheme.danger),
         );
       }
     }
@@ -231,7 +231,7 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _showOnlyToday ? 'TODAY\'S CASH COLLECTED' : 'UNRECONCILED CASH OUSTANDING',
+                _showOnlyToday ? context.tr('todaysCashCollected') : context.tr('unreconciledCashOutstanding'),
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 11,
@@ -266,7 +266,7 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
       child: Row(
         children: [
           ChoiceChip(
-            label: const Text('Show All Pending Cash'),
+            label: Text(context.tr('showAllPendingCash')),
             selected: !_showOnlyToday,
             selectedColor: AppTheme.primary,
             labelStyle: TextStyle(color: !_showOnlyToday ? Colors.white : Colors.black87),
@@ -281,7 +281,7 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
           ),
           const SizedBox(width: 8),
           ChoiceChip(
-            label: const Text('Collected Today'),
+            label: Text(context.tr('collectedToday')),
             selected: _showOnlyToday,
             selectedColor: AppTheme.primary,
             labelStyle: TextStyle(color: _showOnlyToday ? Colors.white : Colors.black87),
@@ -306,13 +306,13 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
         children: [
           Icon(Icons.verified_outlined, size: 64, color: AppTheme.success.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
-          const Text(
-            'All clean!',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+          Text(
+            context.tr('allClean'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
           ),
           const SizedBox(height: 8),
           Text(
-            _showOnlyToday ? 'No cash collections recorded today.' : 'All cash collections are reconciled and deposited.',
+            _showOnlyToday ? context.tr('noCashCollectedToday') : context.tr('allCashReconciled'),
             style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
           ),
         ],
@@ -360,7 +360,7 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
                 ),
               ],
             ),
-            subtitle: Text('${group.docs.length} payments pending deposit', style: const TextStyle(fontSize: 12)),
+            subtitle: Text(context.tr('paymentsPendingDeposit').replaceFirst('{count}', group.docs.length.toString()), style: const TextStyle(fontSize: 12)),
             children: [
               const Divider(height: 1),
               Container(
@@ -386,7 +386,7 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
                     final className = data['className'] as String?;
                     final roll = data['roll'];
                     final studentInfo = (className != null && roll != null)
-                        ? 'Roll $roll · Class $className'
+                        ? context.tr('studentRollClass').replaceFirst('{roll}', roll.toString()).replaceFirst('{class}', className)
                         : 'Student';
 
                     final isSelected = _selectedDocPaths.contains(doc.reference.path);
@@ -401,7 +401,7 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
                           Text(CurrencyUtils.formatRupees(amt), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         ],
                       ),
-                      subtitle: Text('$studentInfo\nCollected on $dateStr', style: const TextStyle(fontSize: 11)),
+                      subtitle: Text('$studentInfo\n${context.tr('collectedOnDate').replaceFirst('{date}', dateStr)}', style: const TextStyle(fontSize: 11)),
                       isThreeLine: true,
                       onChanged: (val) {
                         setState(() {
@@ -459,12 +459,12 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${_selectedDocPaths.length} items selected',
+                    context.tr('itemsSelected').replaceFirst('{count}', _selectedDocPaths.length.toString()),
                     style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Total: ${CurrencyUtils.formatRupees(selectedTotal, showDecimals: true)}',
+                    '${context.tr('totalLabel')}: ${CurrencyUtils.formatRupees(selectedTotal, showDecimals: true)}',
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primary),
                   ),
                 ],
@@ -478,9 +478,9 @@ class _CashReconciliationScreenState extends State<CashReconciliationScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               onPressed: _reconcileSelected,
-              child: const Text(
-                'Mark Deposited',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              child: Text(
+                context.tr('markDeposited'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
             ),
           ],

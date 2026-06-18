@@ -171,8 +171,6 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
       );
       return;
     }
-    if (!mounted) return;
-    await _recordCall(s);
   }
 
   Future<void> _openWhatsApp(Student s) async {
@@ -202,8 +200,6 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
       );
       return;
     }
-    if (!mounted) return;
-    await _recordCall(s);
   }
 
   String _waMessage(Student s) {
@@ -233,8 +229,10 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
         ? _reasons[s.roll]
         : (_reasons[s.roll] != null ? 'Other' : null);
 
-    final reason = await showDialog<String>(
-      context: context,
+    String? reason;
+    try {
+      reason = await showDialog<String>(
+        context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
@@ -309,10 +307,14 @@ class _TodayCallsTabState extends State<_TodayCallsTab> {
         ),
       ),
     );
+    } finally {
+      ctrl.dispose();
+    }
     if (!mounted || reason == null) return;
+    final finalReason = reason;
     setState(() {
       _called[s.roll] = true;
-      if (reason.isNotEmpty) _reasons[s.roll] = reason;
+      if (finalReason.isNotEmpty) _reasons[s.roll] = finalReason;
     });
     await Future.wait([
       widget.service.saveReasons(className: _attendanceKey, reasons: _reasons),

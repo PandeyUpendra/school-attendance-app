@@ -256,108 +256,112 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
     bool generating = true;
     bool saving = false;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          if (generating) {
-            generating = false;
-            aiService.generateReportCardRemarks(student: student, result: result).then((remark) {
-              textCtrl.text = remark;
-              setDialogState(() { generating = false; });
-            }).catchError((e) {
-              textCtrl.text = "Error generating remarks. Please try again.";
-              setDialogState(() { generating = false; });
-            });
-          }
+    try {
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => StatefulBuilder(
+          builder: (context, setDialogState) {
+            if (generating) {
+              generating = false;
+              aiService.generateReportCardRemarks(student: student, result: result).then((remark) {
+                textCtrl.text = remark;
+                setDialogState(() { generating = false; });
+              }).catchError((e) {
+                textCtrl.text = "Error generating remarks. Please try again.";
+                setDialogState(() { generating = false; });
+              });
+            }
 
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
-              children: [
-                const Icon(Icons.auto_awesome, color: Colors.purple),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text('AI Remarks: ${student.name}', 
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-            content: SizedBox(
-              width: 340,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
                 children: [
-                  if (textCtrl.text.isEmpty)
-                    const Column(
-                      children: [
-                        SizedBox(height: 20),
-                        CircularProgressIndicator(color: Colors.purple),
-                        SizedBox(height: 16),
-                        Text('Drafting personalized remarks...', style: TextStyle(fontSize: 13, color: Colors.grey)),
-                        SizedBox(height: 20),
-                      ],
-                    )
-                  else
-                    TextField(
-                      controller: textCtrl,
-                      maxLines: 4,
-                      maxLength: 200,
-                      style: const TextStyle(fontSize: 14),
-                      decoration: InputDecoration(
-                        labelText: 'Teacher Remark Draft',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        helperText: 'Review and edit comment before saving',
-                      ),
-                    ),
+                  const Icon(Icons.auto_awesome, color: Colors.purple),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('AI Remarks: ${student.name}', 
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
                 ],
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
-              ),
-              if (textCtrl.text.isNotEmpty && !textCtrl.text.startsWith("Error"))
-                ElevatedButton(
-                  onPressed: saving ? null : () async {
-                    setDialogState(() { saving = true; });
-                    try {
-                      await _studentSvc.addStudentRemark(
-                        widget.className,
-                        student.roll,
-                        _currentUserEmail,
-                        _currentUserRole,
-                        textCtrl.text.trim(),
-                        section: widget.section,
-                        type: result.percentage >= 60 ? 'positive' : 'negative',
-                      );
-                      if (context.mounted) {
-                        Navigator.pop(ctx);
-                        _showSnack('Remark saved to student profile!', color: Colors.green);
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        setDialogState(() { saving = false; });
-                        _showSnack('Error saving: $e', color: Colors.red);
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: saving 
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Save Remark'),
+              content: SizedBox(
+                width: 340,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (textCtrl.text.isEmpty)
+                      const Column(
+                        children: [
+                          SizedBox(height: 20),
+                          CircularProgressIndicator(color: Colors.purple),
+                          SizedBox(height: 16),
+                          Text('Drafting personalized remarks...', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                          SizedBox(height: 20),
+                        ],
+                      )
+                    else
+                      TextField(
+                        controller: textCtrl,
+                        maxLines: 4,
+                        maxLength: 200,
+                        style: const TextStyle(fontSize: 14),
+                        decoration: InputDecoration(
+                          labelText: 'Teacher Remark Draft',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          helperText: 'Review and edit comment before saving',
+                        ),
+                      ),
+                  ],
                 ),
-            ],
-          );
-        }
-      ),
-    );
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                if (textCtrl.text.isNotEmpty && !textCtrl.text.startsWith("Error"))
+                  ElevatedButton(
+                    onPressed: saving ? null : () async {
+                      setDialogState(() { saving = true; });
+                      try {
+                        await _studentSvc.addStudentRemark(
+                          widget.className,
+                          student.roll,
+                          _currentUserEmail,
+                          _currentUserRole,
+                          textCtrl.text.trim(),
+                          section: widget.section,
+                          type: result.percentage >= 60 ? 'positive' : 'negative',
+                        );
+                        if (context.mounted) {
+                          Navigator.pop(ctx);
+                          _showSnack('Remark saved to student profile!', color: Colors.green);
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          setDialogState(() { saving = false; });
+                          _showSnack('Error saving: $e', color: Colors.red);
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: saving 
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Save Remark'),
+                  ),
+              ],
+            );
+          }
+        ),
+      );
+    } finally {
+      textCtrl.dispose();
+    }
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────

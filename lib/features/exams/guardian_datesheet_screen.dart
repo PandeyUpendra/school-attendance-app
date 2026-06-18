@@ -10,6 +10,7 @@ import '../../models/student.dart';
 import '../../services/datesheet_service.dart';
 import '../../services/exam_service.dart';
 import '../../shared/providers/school_settings_provider.dart';
+import '../../shared/providers/locale_provider.dart';
 import '../../theme.dart';
 import '../../shared/utils/pdf_theme.dart';
 import '../../shared/utils/pdf_branding_helper.dart';
@@ -230,9 +231,11 @@ class _GuardianDatesheetScreenState extends State<GuardianDatesheetScreen> {
         name: 'AdmitCard_${widget.student.name.replaceAll(' ', '_')}.pdf',
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('failedToPrintAdmitCard').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('failedToPrintAdmitCard').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
+        );
+      }
     }
   }
 

@@ -33,6 +33,7 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
   bool _loading = true;
   bool _submitting = false;
   bool _resuming = false;
+  String? _draftStatusMessage;
 
   // Step keys for validation
   final _step1Key = GlobalKey<Step1BasicInfoState>();
@@ -160,12 +161,60 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
   }
 
   Future<void> _saveDraft() async {
+    if (!mounted) return;
+    setState(() {
+      _draftStatusMessage = 'Saving draft...';
+    });
     try {
       await _svc.saveOnboardingDraft({
         ..._data.toJson(),
         'currentStep': _step,
       });
-    } catch (_) {}
+      if (mounted) {
+        setState(() {
+          _draftStatusMessage = 'Draft saved to cloud';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _draftStatusMessage = 'Failed to auto-save draft';
+        });
+      }
+    }
+  }
+
+  Future<void> _saveAndExit() async {
+    setState(() => _submitting = true);
+    try {
+      await _svc.saveOnboardingDraft({
+        ..._data.toJson(),
+        'currentStep': _step,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Draft saved successfully! Logging out...'),
+          backgroundColor: AppTheme.success,
+        ),
+      );
+      await AuthService().clearSession();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save draft: $e'),
+            backgroundColor: AppTheme.danger,
+          ),
+        );
+      }
+    }
   }
 
   bool _validateCurrentStep() {
@@ -392,53 +441,96 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
           BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, -2)),
         ],
       ),
-      child: Row(children: [
-        if (_step > 0)
-          Expanded(
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.arrow_back),
-              label: Text(context.tr('back')),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.grey.shade700,
-                side: BorderSide(color: Colors.grey.shade400),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_draftStatusMessage != null) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _draftStatusMessage!.contains('fail') ? Icons.error_outline : Icons.cloud_done_outlined,
+                    size: 14,
+                    color: _draftStatusMessage!.contains('fail') ? AppTheme.danger : AppTheme.accent,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _draftStatusMessage!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: _draftStatusMessage!.contains('fail') ? AppTheme.danger : AppTheme.accent,
+                    ),
+                  ),
+                ],
               ),
-              onPressed: _onBack,
             ),
-          ),
-        if (_step > 0) const SizedBox(width: 12),
-        Expanded(
-          flex: 2,
-          child: ElevatedButton.icon(
-            icon: _submitting
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : Icon(isLast ? Icons.check_circle_outline : Icons.arrow_forward),
-            label: Text(
-              _submitting
-                  ? context.tr('savingEllipsis')
-                  : isLast
-                      ? context.tr('completeSetup')
-                      : context.tr('next'),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+          ],
+          Row(children: [
+            if (_step > 0) ...[
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _onBack,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.grey.shade700,
+                    side: BorderSide(color: Colors.grey.shade400),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: Text(context.tr('back')),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            // Save & Exit button
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _submitting ? null : _saveAndExit,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.primary,
+                  side: const BorderSide(color: AppTheme.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Save & Exit'),
+              ),
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isLast ? AppTheme.success : AppTheme.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton.icon(
+                icon: _submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Icon(isLast ? Icons.check_circle_outline : Icons.arrow_forward),
+                label: Text(
+                  _submitting
+                      ? context.tr('savingEllipsis')
+                      : isLast
+                          ? context.tr('completeSetup')
+                          : context.tr('next'),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isLast ? AppTheme.success : AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: _submitting
+                    ? null
+                    : isLast
+                        ? _submit
+                        : _onNext,
+              ),
             ),
-            onPressed: _submitting
-                ? null
-                : isLast
-                    ? _submit
-                    : _onNext,
-          ),
-        ),
-      ]),
+          ]),
+        ],
+      ),
     );
   }
 }

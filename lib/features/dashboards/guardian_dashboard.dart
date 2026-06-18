@@ -329,6 +329,22 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       if (!mounted) return;
 
       final student     = coreResults[0] as Student?;
+      if (student == null) {
+        await AuthService().clearSession();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Your account is no longer linked to any active student record. Please log in again or contact the school.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
+          ),
+        );
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+          (route) => false,
+        );
+        return;
+      }
       final todayByRoll = coreResults[1] as Map<int, String>;
 
       // Any individual failure just leaves that section empty; no full crash.
@@ -351,7 +367,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
 
       // Extract active teacher IDs from timetable and student's class teacher
       final activeTeacherIds = <String>{};
-      if (student?.teacherId != null && student!.teacherId!.isNotEmpty) {
+      if (student.teacherId?.isNotEmpty == true) {
         activeTeacherIds.add(student.teacherId!);
       }
       final classTt = timetable[_activeClass] ?? {};
@@ -424,6 +440,22 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         _initNotifStream();
       }
     } catch (e) {
+      if (e.toString().contains('permission-denied') || e.toString().contains('PERMISSION_DENIED')) {
+        await AuthService().clearSession();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Access denied. Your session may have expired or your account has been removed. Please log in again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
+          ),
+        );
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+          (route) => false,
+        );
+        return;
+      }
       if (!mounted) return;
       setState(() {
         _error   = e.toString();
@@ -1112,7 +1144,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                       onPressed: () => Navigator.pop(context),
                     ),
                     Text(
-                      context.tr('guardianAccount') ?? 'Guardian Account',
+                      context.tr('guardianAccount'),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -1304,7 +1336,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                       },
                       icon: const Icon(Icons.manage_accounts_outlined, color: AppTheme.primary, size: 20),
                       label: Text(
-                        context.tr('myProfile') ?? 'My Profile',
+                        context.tr('myProfile'),
                         style: const TextStyle(
                           color: AppTheme.primary,
                           fontWeight: FontWeight.bold,
@@ -1320,7 +1352,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                       },
                       icon: const Icon(Icons.logout_outlined, color: AppTheme.danger, size: 20),
                       label: Text(
-                        context.tr('logOut') ?? 'Log Out',
+                        context.tr('logOut'),
                         style: const TextStyle(
                           color: AppTheme.danger,
                           fontWeight: FontWeight.bold,
@@ -1343,7 +1375,58 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
   /// Horizontal chips to switch between this guardian's children. Hidden when
   /// there's only one child linked to the email.
   Widget _childSwitcher() {
-    return const SizedBox.shrink();
+    if (_children.length <= 1) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      color: Colors.transparent,
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: _children.map((child) {
+            final isSelected = child.className == _activeClass &&
+                child.roll == _activeRoll &&
+                child.section == _activeSection;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                selected: isSelected,
+                label: Text(
+                  child.name,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : AppTheme.textPrimary,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 13,
+                  ),
+                ),
+                avatar: CircleAvatar(
+                  backgroundColor: isSelected ? Colors.white24 : AppTheme.primary.withValues(alpha: 0.1),
+                  child: Text(
+                    child.name.isNotEmpty ? child.name[0].toUpperCase() : '',
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : AppTheme.primary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                selectedColor: AppTheme.primary,
+                backgroundColor: Colors.white,
+                checkmarkColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(
+                    color: isSelected ? AppTheme.primary : AppTheme.border,
+                    width: 1,
+                  ),
+                ),
+                onSelected: (_) => _switchChild(child),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
   }
 
   @override
@@ -1505,7 +1588,7 @@ class _GuardianHeroCard extends StatelessWidget {
     const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const dy = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
     final dateStr = '${dy[now.weekday-1]}, ${now.day} ${mo[now.month-1]}'.toUpperCase();
-    final settings = Provider.of<SchoolSettingsProvider>(context);
+    final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
 
     return ClipPath(
       clipper: _WaveClipper(),
@@ -1523,27 +1606,32 @@ class _GuardianHeroCard extends StatelessWidget {
                 // School name and logo row
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 12,
-                      backgroundColor: Colors.white24,
-                      backgroundImage: settings.schoolLogo.isNotEmpty
-                          ? CachedNetworkImageProvider(settings.schoolLogo)
-                          : null,
-                      child: settings.schoolLogo.isEmpty
-                          ? const Icon(Icons.school, size: 12, color: Colors.white)
-                          : null,
+                    Consumer<SchoolSettingsProvider>(
+                      builder: (context, sProvider, _) => CircleAvatar(
+                        radius: 12,
+                        backgroundColor: Colors.white24,
+                        backgroundImage: sProvider.schoolLogo.isNotEmpty
+                            ? CachedNetworkImageProvider(sProvider.schoolLogo)
+                            : null,
+                        child: sProvider.schoolLogo.isEmpty
+                            ? const Icon(Icons.school, size: 12, color: Colors.white)
+                            : null,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        settings.schoolName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      child: Consumer<SchoolSettingsProvider>(
+                        builder: (context, sProvider, _) => Text(
+                          sProvider.schoolName,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -3705,7 +3793,7 @@ class _GuardianFeeStatusScreenState extends State<GuardianFeeStatusScreen> {
                             context,
                             className: widget.className,
                             roll: widget.roll,
-                            studentId: widget.student.id ?? '',
+                            studentId: widget.student.id,
                             amount: due,
                             onSuccess: () {
                               _refreshFees();

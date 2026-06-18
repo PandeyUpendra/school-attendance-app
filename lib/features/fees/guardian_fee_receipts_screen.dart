@@ -14,6 +14,7 @@ import '../../shared/utils/currency_utils.dart';
 import '../../shared/utils/pdf_theme.dart';
 import '../../shared/utils/pdf_branding_helper.dart';
 import '../../shared/providers/school_settings_provider.dart';
+import '../../shared/providers/locale_provider.dart';
 
 class GuardianFeeReceiptsScreen extends StatefulWidget {
   final String className;

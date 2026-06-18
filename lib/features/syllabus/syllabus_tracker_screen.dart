@@ -103,9 +103,11 @@ class _SyllabusTrackerScreenState extends State<SyllabusTrackerScreen> {
     try {
       await _syllabusService.saveCoverage(newCoverage);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('syllabusUpdateFailed').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('syllabusUpdateFailed').replaceAll('{error}', e.toString())), backgroundColor: AppTheme.danger),
+        );
+      }
       // Revert state
       _loadSyllabusData();
     }
