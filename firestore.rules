@@ -224,6 +224,7 @@ service cloud.firestore {
       let role = userData != null ? userData.role : null;
       let schoolId = userData != null && 'schoolId' in userData ? userData.schoolId : null;
       return isRootAdmin() || (
+        audience != null && (audience is string) &&
         userData != null && schoolId == sid && (
           // Broadcast is always allowed
           audience == 'all' ||
@@ -243,12 +244,15 @@ service cloud.firestore {
           // Guardian path
           (role == 'guardian' && (
             audience == 'guardians' ||
-            (audience.matches('guardian:.*:.*') &&
-             resource != null && 'targetStudentId' in resource.data && (
-               ('studentIds' in userData && resource.data.targetStudentId in userData.studentIds) ||
-               resource.data.targetStudentId == guardianStudentId()
-             )
-            ) ||
+            (audience.matches('guardian:.*:.*') && (
+              (resource != null && 'targetStudentId' in resource.data && (
+                ('studentIds' in userData && resource.data.targetStudentId in userData.studentIds) ||
+                resource.data.targetStudentId == guardianStudentId()
+              )) ||
+              (resource != null && !('targetStudentId' in resource.data) &&
+               audience.split(':')[1] == userStudentClass() &&
+               audience.split(':')[2] == string(userStudentRoll()))
+            )) ||
             ('studentAdmissionId' in userData && userData.studentAdmissionId != null &&
              audience.matches('guardian_adm:.*') &&
              audience.split(':')[1] == userData.studentAdmissionId) ||
@@ -623,9 +627,25 @@ service cloud.firestore {
         (isAnyTeacher() && 'schoolId' in resource.data && userSchoolId() == resource.data.schoolId && 'role' in resource.data && resource.data.role == 'guardian')
       ));
 
-      // Client-side writes are allowed for self-updates (e.g., status/school switching) and school management.
-      // All other mutations must call secure Cloud Functions.
-      allow create: if isRootAdmin(); // Enforced through createAllowedUser function
+      allow create: if isRootAdmin() || (isSignedIn() && (
+        // Management can provision users in their own school
+        (isStrictAdmin() &&
+         request.resource.data.schoolId == userSchoolId() &&
+         request.resource.data.role in ['principal', 'coordinator', 'teacher', 'subjectTeacher', 'guardian']) ||
+        
+        (isRole('principal') &&
+         request.resource.data.schoolId == userSchoolId() &&
+         request.resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian']) ||
+
+        (isRole('coordinator') &&
+         request.resource.data.schoolId == userSchoolId() &&
+         request.resource.data.role in ['teacher', 'subjectTeacher', 'guardian']) ||
+
+        // Teachers can provision guardian accounts in their own school
+        (isAnyTeacher() &&
+         request.resource.data.schoolId == userSchoolId() &&
+         request.resource.data.role == 'guardian')
+      ));
 
       allow update: if isRootAdmin() || (isSignedIn() && (
         // Self update: status can transition to 'active', schoolId can switch (other fields require Cloud Functions)

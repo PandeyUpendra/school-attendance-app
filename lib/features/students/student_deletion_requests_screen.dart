@@ -292,8 +292,9 @@ class _RequestList extends StatelessWidget {
 
   /// The class a request belongs to, taken from its target students.
   static String _classLabel(BuildContext context, Map<String, dynamic> req) {
-    final students =
-        (req['students'] as List?)?.whereType<Map<String, dynamic>>() ?? [];
+    final students = (req['students'] as List?)
+            ?.map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
+            .whereType<Map<String, dynamic>>() ?? [];
     final classes = students
         .map((s) => (s['className'] as String?)?.trim() ?? '')
         .where((c) => c.isNotEmpty)
@@ -474,7 +475,8 @@ class _RequestCardState extends State<_RequestCard> {
   Widget build(BuildContext context) {
     final req      = widget.request;
     final students = (req['students'] as List?)
-            ?.whereType<Map<String, dynamic>>()
+            ?.map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
+            .whereType<Map<String, dynamic>>()
             .toList() ??
         [];
     final teacher  = req['teacherName'] ?? req['teacherEmail'] ?? context.tr('unknownLabel');

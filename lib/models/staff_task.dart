@@ -193,6 +193,7 @@ class StaffTask {
     if (raw == null) return [];
     if (raw is List) {
       return raw
+          .map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
           .whereType<Map<String, dynamic>>()
           .map((e) => Checkpoint.fromJson(e))
           .toList();

@@ -1218,8 +1218,10 @@ class StudentService extends BaseFirestoreService {
 
     final data = await _repo.getDeletionRequest(requestId);
     if (data == null) return;
-    final list =
-        (data['students'] as List?)?.whereType<Map<String, dynamic>>() ?? [];
+    final list = (data['students'] as List?)
+            ?.map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
+            .whereType<Map<String, dynamic>>()
+            .toList() ?? [];
     final futures = <Future<void>>[];
     for (final s in list) {
       final roll      = (s['roll']      as num?)?.toInt() ?? 0;
@@ -1240,7 +1242,8 @@ class StudentService extends BaseFirestoreService {
     final data = await _repo.getDeletionRequest(requestId);
     if (data != null) {
       final list = (data['students'] as List?)
-              ?.whereType<Map<String, dynamic>>()
+              ?.map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
+              .whereType<Map<String, dynamic>>()
               .toList() ??
           const [];
       await markStudentsDeletionPending(list, false);

@@ -289,6 +289,32 @@ void main() {
         reason: 'Rejecting the request must reactivate the student');
   });
 
+  // ── 12b. approveDeletionRequest — deletes the student ───────────────────────
+
+  test('approveDeletionRequest deletes the student and updates status', () async {
+    repo.seed([
+      _student(roll: 1, name: 'Ivy', className: 'Class 8', section: 'A'),
+    ]);
+
+    final students = [
+      {'roll': 1, 'name': 'Ivy', 'className': 'Class 8', 'section': 'A'},
+    ];
+    await service.submitDeletionRequest(
+      teacherId: 't1', teacherName: 'T', teacherEmail: 't@x.com',
+      students: students,
+    );
+    await service.markStudentsDeletionPending(students, true);
+
+    final pending = await service.getPendingDeletionRequests();
+    expect(pending, hasLength(1));
+
+    await service.approveDeletionRequest(pending.first['id'] as String);
+
+    final ivy = await service.getStudentByRoll('Class 8', 1, section: 'A');
+    expect(ivy, isNull,
+        reason: 'Approving the request must delete the student record');
+  });
+
   // ── 13. HTML stripping & phone normalization ─────────────────────────────
 
   test('addStudent and updateStudent strip HTML tags and normalize phone numbers', () async {

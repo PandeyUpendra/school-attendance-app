@@ -39,9 +39,9 @@ const SCHOOL_ID  = 'school_1';
 
 // ── UIDs (Firebase Auth) ─────────────────────────────────────────────────────
 const UID = {
-  guardian:    'uid-guardian-1',   // Parent of Class_9-A_A_42
-  guardian2:   'uid-guardian-2',   // Parent of Class_10-B_B_15
-  guardianMulti: 'uid-guardian-multi', // Parent of both Class_9-A_A_42 and Class_10-B_B_15
+  guardian:    'uid-guardian-1',   // Parent of Class_9-A_42
+  guardian2:   'uid-guardian-2',   // Parent of Class_10-B_15
+  guardianMulti: 'uid-guardian-multi', // Parent of both Class_9-A_42 and Class_10-B_15
   teacher9A:   'uid-teacher-9a',   // Class teacher of "Class 9-A"
   teacher10B:  'uid-teacher-10b',  // Class teacher of "Class 10-B"
   coordinator: 'uid-coordinator',
@@ -70,7 +70,7 @@ const USERS = {
       { studentClass: 'Class 9-A', studentRoll: 42, studentSection: 'A', studentName: 'Alice Sharma', studentAdmissionId: 'adm-1' },
       { studentClass: 'Class 10-B', studentRoll: 15, studentSection: 'B', studentName: 'Bob Verma', studentAdmissionId: 'adm-2' },
     ],
-    studentIds: ['Class_9-A_A_42', 'Class_10-B_B_15'],
+    studentIds: ['Class_9-A_42', 'Class_10-B_15'],
     classIds: ['Class 9-A', 'Class 10-B', 'Class 9-A-A', 'Class 10-B-B'],
     status: 'active',
   },
@@ -123,8 +123,8 @@ const USERS = {
 };
 
 // ── Student fixture data ──────────────────────────────────────────────────────
-const STUDENT_ID_9A  = 'Class_9-A_A_42';
-const STUDENT_ID_10B = 'Class_10-B_B_15';
+const STUDENT_ID_9A  = 'Class_9-A_42';
+const STUDENT_ID_10B = 'Class_10-B_15';
 
 const STUDENT_9A = {
   roll: 42, name: 'Alice Sharma',
@@ -234,10 +234,10 @@ beforeEach(async () => {
     });
 
     // Per-student attendance mirror (H2) — what guardians actually read.
-    await setDoc(doc(adb, schoolPath('student_attendance', 'Class_9-A_A_42')), {
+    await setDoc(doc(adb, schoolPath('student_attendance', 'Class_9-A_42')), {
       schoolId: SCHOOL_ID, roll: 42, days: { '2026-05-23': 'Present' },
     });
-    await setDoc(doc(adb, schoolPath('student_attendance', 'Class_10-B_B_15')), {
+    await setDoc(doc(adb, schoolPath('student_attendance', 'Class_10-B_15')), {
       schoolId: SCHOOL_ID, roll: 15, days: { '2026-05-23': 'Present' },
     });
 
@@ -273,13 +273,13 @@ beforeEach(async () => {
     // (matches allowed_users.studentIds[] format: classNameUnderscored_section_roll).
     await setDoc(doc(adb, schoolPath('notifications', 'notif-9a')), {
       audience:        'guardian:Class 9-A:42',
-      targetStudentId: STUDENT_ID_9A,   // 'Class_9-A_A_42'
+      targetStudentId: STUDENT_ID_9A,   // 'Class_9-A_42'
       title: 'Absent today',
       body: 'Alice was absent.',
     });
     await setDoc(doc(adb, schoolPath('notifications', 'notif-10b')), {
       audience:        'guardian:Class 10-B:15',
-      targetStudentId: STUDENT_ID_10B,  // 'Class_10-B_B_15'
+      targetStudentId: STUDENT_ID_10B,  // 'Class_10-B_15'
       title: 'Absent today',
       body: 'Bob was absent.',
     });
@@ -341,7 +341,7 @@ describe('Firestore Security Rules', () => {
     });
 
     test('DENY — CRITICAL: cannot read another child\'s student record', async () => {
-      // guardian.studentIds = ['Class_9-A_A_42'] — NOT Class_10-B_B_15
+      // guardian.studentIds = ['Class_9-A_42'] — NOT Class_10-B_15
       await assertFails(
         getDoc(doc(db(UID.guardian), schoolPath('students', STUDENT_ID_10B))),
       );
@@ -648,35 +648,35 @@ describe('Firestore Security Rules', () => {
 
     test('ALLOW — H2: guardian can read their OWN child\'s attendance mirror', async () => {
       await assertSucceeds(
-        getDoc(doc(db(UID.guardian), schoolPath('student_attendance', 'Class_9-A_A_42'))),
+        getDoc(doc(db(UID.guardian), schoolPath('student_attendance', 'Class_9-A_42'))),
       );
     });
 
     test('DENY — H2: guardian cannot read another student\'s attendance mirror', async () => {
       await assertFails(
-        getDoc(doc(db(UID.guardian), schoolPath('student_attendance', 'Class_10-B_B_15'))),
+        getDoc(doc(db(UID.guardian), schoolPath('student_attendance', 'Class_10-B_15'))),
       );
     });
 
     test('ALLOW — H2: guardian with multiple children can read attendance mirrors for all children', async () => {
       await assertSucceeds(
-        getDoc(doc(db(UID.guardianMulti), schoolPath('student_attendance', 'Class_9-A_A_42'))),
+        getDoc(doc(db(UID.guardianMulti), schoolPath('student_attendance', 'Class_9-A_42'))),
       );
       await assertSucceeds(
-        getDoc(doc(db(UID.guardianMulti), schoolPath('student_attendance', 'Class_10-B_B_15'))),
+        getDoc(doc(db(UID.guardianMulti), schoolPath('student_attendance', 'Class_10-B_15'))),
       );
     });
 
     test('DENY — H2: guardian cannot write their child\'s attendance mirror', async () => {
       await assertFails(
-        setDoc(doc(db(UID.guardian), schoolPath('student_attendance', 'Class_9-A_A_42')),
+        setDoc(doc(db(UID.guardian), schoolPath('student_attendance', 'Class_9-A_42')),
           { days: { '2026-05-23': 'Present' } }, { merge: true }),
       );
     });
 
     test('ALLOW — staff can read any student attendance mirror', async () => {
       await assertSucceeds(
-        getDoc(doc(db(UID.teacher9A), schoolPath('student_attendance', 'Class_10-B_B_15'))),
+        getDoc(doc(db(UID.teacher9A), schoolPath('student_attendance', 'Class_10-B_15'))),
       );
     });
 
