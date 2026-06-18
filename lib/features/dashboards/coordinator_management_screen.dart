@@ -23,7 +23,6 @@ class CoordinatorManagementScreen extends StatefulWidget {
 class _CoordinatorManagementScreenState
     extends State<CoordinatorManagementScreen> {
   final _service = TimetableService.instance;
-  final _firestore = FirebaseFirestore.instance;
 
   List<Map<String, dynamic>> _coordinators = [];
   List<String> _allClasses = [];
@@ -78,47 +77,7 @@ class _CoordinatorManagementScreenState
     );
   }
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
 
-  Future<void> _delete(Map<String, dynamic> coord) async {
-    final email = coord['email'] as String;
-    final name  = coord['name'] as String? ?? email;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(context.tr('removeCoordinator')),
-        content: Text('${context.tr('removeAction')} $name ${context.tr('revokeLoginSuffix')}'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('cancel'))),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(context.tr('removeAction'), style: const TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-
-    try {
-      final query = await _firestore.collection('allowed_users').where('email', isEqualTo: email.toLowerCase().trim()).limit(1).get();
-      for (final doc in query.docs) {
-        await doc.reference.delete();
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$name ${context.tr('removedSuffix')}'), backgroundColor: Colors.green),
-        );
-      }
-      _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('errorWithDetails').replaceAll('{error}', e.toString())), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
 
   // ── UI ─────────────────────────────────────────────────────────────────────
 
@@ -286,7 +245,9 @@ class _CoordCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }
 

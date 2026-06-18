@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../shared/utils/app_logger.dart';
-import 'auth_service.dart';
 import 'timetable_service.dart';
 
 /// Service for the "principal requests a coordinator deletion, owner approves" workflow.
