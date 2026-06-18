@@ -79,7 +79,8 @@ service cloud.firestore {
     }
 
     function getUserData() {
-      return get(/databases/$(database)/documents/allowed_users/$(request.auth.token.email.lower())).data;
+      let docPath = /databases/$(database)/documents/allowed_users/$(request.auth.token.email.lower());
+      return exists(docPath) && get(docPath).data.status == 'active' ? get(docPath).data : null;
     }
 
     /// SCALE-05: identity from CUSTOM CLAIMS instead of a document read.
@@ -624,30 +625,14 @@ service cloud.firestore {
 
       // Client-side writes are allowed for self-updates (e.g., status/school switching) and school management.
       // All other mutations must call secure Cloud Functions.
-      allow create: if isRootAdmin() || (isSignedIn() && (
-        // Management can provision users in their own school
-        (isStrictAdmin() &&
-         request.resource.data.schoolId == userSchoolId() &&
-         request.resource.data.role in ['principal', 'coordinator', 'teacher', 'subjectTeacher', 'guardian']) ||
-        
-        (isRole('principal') &&
-         request.resource.data.schoolId == userSchoolId() &&
-         request.resource.data.role in ['coordinator', 'teacher', 'subjectTeacher', 'guardian']) ||
-
-        (isRole('coordinator') &&
-         request.resource.data.schoolId == userSchoolId() &&
-         request.resource.data.role in ['teacher', 'subjectTeacher', 'guardian']) ||
-
-        // Teachers can provision guardian accounts in their own school
-        (isAnyTeacher() &&
-         request.resource.data.schoolId == userSchoolId() &&
-         request.resource.data.role == 'guardian')
-      ));
+      allow create: if isRootAdmin(); // Enforced through createAllowedUser function
 
       allow update: if isRootAdmin() || (isSignedIn() && (
         // Self update: status can transition to 'active', schoolId can switch (other fields require Cloud Functions)
         (userEmail() == email &&
          request.resource.data.role == resource.data.role &&
+         resource.data.status == 'pending' &&
+         request.resource.data.status == 'active' &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['schoolId', 'status']) &&
          (request.resource.data.schoolId == resource.data.schoolId || 
           ('schoolIds' in resource.data && request.resource.data.schoolId in resource.data.schoolIds))) ||
@@ -1184,12 +1169,16 @@ service cloud.firestore {
           && 'teacherId' in request.resource.data
           && request.resource.data.teacherId == userTeacherId()
           && 'teacherEmail' in request.resource.data
-          && request.resource.data.teacherEmail.lower() == userEmail()) ||
+          && request.resource.data.teacherEmail.lower() == userEmail()
+          && 'status' in request.resource.data
+          && request.resource.data.status == 'pending') ||
         (isRole('guardian')
           && 'applicantType' in request.resource.data && request.resource.data.applicantType == 'guardian'
           && 'studentClass' in request.resource.data && request.resource.data.studentClass == userStudentClass()
           && 'studentRoll' in request.resource.data && request.resource.data.studentRoll == userStudentRoll()
-          && 'studentSection' in request.resource.data && request.resource.data.studentSection == userStudentSection())
+          && 'studentSection' in request.resource.data && request.resource.data.studentSection == userStudentSection()
+          && 'status' in request.resource.data
+          && request.resource.data.status == 'pending')
       );
 
       allow update: if isSignedIn() && inSchool(sid) && (
@@ -1374,7 +1363,10 @@ service cloud.firestore {
            ))
         ))
       );
-      allow write: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
+      allow create: if isSignedIn() && inSchool(sid) && isFinanceAdmin();
+      allow update: if isSignedIn() && inSchool(sid) && isFinanceAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reversed', 'reversedReason', 'reversedAt', 'reversedBy']);
+      allow delete: if false;
     }
 
 

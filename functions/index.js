@@ -182,6 +182,13 @@ exports.syncUserClaims = onDocumentWritten(
       }
       const d = after.data() || {};
 
+      // Revoke claims immediately if account is not active
+      if (d.status === "suspended" || d.status === "disabled") {
+        await admin.auth().setCustomUserClaims(user.uid, null);
+        await admin.auth().revokeRefreshTokens(user.uid);
+        return;
+      }
+
       // Auto-backfill studentLinks, studentIds, and classIds for guardians if missing or outdated
       if (d.role === "guardian") {
         const db = admin.firestore();
@@ -337,6 +344,9 @@ exports.deleteAccount = onCall(
       db.collection("allowed_users").doc(callerEmail).get(),
       db.collection("allowed_users").doc(email).get(),
     ]);
+    if (callerSnap.exists && (callerSnap.get("status") === "suspended" || callerSnap.get("status") === "disabled")) {
+      throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+    }
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     const targetExists = targetSnap.exists;
@@ -527,6 +537,9 @@ exports.createAllowedUser = onCall(
 
     const callerEmail = request.auth.token.email.toLowerCase();
     const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    if (callerSnap.exists && (callerSnap.get("status") === "suspended" || callerSnap.get("status") === "disabled")) {
+      throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+    }
     const callerRole = resolveCallerRole(callerEmail, callerSnap) || request.auth.token.role;
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : request.auth.token.schoolId;
     const callerClassIds = callerSnap.exists ? (callerSnap.get("classIds") || []) : (request.auth.token.classIds || []);
@@ -690,6 +703,9 @@ exports.updateUserMetadata = onCall(
 
     const callerEmail = request.auth.token.email.toLowerCase();
     const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    if (callerSnap.exists && (callerSnap.get("status") === "suspended" || callerSnap.get("status") === "disabled")) {
+      throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+    }
     const callerRole = resolveCallerRole(callerEmail, callerSnap) || request.auth.token.role;
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : request.auth.token.schoolId;
     const callerClassIds = callerSnap.exists ? (callerSnap.get("classIds") || []) : (request.auth.token.classIds || []);
@@ -1068,6 +1084,9 @@ exports.deleteStudent = onCall(
     // Authorization: management of the SAME school (admins may cross schools).
     const callerEmail = String(request.auth.token.email).toLowerCase();
     const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    if (callerSnap.exists && (callerSnap.get("status") === "suspended" || callerSnap.get("status") === "disabled")) {
+      throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+    }
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!STUDENT_DELETE_ROLES.includes(callerRole)) {
@@ -1100,6 +1119,9 @@ exports.approveDeletionRequest = onCall(
     // Authorization: management of the SAME school (admins may cross schools).
     const callerEmail = String(request.auth.token.email).toLowerCase();
     const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    if (callerSnap.exists && (callerSnap.get("status") === "suspended" || callerSnap.get("status") === "disabled")) {
+      throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+    }
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!STUDENT_DELETE_ROLES.includes(callerRole)) {
@@ -1167,6 +1189,9 @@ exports.writeAudit = onCall(
 
     const callerEmail = String(request.auth.token.email).toLowerCase();
     const snap = await db.collection("allowed_users").doc(callerEmail).get();
+    if (snap.exists && (snap.get("status") === "suspended" || snap.get("status") === "disabled")) {
+      throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+    }
     const role = resolveCallerRole(callerEmail, snap); // 'admin' for root admin
     
     if (!role) {
@@ -1272,6 +1297,9 @@ exports.purgeOldData = onCall(
 
     const callerEmail = String(request.auth.token.email).toLowerCase();
     const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    if (callerSnap.exists && (callerSnap.get("status") === "suspended" || callerSnap.get("status") === "disabled")) {
+      throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+    }
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
 
@@ -1870,6 +1898,9 @@ exports.backfillStudentAttendance = onCall(
     }
     const callerEmail = String(request.auth.token.email).toLowerCase();
     const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    if (callerSnap.exists && (callerSnap.get("status") === "suspended" || callerSnap.get("status") === "disabled")) {
+      throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+    }
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!PURGE_ROLES.includes(callerRole)) {
@@ -1960,6 +1991,9 @@ exports.backfillCommsConsent = onCall(
     }
     const callerEmail = String(request.auth.token.email).toLowerCase();
     const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    if (callerSnap.exists && (callerSnap.get("status") === "suspended" || callerSnap.get("status") === "disabled")) {
+      throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+    }
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!PURGE_ROLES.includes(callerRole)) {
@@ -2014,6 +2048,9 @@ exports.backfillClassStats = onCall(
     }
     const callerEmail = String(request.auth.token.email).toLowerCase();
     const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    if (callerSnap.exists && (callerSnap.get("status") === "suspended" || callerSnap.get("status") === "disabled")) {
+      throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+    }
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!PURGE_ROLES.includes(callerRole)) {
@@ -2085,6 +2122,9 @@ exports.backfillAttendanceSummary = onCall(
     }
     const callerEmail = String(request.auth.token.email).toLowerCase();
     const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    if (callerSnap.exists && (callerSnap.get("status") === "suspended" || callerSnap.get("status") === "disabled")) {
+      throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+    }
     const callerRole = resolveCallerRole(callerEmail, callerSnap);
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : null;
     if (!PURGE_ROLES.includes(callerRole)) {
@@ -2201,6 +2241,9 @@ async function authorizeFeeCaller(db, request, schoolId) {
   }
   const callerEmail = String(request.auth.token.email).toLowerCase();
   const snap = await db.collection("allowed_users").doc(callerEmail).get();
+  if (snap.exists && (snap.get("status") === "suspended" || snap.get("status") === "disabled")) {
+    throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+  }
   const callerRole = resolveCallerRole(callerEmail, snap);
   const callerSchoolId = snap.exists ? snap.get("schoolId") : null;
   const callerName = snap.exists ? snap.get("name") : callerEmail;
@@ -2671,8 +2714,12 @@ exports.backfillFeeSummaries = onCall(
   async (request) => {
     const db = admin.firestore();
 
-    if (!request.auth) {
+    if (!request.auth || !request.auth.token || !request.auth.token.email) {
       throw new HttpsError("unauthenticated", "Auth required.");
+    }
+    const callerEmail = String(request.auth.token.email).toLowerCase();
+    if (!ROOT_ADMIN_EMAILS.includes(callerEmail)) {
+      throw new HttpsError("permission-denied", "Only root admins can run this backfill.");
     }
 
     try {
@@ -2976,8 +3023,12 @@ exports.callGemini = onCall(
       throw new HttpsError("unauthenticated", "Sign in required.");
     }
 
+    const db = admin.firestore();
     const callerEmail = request.auth.token.email.toLowerCase();
     const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+    if (callerSnap.exists && (callerSnap.get("status") === "suspended" || callerSnap.get("status") === "disabled")) {
+      throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+    }
     const callerSchoolId = callerSnap.exists ? callerSnap.get("schoolId") : request.auth.token.schoolId;
     if (!callerSchoolId) {
       throw new HttpsError("permission-denied", "User is not associated with any school.");
@@ -2990,7 +3041,6 @@ exports.callGemini = onCall(
     }
 
     // 2. Fetch the Gemini API key for this school
-    const db = admin.firestore();
     let apiKey = null;
 
     try {
