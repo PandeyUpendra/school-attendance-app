@@ -156,6 +156,11 @@ void main() {
         .thenAnswer((_) async => []);
     when(() => mockCopyCheckService.getChecks(teacherId: any(named: 'teacherId')))
         .thenAnswer((_) async => []);
+    when(() => mockCopyCheckService.getAllChecks()).thenAnswer((_) async => []);
+    when(() => mockCopyCheckService.getAllChecks(
+      className: any(named: 'className'),
+      since: any(named: 'since'),
+    )).thenAnswer((_) async => []);
 
     when(() => mockFeeService.streamPendingPaymentClaims())
         .thenAnswer((_) => Stream.empty());
