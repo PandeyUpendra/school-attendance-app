@@ -759,8 +759,8 @@ class _AcademicTabState extends State<_AcademicTab>
   @override
   bool get wantKeepAlive => true;
 
-  // Index into _classOptions (0 = Nursery, 1 = LKG, 2 = UKG, 3 = Class 1 … 14 = Class 12)
-  int _fromIdx = 3, _toIdx = 12;
+  // Index into _classOptions (0 = Playgroup, 1 = Pre-Nursery, 2 = Nursery, 3 = LKG, 4 = UKG, 5 = Class 1 … 16 = Class 12)
+  int _fromIdx = 5, _toIdx = 14;
   int _periods = 8, _duration = 45, _lunch = 4;
   List<String> _sections = ['A'];
   List<String> _classList = [];
@@ -770,15 +770,20 @@ class _AcademicTabState extends State<_AcademicTab>
   bool _init = false;
 
   static const _sectionOptions = ['A', 'B', 'C', 'D', 'E'];
+  static const _seniorSectionOptions = [
+    'Sci', 'Sci-A', 'Sci-B',
+    'Com', 'Com-A', 'Com-B',
+    'Arts', 'Arts-A', 'Arts-B',
+  ];
   static const _durations = [35, 40, 45, 50];
 
   /// Full ordered list of class options — pre-primary first, then Class 1-12.
   static const _classOptions = [
-    'Nursery', 'LKG', 'UKG',
+    'Playgroup', 'Pre-Nursery', 'Nursery', 'LKG', 'UKG',
     'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6',
     'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12',
   ];
-  static const _prePrimary = ['Nursery', 'LKG', 'UKG'];
+  static const _prePrimary = ['Playgroup', 'Pre-Nursery', 'Nursery', 'LKG', 'UKG'];
 
   @override
   void didChangeDependencies() {
@@ -787,9 +792,21 @@ class _AcademicTabState extends State<_AcademicTab>
       final p = context.read<SchoolSettingsProvider>();
       // Prefer label-based fields (new format); fall back to integer → index math.
       _fromIdx = _classOptions.indexOf(p.classesFromLabel);
-      if (_fromIdx < 0) _fromIdx = (p.classesFrom + 2).clamp(0, _classOptions.length - 1);
+      if (_fromIdx < 0) {
+        if (p.classesFrom <= 0) {
+          _fromIdx = 2; // Nursery
+        } else {
+          _fromIdx = (p.classesFrom + 4).clamp(0, _classOptions.length - 1);
+        }
+      }
       _toIdx = _classOptions.indexOf(p.classesToLabel);
-      if (_toIdx < 0) _toIdx = (p.classesTo + 2).clamp(0, _classOptions.length - 1);
+      if (_toIdx < 0) {
+        if (p.classesTo <= 0) {
+          _toIdx = 2; // Nursery
+        } else {
+          _toIdx = (p.classesTo + 4).clamp(0, _classOptions.length - 1);
+        }
+      }
       _periods = p.periodsPerDay;
       _duration = _durations.contains(p.periodDuration) ? p.periodDuration : 45;
       _lunch = p.lunchAfterPeriod;
@@ -848,11 +865,22 @@ class _AcademicTabState extends State<_AcademicTab>
       });
 
       for (int i = _fromIdx; i <= _toIdx; i++) {
-        final prefix = _getClassPrefix(_classOptions[i]);
+        final label = _classOptions[i];
+        final prefix = _getClassPrefix(label);
         final hasAny = _classList.any((item) => item.startsWith('$prefix-'));
         if (!hasAny) {
-          for (final s in _sections) {
-            _classList.add('$prefix-$s');
+          if (label == 'Class 11' || label == 'Class 12') {
+            final seniorSecs = <String>[];
+            for (final s in _sections) {
+              seniorSecs.addAll(['Sci-$s', 'Com-$s', 'Arts-$s']);
+            }
+            for (final s in seniorSecs) {
+              _classList.add('$prefix-$s');
+            }
+          } else {
+            for (final s in _sections) {
+              _classList.add('$prefix-$s');
+            }
           }
         }
       }
@@ -864,10 +892,21 @@ class _AcademicTabState extends State<_AcademicTab>
   void _addGlobalSection(String s) {
     setState(() {
       for (int i = _fromIdx; i <= _toIdx; i++) {
-        final prefix = _getClassPrefix(_classOptions[i]);
-        final item = '$prefix-$s';
-        if (!_classList.contains(item)) {
-          _classList.add(item);
+        final label = _classOptions[i];
+        final prefix = _getClassPrefix(label);
+        if (label == 'Class 11' || label == 'Class 12') {
+          final seniorSecs = ['Sci-$s', 'Com-$s', 'Arts-$s'];
+          for (final ss in seniorSecs) {
+            final item = '$prefix-$ss';
+            if (!_classList.contains(item)) {
+              _classList.add(item);
+            }
+          }
+        } else {
+          final item = '$prefix-$s';
+          if (!_classList.contains(item)) {
+            _classList.add(item);
+          }
         }
       }
       _sortClassList();
@@ -929,8 +968,8 @@ class _AcademicTabState extends State<_AcademicTab>
         'classesFromLabel': _classOptions[_fromIdx],
         'classesToLabel': _classOptions[_toIdx],
         // Legacy integer fields for backward compat (Class N → N; pre-primary → 1)
-        'classesFrom': _fromIdx >= 3 ? (_fromIdx - 2) : 1,
-        'classesTo': _toIdx >= 3 ? (_toIdx - 2) : 1,
+        'classesFrom': _fromIdx >= 5 ? (_fromIdx - 4) : 1,
+        'classesTo': _toIdx >= 5 ? (_toIdx - 4) : 1,
         'sections': _sections,
         'classList': newClasses,
         'academicYearStart': _yearStart,
@@ -956,12 +995,18 @@ class _AcademicTabState extends State<_AcademicTab>
     final list = <String>[];
     for (int i = _fromIdx; i <= _toIdx; i++) {
       final label = _classOptions[i];
-      for (final s in _sections) {
-        if (_prePrimary.contains(label)) {
-          list.add('$label-$s'); // e.g. "Nursery-A", "LKG-B"
-        } else {
-          final num = label.replaceFirst('Class ', '');
-          list.add('$num-$s'); // e.g. "1-A", "2-B"
+      final prefix = _getClassPrefix(label);
+      if (label == 'Class 11' || label == 'Class 12') {
+        final seniorSecs = <String>[];
+        for (final s in _sections) {
+          seniorSecs.addAll(['Sci-$s', 'Com-$s', 'Arts-$s']);
+        }
+        for (final s in seniorSecs) {
+          list.add('$prefix-$s');
+        }
+      } else {
+        for (final s in _sections) {
+          list.add('$prefix-$s');
         }
       }
     }
@@ -1051,68 +1096,95 @@ class _AcademicTabState extends State<_AcademicTab>
                 final label = _classOptions[classIdx];
                 final prefix = _getClassPrefix(label);
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          label,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color: AppTheme.textPrimary,
+                final isSenior = label == 'Class 11' || label == 'Class 12';
+                final currentOptions = isSenior ? _seniorSectionOptions : _sectionOptions;
+
+                Widget buildSectionWrap() {
+                  return Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: currentOptions.map((s) {
+                      final item = '$prefix-$s';
+                      final isSelected = _classList.contains(item);
+                      return InkWell(
+                        onTap: () {
+                          setState(() {
+                            if (isSelected) {
+                              final classSections = _classList
+                                  .where((c) => c.startsWith('$prefix-'))
+                                  .toList();
+                              if (classSections.length <= 1) {
+                                _snack(context.tr('selectAtLeastOneSecMsg'));
+                                return;
+                              }
+                              _classList.remove(item);
+                            } else {
+                              _classList.add(item);
+                              _sortClassList();
+                            }
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: isSenior
+                              ? const EdgeInsets.symmetric(horizontal: 10, vertical: 6)
+                              : EdgeInsets.zero,
+                          width: isSenior ? null : 32,
+                          height: 32,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: isSelected ? AppTheme.primaryLight : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            s,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected ? AppTheme.primary : Colors.grey.shade700,
+                            ),
                           ),
                         ),
-                      ),
-                      Wrap(
-                        spacing: 8,
-                        children: _sectionOptions.map((s) {
-                          final item = '$prefix-$s';
-                          final isSelected = _classList.contains(item);
-                          return InkWell(
-                            onTap: () {
-                              setState(() {
-                                if (isSelected) {
-                                  final classSections = _classList
-                                      .where((c) => c.startsWith('$prefix-'))
-                                      .toList();
-                                  if (classSections.length <= 1) {
-                                    _snack(context.tr('selectAtLeastOneSecMsg'));
-                                    return;
-                                  }
-                                  _classList.remove(item);
-                                } else {
-                                  _classList.add(item);
-                                  _sortClassList();
-                                }
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              width: 32,
-                              height: 32,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: isSelected ? AppTheme.primaryLight : Colors.grey.shade200,
-                                shape: BoxShape.circle,
+                      );
+                    }).toList(),
+                  );
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: isSenior
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              label,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: AppTheme.textPrimary,
                               ),
+                            ),
+                            const SizedBox(height: 8),
+                            buildSectionWrap(),
+                          ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
                               child: Text(
-                                s,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  color: isSelected ? AppTheme.primary : Colors.grey.shade700,
+                                label,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: AppTheme.textPrimary,
                                 ),
                               ),
                             ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
+                            buildSectionWrap(),
+                          ],
+                        ),
                 );
               },
             ),

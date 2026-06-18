@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../l10n/app_strings.dart';
 import '../../services/auth_service.dart';
@@ -5,6 +6,7 @@ import '../auth/role_selection_screen.dart';
 import '../../models/school_onboarding.dart';
 import '../../services/school_settings_service.dart';
 import '../../theme.dart';
+import '../../shared/utils/app_logger.dart';
 import './step1_basic_info.dart';
 import './step2_address.dart';
 import './step3_academic.dart';
@@ -95,10 +97,43 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
   Future<void> _loadDraft() async {
     try {
       final draft = await _svc.getOnboardingStatus();
+      
+      String dbSchoolName = '';
+      String dbAddress = '';
+      String dbEmail = '';
+      String dbLogoUrl = '';
+      try {
+        final schoolDoc = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(AuthService.currentSchoolId)
+            .get();
+        if (schoolDoc.exists && schoolDoc.data() != null) {
+          final data = schoolDoc.data()!;
+          dbSchoolName = data['name'] as String? ?? '';
+          dbAddress = data['address'] as String? ?? '';
+          dbEmail = data['email'] as String? ?? '';
+          dbLogoUrl = data['logoUrl'] as String? ?? '';
+        }
+      } catch (e, st) {
+        AppLogger.e('SchoolOnboardingScreen', 'Failed to fetch parent school details', e, st);
+      }
+
       if (draft.isNotEmpty) {
         final savedStep = (draft['currentStep'] as int? ?? 0).clamp(0, 6);
         setState(() {
           _data = SchoolOnboarding.fromJson(draft);
+          if (_data.schoolName.isEmpty && dbSchoolName.isNotEmpty) {
+            _data.schoolName = dbSchoolName;
+          }
+          if (_data.address.isEmpty && dbAddress.isNotEmpty) {
+            _data.address = dbAddress;
+          }
+          if (_data.email.isEmpty && dbEmail.isNotEmpty) {
+            _data.email = dbEmail;
+          }
+          if (_data.logoUrl.isEmpty && dbLogoUrl.isNotEmpty) {
+            _data.logoUrl = dbLogoUrl;
+          }
           _step = savedStep;
           _resuming = savedStep > 0;
           _loading = false;
@@ -109,7 +144,15 @@ class _SchoolOnboardingScreenState extends State<SchoolOnboardingScreen> {
           });
         }
       } else {
-        setState(() => _loading = false);
+        setState(() {
+          _data = SchoolOnboarding(
+            schoolName: dbSchoolName,
+            address: dbAddress,
+            email: dbEmail,
+            logoUrl: dbLogoUrl,
+          );
+          _loading = false;
+        });
       }
     } catch (_) {
       setState(() => _loading = false);

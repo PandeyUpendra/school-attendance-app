@@ -115,16 +115,16 @@ Map<String, List<String>> _buildClassGroups(List<String> classes) {
   };
   for (final cls in classes) {
     final s = cls.toLowerCase().replaceAll(' ', '');
-    if (RegExp(r'nursery|lkg|ukg|prep|playgroup|prenursery|^kg\d?$')
+    if (RegExp(r'nursery|lkg|ukg|prep|playgroup|pre-?nursery|^kg\d?$')
         .hasMatch(s)) {
       groups['Pre-Primary']!.add(cls);
-    } else if (RegExp(r'^(class|grade|std)?[1-5][a-e]?$').hasMatch(s)) {
+    } else if (RegExp(r'^(class|grade|std)?[1-5](?!\d)').hasMatch(s)) {
       groups['Primary']!.add(cls);
-    } else if (RegExp(r'^(class|grade|std)?[6-8][a-e]?$').hasMatch(s)) {
+    } else if (RegExp(r'^(class|grade|std)?[6-8](?!\d)').hasMatch(s)) {
       groups['Middle']!.add(cls);
-    } else if (RegExp(r'^(class|grade|std)?(9|10)[a-e]?$').hasMatch(s)) {
+    } else if (RegExp(r'^(class|grade|std)?(9|10)(?!\d)').hasMatch(s)) {
       groups['Secondary']!.add(cls);
-    } else if (RegExp(r'^(class|grade|std)?(11|12)[a-e]?$').hasMatch(s)) {
+    } else if (RegExp(r'^(class|grade|std)?(11|12)(?!\d)').hasMatch(s)) {
       groups['Sr. Secondary']!.add(cls);
     }
   }
