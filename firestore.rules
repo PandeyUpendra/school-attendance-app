@@ -1717,6 +1717,16 @@ service cloud.firestore {
 
 
     // ════════════════════════════════════════════════════════════════
+    // TEACHER ATTENDANCE  (/schools/{sid}/teacher_attendance/{docId})
+    // ════════════════════════════════════════════════════════════════
+    match /schools/{sid}/teacher_attendance/{docId} {
+      allow read:  if isSignedIn() && inSchool(sid);
+      allow write: if isSignedIn() && inSchool(sid) && isManagement();
+    }
+
+
+
+    // ════════════════════════════════════════════════════════════════
     // HOMEWORK  (/schools/{sid}/homework/{docId})
     //
     // All school members may read; any teacher or management may write.

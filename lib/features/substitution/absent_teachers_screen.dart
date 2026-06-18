@@ -19,6 +19,7 @@ import '../../services/timetable_service.dart';
 import '../../l10n/app_strings.dart';
 import '../../theme.dart';
 import '../../shared/widgets/refreshable_data.dart';
+import '../../shared/utils/school_clock.dart';
 import '../../shared/utils/app_logger.dart';
 
 class AbsentTeachersScreen extends StatefulWidget {
@@ -53,9 +54,9 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
+    final now = SchoolClock.now();
     _todayName = _dayNames[(now.weekday - 1).clamp(0, 5)];
-    _todayKey  = '${now.year}-${now.month}-${now.day}';
+    _todayKey  = SchoolClock.todayKey();
     _load();
   }
 
@@ -79,8 +80,8 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
     final leaves    = results[2] as List<Map<String, dynamic>>;
     final manualDoc = results[3] as Map<String, dynamic>;
 
-    final now   = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    final now   = SchoolClock.now();
+    final today = SchoolClock.today();
 
     // Approved leaves that cover today
     final absentFromLeave = <String>{};
@@ -143,6 +144,8 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
   Future<Map<String, dynamic>> _loadManualAbsences() async {
     try {
       final doc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(AuthService.currentSchoolId)
           .collection('teacher_attendance')
           .doc(_todayKey)
           .get();
@@ -512,6 +515,8 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
                               final reason = effectiveReason;
                               Navigator.pop(ctx);
                               await FirebaseFirestore.instance
+                                  .collection('schools')
+                                  .doc(AuthService.currentSchoolId)
                                   .collection('teacher_attendance')
                                   .doc(_todayKey)
                                   .set(
@@ -558,7 +563,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
       schoolLogoUrl: settings.schoolLogo,
     );
 
-    final now     = DateTime.now();
+    final now     = SchoolClock.now();
     final dateStr = '${now.day} ${_months[now.month]} ${now.year}';
     final subs    = await TimetableService.instance.getTodaySubstitutions();
 
@@ -632,7 +637,7 @@ class _AbsentTeachersScreenState extends State<AbsentTeachersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final now     = DateTime.now();
+    final now     = SchoolClock.now();
     final dateStr = '${now.day} ${_months[now.month]} ${now.year}';
 
     return Scaffold(

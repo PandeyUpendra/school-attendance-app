@@ -1737,16 +1737,26 @@ class TimetableService extends BaseFirestoreService {
   // ── getTodayAbsentTeachersInfo with optional positional schoolId ──────────
 
   Future<Map<String, int>> getTodayAbsentTeachersInfo([String? schoolId]) async {
-    final now = DateTime.now();
+    final now = SchoolClock.now();
     final thirtyDaysAgo = now.subtract(const Duration(days: 30));
 
     final allLeavesFuture = getLeaveApplications(since: thirtyDaysAgo);
     final timetableFuture = getTimetable();
     final subsFuture      = getTodaySubstitutions();
 
-    final allLeaves = await allLeavesFuture;
-    final timetable = await timetableFuture;
-    final subs      = await subsFuture;
+    final sid = schoolId ?? _schoolId;
+    final todayKey = SchoolClock.todayKey();
+    final manualSnapFuture = db
+        .collection('schools')
+        .doc(sid)
+        .collection('teacher_attendance')
+        .doc(todayKey)
+        .get();
+
+    final allLeaves  = await allLeavesFuture;
+    final timetable  = await timetableFuture;
+    final subs       = await subsFuture;
+    final manualSnap = await manualSnapFuture;
 
     final absentIds = <String>{};
     for (final app in allLeaves) {
@@ -1757,11 +1767,27 @@ class TimetableService extends BaseFirestoreService {
       if (start == null) continue;
       final days  = (app['numberOfDays'] as num?)?.toInt() ?? 1;
       final end   = start.add(Duration(days: days - 1));
-      final today = DateTime(now.year, now.month, now.day);
+      final today = SchoolClock.today();
       if (!today.isBefore(DateTime(start.year, start.month, start.day)) &&
           !today.isAfter(DateTime(end.year, end.month, end.day))) {
         final tid = app['teacherId'] as String?;
         if (tid != null && tid.isNotEmpty) absentIds.add(tid);
+      }
+    }
+
+    if (manualSnap.exists && manualSnap.data() != null) {
+      final teachersMap = manualSnap.data()!['teachers'];
+      if (teachersMap is Map) {
+        teachersMap.forEach((tid, v) {
+          if (v is Map) {
+            final status = v['status'] as String? ?? '';
+            if (status == 'Absent') {
+              if (tid is String && tid.isNotEmpty) {
+                absentIds.add(tid);
+              }
+            }
+          }
+        });
       }
     }
 
