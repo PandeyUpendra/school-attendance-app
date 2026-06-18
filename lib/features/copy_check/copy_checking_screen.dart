@@ -12,6 +12,7 @@ import '../../services/student_service.dart';
 import '../../theme.dart';
 import '../../shared/utils/phone_utils.dart';
 import '../../shared/utils/app_logger.dart';
+import '../../shared/utils/class_name_utils.dart';
 import '../../services/ai_service.dart';
 import '../../shared/utils/app_transitions.dart';
 
@@ -525,7 +526,7 @@ class _SessionCard extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
-                Text('${c.className}${c.section.isNotEmpty ? " ${c.section}" : ""}',
+                Text(ClassName.format(c.className, c.section),
                     style: TextStyle(
                         fontSize: 12, color: Colors.grey.shade500)),
               ],

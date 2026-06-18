@@ -61,4 +61,46 @@ abstract class ClassName {
 
   /// Returns true when [a] and [b] refer to the same class after normalisation.
   static bool same(String a, String b) => canonical(a) == canonical(b);
+
+  /// Formats class name and section name for display.
+  /// Handles case insensitivity and avoids redundant section printout.
+  ///
+  /// Examples:
+  ///   format("6-B", "B") -> "6-B"
+  ///   format("6B", "B") -> "6B"
+  ///   format("6", "B") -> "6-B"
+  ///   format("Class 6", "B") -> "Class 6-B"
+  static String format(String className, String section) {
+    final cls = className.trim();
+    final sec = section.trim();
+    if (sec.isEmpty) return cls;
+
+    final clsUpper = cls.toUpperCase();
+    final secUpper = sec.toUpperCase();
+
+    if (clsUpper.endsWith('-$secUpper') ||
+        clsUpper.endsWith(' $secUpper') ||
+        clsUpper.endsWith(secUpper)) {
+      return cls;
+    }
+    return '$cls-$sec';
+  }
+
+  /// Formats class name and section name with localized separator "— Section B"
+  /// unless redundant.
+  static String formatWithSectionWord(String className, String section, String sectionWord) {
+    final cls = className.trim();
+    final sec = section.trim();
+    if (sec.isEmpty) return cls;
+
+    final clsUpper = cls.toUpperCase();
+    final secUpper = sec.toUpperCase();
+
+    if (clsUpper.endsWith('-$secUpper') ||
+        clsUpper.endsWith(' $secUpper') ||
+        clsUpper.endsWith(secUpper)) {
+      return cls;
+    }
+    return '$cls — $sectionWord $sec';
+  }
 }

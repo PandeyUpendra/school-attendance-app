@@ -5,6 +5,7 @@ import '../../services/class_diary_service.dart';
 import '../../services/copy_check_service.dart';
 import '../../theme.dart';
 import '../../l10n/app_strings.dart';
+import '../../shared/utils/class_name_utils.dart';
 
 class ClassDiaryScreen extends StatefulWidget {
   final Teacher? teacher; // Null for Guardian view
@@ -204,7 +205,6 @@ class _ClassDiaryScreenState extends State<ClassDiaryScreen> {
         ),
       );
     } else {
-      final sec = _activeSection.isNotEmpty ? '-$_activeSection' : '';
       return Container(
         width: double.infinity,
         color: Colors.white,
@@ -220,7 +220,7 @@ class _ClassDiaryScreenState extends State<ClassDiaryScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Class $_activeClass$sec',
+                  'Class ${ClassName.format(_activeClass, _activeSection)}',
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
                 ),
                 const Text(

@@ -5,6 +5,7 @@ import '../../models/student.dart';
 import '../../services/student_service.dart';
 import '../../services/task_service.dart';
 import '../../theme.dart';
+import '../../shared/utils/class_name_utils.dart';
 
 class TaskMarkingScreen extends StatefulWidget {
   final Task task;
@@ -119,7 +120,7 @@ class _TaskMarkingScreenState extends State<TaskMarkingScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          '${context.tr('markCompletionFor')} ${widget.className} ${widget.section}',
+                          '${context.tr('markCompletionFor')} ${ClassName.format(widget.className, widget.section)}',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),

@@ -9,6 +9,7 @@ import '../../services/fee_service.dart';
 import '../../theme.dart';
 import '../../shared/utils/app_logger.dart';
 import '../../shared/utils/currency_utils.dart';
+import '../../shared/utils/class_name_utils.dart';
 import '../../shared/utils/app_transitions.dart';
 
 class PaymentClaimsVerificationScreen extends StatefulWidget {
@@ -182,7 +183,7 @@ class _PaymentClaimsVerificationScreenState extends State<PaymentClaimsVerificat
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
                       ),
                       Text(
-                        'Class $className${section.isNotEmpty ? '-$section' : ''} · Roll $roll',
+                        'Class ${ClassName.format(className, section)} · Roll $roll',
                         style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                       ),
                     ],

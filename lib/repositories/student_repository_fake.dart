@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../models/student.dart';
 import '../models/student_remark.dart';
+import '../shared/utils/class_name_utils.dart';
 import 'student_repository.dart';
 
 /// In-memory [StudentRepository] for use in unit tests.
@@ -125,8 +126,8 @@ class FakeStudentRepository implements StudentRepository {
     if (_students.containsKey(id)) {
       final existing = _students[id];
       if (existing != null && existing.name.isNotEmpty) {
-        final sec = s.section.isNotEmpty ? ' Section ${s.section}' : '';
-        return 'Roll number ${s.roll} already exists in ${s.className}$sec.';
+        final classAndSec = ClassName.formatWithSectionWord(s.className, s.section, 'Section');
+        return 'Roll number ${s.roll} already exists in $classAndSec.';
       }
     }
     _students[id] = _withId(s, id);

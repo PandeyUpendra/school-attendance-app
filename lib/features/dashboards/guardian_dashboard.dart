@@ -33,6 +33,7 @@ import '../../models/transport_route.dart';
 import '../../shared/utils/role_guard.dart';
 import '../../shared/utils/app_transitions.dart';
 import '../../shared/utils/currency_utils.dart';
+import '../../shared/utils/class_name_utils.dart';
 import '../announcements/announcements_screen.dart';
 import '../leave/guardian_leave_application_screen.dart';
 import '../announcements/notifications_screen.dart';
@@ -1186,7 +1187,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${_student!.className}${_student!.section.isNotEmpty ? "-${_student!.section}" : ""}  ·  Roll ${_student!.roll}',
+                                '${ClassName.format(_student!.className, _student!.section)}  ·  Roll ${_student!.roll}',
                                 style: const TextStyle(
                                   fontSize: 13,
                                   color: AppTheme.textSecondary,
@@ -1271,7 +1272,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '${child.className}${child.section.isNotEmpty ? "-${child.section}" : ""}  ·  Roll ${child.roll}',
+                                      '${ClassName.format(child.className, child.section)}  ·  Roll ${child.roll}',
                                       style: const TextStyle(
                                         fontSize: 12,
                                         color: AppTheme.textSecondary,

@@ -14,6 +14,7 @@ import '../../models/school_provided_details.dart';
 import '../../services/student_service.dart';
 import '../../theme.dart';
 import '../../shared/utils/validators.dart';
+import '../../shared/utils/class_name_utils.dart';
 import '../../shared/utils/image_utils.dart';
 import '../auth/guardian_email_request_screen.dart';
 import './guardian_document_upload_screen.dart';
@@ -469,7 +470,7 @@ class _GuardianStudentDetailsScreenState extends State<GuardianStudentDetailsScr
               _buildTextField(_nameController, context.tr('fullName'), Icons.person),
               _buildTextField(_dobController, context.tr('dobWithFormat'), Icons.cake),
               _buildGenderDropdown(),
-              _buildReadOnlyField(context.tr('classSection'), '${widget.student.className} ${widget.student.section}'),
+              _buildReadOnlyField(context.tr('classSection'), ClassName.format(widget.student.className, widget.student.section)),
               _buildReadOnlyField(context.tr('rollNumber'), widget.student.roll.toString()),
 
               const SizedBox(height: 24),

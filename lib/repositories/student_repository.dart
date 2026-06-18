@@ -4,6 +4,7 @@ import '../models/student.dart';
 import '../models/student_remark.dart';
 import '../services/auth_service.dart';
 import '../shared/utils/app_logger.dart';
+import '../shared/utils/class_name_utils.dart';
 
 // ── Abstract interface ────────────────────────────────────────────────────────
 
@@ -383,8 +384,8 @@ class FirestoreStudentRepository implements StudentRepository {
       if (doc.exists) {
         final data = doc.data();
         if (data != null && data.containsKey('name') && data['name'].toString().isNotEmpty) {
-          final sec = s.section.isNotEmpty ? ' Section ${s.section}' : '';
-          return 'Roll number ${s.roll} already exists in ${s.className}$sec.';
+          final classAndSec = ClassName.formatWithSectionWord(s.className, s.section, 'Section');
+          return 'Roll number ${s.roll} already exists in $classAndSec.';
         }
       }
       tx.set(docRef, s.toJson(), SetOptions(merge: true));

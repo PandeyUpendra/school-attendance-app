@@ -8,6 +8,7 @@ import '../../services/notification_service.dart';
 import '../../services/base_firestore_service.dart';
 import '../../shared/widgets/refreshable_data.dart';
 import '../../shared/utils/app_logger.dart';
+import '../../shared/utils/class_name_utils.dart';
 import '../../shared/utils/app_transitions.dart';
 /// Shown to the class teacher — lists leave applications submitted by guardians.
 /// Teacher can Approve (auto-marks attendance), Reject, or Forward to Coordinator/Principal.
@@ -246,7 +247,7 @@ class _StudentLeaveRequestsScreenState
             Text(context.tr('studentLeaveRequests'),
                 style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
             Text(
-              '${context.tr('classLabel')} ${widget.studentClass}${widget.studentSection.isNotEmpty ? ' — ${context.tr('sectionWord')} ${widget.studentSection}' : ''}',
+              '${context.tr('classLabel')} ${ClassName.formatWithSectionWord(widget.studentClass, widget.studentSection, context.tr('sectionWord'))}',
               style: const TextStyle(
                   fontSize: 11, color: Colors.white70)),
           ],
@@ -762,7 +763,7 @@ class _StudentLeaveDetailSheetState extends State<_StudentLeaveDetailSheet> {
             _row(Icons.person_outline, context.tr('studentLabelField'),
                 '${app['studentName'] ?? '—'}  •  ${context.tr('roll')} ${app['studentRoll'] ?? ''}'),
             _row(Icons.school_outlined, context.tr('classLabel'),
-                '${app['studentClass'] ?? '—'}${app['studentSection'] != null && app['studentSection'].toString().isNotEmpty ? ' — ${context.tr('sectionWord')} ${app['studentSection']}' : ''}'),
+                ClassName.formatWithSectionWord(app['studentClass'] ?? '—', app['studentSection']?.toString() ?? '', context.tr('sectionWord'))),
             if ((app['guardianName'] as String? ?? '').isNotEmpty)
               _row(Icons.family_restroom_outlined, context.tr('guardianLabel'),
                   app['guardianName'] as String),

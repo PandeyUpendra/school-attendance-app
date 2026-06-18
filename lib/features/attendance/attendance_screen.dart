@@ -23,6 +23,7 @@ import '../../shared/utils/phone_utils.dart';
 import '../../l10n/app_strings.dart';
 import 'package:school_app/services/consent_service.dart';
 import '../../shared/utils/consent_gate.dart';
+import '../../shared/utils/class_name_utils.dart';
 import '../../shared/widgets/consent_pending_banner.dart';
 import '../../shared/utils/school_clock.dart';
 import '../../shared/utils/app_logger.dart';
@@ -1023,11 +1024,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    final title = (_section.isNotEmpty &&
-            !_className.endsWith('-$_section') &&
-            !_className.endsWith(' $_section'))
-        ? '$_className - $_section'
-        : _className;
+    final title = ClassName.format(_className, _section);
     return AppBar(
       leading: (_isMarking && _alreadySaved)
           ? IconButton(

@@ -4,6 +4,7 @@ import '../../models/study_material.dart';
 import '../../services/study_material_service.dart';
 import '../../theme.dart';
 import '../../l10n/app_strings.dart';
+import '../../shared/utils/class_name_utils.dart';
 
 class StudyMaterialListScreen extends StatefulWidget {
   final String className;
@@ -82,12 +83,10 @@ class _StudyMaterialListScreenState extends State<StudyMaterialListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sec = widget.section.isNotEmpty ? '-${widget.section}' : '';
-
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Text(context.tr('studyMaterialsTitle').replaceAll('{class}', '${widget.className}$sec')),
+        title: Text(context.tr('studyMaterialsTitle').replaceAll('{class}', ClassName.format(widget.className, widget.section))),
         backgroundColor: AppTheme.primaryDark,
         elevation: 0,
         actions: [

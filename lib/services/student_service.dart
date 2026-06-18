@@ -17,6 +17,7 @@ import '../shared/utils/app_logger.dart';
 import '../shared/utils/image_utils.dart';
 import '../shared/utils/phone_utils.dart';
 import '../shared/utils/school_clock.dart';
+import '../shared/utils/class_name_utils.dart';
 import 'audit_log_service.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
@@ -680,8 +681,8 @@ class StudentService extends BaseFirestoreService {
       // Check duplicate roll on target
       final newDocId = Student.buildDocId(sanitized.roll, sanitized.className, sanitized.section);
       if (await _repo.existsByRoll(sanitized.className, sanitized.section, sanitized.roll)) {
-        final sec = sanitized.section.isNotEmpty ? ' Section ${sanitized.section}' : '';
-        return 'Roll number ${sanitized.roll} already exists in ${sanitized.className}$sec.';
+        final classAndSec = ClassName.formatWithSectionWord(sanitized.className, sanitized.section, 'Section');
+        return 'Roll number ${sanitized.roll} already exists in $classAndSec.';
       }
 
       // Upsert under new ID and delete old document

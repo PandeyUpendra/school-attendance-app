@@ -868,19 +868,23 @@ class _AdminScreenState extends State<AdminScreen> {
           const SizedBox(height: 6),
           TextField(
             controller: _schoolNameCtrl,
+            enabled: !_saving,
             decoration: InputDecoration(
               hintText: 'e.g. Greenwood Public School',
               hintStyle: TextStyle(color: Colors.grey.shade500),
               prefixIcon: const Icon(Icons.school_outlined,
                   color: AppTheme.textSecondary, size: 20),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: _saving ? Colors.grey.shade100 : AppTheme.background,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade300)),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade300)),
+              disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade200)),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:
@@ -895,19 +899,23 @@ class _AdminScreenState extends State<AdminScreen> {
           const SizedBox(height: 6),
           TextField(
             controller: _schoolAddressCtrl,
+            enabled: !_saving,
             decoration: InputDecoration(
               hintText: 'e.g. Sector 12, Noida, UP',
               hintStyle: TextStyle(color: Colors.grey.shade500),
               prefixIcon: const Icon(Icons.location_on_outlined,
                   color: AppTheme.textSecondary, size: 20),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: _saving ? Colors.grey.shade100 : AppTheme.background,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade300)),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade300)),
+              disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade200)),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:
@@ -922,19 +930,23 @@ class _AdminScreenState extends State<AdminScreen> {
           const SizedBox(height: 6),
           EmailTextFormField(
             controller: _primaryOwnerEmailCtrl,
+            enabled: !_saving,
             decoration: InputDecoration(
               hintText: 'owner@example.com',
               hintStyle: TextStyle(color: Colors.grey.shade500),
               prefixIcon: const Icon(Icons.email_outlined,
                   color: AppTheme.textSecondary, size: 20),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: _saving ? Colors.grey.shade100 : AppTheme.background,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade300)),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade300)),
+              disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade200)),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:

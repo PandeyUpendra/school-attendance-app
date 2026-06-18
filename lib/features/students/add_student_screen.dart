@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/student.dart';
+import '../../shared/utils/class_name_utils.dart';
 import '../../models/school_provided_details.dart';
 import '../../services/auth_service.dart';
 import '../../services/base_firestore_service.dart';
@@ -248,14 +249,14 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     if (!mounted) return true;
 
     final dup = match.first;
-    final sec = widget.section.isNotEmpty ? '-${widget.section}' : '';
+    final classAndSec = ClassName.format(widget.className, widget.section);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(context.tr('possibleDuplicate')),
         content: Text(
           '${context.tr('dupDialogPart1')}\n\n'
-          '${dup.name} (${context.tr('roll')} ${dup.roll}, ${widget.className}$sec).\n\n'
+          '${dup.name} (${context.tr('roll')} ${dup.roll}, $classAndSec).\n\n'
           '${context.tr('dupDialogPart2')}',
         ),
         actions: [
@@ -567,7 +568,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
           'Failed at "${failedStep ?? "save"}" (role=$role)\n'
-          'school=$sid · class=${widget.className}-${widget.section}\n'
+          'school=$sid · class=${ClassName.format(widget.className, widget.section)}\n'
           'your classes=$classIds\n$e',
         ),
         backgroundColor: Colors.red,
@@ -637,9 +638,10 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                 Text(context.tr('addingTo'),
                     style: const TextStyle(color: AppTheme.primary)),
                 Text(
-                  widget.section.isEmpty
-                      ? widget.className
-                      : '${widget.className} — ${context.tr('sectionWord')} ${widget.section}',
+                  ClassName.formatWithSectionWord(
+                      widget.className,
+                      widget.section,
+                      context.tr('sectionWord')),
                   style: const TextStyle(
                       color: AppTheme.primaryDark,
                       fontWeight: FontWeight.bold)),

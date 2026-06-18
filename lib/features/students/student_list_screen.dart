@@ -23,6 +23,7 @@ import '../../models/student.dart';
 import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../shared/utils/phone_utils.dart';
+import '../../shared/utils/class_name_utils.dart';
 import '../../shared/utils/csv_export.dart';
 import '../../shared/utils/consent_gate.dart';
 import '../../services/consent_service.dart';
@@ -153,10 +154,11 @@ class _StudentListScreenState extends State<StudentListScreen> {
   Set<int> _selectedRolls = {};
   bool     _selectMode    = false;
 
-  String get _effectiveTitle {
-    if (widget.section.trim().isEmpty) return widget.className;
-    return '${widget.className} — ${context.tr('sectionWord')} ${widget.section}';
-  }
+  String get _effectiveTitle => ClassName.formatWithSectionWord(
+        widget.className,
+        widget.section,
+        context.tr('sectionWord'),
+      );
 
   Future<void> _fetchPage({bool reset = false}) async {
     if (_loadingMore || (!reset && !_hasMore)) return;
@@ -2001,7 +2003,7 @@ class _StudentDetailPageState extends State<StudentDetailPage> {
             _InfoRow(Icons.wc_outlined, context.tr('genderLabel'),
                 _student.gender?.isNotEmpty == true ? _student.gender! : '—'),
             _InfoRow(Icons.school_outlined, context.tr('classSection'),
-                '${_student.className} ${_student.section}'.trim()),
+                ClassName.format(_student.className, _student.section)),
             _InfoRow(Icons.tag, context.tr('rollNumber'), '${_student.roll}'),
             const Divider(height: 1),
 

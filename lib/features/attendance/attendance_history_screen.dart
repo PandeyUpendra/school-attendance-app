@@ -6,6 +6,7 @@ import '../../l10n/app_strings.dart';
 import '../../shared/utils/pdf_theme.dart';
 import '../../shared/utils/csv_export.dart';
 import '../../models/student.dart';
+import '../../shared/utils/class_name_utils.dart';
 import '../../services/student_service.dart';
 import '../../theme.dart';
 import '../../shared/widgets/refreshable_data.dart';
@@ -171,7 +172,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                     color: PdfTheme.primary)),
             pw.SizedBox(height: 4),
             pw.Text(
-              '${widget.className}   |   ${_monthLabel(_month)}   |   '
+              '${ClassName.format(widget.className, widget.section)}   |   ${_monthLabel(_month)}   |   '
               'Working Days: $_workingDays   |   '
               'Class Avg: ${_classAverage.toStringAsFixed(1)}%',
               style: const pw.TextStyle(
@@ -260,7 +261,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
           pw.SizedBox(height: 6),
           pw.Text(
             'Generated on ${now.day}/${now.month}/${now.year}  •  '
-            '${widget.className}  •  ${_monthLabel(_month)}',
+            '${ClassName.format(widget.className, widget.section)}  •  ${_monthLabel(_month)}',
             style: const pw.TextStyle(
                 fontSize: 8, color: PdfColors.grey600),
           ),
@@ -304,7 +305,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
       await CsvExport.share(
         filename: 'attendance_${cls}_$monthStr.csv',
         rows: rows,
-        shareText: 'Attendance history for ${widget.className} - ${_monthLabel(_month)}',
+        shareText: 'Attendance history for ${ClassName.format(widget.className, widget.section)} - ${_monthLabel(_month)}',
       );
     } catch (e) {
       if (!mounted) return;
@@ -333,7 +334,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
             Text(context.tr('attendanceHistory'),
                 style: const TextStyle(
                     fontSize: 17, fontWeight: FontWeight.bold)),
-            Text(widget.className,
+            Text(ClassName.format(widget.className, widget.section),
                 style:
                     const TextStyle(fontSize: 12, color: Colors.white70)),
           ],

@@ -6,6 +6,7 @@ import '../../l10n/app_strings.dart';
 import '../../shared/utils/consent_gate.dart';
 import '../../shared/utils/pdf_theme.dart';
 import '../../models/student.dart';
+import '../../shared/utils/class_name_utils.dart';
 import '../../services/student_service.dart';
 import '../../services/timetable_service.dart';
 import '../../theme.dart';
@@ -212,7 +213,7 @@ class _AttendanceCertificateScreenState
               children: [
                 _row('Student Name', s.name),
                 _row('Roll Number', '${s.roll}'),
-                _row('Class / Section', s.className),
+                _row('Class / Section', ClassName.format(s.className, s.section)),
                 _row("Father's Name",
                     s.fatherName.isNotEmpty ? s.fatherName : '—'),
                 _row('Academic Period', '$fromStr  to  $toStr'),
@@ -432,7 +433,7 @@ class _AttendanceCertificateScreenState
                     Text(s.name,
                         style: const TextStyle(
                             fontSize: 17, fontWeight: FontWeight.bold)),
-                    Text('${context.tr('rollPrefix')} ${s.roll}  •  ${s.className}',
+                    Text('${context.tr('rollPrefix')} ${s.roll}  •  ${ClassName.format(s.className, s.section)}',
                         style: TextStyle(
                             fontSize: 13, color: Colors.grey.shade600)),
                     if (s.fatherName.isNotEmpty)
@@ -605,7 +606,7 @@ class _AttendanceCertificateScreenState
                   const SizedBox(height: 12),
                   _previewRow(context.tr('studentLabelField'), s.name),
                   _previewRow(context.tr('rollPrefix'), '${s.roll}'),
-                  _previewRow(context.tr('classLabel'), s.className),
+                  _previewRow(context.tr('classLabel'), ClassName.format(s.className, s.section)),
                   _previewRow(context.tr('periodWord'), '$fromStr to $toStr'),
                   _previewRow(context.tr('attendanceLabel'),
                       '$_presentDays / $_workingDays ${context.tr('daysLower')} (${_percentage.toStringAsFixed(2)}%)'),
