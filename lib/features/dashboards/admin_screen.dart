@@ -873,22 +873,22 @@ class _AdminScreenState extends State<AdminScreen> {
               hintText: 'e.g. Greenwood Public School',
               hintStyle: TextStyle(color: Colors.grey.shade500),
               prefixIcon: const Icon(Icons.school_outlined,
-                  color: AppTheme.textSecondary, size: 20),
+                  color: AppTheme.primary, size: 20),
               filled: true,
-              fillColor: _saving ? Colors.grey.shade100 : AppTheme.background,
+              fillColor: _saving ? Colors.grey.shade100 : Colors.white,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300)),
+                  borderSide: BorderSide(color: Colors.grey.shade400)),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300)),
+                  borderSide: BorderSide(color: Colors.grey.shade400)),
               disabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade200)),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:
-                      const BorderSide(color: AppTheme.primary, width: 1.5)),
+                      const BorderSide(color: AppTheme.primary, width: 2.0)),
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
             ),
           ),
@@ -904,22 +904,22 @@ class _AdminScreenState extends State<AdminScreen> {
               hintText: 'e.g. Sector 12, Noida, UP',
               hintStyle: TextStyle(color: Colors.grey.shade500),
               prefixIcon: const Icon(Icons.location_on_outlined,
-                  color: AppTheme.textSecondary, size: 20),
+                  color: AppTheme.primary, size: 20),
               filled: true,
-              fillColor: _saving ? Colors.grey.shade100 : AppTheme.background,
+              fillColor: _saving ? Colors.grey.shade100 : Colors.white,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300)),
+                  borderSide: BorderSide(color: Colors.grey.shade400)),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300)),
+                  borderSide: BorderSide(color: Colors.grey.shade400)),
               disabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade200)),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:
-                      const BorderSide(color: AppTheme.primary, width: 1.5)),
+                      const BorderSide(color: AppTheme.primary, width: 2.0)),
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
             ),
           ),
@@ -935,22 +935,22 @@ class _AdminScreenState extends State<AdminScreen> {
               hintText: 'owner@example.com',
               hintStyle: TextStyle(color: Colors.grey.shade500),
               prefixIcon: const Icon(Icons.email_outlined,
-                  color: AppTheme.textSecondary, size: 20),
+                  color: AppTheme.primary, size: 20),
               filled: true,
-              fillColor: _saving ? Colors.grey.shade100 : AppTheme.background,
+              fillColor: _saving ? Colors.grey.shade100 : Colors.white,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300)),
+                  borderSide: BorderSide(color: Colors.grey.shade400)),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300)),
+                  borderSide: BorderSide(color: Colors.grey.shade400)),
               disabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade200)),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:
-                      const BorderSide(color: AppTheme.primary, width: 1.5)),
+                      const BorderSide(color: AppTheme.primary, width: 2.0)),
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
             ),
           ),
