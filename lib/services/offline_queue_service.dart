@@ -26,6 +26,10 @@ class OfflineQueueService {
 
   Future<dynamic> _lock = Future.value();
 
+  void reset() {
+    _lock = Future.value();
+  }
+
   Future<T> synchronized<T>(Future<T> Function() action) {
     final completer = Completer<T>();
     _lock = _lock.then((_) async {

@@ -16,6 +16,7 @@ import 'package:school_app/services/base_firestore_service.dart';
 import 'package:school_app/services/auth_service.dart';
 import 'package:school_app/services/consent_service.dart';
 import 'package:school_app/shared/providers/locale_provider.dart';
+import 'package:school_app/shared/providers/school_settings_provider.dart';
 import '../test_helpers.dart';
 
 class MockStudentService extends Mock implements StudentService {}
@@ -35,6 +36,7 @@ void main() {
   late List<String> mockConnectivityResult;
 
   const MethodChannel connectivityChannel = MethodChannel('dev.fluttercommunity.plus/connectivity');
+  const MethodChannel connectivityEventChannel = MethodChannel('dev.fluttercommunity.plus/connectivity_status');
 
   setUpAll(() {
     registerFallbackValue(DateTime.now());
@@ -46,6 +48,7 @@ void main() {
     BaseFirestoreService.mockDb = fakeDb;
     await fakeDb.collection('schools').doc('test_school').set({'isActive': true});
     SharedPreferences.setMockInitialValues({});
+    OfflineQueueService().reset();
     BaseFirestoreService.currentSchoolId = 'test_school';
     mockStudentService = MockStudentService();
     mockTimetableService = MockTimetableService();
@@ -95,6 +98,15 @@ void main() {
       }
       return null;
     });
+
+    // Stub connectivity event channel
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(connectivityEventChannel, (MethodCall call) async {
+      if (call.method == 'listen' || call.method == 'cancel') {
+        return null;
+      }
+      return null;
+    });
   });
 
   tearDown(() {
@@ -106,11 +118,16 @@ void main() {
     ConsentService.mockInstance = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(connectivityChannel, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(connectivityEventChannel, null);
   });
 
   Widget createScreen() {
-    return ChangeNotifierProvider(
-      create: (_) => LocaleProvider('en'),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => SchoolSettingsProvider()),
+        ChangeNotifierProvider(create: (_) => LocaleProvider('en')),
+      ],
       child: const MaterialApp(
         home: AttendanceScreen(className: 'Class 9-A', section: 'A'),
       ),
@@ -269,6 +286,15 @@ void main() {
 
       // Tap 'Save' in confirmation dialog
       await tester.tap(find.widgetWithText(ElevatedButton, 'Save'));
+      
+      // Allow the asynchronous save/enqueue and mock platform channels to complete
+      await tester.runAsync(() async {
+        await Future.delayed(const Duration(milliseconds: 500));
+      });
+      await tester.pumpAndSettle();
+
+      // Dismiss the offline dialog
+      await tester.tap(find.widgetWithText(ElevatedButton, 'OK'));
       await tester.pumpAndSettle();
 
       // Verify NO database write was triggered because we are offline

@@ -128,11 +128,11 @@ class _AdminScreenState extends State<AdminScreen> {
     final email = _primaryOwnerEmailCtrl.text.trim().toLowerCase();
 
     if (name.isEmpty) {
-      _snack('Please enter the school name');
+      _snack(context.tr('enterSchoolNameError'));
       return;
     }
     if (address.isEmpty) {
-      _snack('Please enter the school address');
+      _snack(context.tr('enterSchoolAddressError'));
       return;
     }
     if (email.isEmpty ||
@@ -141,7 +141,7 @@ class _AdminScreenState extends State<AdminScreen> {
       return;
     }
     if (_users.any((u) => u['email'] == email)) {
-      _snack('This email is already registered as an owner.');
+      _snack(context.tr('emailAlreadyRegisteredOwner'));
       return;
     }
 
@@ -150,7 +150,7 @@ class _AdminScreenState extends State<AdminScreen> {
         (s['address'] as String? ?? '').trim().toLowerCase() == address.toLowerCase() &&
         (s['email'] as String? ?? '').trim().toLowerCase() == email.toLowerCase());
     if (schoolExists) {
-      _snack('A school system with this name, address, and owner email already exists.');
+      _snack(context.tr('schoolSystemExistsError'));
       return;
     }
 
@@ -183,7 +183,7 @@ class _AdminScreenState extends State<AdminScreen> {
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Created school system and invited $email'),
+        content: Text(context.tr('createdSchoolSystemSuccess').replaceAll('{email}', email)),
         backgroundColor: Colors.green.shade700,
         duration: const Duration(seconds: 3),
       ));
@@ -198,7 +198,7 @@ class _AdminScreenState extends State<AdminScreen> {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not create school system: $e'),
+        content: Text(context.tr('couldNotCreateSchoolSystem').replaceAll('{error}', e.toString())),
         backgroundColor: Colors.red.shade700,
         duration: const Duration(seconds: 8),
       ));
@@ -215,12 +215,12 @@ class _AdminScreenState extends State<AdminScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Add School Owner'),
+        title: Text(context.tr('addSchoolOwner')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Enter the email address of the additional owner for this school system:'),
+            Text(context.tr('enterAdditionalOwnerEmail')),
             const SizedBox(height: 12),
             EmailTextFormField(
               controller: emailCtrl,
@@ -240,7 +240,7 @@ class _AdminScreenState extends State<AdminScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: AppTheme.primary),
-            child: const Text('Add Owner'),
+            child: Text(context.tr('addSchoolOwner')),
           ),
         ],
       ),
@@ -263,13 +263,13 @@ class _AdminScreenState extends State<AdminScreen> {
       await _service.addAllowedUser(email, '', _role, schoolId: schoolId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Added owner $email to the school system.'),
+        content: Text(context.tr('addedOwnerSuccess').replaceAll('{email}', email)),
         backgroundColor: Colors.green.shade700,
       ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to add owner: $e'),
+        content: Text(context.tr('failedToAddOwner').replaceAll('{error}', e.toString())),
         backgroundColor: Colors.red.shade700,
       ));
     }
@@ -281,8 +281,8 @@ class _AdminScreenState extends State<AdminScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Remove Owner Access?'),
-        content: Text('Are you sure you want to revoke owner access for $email? This will not delete the school itself.'),
+        title: Text(context.tr('removeOwnerAccessQ')),
+        content: Text(context.tr('removeOwnerAccessConfirm').replaceAll('{email}', email)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -291,7 +291,7 @@ class _AdminScreenState extends State<AdminScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Revoke Access'),
+            child: Text(context.tr('revokeAccess')),
           ),
         ],
       ),
@@ -305,13 +305,13 @@ class _AdminScreenState extends State<AdminScreen> {
       await _service.deleteAccountFully(email);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Revoked owner access for $email.'),
+        content: Text(context.tr('revokedOwnerAccessSuccess').replaceAll('{email}', email)),
         backgroundColor: Colors.green.shade700,
       ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to revoke access: $e'),
+        content: Text(context.tr('failedToRevokeAccess').replaceAll('{error}', e.toString())),
         backgroundColor: Colors.red.shade700,
       ));
     }
@@ -325,7 +325,7 @@ class _AdminScreenState extends State<AdminScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Change Subscription Plan'),
+        title: Text(context.tr('changeSubscriptionPlan')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: ['free', 'basic', 'pro', 'enterprise'].map((plan) {
@@ -364,13 +364,13 @@ class _AdminScreenState extends State<AdminScreen> {
       
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Updated plan to ${selected.toUpperCase()}'),
+        content: Text(context.tr('updatedPlanSuccess').replaceAll('{plan}', selected.toUpperCase())),
         backgroundColor: Colors.green.shade700,
       ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to update plan: $e'),
+        content: Text(context.tr('failedToUpdatePlan').replaceAll('{error}', e.toString())),
         backgroundColor: Colors.red.shade700,
       ));
     }
@@ -383,11 +383,11 @@ class _AdminScreenState extends State<AdminScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(nextActive ? 'Activate School System?' : 'Suspend School System?'),
+        title: Text(nextActive ? context.tr('activateSchoolSystemQ') : context.tr('suspendSchoolSystemQ')),
         content: Text(
           nextActive
-              ? 'This will restore access for all staff and guardians of this school system.'
-              : 'WARNING: This will immediately block all owners, staff, and guardians of this school system from logging in or using the app.',
+              ? context.tr('restoreAccessExplanation')
+              : context.tr('suspendWarningExplanation'),
         ),
         actions: [
           TextButton(
@@ -399,7 +399,7 @@ class _AdminScreenState extends State<AdminScreen> {
             style: TextButton.styleFrom(
               foregroundColor: nextActive ? Colors.green : Colors.red,
             ),
-            child: Text(nextActive ? 'Activate' : 'Suspend'),
+            child: Text(nextActive ? context.tr('activate') : context.tr('suspend')),
           ),
         ],
       ),
@@ -417,13 +417,13 @@ class _AdminScreenState extends State<AdminScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(nextActive ? 'School system activated.' : 'School system suspended.'),
+        content: Text(nextActive ? context.tr('schoolSystemActivated') : context.tr('schoolSystemSuspended')),
         backgroundColor: nextActive ? Colors.green.shade700 : Colors.orange.shade800,
       ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to update status: $e'),
+        content: Text(context.tr('failedToUpdateStatus').replaceAll('{error}', e.toString())),
         backgroundColor: Colors.red.shade700,
       ));
     }
@@ -446,18 +446,18 @@ class _AdminScreenState extends State<AdminScreen> {
           return AlertDialog(
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('Delete School System?'),
+            title: Text(context.tr('deleteSchoolSystemQ')),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'WARNING: This will permanently delete the school system "$schoolName" and all associated data, including its owner accounts (${schoolOwners.join(", ")}). This action cannot be undone!',
+                  context.tr('deleteSchoolSystemWarning').replaceAll('{name}', schoolName).replaceAll('{owners}', schoolOwners.join(", ")),
                   style: const TextStyle(fontSize: 13.5, color: Colors.red),
                 ),
                 const SizedBox(height: 16),
-                const Text('Type the exact school name to confirm:',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(context.tr('typeExactSchoolName'),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: confirmCtrl,
@@ -481,7 +481,7 @@ class _AdminScreenState extends State<AdminScreen> {
               TextButton(
                 onPressed: matches ? () => Navigator.pop(ctx, true) : null,
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Delete Permanently'),
+                child: Text(context.tr('deletePermanently')),
               ),
             ],
           );
@@ -501,14 +501,14 @@ class _AdminScreenState extends State<AdminScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Successfully deleted school system "$schoolName".'),
+        content: Text(context.tr('deletedSchoolSystemSuccess').replaceAll('{name}', schoolName)),
         backgroundColor: Colors.green.shade700,
         duration: const Duration(seconds: 5),
       ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not delete school system: $e'),
+        content: Text(context.tr('couldNotDeleteSchoolSystem').replaceAll('{error}', e.toString())),
         backgroundColor: Colors.red.shade700,
         duration: const Duration(seconds: 8),
       ));
@@ -525,18 +525,18 @@ class _AdminScreenState extends State<AdminScreen> {
           final matches = confirmCtrl.text.trim().toLowerCase() == 'delete all';
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('Delete All Schools?'),
+            title: Text(context.tr('deleteAllSchoolsQ')),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'WARNING: This will permanently delete ALL school systems and all associated data, including all owner/user accounts. This action cannot be undone!',
-                  style: TextStyle(fontSize: 13.5, color: Colors.red),
+                Text(
+                  context.tr('deleteAllSchoolsWarning'),
+                  style: const TextStyle(fontSize: 13.5, color: Colors.red),
                 ),
                 const SizedBox(height: 16),
-                const Text('Type "delete all" to confirm:',
-                     style: TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(context.tr('typeDeleteAllToConfirm'),
+                     style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 8),
                 TextField(
                   controller: confirmCtrl,
@@ -560,7 +560,7 @@ class _AdminScreenState extends State<AdminScreen> {
               TextButton(
                 onPressed: matches ? () => Navigator.pop(ctx, true) : null,
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Delete All Permanently'),
+                child: Text(context.tr('deleteAllPermanently')),
               ),
             ],
           );
@@ -592,15 +592,15 @@ class _AdminScreenState extends State<AdminScreen> {
       if (!mounted) return;
       await _load();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('All school systems and owner accounts deleted successfully.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.tr('deletedAllSchoolsSuccess')),
         backgroundColor: Colors.green,
       ));
     } catch (e) {
       AppLogger.e('AdminScreen', '_deleteAllSchools failed: $e', e);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to delete all schools: $e'),
+        content: Text(context.tr('failedToDeleteAllSchools').replaceAll('{error}', e.toString())),
         backgroundColor: Colors.red,
       ));
     } finally {
@@ -704,7 +704,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   _buildSearchAndFilter(),
                   const SizedBox(height: 16),
                   Row(children: [
-                    _fieldLabel('REGISTERED SCHOOL SYSTEMS'),
+                    _fieldLabel(context.tr('registeredSchoolSystems')),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -724,7 +724,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       TextButton.icon(
                         onPressed: _deleteAllSchools,
                         icon: const Icon(Icons.delete_sweep_outlined, color: AppTheme.danger, size: 16),
-                        label: const Text('Delete All', style: TextStyle(color: AppTheme.danger, fontSize: 11.5, fontWeight: FontWeight.bold)),
+                        label: Text(context.tr('deleteAll'), style: const TextStyle(color: AppTheme.danger, fontSize: 11.5, fontWeight: FontWeight.bold)),
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           visualDensity: VisualDensity.compact,
@@ -759,7 +759,7 @@ class _AdminScreenState extends State<AdminScreen> {
         TextField(
           controller: _searchCtrl,
           decoration: InputDecoration(
-            hintText: 'Search schools, owners, or IDs...',
+            hintText: context.tr('searchTenantsHint'),
             prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary),
             suffixIcon: _searchQuery.isNotEmpty
                 ? IconButton(
@@ -797,11 +797,11 @@ class _AdminScreenState extends State<AdminScreen> {
         const SizedBox(height: 12),
         Row(
           children: [
-            _filterChip('all', 'All Tenants'),
+            _filterChip('all', context.tr('allTenants')),
             const SizedBox(width: 8),
-            _filterChip('active', 'Active'),
+            _filterChip('active', context.tr('activeStatus')),
             const SizedBox(width: 8),
-            _filterChip('suspended', 'Suspended'),
+            _filterChip('suspended', context.tr('suspendedStatus')),
           ],
         ),
       ],
@@ -858,19 +858,19 @@ class _AdminScreenState extends State<AdminScreen> {
                   color: AppTheme.primary, size: 20),
             ),
             const SizedBox(width: 12),
-            const Text('Create School System',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(context.tr('createSchoolSystem'),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ]),
           const SizedBox(height: 18),
 
           // School Name
-          _fieldLabel('SCHOOL NAME'),
+          _fieldLabel(context.tr('schoolNameCaps')),
           const SizedBox(height: 6),
           TextField(
             controller: _schoolNameCtrl,
             enabled: !_saving,
             decoration: InputDecoration(
-              hintText: 'e.g. Greenwood Public School',
+              hintText: context.tr('schoolNameHint'),
               hintStyle: TextStyle(color: Colors.grey.shade500),
               prefixIcon: const Icon(Icons.school_outlined,
                   color: AppTheme.primary, size: 20),
@@ -895,13 +895,13 @@ class _AdminScreenState extends State<AdminScreen> {
           const SizedBox(height: 12),
 
           // School Address
-          _fieldLabel('SCHOOL ADDRESS'),
+          _fieldLabel(context.tr('schoolAddressCaps')),
           const SizedBox(height: 6),
           TextField(
             controller: _schoolAddressCtrl,
             enabled: !_saving,
             decoration: InputDecoration(
-              hintText: 'e.g. Sector 12, Noida, UP',
+              hintText: context.tr('schoolAddressHint'),
               hintStyle: TextStyle(color: Colors.grey.shade500),
               prefixIcon: const Icon(Icons.location_on_outlined,
                   color: AppTheme.primary, size: 20),
@@ -926,13 +926,13 @@ class _AdminScreenState extends State<AdminScreen> {
           const SizedBox(height: 12),
 
           // Owner Email
-          _fieldLabel('PRIMARY OWNER EMAIL'),
+          _fieldLabel(context.tr('primaryOwnerEmailCaps')),
           const SizedBox(height: 6),
           EmailTextFormField(
             controller: _primaryOwnerEmailCtrl,
             enabled: !_saving,
             decoration: InputDecoration(
-              hintText: 'owner@example.com',
+              hintText: context.tr('emailAddressHint'),
               hintStyle: TextStyle(color: Colors.grey.shade500),
               prefixIcon: const Icon(Icons.email_outlined,
                   color: AppTheme.primary, size: 20),
@@ -986,7 +986,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.send_rounded, size: 18),
-              label: Text(_saving ? context.tr('sendingEllipsis') : 'Create & Send Invite',
+              label: Text(_saving ? context.tr('sendingEllipsis') : context.tr('createAndSendInvite'),
                   style: const TextStyle(
                       fontSize: 15, fontWeight: FontWeight.w600)),
             ),
@@ -1041,8 +1041,8 @@ class _AdminScreenState extends State<AdminScreen> {
           const SizedBox(height: 12),
           Text(
             _searchQuery.isNotEmpty || _filterStatus != 'all'
-                ? 'No matching schools found'
-                : 'No schools registered yet',
+                ? context.tr('noMatchingSchools')
+                : context.tr('noSchoolsRegistered'),
             style: TextStyle(fontSize: 14.5, color: Colors.grey.shade400),
           ),
         ]),
@@ -1083,7 +1083,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      schoolName.isNotEmpty ? schoolName : 'Setup Pending',
+                      schoolName.isNotEmpty ? schoolName : context.tr('setupPending'),
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
@@ -1131,7 +1131,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   border: Border.all(color: (isActive ? AppTheme.success : AppTheme.danger).withValues(alpha: 0.3)),
                 ),
                 child: Text(
-                  isActive ? 'ACTIVE' : 'SUSPENDED',
+                  isActive ? context.tr('statusActive').toUpperCase() : context.tr('suspendedStatus').toUpperCase(),
                   style: TextStyle(
                     fontSize: 9.5,
                     fontWeight: FontWeight.w800,
@@ -1162,7 +1162,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 ),
               ActionChip(
                 avatar: const Icon(Icons.add, size: 14, color: AppTheme.primary),
-                label: const Text('Add Owner', style: TextStyle(fontSize: 11.5, color: AppTheme.primary, fontWeight: FontWeight.bold)),
+                label: Text(context.tr('addOwner'), style: const TextStyle(fontSize: 11.5, color: AppTheme.primary, fontWeight: FontWeight.bold)),
                 backgroundColor: AppTheme.primary.withValues(alpha: 0.08),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -1178,7 +1178,7 @@ class _AdminScreenState extends State<AdminScreen> {
             onTap: () {
               if (schoolId.isNotEmpty) {
                 Clipboard.setData(ClipboardData(text: schoolId));
-                _snack('School ID copied to clipboard');
+                _snack(context.tr('schoolIdCopied'));
               }
             },
             borderRadius: BorderRadius.circular(4),
@@ -1190,7 +1190,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'ID: $schoolId',
+                      '${context.tr('idLabel')}: $schoolId',
                       style: TextStyle(
                         fontSize: 12,
                         fontFamily: 'monospace',
@@ -1212,7 +1212,7 @@ class _AdminScreenState extends State<AdminScreen> {
               Icon(Icons.calendar_today_outlined, size: 14, color: Colors.grey.shade400),
               const SizedBox(width: 6),
               Text(
-                'Registered: $formattedDate',
+                context.tr('registeredLabel').replaceAll('{date}', formattedDate),
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
             ],
@@ -1223,7 +1223,7 @@ class _AdminScreenState extends State<AdminScreen> {
               OutlinedButton.icon(
                 onPressed: schoolId.isNotEmpty ? () => _changePlan(schoolId, plan) : null,
                 icon: const Icon(Icons.tune_outlined, size: 14),
-                label: const Text('Plan', style: TextStyle(fontSize: 12)),
+                label: Text(context.tr('planButton'), style: const TextStyle(fontSize: 12)),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   visualDensity: VisualDensity.compact,
@@ -1233,7 +1233,7 @@ class _AdminScreenState extends State<AdminScreen> {
               OutlinedButton.icon(
                 onPressed: schoolId.isNotEmpty ? () => _toggleSuspension(schoolId, isActive) : null,
                 icon: Icon(isActive ? Icons.block_outlined : Icons.check_circle_outline, size: 14),
-                label: Text(isActive ? 'Suspend' : 'Activate', style: const TextStyle(fontSize: 12)),
+                label: Text(isActive ? context.tr('suspendButton') : context.tr('activateButton'), style: const TextStyle(fontSize: 12)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: isActive ? AppTheme.danger : AppTheme.success,
                   side: BorderSide(color: isActive ? AppTheme.danger : AppTheme.success),
@@ -1245,7 +1245,7 @@ class _AdminScreenState extends State<AdminScreen> {
               IconButton(
                 icon: const Icon(Icons.delete_outline, color: AppTheme.danger, size: 18),
                 onPressed: () => _deleteSchoolSystem(schoolId, schoolName),
-                tooltip: 'Delete School System',
+                tooltip: context.tr('deleteSchoolSystemTooltip'),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),

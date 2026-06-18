@@ -872,7 +872,6 @@ class _FeeTabState extends State<_FeeTab>
     with AutomaticKeepAliveClientMixin {
   @override bool get wantKeepAlive => true;
 
-  final _studentService = StudentService.instance;
   final _feeService     = FeeService();
 
   bool _loading = true;

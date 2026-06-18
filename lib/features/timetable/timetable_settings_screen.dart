@@ -200,11 +200,11 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                 ),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Text(
-                'Scheduling Conflicts',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                context.tr('schedulingConflicts'),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
             Expanded(
@@ -234,7 +234,10 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        'Type: ${conflict.type.toUpperCase()} · Period: ${conflict.bell} on ${conflict.day}',
+                        context.tr('conflictTypePeriodOnDay')
+                            .replaceAll('{type}', conflict.type.toUpperCase())
+                            .replaceAll('{bell}', conflict.bell.toString())
+                            .replaceAll('{day}', conflict.day),
                         style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                       ),
                     ),
@@ -291,9 +294,9 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   /// Returns the display label for a bell: custom name if set, else default.
   String _bellLabel(int idx) {
     final bell = _bells[idx];
-    if (bell.isLunch) return 'Lunch Break';
+    if (bell.isLunch) return context.tr('lunchBreak');
     if (bell.name.trim().isNotEmpty) return bell.name.trim();
-    return 'Bell ${_bellDisplayNumber(idx)}';
+    return context.tr('bellWithNum').replaceAll('{num}', _bellDisplayNumber(idx).toString());
   }
 
   // ── Settings actions ───────────────────────────────────────────────────────
@@ -304,25 +307,25 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     final result = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Name for Bell ${_bellDisplayNumber(idx)}'),
+        title: Text(context.tr('bellNameDialogTitle').replaceAll('{num}', _bellDisplayNumber(idx).toString())),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            hintText: 'e.g. Diary Bell, Assembly…',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: context.tr('bellNameHint'),
+            border: const OutlineInputBorder(),
           ),
           onSubmitted: (v) => Navigator.pop(_, v.trim()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(_, ''),
-            child: const Text('Clear'),
+            child: Text(context.tr('clear')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(_, ctrl.text.trim()),
-            child: const Text('OK'),
+            child: Text(context.tr('ok')),
           ),
         ],
       ),
@@ -338,7 +341,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     final picked = await showTimePicker(
       context: context,
       initialTime: current,
-      helpText: '${_bellLabel(idx)} Start Time',
+      helpText: '${_bellLabel(idx)} ${context.tr('startTime')}',
     );
     if (picked == null || !mounted) return;
 
@@ -385,7 +388,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   Future<void> _addBell() async {
     // Next bell number (counting only non-lunch bells including the new one)
     final nextNum = _bells.where((b) => !b.isLunch).length + 1;
-    final ctrl = TextEditingController(text: 'Bell $nextNum');
+    final ctrl = TextEditingController(text: context.tr('bellWithNum').replaceAll('{num}', nextNum.toString()));
     final name = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
@@ -396,23 +399,23 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           textCapitalization: TextCapitalization.words,
           decoration: InputDecoration(
             labelText: context.tr('bellName'),
-            hintText: 'e.g. Bell 5, Diary Bell, Assembly…',
-            border: OutlineInputBorder(),
+            hintText: context.tr('bellNameHint'),
+            border: const OutlineInputBorder(),
           ),
-          onSubmitted: (v) => Navigator.pop(_, v.trim().isEmpty ? 'Bell $nextNum' : v.trim()),
+          onSubmitted: (v) => Navigator.pop(_, v.trim().isEmpty ? context.tr('bellWithNum').replaceAll('{num}', nextNum.toString()) : v.trim()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(_, null),
-            child: const Text('Cancel'),
+            child: Text(context.tr('cancel')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(
-                _, ctrl.text.trim().isEmpty ? 'Bell $nextNum' : ctrl.text.trim()),
+                _, ctrl.text.trim().isEmpty ? context.tr('bellWithNum').replaceAll('{num}', nextNum.toString()) : ctrl.text.trim()),
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white),
-            child: const Text('Add'),
+            child: Text(context.tr('add')),
           ),
         ],
       ),
@@ -555,7 +558,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   Future<void> _editCell(String cls, int bell) async {
     if (_teachers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Add teachers first in Manage Teachers')));
+          SnackBar(content: Text(context.tr('addTeachersFirst'))));
       return;
     }
     final bellIdx = bell - 1;
@@ -632,7 +635,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Timetable & Settings'),
+        title: Text(context.tr('timetableAndSettings')),
         bottom: TabBar(
           controller: _tabCtrl,
           indicatorColor: Colors.white,
@@ -681,7 +684,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
               ? ElevatedButton.icon(
                   onPressed: _saveSettings,
                   icon: const Icon(Icons.save_outlined),
-                  label: const Text('Save Settings',
+                  label: Text(context.tr('saveSettings'),
                       style: TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
@@ -721,8 +724,8 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
             const SizedBox(height: 2),
             Text(
               _settingsEditing
-                  ? 'Tap a time to edit it directly'
-                  : 'Press Edit to modify schedule',
+                  ? context.tr('tapTimeToEdit')
+                  : context.tr('pressEditToModify'),
               style: const TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ]),
@@ -731,7 +734,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           TextButton.icon(
             onPressed: _addLunchBell,
             icon: const Icon(Icons.restaurant, size: 16),
-            label: const Text('Lunch'),
+            label: Text(context.tr('lunch')),
             style: TextButton.styleFrom(foregroundColor: Colors.orange),
           ),
         if (_settingsEditing)
@@ -884,14 +887,14 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
 
   Widget _buildClassSection() {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Classes (${_classes.length})',
+      Text(context.tr('classesCount').replaceAll('{count}', _classes.length.toString()),
           style: const TextStyle(
               fontSize: 15, fontWeight: FontWeight.bold)),
       const SizedBox(height: 4),
       Text(
         _settingsEditing
-            ? 'Drag to reorder · tap × to remove'
-            : 'Press Edit to add or remove classes',
+            ? context.tr('dragToReorderTapToRemove')
+            : context.tr('pressEditToAddOrRemoveClasses'),
         style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
       ),
       const SizedBox(height: 12),
@@ -923,7 +926,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10))),
-            child: const Text('Add'),
+            child: Text(context.tr('add')),
           ),
         ]),
         const SizedBox(height: 12),
@@ -1018,7 +1021,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                '${_conflicts.length} Timetable Scheduling Conflicts Found',
+                context.tr('timetableSchedulingConflictsFound').replaceAll('{count}', _conflicts.length.toString()),
                 style: TextStyle(
                   color: Colors.red.shade900,
                   fontSize: 12,
@@ -1027,7 +1030,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
               ),
             ),
             Text(
-              'View Details',
+              context.tr('viewDetails'),
               style: TextStyle(
                 color: Colors.red.shade800,
                 fontSize: 11,
@@ -1045,12 +1048,12 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
 
   Widget _buildTimetableTab() {
     if (_classes.isEmpty) {
-      return _hint('No classes configured',
-          'Go to Settings tab to add classes', Icons.class_outlined);
+      return _hint(context.tr('noClassesConfiguredPlain'),
+          context.tr('goManageClassesToConfigure'), Icons.class_outlined);
     }
     if (_teachers.isEmpty) {
-      return _hint('No teachers added',
-          'Go to Manage Teachers to add teachers', Icons.people_outline);
+      return _hint(context.tr('noTeachersAdded'),
+          context.tr('goManageTeachersToAdd'), Icons.people_outline);
     }
     return Stack(children: [
       Column(children: [
@@ -1126,7 +1129,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                _hdrCell('Class', clsW, hdrH, isCorner: true),
+                _hdrCell(context.tr('class'), clsW, hdrH, isCorner: true),
                 for (int b = 1; b <= n; b++) _bellHdrCell(b - 1, cellW, hdrH),
               ]),
               for (int i = 0; i < _classes.length; i++)
@@ -1191,7 +1194,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                 : AppTheme.primaryDark),
       ),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text(isLunch ? '🍽 Lunch' : 'Bell ${_bellDisplayNumber(idx)}',
+        Text(isLunch ? '🍽 ${context.tr('lunch')}' : context.tr('bellWithNum').replaceAll('{num}', _bellDisplayNumber(idx).toString()),
             style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -1243,7 +1246,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
         ),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.restaurant, color: Colors.orange.shade300, size: 20),
-          Text('Lunch',
+          Text(context.tr('lunch'),
               style: TextStyle(fontSize: 10, color: Colors.orange.shade400)),
         ]),
       );
@@ -1527,7 +1530,7 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('${widget.className} — ${widget.bellLabel}',
+            Text(context.tr('classNameAndBellLabel').replaceAll('{className}', widget.className).replaceAll('{bellLabel}', widget.bellLabel),
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 16)),
             if (widget.timeRange.isNotEmpty)
@@ -1575,12 +1578,12 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                     ]),
                     const SizedBox(height: 4),
                     Text(
-                      'Already filled: ${assignedDays.map((d) => widget.dayAbbr[d]).join(', ')}',
+                      context.tr('alreadyFilled').replaceAll('{days}', assignedDays.map((d) => widget.dayAbbr[d]).join(', ')),
                       style: TextStyle(
                           fontSize: 11, color: Colors.orange.shade700),
                     ),
                     Text(
-                      'Remaining: ${unassignedDays.map((d) => widget.dayAbbr[d]).join(', ')}',
+                      context.tr('remainingDays').replaceAll('{days}', unassignedDays.map((d) => widget.dayAbbr[d]).join(', ')),
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -1628,7 +1631,7 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                               ? AppTheme.primaryDark
                               : Colors.grey.shade300),
                     ),
-                    child: Text('All',
+                    child: Text(context.tr('all'),
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -1862,8 +1865,8 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                   _Pick(null, days: widget.days, subject: null),
                 ),
                 icon: const Icon(Icons.clear, size: 16, color: Colors.red),
-                label: const Text('Clear All',
-                    style: TextStyle(color: Colors.red)),
+                label: Text(context.tr('clearAll'),
+                    style: const TextStyle(color: Colors.red)),
               ),
             const Spacer(),
             ElevatedButton.icon(
@@ -1881,7 +1884,7 @@ class _CellPickerSheetState extends State<_CellPickerSheet> {
                       );
                     },
               icon: const Icon(Icons.check, size: 16),
-              label: const Text('Assign'),
+              label: Text(context.tr('assign')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
@@ -1938,18 +1941,18 @@ class _DurationDialogState extends State<_DurationDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(widget.isLunch
-          ? 'Lunch Break Duration'
-          : 'Bell ${widget.bellNumber} Duration'),
+          ? context.tr('lunchBreakDuration')
+          : context.tr('bellDuration').replaceAll('{num}', widget.bellNumber.toString())),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (widget.applyToAll)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 10),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
               child: Text(
-                'Duration will be applied to all regular bells',
-                style: TextStyle(fontSize: 12, color: AppTheme.primaryMid),
+                context.tr('durationAppliedToAllBells'),
+                style: const TextStyle(fontSize: 12, color: AppTheme.primaryMid),
               ),
             ),
           TextField(
@@ -1958,8 +1961,8 @@ class _DurationDialogState extends State<_DurationDialog> {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               labelText: context.tr('durationInMinutes'),
-              suffixText: 'min',
-              border: OutlineInputBorder(),
+              suffixText: context.tr('minuteAbbr'),
+              border: const OutlineInputBorder(),
               hintText: 'e.g. 45',
             ),
             autofocus: true,
@@ -1970,13 +1973,13 @@ class _DurationDialogState extends State<_DurationDialog> {
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel')),
+            child: Text(context.tr('cancel'))),
         ElevatedButton(
           onPressed: _submit,
           style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white),
-          child: const Text('Set'),
+          child: Text(context.tr('set')),
         ),
       ],
     );
@@ -2038,7 +2041,7 @@ class _LunchDialogState extends State<_LunchDialog> {
         nonLunchNum++;
         dropdownItems.add(DropdownMenuItem(
           value: i,
-          child: Text('After Bell $nonLunchNum'),
+          child: Text(context.tr('afterBell').replaceAll('{num}', nonLunchNum.toString())),
         ));
       }
     }
@@ -2049,8 +2052,8 @@ class _LunchDialogState extends State<_LunchDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Insert lunch after:',
-              style: TextStyle(fontSize: 13, color: Colors.grey)),
+          Text(context.tr('insertLunchAfter'),
+              style: const TextStyle(fontSize: 13, color: Colors.grey)),
           const SizedBox(height: 8),
           DropdownButton<int>(
             value: _selectedAfterIdx,
@@ -2067,8 +2070,8 @@ class _LunchDialogState extends State<_LunchDialog> {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               labelText: context.tr('durationMinutes'),
-              suffixText: 'min',
-              border: OutlineInputBorder(),
+              suffixText: context.tr('minuteAbbr'),
+              border: const OutlineInputBorder(),
               hintText: 'e.g. 30',
             ),
             onSubmitted: (_) => _submit(),
@@ -2078,13 +2081,13 @@ class _LunchDialogState extends State<_LunchDialog> {
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel')),
+            child: Text(context.tr('cancel'))),
         ElevatedButton(
           onPressed: _submit,
           style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white),
-          child: const Text('Add Lunch'),
+          child: Text(context.tr('addLunch')),
         ),
       ],
     );

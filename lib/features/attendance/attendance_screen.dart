@@ -880,11 +880,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
             ..clear()
             ..addAll(toSave);
 
-          if (!mounted) return;
           setState(() {
             _dirty        = false;
             _alreadySaved = true;
             _isMarking    = false;
+            _saving       = false;
           });
           await _showSavedDialog();
           return;
@@ -904,18 +904,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
           // preserved and will sync later, and tell the teacher what happened.
           await _offlineQueue.enqueue(className: _attendanceKey, attendance: toSave, date: widget.date);
           await _updatePendingCounts();
-          if (!mounted) return;
           setState(() {
             _dirty        = false;
             _alreadySaved = true;
             _isMarking    = false;
+            _saving       = false;
           });
           await _showSaveFallbackDialog(e);
           return;
         }
       }
 
-      // Offline from the start — queue locally.
       await _offlineQueue.enqueue(className: _attendanceKey, attendance: toSave, date: widget.date);
       await _updatePendingCounts();
       if (!mounted) return;
@@ -923,6 +922,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
         _dirty        = false;
         _alreadySaved = true;
         _isMarking    = false;
+        _saving       = false;
       });
       await _showOfflineDialog();
     } finally {

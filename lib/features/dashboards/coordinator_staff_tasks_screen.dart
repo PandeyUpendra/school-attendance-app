@@ -10,53 +10,7 @@ import '../../shared/widgets/index_building_notice.dart';
 import '../tasks/task_badge_widgets.dart';
 import '../../shared/utils/app_transitions.dart';
 
-const Map<String, String> _kTemplates = {
-  "PTM Preparation":
-      "Please prepare a detailed student-wise "
-      "summary including attendance percentage, "
-      "latest test marks, and behavior notes "
-      "for the upcoming Parent-Teacher Meeting.",
-  "Check and Return Copies":
-      "Please collect, check, and return all "
-      "student copies/notebooks for your subject. "
-      "Ensure feedback is written on each copy "
-      "before returning.",
-  "Submit Marks":
-      "Please submit the marks for the recent "
-      "exam/test in the app under your class "
-      "and subject by the due date.",
-  "Prepare Question Paper":
-      "Please prepare a question paper for the "
-      "upcoming exam. Include MCQ, short answer, "
-      "and long answer sections as per the "
-      "standard pattern.",
-  "Update Syllabus":
-      "Please update the syllabus completion "
-      "status in the app for all chapters "
-      "covered so far this month.",
-  "Duty Assignment":
-      "You have been assigned duty for the "
-      "upcoming school event/exam. Please "
-      "report to your assigned location on "
-      "time in proper uniform.",
-  "Parent Call":
-      "Please call the parents of the students "
-      "listed and update the call status and "
-      "reason in the Daily Calls section.",
-  "Prepare Notes":
-      "Please prepare chapter-wise notes for "
-      "your subject and upload them to the "
-      "study material section for students.",
-  "Attendance Report":
-      "Please review and verify the attendance "
-      "records for your class for this month "
-      "and report any discrepancies.",
-  "Meeting Attendance":
-      "Your presence is required at the staff "
-      "meeting. Please ensure you attend on "
-      "time and bring any relevant documents.",
-  "Custom Task": "",
-};
+
 
 /// Coordinator's staff-task management screen.
 /// Tab 1 — Assign Task (create form).
@@ -76,17 +30,17 @@ class CoordinatorStaffTasksScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: AppTheme.background,
         appBar: AppBar(
-          title: const Text('Staff Tasks'),
+          title: Text(context.tr('staffTasksTitle')),
           backgroundColor: AppTheme.primaryDark,
           foregroundColor: Colors.white,
           elevation: 0,
-          bottom: const TabBar(
+          bottom: TabBar(
             indicatorColor: Colors.white,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white60,
             tabs: [
-              Tab(icon: Icon(Icons.add_task_outlined), text: 'Assign Task'),
-              Tab(icon: Icon(Icons.list_alt_outlined),  text: 'All Tasks'),
+              Tab(icon: const Icon(Icons.add_task_outlined), text: context.tr('assignTaskTab')),
+              Tab(icon: const Icon(Icons.list_alt_outlined),  text: context.tr('allTasksTab')),
             ],
           ),
         ),
@@ -167,6 +121,30 @@ class _AssignTabState extends State<_AssignTab> {
     super.dispose();
   }
 
+  Map<String, String> _getTemplates(BuildContext context) {
+    return {
+      context.tr('templatePTMPrep'): context.tr('templatePTMPrepDesc'),
+      context.tr('templateCheckCopies'): context.tr('templateCheckCopiesDesc'),
+      context.tr('templateSubmitMarks'): context.tr('templateSubmitMarksDesc'),
+      context.tr('templatePrepareQuestionPaper'): context.tr('templatePrepareQuestionPaperDesc'),
+      context.tr('templateUpdateSyllabus'): context.tr('templateUpdateSyllabusDesc'),
+      context.tr('templateDutyAssignment'): context.tr('templateDutyAssignmentDesc'),
+      context.tr('templateParentCall'): context.tr('templateParentCallDesc'),
+      context.tr('templatePrepareNotes'): context.tr('templatePrepareNotesDesc'),
+      context.tr('templateAttendanceReport'): context.tr('templateAttendanceReportDesc'),
+      context.tr('templateMeetingAttendance'): context.tr('templateMeetingAttendanceDesc'),
+      context.tr('templateCustomTask'): '',
+    };
+  }
+
+  String _getPriorityLabel(BuildContext context, TaskPriority p) {
+    switch (p) {
+      case TaskPriority.low: return context.tr('priorityLow');
+      case TaskPriority.medium: return context.tr('priorityMedium');
+      case TaskPriority.high: return context.tr('priorityHigh');
+    }
+  }
+
   Future<void> _loadData() async {
     final results = await Future.wait([
       TimetableService.instance.getTeachers(),
@@ -201,7 +179,7 @@ class _AssignTabState extends State<_AssignTab> {
   }
 
   String get _actualTitle {
-    if (_selectedTaskTitle == 'Custom Task') return _customTitleCtrl.text.trim();
+    if (_selectedTaskTitle == context.tr('templateCustomTask')) return _customTitleCtrl.text.trim();
     return _selectedTaskTitle ?? '';
   }
 
@@ -251,16 +229,16 @@ class _AssignTabState extends State<_AssignTab> {
 
   Future<void> _submit() async {
     if (_selectedTaskTitle == null) {
-      _snack('Please select a task title');
+      _snack(context.tr('pleaseSelectTaskTitle'));
       return;
     }
-    if (_selectedTaskTitle == 'Custom Task' &&
+    if (_selectedTaskTitle == context.tr('templateCustomTask') &&
         _customTitleCtrl.text.trim().isEmpty) {
-      _snack('Please enter a custom task title');
+      _snack(context.tr('pleaseEnterCustomTaskTitle'));
       return;
     }
     if (_selectedIds.isEmpty) {
-      _snack('Please select at least one person to assign to');
+      _snack(context.tr('pleaseSelectOnePerson'));
       return;
     }
 
@@ -277,19 +255,18 @@ class _AssignTabState extends State<_AssignTab> {
               borderRadius: BorderRadius.circular(16)),
           title: Text(context.tr('confirmAssignment')),
           content: Text(
-            'This will create ${targets.length} tasks, '
-            'one for each selected person.',
+            context.tr('multiTaskCreationWarning').replaceAll('{count}', targets.length.toString()),
           ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel')),
+                child: Text(context.tr('cancel'))),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Assign All'),
+              child: Text(context.tr('assignAllButton')),
             ),
           ],
         ),
@@ -336,8 +313,8 @@ class _AssignTabState extends State<_AssignTab> {
     setState(() => _saving = false);
     _resetForm();
     _snack(isMulti
-        ? 'Task assigned to ${targets.length} people'
-        : 'Task assigned to ${targets.first.name}');
+        ? context.tr('taskAssignedToCountPeople').replaceAll('{count}', targets.length.toString())
+        : context.tr('taskAssignedToName').replaceAll('{name}', targets.first.name));
   }
 
   void _resetForm() {
@@ -382,8 +359,8 @@ class _AssignTabState extends State<_AssignTab> {
             ),
             isExpanded: true,
             value: _selectedTaskTitle,
-            hint: const Text('Select or choose custom'),
-            items: _kTemplates.keys
+            hint: Text(context.tr('selectOrCustomHint')),
+            items: _getTemplates(context).keys
                 .map((t) => DropdownMenuItem<String>(
                       value: t,
                       child: Text(t, overflow: TextOverflow.ellipsis),
@@ -391,16 +368,17 @@ class _AssignTabState extends State<_AssignTab> {
                 .toList(),
             onChanged: (v) => setState(() {
               _selectedTaskTitle = v;
+              final customStr = context.tr('templateCustomTask');
               _descCtrl.text =
-                  (v != null && v != 'Custom Task') ? _kTemplates[v]! : '';
+                  (v != null && v != customStr) ? _getTemplates(context)[v]! : '';
             }),
           ),
 
-          if (_selectedTaskTitle == 'Custom Task') ...[
+          if (_selectedTaskTitle == context.tr('templateCustomTask')) ...[
             const SizedBox(height: 10),
             TextField(
               controller: _customTitleCtrl,
-              decoration: _inputDec(hint: 'e.g. Prepare Annual Report')
+              decoration: _inputDec(hint: context.tr('prepareAnnualReportHint'))
                   .copyWith(
                 labelText: context.tr('customTaskTitle'),
                 floatingLabelBehavior: FloatingLabelBehavior.always,
@@ -412,21 +390,21 @@ class _AssignTabState extends State<_AssignTab> {
           const SizedBox(height: 14),
 
           // ── Description ────────────────────────────────────────────────────
-          const _Label('Description (auto-filled, editable)'),
+          _Label(context.tr('descAutoFilledHint')),
           TextField(
             controller: _descCtrl,
             maxLines: 4,
-            decoration: _inputDec(hint: 'Describe what needs to be done'),
+            decoration: _inputDec(hint: context.tr('describeTaskHint')),
             textCapitalization: TextCapitalization.sentences,
           ),
           const SizedBox(height: 4),
-          Text('You can edit this message',
+          Text(context.tr('editMessageNote'),
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
 
           const SizedBox(height: 20),
 
           // ── Assign To ──────────────────────────────────────────────────────
-          const _Label('Assign To'),
+          _Label(context.tr('assignToLabel')),
           _loadingPeople
               ? const Center(
                   child: CircularProgressIndicator(
@@ -436,13 +414,13 @@ class _AssignTabState extends State<_AssignTab> {
           const SizedBox(height: 16),
 
           // ── Priority ───────────────────────────────────────────────────────
-          const _Label('Priority'),
+          _Label(context.tr('priorityLabel')),
           Row(children: [
             for (final p in TaskPriority.values)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
-                  label: Text(p.label),
+                  label: Text(_getPriorityLabel(context, p)),
                   selected: _priority == p,
                   selectedColor: _priorityColor(p).withAlpha(38),
                   labelStyle: TextStyle(
@@ -466,7 +444,7 @@ class _AssignTabState extends State<_AssignTab> {
           const SizedBox(height: 14),
 
           // ── Due Date ───────────────────────────────────────────────────────
-          const _Label('Due Date'),
+          _Label(context.tr('dueDateLabel')),
           GestureDetector(
             onTap: _pickDueDate,
             child: Container(
@@ -483,7 +461,7 @@ class _AssignTabState extends State<_AssignTab> {
                 Text(
                   _dueDate != null
                       ? _fmtDate(_dueDate!)
-                      : 'Select due date (optional)',
+                      : context.tr('selectDueDateOptional'),
                   style: TextStyle(
                       fontSize: 13,
                       color: _dueDate != null
@@ -524,8 +502,8 @@ class _AssignTabState extends State<_AssignTab> {
                           color: Colors.white, strokeWidth: 2))
                   : Text(
                       _selectedIds.isEmpty
-                          ? 'Assign Task'
-                          : 'Assign Task  (${_selectedIds.length} selected)',
+                          ? context.tr('assignTaskTab')
+                          : '${context.tr('assignTaskTab')}  (${context.tr('countSelected').replaceAll('{count}', _selectedIds.length.toString())})',
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w600),
                     ),
@@ -561,7 +539,7 @@ class _AssignTabState extends State<_AssignTab> {
           children: [
             // All Staff
             _GroupChip(
-              label: 'All Staff',
+              label: context.tr('allStaff'),
               icon: Icons.groups_outlined,
               ids: allIds,
               selectedIds: _selectedIds,
@@ -570,7 +548,7 @@ class _AssignTabState extends State<_AssignTab> {
             // Class Teachers only
             if (classTeachIds.isNotEmpty)
               _GroupChip(
-                label: 'Class Teachers',
+                label: context.tr('classTeachers'),
                 icon: Icons.co_present_outlined,
                 ids: classTeachIds,
                 selectedIds: _selectedIds,
@@ -939,12 +917,12 @@ class _AllTasksTabState extends State<_AllTasksTab> {
                         Icon(Icons.task_outlined,
                             size: 56, color: Colors.grey.shade300),
                         const SizedBox(height: 10),
-                        Text('No tasks yet',
+                        Text(context.tr('noTasksYet'),
                             style: TextStyle(
                                 fontSize: 15,
                                 color: Colors.grey.shade500)),
                         const SizedBox(height: 6),
-                        Text('Tap "Assign Task" to create one',
+                        Text(context.tr('tapAssignTaskToCreate'),
                             style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey.shade400)),
@@ -978,16 +956,16 @@ class _AllTasksTabState extends State<_AllTasksTab> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Task'),
+        title: Text(context.tr('deleteTaskTitle')),
         content: Text(context.tr('deleteTaskTitleConfirm').replaceAll('{title}', task.title)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text(context.tr('cancel'))),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete',
-                  style: TextStyle(color: AppTheme.danger))),
+              child: Text(context.tr('delete'),
+                  style: const TextStyle(color: AppTheme.danger))),
         ],
       ),
     );
@@ -1062,8 +1040,8 @@ class _CoordTaskCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   overdue
-                      ? 'OVERDUE by ${task.overdueDays}d'
-                      : 'Due ${_fmtDate(task.dueDate!)}',
+                      ? context.tr('overdueByDays').replaceAll('{days}', task.overdueDays.toString())
+                      : context.tr('dueWithDate').replaceAll('{date}', _fmtDate(task.dueDate!)),
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: overdue
@@ -1087,12 +1065,12 @@ class _CoordTaskCard extends StatelessWidget {
                   border: Border.all(
                       color: AppTheme.primary.withValues(alpha: 0.3)),
                 ),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.groups,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.groups,
                       size: 12, color: AppTheme.primary),
-                  SizedBox(width: 4),
-                  Text('Group Task',
-                      style: TextStyle(
+                  const SizedBox(width: 4),
+                  Text(context.tr('groupTaskBadge'),
+                      style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: AppTheme.primary)),
