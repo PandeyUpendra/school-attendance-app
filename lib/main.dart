@@ -229,7 +229,7 @@ class _SplashGate extends StatefulWidget {
 class _SplashGateState extends State<_SplashGate> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _brandOpacity;
-  late Animation<double> _logoSize;
+  late Animation<double> _logoScale;
   late Animation<double> _textSlide;
 
   bool _animationCompleted = false;
@@ -260,7 +260,7 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
       ),
     );
 
-    _logoSize = Tween<double>(begin: 75.0, end: 130.0).animate(
+    _logoScale = Tween<double>(begin: 0.85, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: Curves.easeOutCubic,
@@ -544,25 +544,28 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final logoHeight = screenHeight * 0.18;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
         child: AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {
-            final size = _logoSize.value;
             return Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                SizedBox(
-                  width: size,
-                  height: size,
-                  child: SvgPicture.asset(
-                    'assets/images/logo.svg',
-                    width: size,
-                    height: size,
-                    fit: BoxFit.contain,
+                Transform.scale(
+                  scale: _logoScale.value,
+                  child: SizedBox(
+                    height: logoHeight,
+                    child: SvgPicture.asset(
+                      'assets/images/logo_splash.svg',
+                      height: logoHeight,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 28),
