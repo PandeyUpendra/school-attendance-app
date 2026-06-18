@@ -346,6 +346,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 6),
 
+                // ── Teacher name ─────────────────────────────────────────
+                if (t?.name != null) ...[
+                  Text(
+                    t!.name,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        height: 1.1),
+                  ),
+                  const SizedBox(height: 3),
+                ],
+
                 Text(roleStr,
                     style: const TextStyle(
                         color: Colors.white70, fontSize: 13)),
