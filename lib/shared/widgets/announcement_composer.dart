@@ -167,8 +167,8 @@ class _AnnouncementComposerState extends State<AnnouncementComposer> {
           DropdownMenuItem(
             value: _kCustom,
             child: Row(children: [
-              Icon(Icons.edit_outlined, size: 18, color: AppTheme.accent),
-              SizedBox(width: 8),
+              const Icon(Icons.edit_outlined, size: 18, color: AppTheme.primary),
+              const SizedBox(width: 8),
               Text(context.tr('writeCustomTitleHint')),
             ]),
           ),
@@ -190,9 +190,9 @@ class _AnnouncementComposerState extends State<AnnouncementComposer> {
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: EdgeInsets.zero,
           dense: true,
-          activeColor: AppTheme.accent,
+          activeColor: AppTheme.primary,
           title: Text(context.tr('saveTitleLater'),
-              style: TextStyle(fontSize: 13)),
+              style: const TextStyle(fontSize: 13)),
         ),
       ],
 
@@ -241,7 +241,7 @@ class _AnnouncementComposerState extends State<AnnouncementComposer> {
               : const Icon(Icons.send_outlined),
           label: Text(_sending ? 'Sending…' : 'Send Announcement'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.accent,
+            backgroundColor: AppTheme.primary,
             padding: const EdgeInsets.symmetric(vertical: 12),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
