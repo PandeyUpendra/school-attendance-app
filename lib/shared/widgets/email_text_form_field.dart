@@ -5,6 +5,7 @@ import 'package:account_picker/account_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme.dart';
 import '../utils/validators.dart';
+import '../../l10n/app_strings.dart';
 
 /// A wrapper around [TextFormField] specifically for email inputs.
 ///
@@ -248,11 +249,11 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   child: Text(
-                    'Choose an account',
-                    style: TextStyle(
+                    context.tr('chooseAnAccount'),
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.primary,
@@ -310,9 +311,9 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
                       size: 20,
                     ),
                   ),
-                  title: const Text(
-                    'Choose from device accounts',
-                    style: TextStyle(
+                  title: Text(
+                    context.tr('chooseFromDeviceAccounts'),
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.accent,
@@ -340,7 +341,7 @@ class _EmailTextFormFieldState extends State<EmailTextFormField> {
       suffixIcon: showPickerIcon
           ? IconButton(
               icon: const Icon(Icons.account_circle_outlined),
-              tooltip: 'Select email from device',
+              tooltip: context.tr('selectEmailFromDevice'),
               onPressed: _showDeviceEmailPicker,
             )
           : widget.decoration.suffixIcon,
