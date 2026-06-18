@@ -237,7 +237,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Expanded(
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           CircleAvatar(
                             radius: 14,
@@ -346,16 +346,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 6),
 
-                // ── Teacher name ─────────────────────────────────────────
-                Text(
-                  t?.name ?? 'Klassivo',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      height: 1.1),
-                ),
-                const SizedBox(height: 3),
                 Text(roleStr,
                     style: const TextStyle(
                         color: Colors.white70, fontSize: 13)),

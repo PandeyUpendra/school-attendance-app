@@ -922,7 +922,7 @@ class _PrincipalHeroCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           CircleAvatar(
                             radius: 14,

@@ -1608,7 +1608,7 @@ class _GuardianHeroCard extends StatelessWidget {
                     Expanded(
                       child: Consumer<SchoolSettingsProvider>(
                         builder: (context, sProvider, _) => Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             CircleAvatar(
                               radius: 14,

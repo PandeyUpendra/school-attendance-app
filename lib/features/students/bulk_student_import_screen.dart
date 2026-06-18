@@ -142,6 +142,19 @@ class _BulkStudentImportScreenState extends State<BulkStudentImportScreen>
           .map((c) => c.trim().toLowerCase())
           .toList();
 
+      // School classes may be stored as class-section pairs ("nursery-a",
+      // "6-a") or plain names ("Nursery", "Class 6"). Build a set of unique
+      // class-name prefixes (stripping the section suffix) so the CSV class
+      // column can be validated against either format.
+      final Set<String> schoolClassPrefixes = <String>{};
+      for (final c in schoolClasses) {
+        schoolClassPrefixes.add(c);
+        final dashIdx = c.lastIndexOf('-');
+        if (dashIdx > 0) {
+          schoolClassPrefixes.add(c.substring(0, dashIdx));
+        }
+      }
+
       // Helper function to extract columns from a row safely
       String get(List<dynamic> row, String key) {
         final idx = colMap[key];
@@ -215,8 +228,14 @@ class _BulkStudentImportScreenState extends State<BulkStudentImportScreen>
         final cleanClass = toTitleCase(rawClassName);
         final cleanSection = rawSection.trim().isEmpty ? 'A' : rawSection.trim().toUpperCase();
 
-        // Warning/Error if class name does not exist in timetable settings
-        if (schoolClasses.isNotEmpty && !schoolClasses.contains(cleanClass.toLowerCase())) {
+        // Warning/Error if class name does not exist in timetable settings.
+        // Check against both the extracted class prefixes (for class-section
+        // pair format like "Nursery-A") and the full class+section key.
+        final classLower = cleanClass.toLowerCase();
+        final classWithSection = '$classLower-${cleanSection.toLowerCase()}';
+        if (schoolClassPrefixes.isNotEmpty &&
+            !schoolClassPrefixes.contains(classLower) &&
+            !schoolClasses.contains(classWithSection)) {
           parsedList.add(_ParsedRow(
             rowIndex: rowIndex,
             error: 'Class "$cleanClass" does not exist in school settings.',

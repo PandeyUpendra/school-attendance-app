@@ -51,18 +51,21 @@ beforeEach(async () => {
       role: 'guardian', schoolId: SID,
       studentClass: 'Class 9', studentRoll: 5, studentSection: 'A',
       studentAdmissionId: 'ADM-A',
+      status: 'active',
     });
     // Guardian B — same class, roll 6, admissionId ADM-B
     await setDoc(doc(db, `allowed_users/${guardianB.email}`), {
       role: 'guardian', schoolId: SID,
       studentClass: 'Class 9', studentRoll: 6, studentSection: 'A',
       studentAdmissionId: 'ADM-B',
+      status: 'active',
     });
     // Guardian in a DIFFERENT school
     await setDoc(doc(db, `allowed_users/${guardianOther.email}`), {
       role: 'guardian', schoolId: 'other_school',
       studentClass: 'Class 9', studentRoll: 5, studentSection: 'A',
       studentAdmissionId: 'ADM-A',
+      status: 'active',
     });
 
     const notifs = {
