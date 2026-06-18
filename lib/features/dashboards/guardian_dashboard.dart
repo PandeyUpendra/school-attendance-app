@@ -1505,6 +1505,7 @@ class _GuardianHeroCard extends StatelessWidget {
     const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const dy = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
     final dateStr = '${dy[now.weekday-1]}, ${now.day} ${mo[now.month-1]}'.toUpperCase();
+    final settings = Provider.of<SchoolSettingsProvider>(context);
 
     return ClipPath(
       clipper: _WaveClipper(),
@@ -1519,6 +1520,35 @@ class _GuardianHeroCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // School name and logo row
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 12,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: settings.schoolLogo.isNotEmpty
+                          ? CachedNetworkImageProvider(settings.schoolLogo)
+                          : null,
+                      child: settings.schoolLogo.isEmpty
+                          ? const Icon(Icons.school, size: 12, color: Colors.white)
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        settings.schoolName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 // ── Top action row ──────────────────────────────────
                 Row(children: [
                   const Icon(Icons.family_restroom_outlined,
