@@ -1681,7 +1681,7 @@ class _GuardianHeroCard extends StatelessWidget {
                   const SizedBox(width: 4),
                 ]),
                 const SizedBox(height: 8),
-                // School name & logo  |  App name & logo
+                // School name & logo
                 Row(
                   children: [
                     // ── School branding ──
@@ -1710,22 +1710,6 @@ class _GuardianHeroCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // ── App branding ──
-                    const CircleAvatar(
-                      radius: 14,
-                      backgroundColor: Colors.white24,
-                      backgroundImage: AssetImage('assets/images/logo.png'),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'Klassivo',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
