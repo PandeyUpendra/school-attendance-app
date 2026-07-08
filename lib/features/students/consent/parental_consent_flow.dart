@@ -465,7 +465,7 @@ class _PrivacyNoticeStepState extends State<_PrivacyNoticeStep> {
             SingleChildScrollView(
               key: const PageStorageKey('privacy_en'),
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: SelectableText(
+              child: Text(
                 privacyNoticeBody('en'),
                 style: const TextStyle(fontSize: 13, height: 1.6),
               ),
@@ -473,7 +473,7 @@ class _PrivacyNoticeStepState extends State<_PrivacyNoticeStep> {
             SingleChildScrollView(
               key: const PageStorageKey('privacy_hi'),
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: SelectableText(
+              child: Text(
                 privacyNoticeBody('hi'),
                 style: const TextStyle(fontSize: 13, height: 1.6),
               ),

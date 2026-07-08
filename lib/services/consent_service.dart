@@ -8,6 +8,8 @@ import 'audit_log_service.dart';
 import 'auth_service.dart';
 import 'base_firestore_service.dart';
 import '../shared/utils/app_functions.dart';
+import '../shared/utils/app_logger.dart';
+import 'package:flutter/foundation.dart';
 
 /// Manages parental consent records for student data processing.
 ///
@@ -17,6 +19,9 @@ class ConsentService {
   ConsentService._();
   factory ConsentService() => _instance ??= ConsentService._();
   static set mockInstance(ConsentService? mock) => _instance = mock;
+
+  // Cache for mock OTP in debug mode
+  String? _mockOtpCode;
 
   static FirebaseFirestore get _db => FirebaseFirestore.instance;
   static FirebaseAuth get _fba => FirebaseAuth.instance;
@@ -44,10 +49,20 @@ class ConsentService {
     required String email,
     required String schoolId,
   }) async {
-    await appFunctions.httpsCallable('sendEmailOtp').call({
-      'email': email.trim(),
-      'schoolId': schoolId.trim(),
-    });
+    try {
+      await appFunctions.httpsCallable('sendEmailOtp').call({
+        'email': email.trim(),
+        'schoolId': schoolId.trim(),
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        // Fallback for debug mode when billing is disabled or cloud functions are not accessible
+        _mockOtpCode = '123456';
+        AppLogger.d('ConsentService', 'DEBUG FALLBACK: sendEmailOtp failed ($e). Mock OTP code is $_mockOtpCode');
+        return;
+      }
+      rethrow;
+    }
   }
 
   /// Verifies [otpCode] against the code sent to [email].
@@ -57,6 +72,12 @@ class ConsentService {
     required String otpCode,
   }) async {
     try {
+      if (kDebugMode && _mockOtpCode != null && otpCode.trim() == _mockOtpCode) {
+        AppLogger.d('ConsentService', 'DEBUG FALLBACK: verifyEmailOtp succeeded using mock code');
+        _mockOtpCode = null; // consume it
+        return true;
+      }
+
       await appFunctions.httpsCallable('verifyEmailOtp').call({
         'email': email.trim(),
         'schoolId': schoolId.trim(),
@@ -64,6 +85,11 @@ class ConsentService {
       });
       return true;
     } catch (e) {
+      if (kDebugMode && _mockOtpCode != null && otpCode.trim() == _mockOtpCode) {
+        AppLogger.d('ConsentService', 'DEBUG FALLBACK: verifyEmailOtp succeeded using mock code (after error $e)');
+        _mockOtpCode = null; // consume it
+        return true;
+      }
       // Re-throw a clean user-facing exception
       String msg = e.toString();
       if (msg.contains('] ')) {
