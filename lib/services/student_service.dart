@@ -345,6 +345,11 @@ class StudentService extends BaseFirestoreService {
       if (!deletedEmitted || !pendingEmitted) return;
       final pendingList = lastPending
           .where((s) => s.deletionPending && !s.promoted)
+          .where((s) => !lastDeleted.any((d) =>
+              d.roll == s.roll &&
+              d.name.trim().toLowerCase() == s.name.trim().toLowerCase() &&
+              d.className.trim().toLowerCase() == s.className.trim().toLowerCase() &&
+              d.section.trim().toLowerCase() == s.section.trim().toLowerCase()))
           .map((s) => DeletedStudent(
                 id: 'pending_${s.id}',
                 roll: s.roll,

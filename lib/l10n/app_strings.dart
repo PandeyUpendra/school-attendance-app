@@ -986,6 +986,7 @@ class AppStrings {
     'sendRequest':           {'en': 'Send Request',       'hi': 'अनुरोध भेजें'},
     'deletionRequestSentFor':{'en': 'Deletion request sent for', 'hi': 'हटाने का अनुरोध भेजा गया:'},
     'awaitingPrincipalApproval':{'en': 'Awaiting principal approval.', 'hi': 'प्रधानाचार्य की स्वीकृति प्रतीक्षित।'},
+    'awaitingYourApproval':{'en': 'Awaiting your approval.', 'hi': 'आपकी स्वीकृति प्रतीक्षित।'},
     'moreWord':              {'en': 'more',               'hi': 'और'},
     'exportFailed':          {'en': 'Export failed:',     'hi': 'निर्यात विफल:'},
     'noValidStudentsCsv':    {'en': 'No valid students found in CSV', 'hi': 'CSV में कोई मान्य छात्र नहीं मिला'},

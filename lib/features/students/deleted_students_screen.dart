@@ -7,13 +7,15 @@ import '../../services/student_service.dart';
 import '../../theme.dart';
 import '../../shared/widgets/refreshable_data.dart';
 
+import '../../services/auth_service.dart';
+
 /// Read-only history of students that have been permanently removed.
 ///
 /// • Class teacher — pass [classNameFilter] (and optionally [sectionFilter]) to
 ///   scope the list to their own class.
 /// • Coordinator / Principal — omit the filters to see every deleted student
 ///   across the school, grouped class-wise.
-class DeletedStudentsScreen extends StatelessWidget {
+class DeletedStudentsScreen extends StatefulWidget {
   /// When set, only deleted students of this class are shown (class-teacher
   /// view). Null shows the whole school, grouped by class.
   final String? classNameFilter;
@@ -27,7 +29,29 @@ class DeletedStudentsScreen extends StatelessWidget {
     this.sectionFilter,
   });
 
-  bool get _scoped => classNameFilter != null && classNameFilter!.isNotEmpty;
+  @override
+  State<DeletedStudentsScreen> createState() => _DeletedStudentsScreenState();
+}
+
+class _DeletedStudentsScreenState extends State<DeletedStudentsScreen> {
+  bool _isPrincipal = false;
+
+  bool get _scoped => widget.classNameFilter != null && widget.classNameFilter!.isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final session = await AuthService().getSession();
+    if (session != null && mounted) {
+      setState(() {
+        _isPrincipal = session['role'] == 'principal';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +62,8 @@ class DeletedStudentsScreen extends StatelessWidget {
       ),
       body: StreamBuilder<List<DeletedStudent>>(
         stream: StudentService.instance.watchDeletedAndPendingStudents(
-          className: classNameFilter,
-          section: sectionFilter,
+          className: widget.classNameFilter,
+          section: widget.sectionFilter,
         ),
         builder: (context, snap) {
           final waiting = snap.connectionState == ConnectionState.waiting;
@@ -50,10 +74,10 @@ class DeletedStudentsScreen extends StatelessWidget {
           final items = _scoped
               ? all
                   .where((s) =>
-                      s.className == classNameFilter &&
-                      (sectionFilter == null ||
-                          sectionFilter!.isEmpty ||
-                          s.section == sectionFilter))
+                      s.className == widget.classNameFilter &&
+                      (widget.sectionFilter == null ||
+                          widget.sectionFilter!.isEmpty ||
+                          s.section == widget.sectionFilter))
                   .toList()
               : all;
 
@@ -83,7 +107,10 @@ class DeletedStudentsScreen extends StatelessWidget {
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: items.length,
-      itemBuilder: (_, i) => _DeletedStudentCard(student: items[i]),
+      itemBuilder: (_, i) => _DeletedStudentCard(
+        student: items[i],
+        isPrincipal: _isPrincipal,
+      ),
     );
   }
 
@@ -102,7 +129,10 @@ class DeletedStudentsScreen extends StatelessWidget {
       final group = groups[cls]!;
       children.add(_ClassHeader(className: cls, count: group.length));
       for (final s in group) {
-        children.add(_DeletedStudentCard(student: s));
+        children.add(_DeletedStudentCard(
+          student: s,
+          isPrincipal: _isPrincipal,
+        ));
       }
     }
 
@@ -173,8 +203,12 @@ class _ClassHeader extends StatelessWidget {
 
 class _DeletedStudentCard extends StatelessWidget {
   final DeletedStudent student;
+  final bool isPrincipal;
 
-  const _DeletedStudentCard({required this.student});
+  const _DeletedStudentCard({
+    required this.student,
+    this.isPrincipal = false,
+  });
 
   String _fmtDate(BuildContext context, Timestamp? ts) {
     if (ts == null) return context.tr('dateUnknown');
@@ -260,7 +294,9 @@ class _DeletedStudentCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(
                         student.deletedAt == null
-                            ? context.tr('awaitingPrincipalApproval')
+                            ? (isPrincipal
+                                ? context.tr('awaitingYourApproval')
+                                : context.tr('awaitingPrincipalApproval'))
                             : '${context.tr('deletedPrefix')} ${_fmtDate(context, student.deletedAt)}',
                         style: TextStyle(
                           fontSize: 11,

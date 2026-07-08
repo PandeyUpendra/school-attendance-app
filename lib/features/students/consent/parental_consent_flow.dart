@@ -371,7 +371,7 @@ class _GuardianDetailsStep extends StatelessWidget {
 
 // ── Step 1: Privacy Notice ────────────────────────────────────────────────────
 
-class _PrivacyNoticeStep extends StatelessWidget {
+class _PrivacyNoticeStep extends StatefulWidget {
   final String lang;
   final void Function(String) onLangToggle;
   final VoidCallback onNext;
@@ -381,6 +381,40 @@ class _PrivacyNoticeStep extends StatelessWidget {
     required this.onLangToggle,
     required this.onNext,
   });
+
+  @override
+  State<_PrivacyNoticeStep> createState() => _PrivacyNoticeStepState();
+}
+
+class _PrivacyNoticeStepState extends State<_PrivacyNoticeStep> {
+  late PageController _langPageCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _langPageCtrl = PageController(initialPage: widget.lang == 'hi' ? 1 : 0);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PrivacyNoticeStep oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.lang != oldWidget.lang) {
+      final targetPage = widget.lang == 'hi' ? 1 : 0;
+      if (_langPageCtrl.hasClients && _langPageCtrl.page?.round() != targetPage) {
+        _langPageCtrl.animateToPage(
+          targetPage,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _langPageCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -398,37 +432,58 @@ class _PrivacyNoticeStep extends StatelessWidget {
             Text('${context.tr('languageColon')} ', style: const TextStyle(fontSize: 13)),
             ChoiceChip(
               label: const Text('English'),
-              selected: lang == 'en',
-              onSelected: (_) => onLangToggle('en'),
+              selected: widget.lang == 'en',
+              onSelected: (_) => widget.onLangToggle('en'),
               selectedColor: AppTheme.primary,
               labelStyle: TextStyle(
-                  color: lang == 'en' ? Colors.white : null),
+                  color: widget.lang == 'en' ? Colors.white : null),
             ),
             const SizedBox(width: 8),
             ChoiceChip(
               label: const Text('हिंदी'),
-              selected: lang == 'hi',
-              onSelected: (_) => onLangToggle('hi'),
+              selected: widget.lang == 'hi',
+              onSelected: (_) => widget.onLangToggle('hi'),
               selectedColor: AppTheme.primary,
               labelStyle: TextStyle(
-                  color: lang == 'hi' ? Colors.white : null),
+                  color: widget.lang == 'hi' ? Colors.white : null),
             ),
           ]),
           const SizedBox(height: 8),
         ]),
       ),
       Expanded(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: SelectableText(
-            privacyNoticeBody(lang),
-            style: const TextStyle(fontSize: 13, height: 1.6),
-          ),
+        child: PageView(
+          key: const Key('privacy_notice_page_view'),
+          controller: _langPageCtrl,
+          onPageChanged: (index) {
+            final selectedLang = index == 1 ? 'hi' : 'en';
+            if (selectedLang != widget.lang) {
+              widget.onLangToggle(selectedLang);
+            }
+          },
+          children: [
+            SingleChildScrollView(
+              key: const PageStorageKey('privacy_en'),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: SelectableText(
+                privacyNoticeBody('en'),
+                style: const TextStyle(fontSize: 13, height: 1.6),
+              ),
+            ),
+            SingleChildScrollView(
+              key: const PageStorageKey('privacy_hi'),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: SelectableText(
+                privacyNoticeBody('hi'),
+                style: const TextStyle(fontSize: 13, height: 1.6),
+              ),
+            ),
+          ],
         ),
       ),
       Padding(
         padding: const EdgeInsets.all(20),
-        child: _NextButton(label: context.tr('haveReadNotice'), onPressed: onNext),
+        child: _NextButton(label: context.tr('haveReadNotice'), onPressed: widget.onNext),
       ),
     ]);
   }
