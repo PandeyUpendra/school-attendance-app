@@ -44,6 +44,54 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
   List<ClassSectionItem> _principalItems = [];
   bool _loading = true;
 
+  static int _compareClasses(String a, String b) {
+    const classOrder = [
+      'playgroup', 'pre-nursery', 'nursery', 'lkg', 'ukg',
+      'class 1', 'class 2', 'class 3', 'class 4', 'class 5', 'class 6',
+      'class 7', 'class 8', 'class 9', 'class 10', 'class 11', 'class 12',
+    ];
+    
+    String normalize(String s) {
+      return s.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+    }
+
+    final normA = normalize(a);
+    final normB = normalize(b);
+
+    final idxA = classOrder.indexOf(normA);
+    final idxB = classOrder.indexOf(normB);
+
+    if (idxA != -1 && idxB != -1) {
+      return idxA.compareTo(idxB);
+    }
+    if (idxA != -1) return -1;
+    if (idxB != -1) return 1;
+
+    int? numIn(String s) {
+      final m = RegExp(r'\d+').firstMatch(s);
+      return m == null ? null : int.tryParse(m.group(0)!);
+    }
+
+    final na = numIn(normA), nb = numIn(normB);
+    if (na != null && nb != null && na != nb) return na.compareTo(nb);
+    
+    return normA.compareTo(normB);
+  }
+
+  static int _compareSections(String a, String b) {
+    final normA = a.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+    final normB = b.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+    
+    int? numIn(String s) {
+      final m = RegExp(r'\d+').firstMatch(s);
+      return m == null ? null : int.tryParse(m.group(0)!);
+    }
+    final na = numIn(normA), nb = numIn(normB);
+    if (na != null && nb != null && na != nb) return na.compareTo(nb);
+    
+    return normA.compareTo(normB);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -61,7 +109,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
 
     if (isPrincipal) {
       final settings = await TimetableService.instance.getSettings();
-      final classesInSchool = List<String>.from(settings['classes'] ?? [])..sort();
+      final classesInSchool = List<String>.from(settings['classes'] ?? [])..sort(_compareClasses);
 
       final academicDoc = await FirebaseFirestore.instance
           .collection('schools')
@@ -69,7 +117,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
           .collection('settings')
           .doc('academic')
           .get();
-      final sectionsInSchool = List<String>.from(academicDoc.data()?['sections'] as List? ?? ['A'])..sort();
+      final sectionsInSchool = List<String>.from(academicDoc.data()?['sections'] as List? ?? ['A'])..sort(_compareSections);
 
       final teachers = await TimetableService.instance.getTeachers();
       final classTeachers = teachers
@@ -103,9 +151,9 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
 
       // Sort items: class name first, then section name
       items.sort((a, b) {
-        final cmpClass = a.className.compareTo(b.className);
+        final cmpClass = _compareClasses(a.className, b.className);
         if (cmpClass != 0) return cmpClass;
-        return a.section.compareTo(b.section);
+        return _compareSections(a.section, b.section);
       });
 
       if (!mounted) return;
@@ -129,9 +177,9 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
     }
     // Sort sections within each class
     for (final list in grouped.values) {
-      list.sort((a, b) => a.section.compareTo(b.section));
+      list.sort((a, b) => _compareSections(a.section, b.section));
     }
-    final sortedClasses = grouped.keys.toList()..sort();
+    final sortedClasses = grouped.keys.toList()..sort(_compareClasses);
 
     // Fetch student counts for every class teacher in parallel
     final counts = <String, int>{};
