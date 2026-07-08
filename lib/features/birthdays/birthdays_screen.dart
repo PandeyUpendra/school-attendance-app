@@ -57,6 +57,27 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
+  Future<void> _updateFilter(int i) async {
+    if (_filter == i) return;
+    setState(() {
+      _filter = i;
+      _loading = true;
+    });
+    await _reload();
+    if (mounted) setState(() => _loading = false);
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails d) {
+    final dx = d.primaryVelocity ?? 0;
+    if (dx < -200 && _filter < _filters.length - 1) {
+      // Swipe left → next tab
+      _updateFilter(_filter + 1);
+    } else if (dx > 200 && _filter > 0) {
+      // Swipe right → previous tab
+      _updateFilter(_filter - 1);
+    }
+  }
+
   Future<void> _reload() async {
     final cn = widget.className;
     final sec = widget.section;
@@ -149,14 +170,19 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
           _buildHeader(),
           _buildFilterBar(),
           Expanded(
-            child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppTheme.primary))
-                : RefreshIndicator(
-                    onRefresh: _refresh,
-                    color: AppTheme.primary,
-                    child: _buildBody(),
-                  ),
+            child: GestureDetector(
+              key: const Key('birthday-swipe-detector'),
+              onHorizontalDragEnd: _onHorizontalDragEnd,
+              behavior: HitTestBehavior.translucent,
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppTheme.primary))
+                  : RefreshIndicator(
+                      onRefresh: _refresh,
+                      color: AppTheme.primary,
+                      child: _buildBody(),
+                    ),
+            ),
           ),
         ],
       ),
@@ -238,15 +264,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
             final sel = _filter == i;
             return Expanded(
               child: GestureDetector(
-                onTap: () async {
-                  if (_filter == i) return;
-                  setState(() {
-                    _filter = i;
-                    _loading = true;
-                  });
-                  await _reload();
-                  if (mounted) setState(() => _loading = false);
-                },
+                onTap: () => _updateFilter(i),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(vertical: 8),
