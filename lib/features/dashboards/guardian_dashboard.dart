@@ -1601,41 +1601,22 @@ class _GuardianHeroCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top row: School Logo & Name on left, Notifications & Profile on right.
+                // Top row: Role & date on left, Notifications & Profile on right.
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const Icon(Icons.family_restroom_outlined,
+                        color: Colors.white60, size: 14),
+                    const SizedBox(width: 6),
                     Expanded(
-                      child: Consumer<SchoolSettingsProvider>(
-                        builder: (context, sProvider, _) => Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            CircleAvatar(
-                              radius: 14,
-                              backgroundColor: Colors.white24,
-                              backgroundImage: sProvider.schoolLogo.isNotEmpty
-                                  ? CachedNetworkImageProvider(sProvider.schoolLogo)
-                                  : null,
-                              child: sProvider.schoolLogo.isEmpty
-                                  ? const Icon(Icons.school, size: 14, color: Colors.white)
-                                  : null,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                sProvider.schoolName,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                      child: Text(
+                        'GUARDIAN  ·  $dateStr',
+                        style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.9),
                       ),
                     ),
-                    const SizedBox(width: 8),
                     // Notification bell + Profile section
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1707,21 +1688,34 @@ class _GuardianHeroCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                // Guardian & date row below
+                const SizedBox(height: 6),
+                // Second row: School Logo & School Name
                 Row(
                   children: [
-                    const Icon(Icons.family_restroom_outlined,
-                        color: Colors.white60, size: 14),
-                    const SizedBox(width: 6),
+                    Consumer<SchoolSettingsProvider>(
+                      builder: (context, sProvider, _) => CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Colors.white24,
+                        backgroundImage: sProvider.schoolLogo.isNotEmpty
+                            ? CachedNetworkImageProvider(sProvider.schoolLogo)
+                            : null,
+                        child: sProvider.schoolLogo.isEmpty
+                            ? const Icon(Icons.school, size: 18, color: Colors.white)
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        'GUARDIAN  ·  $dateStr',
-                        style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 11,
+                      child: Consumer<SchoolSettingsProvider>(
+                        builder: (context, sProvider, _) => Text(
+                          sProvider.schoolName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            letterSpacing: 0.9),
+                            height: 1.1,
+                          ),
+                        ),
                       ),
                     ),
                   ],

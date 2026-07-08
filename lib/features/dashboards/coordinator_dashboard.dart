@@ -1042,39 +1042,22 @@ class _CoordHeroCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top row: School Logo & Name on left, Notifications & Profile on right.
+                // Top row: Role & date on left, Notifications & Profile on right.
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const Icon(Icons.admin_panel_settings_outlined,
+                        color: Colors.white60, size: 14),
+                    const SizedBox(width: 6),
                     Expanded(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          CircleAvatar(
-                            radius: 14,
-                            backgroundColor: Colors.white24,
-                            backgroundImage: settings.schoolLogo.isNotEmpty
-                                ? CachedNetworkImageProvider(settings.schoolLogo)
-                                : null,
-                            child: settings.schoolLogo.isEmpty
-                                ? const Icon(Icons.school, size: 14, color: Colors.white)
-                                : null,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              settings.schoolName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        'COORDINATOR  ·  $dateStr',
+                        style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.9),
                       ),
                     ),
-                    const SizedBox(width: 8),
                     // Notification bell + Profile section
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1122,21 +1105,30 @@ class _CoordHeroCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                // Coordinator & date row below
+                const SizedBox(height: 6),
+                // Second row: School Logo & School Name
                 Row(
                   children: [
-                    const Icon(Icons.admin_panel_settings_outlined,
-                        color: Colors.white60, size: 14),
-                    const SizedBox(width: 6),
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: settings.schoolLogo.isNotEmpty
+                          ? CachedNetworkImageProvider(settings.schoolLogo)
+                          : null,
+                      child: settings.schoolLogo.isEmpty
+                          ? const Icon(Icons.school, size: 18, color: Colors.white)
+                          : null,
+                    ),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'COORDINATOR  ·  $dateStr',
+                        settings.schoolName,
                         style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.9),
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          height: 1.1,
+                        ),
                       ),
                     ),
                   ],
