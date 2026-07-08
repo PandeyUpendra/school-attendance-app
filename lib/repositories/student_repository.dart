@@ -65,6 +65,9 @@ abstract class StudentRepository {
   /// Atomically inserts a student checking for duplicate roll inside a transaction.
   Future<String?> addStudentUnique(Student s);
 
+  /// Archives a promoted student record by moving it to a non-colliding ID and moving remarks.
+  Future<void> archivePromotedStudent(Student s);
+
   /// Create or replace a student record (upsert semantics).
   /// The document ID is derived from `student.className`, `student.section`,
   /// and `student.roll` — the caller does not need to supply it.
@@ -350,7 +353,10 @@ class FirestoreStudentRepository implements StudentRepository {
       String className, String section, int roll) async {
     final doc =
         await _students.doc(_docId(roll, className, section)).get();
-    return doc.exists;
+    if (!doc.exists) return false;
+    final data = doc.data();
+    if (data == null) return false;
+    return data['promoted'] != true;
   }
 
   @override
@@ -375,9 +381,35 @@ class FirestoreStudentRepository implements StudentRepository {
   }
 
   @override
+  Future<void> archivePromotedStudent(Student s) async {
+    final id = _docId(s.roll, s.className, s.section);
+    final docRef = _students.doc(id);
+    final archiveId = '${id}_promoted_${s.admissionId}';
+    final archiveRef = _students.doc(archiveId);
+
+    final remarksSnap = await docRef.collection('remarks').get();
+    final batch = _db.batch();
+    batch.set(archiveRef, s.toJson());
+    for (final rDoc in remarksSnap.docs) {
+      batch.set(archiveRef.collection('remarks').doc(rDoc.id), rDoc.data());
+      batch.delete(rDoc.reference);
+    }
+    batch.delete(docRef);
+    await batch.commit();
+  }
+
+  @override
   Future<String?> addStudentUnique(Student s) async {
     final id = _docId(s.roll, s.className, s.section);
     final docRef = _students.doc(id);
+
+    final initialSnap = await docRef.get();
+    if (initialSnap.exists) {
+      final existing = _fromDoc(initialSnap);
+      if (existing.promoted) {
+        await archivePromotedStudent(existing);
+      }
+    }
 
     return _db.runTransaction<String?>((tx) async {
       final doc = await tx.get(docRef);
@@ -413,29 +445,22 @@ class FirestoreStudentRepository implements StudentRepository {
     assert(newStudents.length == oldStudents.length);
 
     // Firestore batch limit is 500 operations.
-    // Each student promotion has 2 operations: 1 set (new) and 1 update (old).
-    // So we can process up to 250 students per batch. Let's use a chunk size of 200.
-    const chunkSize = 200;
+    // Each student promotion has 1 set operation (the old is archived/deleted beforehand).
+    // So we can process up to 500 students per batch. Let's use a chunk size of 400.
+    const chunkSize = 400;
     for (var i = 0; i < newStudents.length; i += chunkSize) {
       final end = (i + chunkSize < newStudents.length)
           ? i + chunkSize
           : newStudents.length;
       final newChunk = newStudents.sublist(i, end);
-      final oldChunk = oldStudents.sublist(i, end);
 
       final batch = _db.batch();
       for (var j = 0; j < newChunk.length; j++) {
         final ns = newChunk[j];
-        final os = oldChunk[j];
 
         final nextId = _docId(ns.roll, ns.className, ns.section);
         final nsWithSchool = ns.copyWith(schoolId: _schoolId);
         batch.set(_students.doc(nextId), nsWithSchool.toJson());
-
-        final oldId = os.id.isNotEmpty
-            ? os.id
-            : _docId(os.roll, os.className, os.section);
-        batch.update(_students.doc(oldId), {'promoted': true});
       }
       await batch.commit();
     }

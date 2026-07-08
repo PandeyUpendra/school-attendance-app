@@ -275,7 +275,7 @@ class StudentService extends BaseFirestoreService {
   Future<Student?> getStudentByRoll(String className, int roll,
       {String section = ''}) async {
     final student = await _repo.fetchByRoll(className, section, roll);
-    if (student == null || student.deletionPending) return null;
+    if (student == null || student.deletionPending || student.promoted) return null;
     return student;
   }
 
@@ -432,6 +432,11 @@ class StudentService extends BaseFirestoreService {
         return subWord[0].toUpperCase() + subWord.substring(1).toLowerCase();
       }).join('-');
     }).join(' ');
+  }
+
+  /// Archives a promoted student record by moving it to a non-colliding ID and moving remarks.
+  Future<void> archivePromotedStudent(Student s) async {
+    await _repo.archivePromotedStudent(s);
   }
 
   /// Returns null on success, error string on duplicate roll.
@@ -771,7 +776,12 @@ class StudentService extends BaseFirestoreService {
     if (newStudents.isEmpty) return;
     assert(newStudents.length == oldStudents.length);
 
-    // 1. Database write (atomic batch)
+    // 1. Archive the old students first to free up their roll number slots and move remarks
+    for (final os in oldStudents) {
+      await archivePromotedStudent(os.copyWith(promoted: true));
+    }
+
+    // 2. Database write (atomic batch of new students)
     await _repo.promoteStudentsAtomic(newStudents, oldStudents);
 
     // 2. Parallel post-promotion tasks

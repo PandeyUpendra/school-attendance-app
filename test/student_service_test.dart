@@ -93,6 +93,51 @@ void main() {
         reason: 'Bob must not have replaced Alice');
   });
 
+  test('addStudent succeeds when existing student is promoted, archiving old student and moving remarks',
+      () async {
+    final alice = _student(roll: 5, name: 'Alice', className: 'Class 7');
+    final aliceWithAdm = alice.copyWith(admissionId: 'adm-alice');
+    await service.addStudent(student: aliceWithAdm);
+
+    // Add a remark for Alice
+    await service.addStudentRemark('Class 7', 5, 'teacher@test.com', 'teacher', 'Excellent student!');
+
+    // Mark Alice as promoted
+    await service.markPromoted(aliceWithAdm);
+
+    // Verify Alice is indeed marked promoted and getStudentByRoll returns null
+    final fetchedBefore = await service.getStudentByRoll('Class 7', 5);
+    expect(fetchedBefore, isNull);
+
+    // Now try to add Bob with same roll 5 in Class 7
+    final bob = _student(roll: 5, name: 'Bob', className: 'Class 7');
+    final bobWithAdm = bob.copyWith(admissionId: 'adm-bob');
+    final error = await service.addStudent(student: bobWithAdm);
+    expect(error, isNull);
+
+    // Verify Bob is now the active student at roll 5
+    final fetchedBob = await service.getStudentByRoll('Class 7', 5);
+    expect(fetchedBob, isNotNull);
+    expect(fetchedBob!.name, 'Bob');
+    expect(fetchedBob.promoted, isFalse);
+
+    // Verify Bob does not inherit Alice's remarks
+    final remarksBob = await service.getStudentRemarks('Class 7', 5);
+    expect(remarksBob, isEmpty);
+
+    // Verify Alice was archived at a new document ID
+    final archivedAlice = await repo.fetchById('Class_7_5_promoted_adm-alice');
+    expect(archivedAlice, isNotNull);
+    expect(archivedAlice!.name, 'Alice');
+    expect(archivedAlice.promoted, isTrue);
+    expect(archivedAlice.id, contains('promoted'));
+
+    // Check remarks for archived Alice using the test helper
+    final remarksAlice = repo.getRemarksByDocId(archivedAlice.id);
+    expect(remarksAlice, isNotEmpty);
+    expect(remarksAlice.first.remark, 'Excellent student!');
+  });
+
   // ── 3. getStudentsByClass — filtering and ordering ──────────────────────────
 
   test('getStudentsByClass returns only matching class, sorted by roll',

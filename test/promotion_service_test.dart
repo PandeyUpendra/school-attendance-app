@@ -82,9 +82,9 @@ void main() {
     expect(result.promoted, 2);
     expect(result.skipped, isEmpty);
 
-    // 4. Verify repository state for old students (marked promoted)
-    final oldS1 = await studentRepo.fetchByRoll('Class 6', 'A', 1);
-    final oldS2 = await studentRepo.fetchByRoll('Class 6', 'A', 2);
+    // 4. Verify repository state for old students (marked promoted and archived)
+    final oldS1 = await studentRepo.fetchById('Class_6_A_1_promoted_AD-001');
+    final oldS2 = await studentRepo.fetchById('Class_6_A_2_promoted_AD-002');
     expect(oldS1, isNotNull);
     expect(oldS1!.promoted, isTrue);
     expect(oldS2, isNotNull);
@@ -188,5 +188,58 @@ void main() {
     // Verify old Alice is not promoted
     final oldAlice = await studentRepo.fetchByRoll('Class 6', 'A', 1);
     expect(oldAlice!.promoted, isFalse);
+  });
+
+  test('promotes successfully on roll number collision with a PROMOTED student in target class', () async {
+    const s1 = Student(
+      roll: 1,
+      name: 'Alice',
+      className: 'Class 6',
+      section: 'A',
+      admissionId: 'AD-001',
+    );
+    // Someone else has Roll 1 in Class 7 but is PROMOTED
+    const otherStudent = Student(
+      roll: 1,
+      name: 'Charlie',
+      className: 'Class 7',
+      section: 'A',
+      admissionId: 'AD-999',
+      promoted: true,
+    );
+    studentRepo.seed([s1, otherStudent]);
+
+    final timetableService = FakeTimetableService([]);
+    final promotionService = PromotionService(
+      studentService: studentService,
+      timetableService: timetableService,
+    );
+
+    final result = await promotionService.promoteStudents(
+      students: [s1],
+      targetClass: 'Class 7',
+      targetSection: 'A',
+    );
+
+    // Verify promotion succeeded
+    expect(result.promoted, 1);
+    expect(result.skipped, isEmpty);
+
+    // Verify Class 7 Roll 1 is now Alice (active) and Charlie was archived
+    final targetRoll1 = await studentRepo.fetchByRoll('Class 7', 'A', 1);
+    expect(targetRoll1!.name, 'Alice');
+    expect(targetRoll1.admissionId, 'AD-001');
+    expect(targetRoll1.promoted, isFalse);
+
+    // Verify Charlie is archived
+    final archivedCharlie = await studentRepo.fetchById('Class_7_A_1_promoted_AD-999');
+    expect(archivedCharlie, isNotNull);
+    expect(archivedCharlie!.name, 'Charlie');
+    expect(archivedCharlie.promoted, isTrue);
+
+    // Verify old Alice in Class 6 is promoted
+    final oldAlice = await studentRepo.fetchById('Class_6_A_1_promoted_AD-001');
+    expect(oldAlice, isNotNull);
+    expect(oldAlice!.promoted, isTrue);
   });
 }

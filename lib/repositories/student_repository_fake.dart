@@ -121,13 +121,29 @@ class FakeStudentRepository implements StudentRepository {
   Future<Student?> fetchById(String id) async => _students[id];
 
   @override
+  Future<void> archivePromotedStudent(Student s) async {
+    final id = docId(s.roll, s.className, s.section);
+    final archiveId = '${id}_promoted_${s.admissionId}';
+    _students[archiveId] = s.copyWith(id: archiveId);
+    _students.remove(id);
+    if (_remarks.containsKey(id)) {
+      _remarks[archiveId] = List.from(_remarks[id]!);
+      _remarks.remove(id);
+    }
+  }
+
+  @override
   Future<String?> addStudentUnique(Student s) async {
     final id = docId(s.roll, s.className, s.section);
     if (_students.containsKey(id)) {
       final existing = _students[id];
       if (existing != null && existing.name.isNotEmpty) {
-        final classAndSec = ClassName.formatWithSectionWord(s.className, s.section, 'Section');
-        return 'Roll number ${s.roll} already exists in $classAndSec.';
+        if (existing.promoted) {
+          await archivePromotedStudent(existing);
+        } else {
+          final classAndSec = ClassName.formatWithSectionWord(s.className, s.section, 'Section');
+          return 'Roll number ${s.roll} already exists in $classAndSec.';
+        }
       }
     }
     _students[id] = _withId(s, id);
@@ -147,8 +163,12 @@ class FakeStudentRepository implements StudentRepository {
 
   @override
   Future<bool> existsByRoll(
-          String className, String section, int roll) async =>
-      _students.containsKey(docId(roll, className, section));
+          String className, String section, int roll) async {
+    final id = docId(roll, className, section);
+    if (!_students.containsKey(id)) return false;
+    final s = _students[id];
+    return s != null && !s.promoted;
+  }
 
   @override
   Future<bool> existsByAdmissionId(
@@ -180,18 +200,8 @@ class FakeStudentRepository implements StudentRepository {
 
     for (var i = 0; i < newStudents.length; i++) {
       final ns = newStudents[i];
-      final os = oldStudents[i];
-
       final nextId = docId(ns.roll, ns.className, ns.section);
       _students[nextId] = _withId(ns, nextId);
-
-      final oldId = os.id.isNotEmpty
-          ? os.id
-          : docId(os.roll, os.className, os.section);
-      final existing = _students[oldId];
-      if (existing != null) {
-        _students[oldId] = existing.copyWith(promoted: true);
-      }
     }
   }
 
@@ -222,7 +232,9 @@ class FakeStudentRepository implements StudentRepository {
   @override
   Stream<List<Student>> watchAll() => Stream.fromFuture(fetchAll());
 
-  // ── Remarks ─────────────────────────────────────────────────────────────────
+  /// Test-only helper to inspect remarks by document ID.
+  List<StudentRemark> getRemarksByDocId(String docId) =>
+      _remarks[docId] ?? [];
 
   @override
   Future<List<StudentRemark>> fetchRemarks(

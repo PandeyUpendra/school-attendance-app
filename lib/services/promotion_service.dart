@@ -93,8 +93,8 @@ class PromotionService {
       );
     }
 
-    final existingRolls = targetStudents.map((s) => s.roll).toSet();
-    final existingAdmissions = targetStudents.map((s) => s.admissionId).toSet();
+    final existingRolls = targetStudents.where((s) => !s.promoted).map((s) => s.roll).toSet();
+    final existingAdmissions = targetStudents.where((s) => !s.promoted).map((s) => s.admissionId).toSet();
 
     final toPromoteNew = <Student>[];
     final toPromoteOld = <Student>[];
@@ -180,6 +180,22 @@ class PromotionService {
       targetClass: targetClass,
       targetSection: targetSection,
     );
+
+    // Archive target class students that are currently marked promoted
+    // to free up their roll number slots and archive their remarks before overwriting.
+    try {
+      final targetStudents = await _students.getStudentsByClassRaw(
+        className: targetClass,
+        section: targetSection,
+      );
+      for (final ts in targetStudents) {
+        if (ts.promoted) {
+          await _students.archivePromotedStudent(ts);
+        }
+      }
+    } catch (e) {
+      // Non-fatal error during pre-promotion archival, log it or fallback
+    }
 
     if (analysis.toPromoteNew.isNotEmpty) {
       await _students.promoteStudents(analysis.toPromoteNew, analysis.toPromoteOld);
