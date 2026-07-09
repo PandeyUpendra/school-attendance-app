@@ -679,6 +679,7 @@ class AppStrings {
     'filterThisWeek':        {'en': 'This Week',          'hi': 'इस सप्ताह'},
     'filterThisMonth':       {'en': 'This Month',         'hi': 'इस महीने'},
     'filterAll':             {'en': 'All',                'hi': 'सभी'},
+    'yourBirthday':          {'en': 'Your Birthday',      'hi': 'आपका जन्मदिन'},
     'birthdayWord':          {'en': 'Birthday',           'hi': 'जन्मदिन'},
     'birthdaysWord':         {'en': 'Birthdays',          'hi': 'जन्मदिन'},
     'birthdaysTodayExcl':    {'en': 'Today!',             'hi': 'आज!'},

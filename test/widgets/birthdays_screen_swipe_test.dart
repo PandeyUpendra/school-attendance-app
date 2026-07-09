@@ -112,5 +112,44 @@ void main() {
       await tester.fling(detector, const Offset(400, 0), 1000);
       await tester.pumpAndSettle();
     });
+
+    testWidgets('Displays "Your Birthday" and disables actions when the card belongs to the logged-in user', (WidgetTester tester) async {
+      // Mock session to return a matching email
+      SharedPreferences.setMockInitialValues({
+        'auth_email': 'upendra@school.com',
+        'auth_role': 'teacher',
+        'auth_name': 'Upendra Pandey',
+      });
+
+      final staffMember = {
+        'id': 'teacher_upendra',
+        'name': 'Upendra Pandey',
+        'email': 'upendra@school.com',
+        'daysLeft': 0,
+        'type': 'staff',
+        'subject': 'Computer Science',
+        'dateOfBirth': Timestamp.fromDate(DateTime(1985, 6, 19)),
+        'phone': '1234567890',
+      };
+
+      when(() => mockBirthdayService.getTodayStaffBirthdays())
+          .thenAnswer((_) async => [staffMember]);
+
+      await tester.pumpWidget(buildScreen('teacher'));
+      await tester.pumpAndSettle();
+
+      // Verify the name is displayed as "Your Birthday" instead of "Upendra Pandey"
+      expect(find.text('Your Birthday'), findsOneWidget);
+      expect(find.text('Upendra Pandey'), findsNothing);
+
+      // Verify the action button WhatsApp/Call/Custom is disabled
+      final actionButtons = tester.widgetList(
+        find.byWidgetPredicate((w) => w.runtimeType.toString() == '_ActionBtn'),
+      );
+      expect(actionButtons.length, 3);
+      for (final btn in actionButtons) {
+        expect((btn as dynamic).enabled, isFalse);
+      }
+    });
   });
 }

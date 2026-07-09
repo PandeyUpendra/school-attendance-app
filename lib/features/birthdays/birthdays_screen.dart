@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../l10n/app_strings.dart';
+import '../../services/auth_service.dart';
 import '../../services/birthday_service.dart';
 import '../../theme.dart';
 import '../../shared/utils/phone_utils.dart';
@@ -42,6 +43,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
   bool _loading = true;
   List<Map<String, dynamic>> _staffList = [];
   List<Map<String, dynamic>> _studentList = [];
+  String? _currentUserEmail;
 
   static const _filters = ['Today', 'This Week', 'This Month', 'All'];
 
@@ -53,6 +55,12 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    try {
+      final session = await AuthService().getSession();
+      if (session != null) {
+        _currentUserEmail = (session['email'] as String?)?.toLowerCase().trim();
+      }
+    } catch (_) {}
     await _reload();
     if (mounted) setState(() => _loading = false);
   }
@@ -321,6 +329,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
                 },
                 onWhatsApp: (msg) => _openWhatsApp(e, msg),
                 svc: _svc,
+                currentUserEmail: _currentUserEmail,
               )),
 
         if (_showStudents) ...[
@@ -345,6 +354,7 @@ class _BirthdaysScreenState extends State<BirthdaysScreen> {
                   },
                   onWhatsApp: (msg) => _openWhatsApp(e, msg),
                   svc: _svc,
+                  currentUserEmail: _currentUserEmail,
                 )),
         ],
 
@@ -551,6 +561,7 @@ class _BirthdayCard extends StatelessWidget {
   final VoidCallback onCall;
   final void Function(String) onWhatsApp;
   final BirthdayService svc;
+  final String? currentUserEmail;
 
   const _BirthdayCard({
     required this.entry,
@@ -559,7 +570,15 @@ class _BirthdayCard extends StatelessWidget {
     required this.onCall,
     required this.onWhatsApp,
     required this.svc,
+    this.currentUserEmail,
   });
+
+  bool get _isCurrentUser {
+    if (currentUserEmail == null) return false;
+    final email = entry['email'] as String?;
+    if (email == null) return false;
+    return email.trim().toLowerCase() == currentUserEmail!.trim().toLowerCase();
+  }
 
   bool get _isToday => (entry['daysLeft'] as int) == 0;
   bool get _isTomorrow => (entry['daysLeft'] as int) == 1;
@@ -661,7 +680,7 @@ class _BirthdayCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _name,
+                            _isCurrentUser ? context.tr('yourBirthday') : _name,
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -700,8 +719,8 @@ class _BirthdayCard extends StatelessWidget {
                       icon: Icons.chat,
                       label: 'WhatsApp',
                       color: AppTheme.whatsapp,
-                      enabled: _hasPhone,
-                      onTap: _hasPhone
+                      enabled: _hasPhone && !_isCurrentUser,
+                      onTap: _hasPhone && !_isCurrentUser
                           ? () => _showMessageSheet(context)
                           : null,
                     ),
@@ -710,16 +729,16 @@ class _BirthdayCard extends StatelessWidget {
                       icon: Icons.phone_outlined,
                       label: 'Call',
                       color: AppTheme.primary,
-                      enabled: _hasPhone,
-                      onTap: _hasPhone ? onCall : null,
+                      enabled: _hasPhone && !_isCurrentUser,
+                      onTap: _hasPhone && !_isCurrentUser ? onCall : null,
                     ),
                     const SizedBox(width: 8),
                     _ActionBtn(
                       icon: Icons.edit_note_outlined,
                       label: 'Custom',
                       color: AppTheme.primary,
-                      enabled: _hasPhone,
-                      onTap: _hasPhone
+                      enabled: _hasPhone && !_isCurrentUser,
+                      onTap: _hasPhone && !_isCurrentUser
                           ? () => _showMessageSheet(context)
                           : null,
                     ),
@@ -1060,6 +1079,7 @@ class _MonthlyStatsState extends State<_MonthlyStats> {
   Map<int, List<Map<String, dynamic>>> _calData = {};
   bool _loading = true;
   int? _selectedDay;
+  String? _currentUserEmail;
 
   static const _months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -1074,6 +1094,12 @@ class _MonthlyStatsState extends State<_MonthlyStats> {
 
   Future<void> _loadMonth() async {
     setState(() => _loading = true);
+    try {
+      final session = await AuthService().getSession();
+      if (session != null) {
+        _currentUserEmail = (session['email'] as String?)?.toLowerCase().trim();
+      }
+    } catch (_) {}
     final data = await widget.svc.getMonthlyBirthdays(_selectedMonth);
     if (mounted) {
       setState(() {
@@ -1268,7 +1294,11 @@ class _MonthlyStatsState extends State<_MonthlyStats> {
                             style: const TextStyle(fontSize: 14),
                           ),
                           Text(
-                            e['name'] as String? ?? '',
+                            (_currentUserEmail != null &&
+                                    e['email'] != null &&
+                                    (e['email'] as String).trim().toLowerCase() == _currentUserEmail)
+                                ? context.tr('yourBirthday')
+                                : (e['name'] as String? ?? ''),
                             style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500),
@@ -1362,6 +1392,7 @@ class _BirthdayBannerState extends State<BirthdayBanner> {
   List<Map<String, dynamic>> _todayBirthdays = [];
   List<Map<String, dynamic>> _tomorrowBirthdays = [];
   bool _loaded = false;
+  String? _currentUserEmail;
 
   @override
   void initState() {
@@ -1370,6 +1401,13 @@ class _BirthdayBannerState extends State<BirthdayBanner> {
   }
 
   Future<void> _load() async {
+    try {
+      final session = await AuthService().getSession();
+      if (session != null) {
+        _currentUserEmail = (session['email'] as String?)?.toLowerCase().trim();
+      }
+    } catch (_) {}
+
     final today = await _svc.getTodayAllBirthdays(
       className: widget.className,
       section: widget.section,
@@ -1427,7 +1465,15 @@ class _BirthdayBannerState extends State<BirthdayBanner> {
                       Text(
                         _todayBirthdays
                             .take(3)
-                            .map((e) => e['name'] as String? ?? '')
+                            .map((e) {
+                              final email = e['email'] as String?;
+                              if (_currentUserEmail != null &&
+                                  email != null &&
+                                  email.trim().toLowerCase() == _currentUserEmail) {
+                                return context.tr('yourBirthday');
+                              }
+                              return e['name'] as String? ?? '';
+                            })
                             .join(', '),
                         style: TextStyle(
                             fontSize: 12, color: Colors.grey.shade700),
