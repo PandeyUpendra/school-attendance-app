@@ -781,6 +781,59 @@ exports.updateUserMetadata = onCall(
 );
 
 /**
+ * Callable: syncMyClaims()
+ *
+ * Self-service custom claims sync. Allows the signed-in user to request their custom
+ * claims be refreshed from their authoritative allowed_users document. This is crucial
+ * for recovery when claims are out of sync (e.g., legacy accounts, emulator imports, or
+ * transient errors in the onDocumentWritten trigger), enabling self-healing before Storage uploads.
+ */
+exports.syncMyClaims = onCall(
+  { cors: true, region: "asia-south1", enforceAppCheck: false },
+  async (request) => {
+    const db = admin.firestore();
+
+    if (!request.auth || !request.auth.token || !request.auth.token.email) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+
+    const email = String(request.auth.token.email).toLowerCase().trim();
+    const uid = request.auth.uid;
+
+    const docSnap = await db.collection("allowed_users").doc(email).get();
+    if (!docSnap.exists) {
+      throw new HttpsError("not-found", "User metadata document not found.");
+    }
+
+    const d = docSnap.data() || {};
+
+    // Do not sync claims if account is suspended or disabled
+    if (d.status === "suspended" || d.status === "disabled") {
+      await admin.auth().setCustomUserClaims(uid, null);
+      await admin.auth().revokeRefreshTokens(uid);
+      throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+    }
+
+    const claims = {
+      role: d.role ? String(d.role) : null,
+      schoolId: d.schoolId ? String(d.schoolId) : null,
+      classIds: d.classIds ? d.classIds : [],
+      studentClass: d.studentClass ? String(d.studentClass) : null,
+      studentRoll: d.studentRoll ? Number(d.studentRoll) : null,
+      studentSection: d.studentSection ? String(d.studentSection) : null,
+      studentAdmissionId: d.studentAdmissionId ? String(d.studentAdmissionId) : null,
+      studentIds: d.studentIds ? d.studentIds : [],
+      teacherId: d.teacherId ? String(d.teacherId) : null,
+    };
+
+    await admin.auth().setCustomUserClaims(uid, claims);
+    return { success: true };
+  }
+);
+
+
+
+/**
  * Firestore trigger: send an FCM push whenever a notification document is
  * created (#52). Publishes to the topic that corresponds to the notification's
  * audience; client devices subscribe to the topics they're allowed to see

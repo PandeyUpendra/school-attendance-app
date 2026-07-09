@@ -362,6 +362,10 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
       return;
     }
 
+    // Ensure custom claims (role and schoolId) are up-to-date in Firebase Auth token
+    // on app launch, self-healing any missing or out-of-sync tokens before screen loads.
+    await AuthService().ensureCustomClaims();
+
     // Restore in-memory schoolId so services read from the correct school
     // on cold-start with a cached session. Without this, AuthService.currentSchoolId
     // would throw a StateError on access.

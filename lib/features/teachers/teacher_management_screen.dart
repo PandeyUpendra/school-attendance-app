@@ -13,6 +13,7 @@ import '../../models/timetable_entry.dart';
 import '../../services/timetable_service.dart';
 import '../../services/teacher_deletion_service.dart';
 import '../../services/base_firestore_service.dart';
+import '../../services/auth_service.dart';
 import '../../shared/utils/app_logger.dart';
 import '../../shared/utils/image_utils.dart';
 import '../../shared/utils/validators.dart';
@@ -1744,6 +1745,9 @@ class _TeacherFormScreenState extends State<_TeacherFormScreen> {
   /// Returns the existing URL when no new photo was picked.
   Future<String?> _resolvePhotoUrl(String teacherId) async {
     if (_photoPath == null) return _photoUrl;
+    // Ensure custom claims are up-to-date before initiating the upload
+    // to prevent Firebase Storage rules write rejection.
+    await AuthService().ensureCustomClaims();
     final schoolId = BaseFirestoreService.currentSchoolId ?? 'default_school';
     final ref = FirebaseStorage.instance
         .ref('schools/$schoolId/teachers/$teacherId.jpg');

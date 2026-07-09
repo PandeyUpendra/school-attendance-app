@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'base_firestore_service.dart';
 import '../shared/utils/app_logger.dart';
+import '../shared/utils/app_functions.dart';
 
 import 'audit_log_service.dart';
 import 'dropdown_options_service.dart';
@@ -312,10 +314,9 @@ class AuthService {
     }
     await prefs.setInt('last_activity_timestamp', DateTime.now().millisecondsSinceEpoch);
 
-    // Refresh the ID token so freshly-minted custom claims (role/schoolId from
-    // syncUserClaims, used by the tenant-scoped Storage rules, #3) take effect
-    // without waiting up to an hour. Fire-and-forget.
-    _auth.currentUser?.getIdToken(true);
+    // Verify and synchronize custom claims on the ID token (tenant scoping, #3).
+    // Awaiting ensures claims are ready before routing to dashboards.
+    await ensureCustomClaims();
 
     // Subscribe this device to its push topics for the new session (#52).
     // Fire-and-forget — push setup must never block or fail login.
@@ -514,5 +515,51 @@ class AuthService {
       return {'email': email, 'password': password};
     }
     return null;
+  }
+
+  /// Forces a refresh of the user's custom claims by calling the `syncMyClaims`
+  /// Cloud Function, followed by an ID token refresh. This self-heals the user's
+  /// session if their claims were out of sync or missing (e.g. on legacy accounts,
+  /// local emulator imports, or due to transient function failures), preventing
+  /// Firebase Storage uploads from failing due to missing tenant scoping claims.
+  Future<void> syncAndRefreshCustomClaims() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+      // Call syncMyClaims Cloud Function using regional instance
+      await appFunctions
+          .httpsCallable('syncMyClaims')
+          .call();
+      // Force token refresh to fetch the newly minted claims
+      await user.getIdToken(true);
+      AppLogger.d('AuthService', 'Custom claims successfully synchronized and refreshed.');
+    } catch (e, stack) {
+      AppLogger.e('AuthService', 'Failed to synchronize custom claims: $e', e, stack);
+      rethrow;
+    }
+  }
+
+  /// Verifies if the current user has the required custom claims (schoolId and role).
+  /// If missing, it calls the `syncMyClaims` Cloud Function to regenerate them
+  /// and refreshes the ID token. This is a performant self-healing check that
+  /// prevents storage upload failures due to out-of-sync tokens.
+  Future<void> ensureCustomClaims() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      final tokenResult = await user.getIdTokenResult();
+      final claims = tokenResult.claims ?? {};
+      
+      final hasSchoolId = claims.containsKey('schoolId') && claims['schoolId'] != null;
+      final hasRole = claims.containsKey('role') && claims['role'] != null;
+
+      if (!hasSchoolId || !hasRole) {
+        AppLogger.d('AuthService', 'Custom claims missing (schoolId or role). Triggering sync...');
+        await syncAndRefreshCustomClaims();
+      }
+    } catch (e, stack) {
+      AppLogger.e('AuthService', 'Failed to ensure custom claims: $e', e, stack);
+    }
   }
 }
