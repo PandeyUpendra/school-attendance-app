@@ -408,9 +408,7 @@ class _HomeScreenState extends State<HomeScreen> {
           FadeInUp(
             delay: const Duration(milliseconds: 120),
             child: _buildSubDutyCard(),
-          ),
-
-            _SectionHeader(context.tr('secAcademics')),
+          ),            _SectionHeader(context.tr('secAcademics')),
             _FeatureTile(
               icon: Icons.fact_check_outlined,
               color: AppTheme.primary,
@@ -804,9 +802,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   builder: (_) => const SocialMediaLinksScreen(),
                 ),
               ),
-            )
-
-          const SizedBox(height: 32),
+            ),const SizedBox(height: 32),
               ],
             ),
           ),
@@ -849,33 +845,7 @@ class _HomeScreenState extends State<HomeScreen> {
         FadeInUp(
           delay: const Duration(milliseconds: 120),
           child: _buildSubDutyCard(),
-        ),
-
-        _SectionHeader(context.tr('secAcademics')),
-        _FeatureTile(
-          icon: Icons.book_outlined,
-          color: AppTheme.primary,
-          title: context.tr('dailyClassDiary'),
-          subtitle: 'Log daily teaching activities',
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ClassDiaryScreen(teacher: teacher!))),
-        ),
-        const _Divider(),
-        _FeatureTile(
-          icon: Icons.library_books_outlined,
-          color: AppTheme.primary,
-          title: context.tr('studyMaterials'),
-          subtitle: 'Upload and view classroom resources',
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudyMaterialUploadScreen(teacher: teacher!))),
-        ),
-        const _Divider(),
-        _FeatureTile(
-          icon: Icons.list_alt_outlined,
-          color: AppTheme.primary,
-          title: context.tr('syllabusProgress'),
-          subtitle: 'Track syllabus coverage',
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SyllabusTrackerScreen(teacher: teacher!))),
-        ),
-        const _Divider(),
+        ),        _SectionHeader(context.tr('secAcademics')),
         _FeatureTile(
           icon: Icons.calendar_month_outlined,
           color: AppTheme.primary,
@@ -884,6 +854,14 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: () => Navigator.push(context,
               MaterialPageRoute(
                   builder: (_) => MyTimetableScreen(teacher: teacher))),
+        ),
+        const _Divider(),
+        _FeatureTile(
+          icon: Icons.book_outlined,
+          color: AppTheme.primary,
+          title: context.tr('dailyClassDiary'),
+          subtitle: 'Log daily teaching activities',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ClassDiaryScreen(teacher: teacher!))),
         ),
         const _Divider(),
         _FeatureTile(
@@ -899,6 +877,95 @@ class _HomeScreenState extends State<HomeScreen> {
                 teacherName: teacher?.name,
               ),
             ),
+          ),
+        ),
+        const _Divider(),
+        _FeatureTile(
+          icon: Icons.list_alt_outlined,
+          color: AppTheme.primary,
+          title: context.tr('syllabusProgress'),
+          subtitle: 'Track syllabus coverage',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SyllabusTrackerScreen(teacher: teacher!))),
+        ),
+        const _Divider(),
+        _FeatureTile(
+          icon: Icons.library_books_outlined,
+          color: AppTheme.primary,
+          title: context.tr('studyMaterials'),
+          subtitle: 'Upload and view classroom resources',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudyMaterialUploadScreen(teacher: teacher!))),
+        ),
+
+        _SectionHeader(context.tr('secHomework')),
+        _FeatureTile(
+          icon: Icons.assignment_outlined,
+          color: AppTheme.primary,
+          title: context.tr('homework'),
+          subtitle: context.tr('subHomeworkDesc'),
+          onTap: () {
+            if (teacher != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => HomeworkScreen(teacher: teacher!)),
+              );
+            }
+          },
+        ),
+
+        _SectionHeader(context.tr('secCopyChecking')),
+        _FeatureTile(
+          icon: Icons.menu_book_outlined,
+          color: AppTheme.primary,
+          title: context.tr('copyChecking'),
+          subtitle: context.tr('subCopyCheckDesc'),
+          onTap: () {
+            if (teacher != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        CopyCheckingScreen(teacher: teacher!)),
+              );
+            }
+          },
+        ),
+
+        _SectionHeader(context.tr('secMyTasks')),
+        _FeatureTile(
+          icon: Icons.task_outlined,
+          color: AppTheme.primary,
+          title: 'Tasks & Duties',
+          subtitle: 'Class duties & meeting decisions',
+          badge: (_pendingTaskCount + _pendingMeetingTasks) > 0 ? '${_pendingTaskCount + _pendingMeetingTasks}' : null,
+          onTap: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) =>
+                      StaffTasksScreen(teacherId: teacher?.id)),
+            );
+            _loadNotifCount();
+          },
+        ),
+
+        _SectionHeader(context.tr('secAnnouncements')),
+        _FeatureTile(
+          icon: Icons.campaign_outlined,
+          color: AppTheme.primary,
+          title: context.tr('noticeBoard'),
+          subtitle: context.tr('subAnnouncementsDesc'),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => AnnouncementsScreen(
+                    viewerRole: 'teacher',
+                    posterName: teacher?.email,
+                    viewerClasses: <String>{
+                      if ((teacher?.classTeacherOf ?? '').isNotEmpty)
+                        teacher!.classTeacherOf!,
+                      ...?teacher?.assignedClasses,
+                    }.toList())),
           ),
         ),
 
@@ -962,76 +1029,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        _SectionHeader(context.tr('secLeave')),
-        _FeatureTile(
-          icon: Icons.event_busy_outlined,
-          color: AppTheme.warning,
-          title: context.tr('applyForLeave'),
-          subtitle:
-              'Submit a leave application to coordinator or principal',
-          onTap: () {
-            if (teacher != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) =>
-                        LeaveApplicationScreen(teacher: teacher!)),
-              );
-            }
-          },
-        ),
-
-        _SectionHeader(context.tr('secCopyChecking')),
-        _FeatureTile(
-          icon: Icons.menu_book_outlined,
-          color: AppTheme.primary,
-          title: context.tr('copyChecking'),
-          subtitle: context.tr('subCopyCheckDesc'),
-          onTap: () {
-            if (teacher != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) =>
-                        CopyCheckingScreen(teacher: teacher!)),
-              );
-            }
-          },
-        ),
-
-        _SectionHeader(context.tr('secHomework')),
-        _FeatureTile(
-          icon: Icons.assignment_outlined,
-          color: AppTheme.primary,
-          title: context.tr('homework'),
-          subtitle: context.tr('subHomeworkDesc'),
-          onTap: () {
-            if (teacher != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => HomeworkScreen(teacher: teacher!)),
-              );
-            }
-          },
-        ),
-
-        _SectionHeader(context.tr('secExamsMarks')),
-        _FeatureTile(
-          icon: Icons.quiz_outlined,
-          color: AppTheme.primary,
-          title: context.tr('examsMarks'),
-          subtitle: context.tr('subExamsDesc'),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) => ExamManagementScreen(
-                    role: 'teacher',
-                    section: teacher?.section ?? '',
-                    allowedClasses: teacher?.assignedClasses ?? [])),
-          ),
-        ),
-
         _SectionHeader(context.tr('secRemarks')),
         _FeatureTile(
           icon: Icons.rate_review_outlined,
@@ -1048,43 +1045,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 teacherId: teacher?.id,
               ),
             ),
-          ),
-        ),
-
-        _SectionHeader(context.tr('secMyTasks')),
-        _FeatureTile(
-          icon: Icons.task_outlined,
-          color: AppTheme.primary,
-          title: 'Tasks & Duties',
-          subtitle: 'Class duties & meeting decisions',
-          badge: (_pendingTaskCount + _pendingMeetingTasks) > 0 ? '${_pendingTaskCount + _pendingMeetingTasks}' : null,
-          onTap: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => StaffTasksScreen(teacherId: teacher?.id)),
-            );
-            _loadNotifCount();
-          },
-        ),
-
-        _SectionHeader(context.tr('secAnnouncements')),
-        _FeatureTile(
-          icon: Icons.campaign_outlined,
-          color: AppTheme.primary,
-          title: context.tr('noticeBoard'),
-          subtitle: context.tr('subAnnouncementsDesc'),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) => AnnouncementsScreen(
-                    viewerRole: 'teacher',
-                    posterName: teacher?.email,
-                    viewerClasses: <String>{
-                      if ((teacher?.classTeacherOf ?? '').isNotEmpty)
-                        teacher!.classTeacherOf!,
-                      ...?teacher?.assignedClasses,
-                    }.toList())),
           ),
         ),
 
@@ -1115,6 +1075,41 @@ class _HomeScreenState extends State<HomeScreen> {
                 assignedClasses: teacher?.assignedClasses,
               ),
             ),
+          ),
+        ),
+
+        _SectionHeader(context.tr('secLeave')),
+        _FeatureTile(
+          icon: Icons.event_busy_outlined,
+          color: AppTheme.warning,
+          title: context.tr('applyForLeave'),
+          subtitle:
+              'Submit a leave application to coordinator or principal',
+          onTap: () {
+            if (teacher != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        LeaveApplicationScreen(teacher: teacher!)),
+              );
+            }
+          },
+        ),
+
+        _SectionHeader(context.tr('secExamsMarks')),
+        _FeatureTile(
+          icon: Icons.quiz_outlined,
+          color: AppTheme.primary,
+          title: context.tr('examsMarks'),
+          subtitle: context.tr('subExamsDesc'),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => ExamManagementScreen(
+                    role: 'teacher',
+                    section: teacher?.section ?? '',
+                    allowedClasses: teacher?.assignedClasses ?? [])),
           ),
         ),
 

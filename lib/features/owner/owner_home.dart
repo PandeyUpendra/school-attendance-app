@@ -291,7 +291,54 @@ class _OwnerHomeState extends State<OwnerHome> {
                       teachersAbsent: _teachersAbsent,
                       pendingLeaves: _pendingLeaves,
                     ),
-                  _SectionHeader(context.tr('sectionOverview')),
+                  _SectionHeader(context.tr('sectionFinance')),
+          _FeatureTile(
+            icon: Icons.currency_rupee_outlined,
+            color: AppTheme.success,
+            title: context.tr('feeCollection'),
+            subtitle: context.tr('feeCollectionSubtitle'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const FeeOverviewScreen(role: 'owner'),
+            )),
+          ),
+          _FeatureTile(
+            icon: Icons.account_balance_wallet_outlined,
+            color: AppTheme.primary,
+            title: context.tr('cashReconciliation'),
+            subtitle: context.tr('cashReconciliationSubtitle'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const CashReconciliationScreen(),
+            )),
+          ),
+          _FeatureTile(
+            icon: Icons.pie_chart_outline,
+            color: AppTheme.primary,
+            title: context.tr('profitLossStatement'),
+            subtitle: context.tr('profitLossSubtitle'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const ProfitLossScreen(),
+            )),
+          ),
+          _FeatureTile(
+            icon: Icons.receipt_long_outlined,
+            color: AppTheme.primary,
+            title: context.tr('expenseLedger'),
+            subtitle: context.tr('expenseLedgerSubtitle'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const ExpenseLedgerScreen(),
+            )),
+          ),
+          _FeatureTile(
+            icon: Icons.bar_chart_outlined,
+            color: AppTheme.primary,
+            title: context.tr('feeSummaryDefaulters'),
+            subtitle: context.tr('feeSummarySubtitle'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const _FinancePage(),
+            )),
+          ),
+
+          _SectionHeader(context.tr('sectionOverview')),
           _FeatureTile(
             icon: Icons.dashboard_outlined,
             color: AppTheme.primary,
@@ -324,55 +371,7 @@ class _OwnerHomeState extends State<OwnerHome> {
             )),
           ),
 
-          _SectionHeader(context.tr('sectionFinance')),
-          _FeatureTile(
-            icon: Icons.currency_rupee_outlined,
-            color: AppTheme.success,
-            title: context.tr('feeCollection'),
-            subtitle: context.tr('feeCollectionSubtitle'),
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const FeeOverviewScreen(role: 'owner'),
-            )),
-          ),
-          _FeatureTile(
-            icon: Icons.bar_chart_outlined,
-            color: AppTheme.primary,
-            title: context.tr('feeSummaryDefaulters'),
-            subtitle: context.tr('feeSummarySubtitle'),
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const _FinancePage(),
-            )),
-          ),
-          _FeatureTile(
-            icon: Icons.receipt_long_outlined,
-            color: AppTheme.primary,
-            title: context.tr('expenseLedger'),
-            subtitle: context.tr('expenseLedgerSubtitle'),
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const ExpenseLedgerScreen(),
-            )),
-          ),
-          _FeatureTile(
-            icon: Icons.pie_chart_outline,
-            color: AppTheme.primary,
-            title: context.tr('profitLossStatement'),
-            subtitle: context.tr('profitLossSubtitle'),
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const ProfitLossScreen(),
-            )),
-          ),
-          _FeatureTile(
-            icon: Icons.account_balance_wallet_outlined,
-            color: AppTheme.primary,
-            title: context.tr('cashReconciliation'),
-            subtitle: context.tr('cashReconciliationSubtitle'),
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const CashReconciliationScreen(),
-            )),
-          ),
-
           _SectionHeader(context.tr('sectionManage')),
-          // ── Government Reports ────────────────────────────────────────
           _FeatureTile(
             icon: Icons.bar_chart_outlined,
             color: AppTheme.primary,

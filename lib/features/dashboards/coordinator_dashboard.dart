@@ -314,7 +314,136 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
                 ),
               ),
 
-            // ── Staff Tasks ───────────────────────────────────────────────
+            // ── Free Bells & Substitution ──────────────────────────────────
+            _SectionHeader(context.tr('secFreeBells')),
+            _FeatureTile(
+              icon: Icons.person_off_outlined,
+              color: AppTheme.danger,
+              title: context.tr('absentTeachersToday'),
+              subtitle: _teachersAbsent > 0
+                  ? '$_teachersAbsent absent · $_unassignedBells uncovered'
+                  : 'All teachers present today',
+              badge: _teachersAbsent > 0 ? '$_teachersAbsent' : null,
+              onTap: () => _navigate(const AbsentTeachersScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.swap_horiz_outlined,
+              color: AppTheme.warning,
+              title: context.tr('teacherSFreeBells'),
+              subtitle: context.tr('subSubstitutionBellsDesc'),
+              onTap: () => _navigate(const FreeBellsScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.history_outlined,
+              color: AppTheme.warning,
+              title: context.tr('substitutionBells'),
+              subtitle: context.tr('subSubstitutionHistoryDesc'),
+              onTap: () => _navigate(const SubstitutionHistoryScreen()),
+            ),
+
+            // ── Leave Requests ─────────────────────────────────────────────
+            _SectionHeader(context.tr('secLeaveRequests')),
+            _LeaveRequestTile(
+              pendingCount: _pendingLeaveCount,
+              onTap: () => _navigate(const LeaveRequestsScreen(viewerRole: 'coordinator')),
+            ),
+
+            // ── Announcements & Rosters ──────────────────────────────────────────
+            _SectionHeader(context.tr('secAnnouncements')),
+            _FeatureTile(
+              icon: Icons.campaign_outlined,
+              color: _cPurple,
+              title: context.tr('noticeBoard'),
+              subtitle: context.tr('subAnnouncementsManageDesc'),
+              onTap: () => _navigate(AnnouncementsScreen(
+                viewerRole: 'coordinator',
+                posterName: _coordEmail,
+              )),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.swap_vert_circle_outlined,
+              color: _cPurple,
+              title: context.tr('assignDuties'),
+              subtitle: context.tr('subAssignDutiesDesc'),
+              onTap: () => _navigate(const AssignDutiesScreen()),
+            ),
+
+            // ── My To-Do List ─────────────────────────────────────────────
+            _SectionHeader(context.tr('secMyTodoList')),
+            _FeatureTile(
+              icon: Icons.checklist_outlined,
+              color: _cPurple,
+              title: context.tr('myTodoList'),
+              subtitle: context.tr('subTodoDesc'),
+              onTap: () => _navigate(TodoListScreen(
+                userId: _coordEmail,
+                role: 'coordinator',
+              )),
+            ),
+
+            // ── Students & Staff ───────────────────────────────────────────────────
+            _SectionHeader(context.tr('secStudents')),
+            _FeatureTile(
+              icon: Icons.school_outlined,
+              color: _cPurple,
+              title: context.tr('studentDetails'),
+              subtitle: context.tr('subStudentDetailsDesc'),
+              onTap: () => _navigate(const StudentDetailsScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.upgrade_outlined,
+              color: _cPurple,
+              title: context.tr('promoteClass'),
+              subtitle: context.tr('subPromoteClassDesc'),
+              onTap: () => _navigate(const PromotionScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.upload_file_outlined,
+              color: _cPurple,
+              title: context.tr('importFromCsv'),
+              subtitle: 'Batch import student rosters from a CSV file',
+              onTap: () => _navigate(const BulkStudentImportScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.assignment_ind_outlined,
+              color: _cPurple,
+              title: 'Admission CRM',
+              subtitle: 'Manage enrollment pipeline leads and follow-ups',
+              onTap: () => _navigate(const AdmissionCrmScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.people_outline,
+              color: _cPurple,
+              title: context.tr('manageTeachers'),
+              subtitle: context.tr('subManageTeachersDesc'),
+              onTap: () => _navigate(const TeacherManagementScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.comment_outlined,
+              color: _cPurple,
+              title: context.tr('studentRemarks'),
+              subtitle: context.tr('subStudentRemarksCoordDesc'),
+              onTap: () => _navigate(
+                  const StudentRemarksScreen(role: 'coordinator')),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.person_off_outlined,
+              color: AppTheme.danger,
+              title: context.tr('deletedStudents'),
+              subtitle: context.tr('subDeletedStudentsDesc'),
+              onTap: () => _navigate(const DeletedStudentsScreen()),
+            ),
+
+            // ── Staff Tasks & Meetings ───────────────────────────────────────────────
             _SectionHeader(context.tr('secStaffTasks')),
             _FeatureTile(
               icon: Icons.assignment_outlined,
@@ -354,29 +483,8 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               )),
             ),
 
-            // ── Announcements ──────────────────────────────────────────────
-            _SectionHeader(context.tr('secAnnouncements')),
-            _FeatureTile(
-              icon: Icons.campaign_outlined,
-              color: _cPurple,
-              title: context.tr('noticeBoard'),
-              subtitle: context.tr('subAnnouncementsManageDesc'),
-              onTap: () => _navigate(AnnouncementsScreen(
-                viewerRole: 'coordinator',
-                posterName: _coordEmail,
-              )),
-            ),
-
-            // ── Fee Management ─────────────────────────────────────────────
+            // ── Fee Operations ─────────────────────────────────────────────
             _SectionHeader(context.tr('secFeeManagement')),
-            _FeatureTile(
-              icon: Icons.account_balance_wallet_outlined,
-              color: AppTheme.success,
-              title: context.tr('feeStructure'),
-              subtitle: context.tr('subFeeStructureDesc'),
-              onTap: () => _navigate(const FeeStructureScreen()),
-            ),
-            const _Divider(),
             _FeatureTile(
               icon: Icons.currency_rupee_outlined,
               color: AppTheme.success,
@@ -400,24 +508,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               },
             ),
 
-            // ── Exams & Marks ──────────────────────────────────────────────
-            _SectionHeader(context.tr('secExamsMarks')),
-            _FeatureTile(
-              icon: Icons.quiz_outlined,
-              color: _cPurple,
-              title: context.tr('examManagement'),
-              subtitle: context.tr('subExamMgmtDesc'),
-              onTap: () => _navigate(const ExamManagementScreen(role: 'coordinator')),
-            ),
-            _FeatureTile(
-              icon: Icons.description_outlined,
-              color: _cPurpleMid,
-              title: context.tr('reportCardTemplates'),
-              subtitle: context.tr('subReportTemplatesDesc'),
-              onTap: () => _navigate(const ReportCardTemplateListScreen()),
-            ),
-
-            // ── Copy Checking ──────────────────────────────────────────────
+            // ── Copy Checking & Homework ──────────────────────────────────────────────
             _SectionHeader(context.tr('secCopyChecking')),
             _FeatureTile(
               icon: Icons.menu_book_outlined,
@@ -426,9 +517,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               subtitle: context.tr('subCopyCheckOverviewDesc'),
               onTap: () => _navigate(const CopyCheckOverviewScreen()),
             ),
-
-            // ── Homework ───────────────────────────────────────────────────
-            _SectionHeader(context.tr('secHomework')),
+            const _Divider(),
             _FeatureTile(
               icon: Icons.assignment_outlined,
               color: _cPurple,
@@ -437,7 +526,33 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               onTap: () => _navigate(const HomeworkOverviewScreen()),
             ),
 
-            // ── Timetable ──────────────────────────────────────────────────
+            // ── Transport & Birthdays ─────────────────────────────────────────
+            _SectionHeader(context.tr('secBirthdays')),
+            BirthdayBanner(
+              role: 'coordinator',
+              onTap: () => _navigate(const BirthdaysScreen(
+                role: 'coordinator',
+              )),
+            ),
+            _FeatureTile(
+              icon: Icons.cake_outlined,
+              color: AppTheme.accent,
+              title: context.tr('birthdays'),
+              subtitle: context.tr('subBirthdaysDesc'),
+              onTap: () => _navigate(const BirthdaysScreen(
+                role: 'coordinator',
+              )),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.directions_bus_outlined,
+              color: _cPurple,
+              title: 'Transport Tracking',
+              subtitle: 'Manage bus routes, drivers, and update stops',
+              onTap: () => _navigate(const TransportDriverScreen()),
+            ),
+
+            // ── Timetable Setup (Low Frequency) ──────────────────────────────────────────────────
             _SectionHeader(context.tr('secTimetable')),
             _FeatureTile(
               icon: Icons.table_chart_outlined,
@@ -456,123 +571,40 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
             ),
             const _Divider(),
             _FeatureTile(
-              icon: Icons.swap_vert_circle_outlined,
-              color: _cPurple,
-              title: context.tr('assignDuties'),
-              subtitle: context.tr('subAssignDutiesDesc'),
-              onTap: () => _navigate(const AssignDutiesScreen()),
+              icon: Icons.account_balance_wallet_outlined,
+              color: AppTheme.success,
+              title: context.tr('feeStructure'),
+              subtitle: context.tr('subFeeStructureDesc'),
+              onTap: () => _navigate(const FeeStructureScreen()),
             ),
 
-            // ── Staff ──────────────────────────────────────────────────────
-            _SectionHeader(context.tr('secStaff')),
+            // ── Exams & Templates (Low Frequency) ──────────────────────────────
+            _SectionHeader(context.tr('secExamsMarks')),
             _FeatureTile(
-              icon: Icons.people_outline,
+              icon: Icons.quiz_outlined,
               color: _cPurple,
-              title: context.tr('manageTeachers'),
-              subtitle: context.tr('subManageTeachersDesc'),
-              onTap: () => _navigate(const TeacherManagementScreen()),
+              title: context.tr('examManagement'),
+              subtitle: context.tr('subExamMgmtDesc'),
+              onTap: () => _navigate(const ExamManagementScreen(role: 'coordinator')),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.description_outlined,
+              color: _cPurpleMid,
+              title: context.tr('reportCardTemplates'),
+              subtitle: context.tr('subReportTemplatesDesc'),
+              onTap: () => _navigate(const ReportCardTemplateListScreen()),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.event_note_outlined,
+              color: _cPurpleMid,
+              title: context.tr('datesheetsHallTickets'),
+              subtitle: 'Create and view exam datesheets and admit cards',
+              onTap: () => _navigate(const ExamDatesheetScreen()),
             ),
 
-            // ── Students ───────────────────────────────────────────────────
-            _SectionHeader(context.tr('secStudents')),
-            _FeatureTile(
-              icon: Icons.school_outlined,
-              color: _cPurple,
-              title: context.tr('studentDetails'),
-              subtitle: context.tr('subStudentDetailsDesc'),
-              onTap: () => _navigate(const StudentDetailsScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.upgrade_outlined,
-              color: _cPurple,
-              title: context.tr('promoteClass'),
-              subtitle: context.tr('subPromoteClassDesc'),
-              onTap: () => _navigate(const PromotionScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.upload_file_outlined,
-              color: _cPurple,
-              title: context.tr('importFromCsv'),
-              subtitle: 'Batch import student rosters from a CSV file',
-              onTap: () => _navigate(const BulkStudentImportScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.assignment_ind_outlined,
-              color: _cPurple,
-              title: 'Admission CRM',
-              subtitle: 'Manage enrollment pipeline leads and follow-ups',
-              onTap: () => _navigate(const AdmissionCrmScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.directions_bus_outlined,
-              color: _cPurple,
-              title: 'Transport Tracking',
-              subtitle: 'Manage bus routes, drivers, and update stops',
-              onTap: () => _navigate(const TransportDriverScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.comment_outlined,
-              color: _cPurple,
-              title: context.tr('studentRemarks'),
-              subtitle: context.tr('subStudentRemarksCoordDesc'),
-              onTap: () => _navigate(
-                  const StudentRemarksScreen(role: 'coordinator')),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.person_off_outlined,
-              color: AppTheme.danger,
-              title: context.tr('deletedStudents'),
-              subtitle: context.tr('subDeletedStudentsDesc'),
-              onTap: () => _navigate(const DeletedStudentsScreen()),
-            ),
-            // Student Deletion Requests are reviewed by the PRINCIPAL only
-            // (Firestore rules exclude coordinators from reading
-            // student_deletion_requests), so the tile lives on the principal
-            // dashboard — not here.
-
-            // ── Free Bells & Substitution ──────────────────────────────────
-            _SectionHeader(context.tr('secFreeBells')),
-            _FeatureTile(
-              icon: Icons.person_off_outlined,
-              color: AppTheme.danger,
-              title: context.tr('absentTeachersToday'),
-              subtitle: _teachersAbsent > 0
-                  ? '$_teachersAbsent absent · $_unassignedBells uncovered'
-                  : 'All teachers present today',
-              badge: _teachersAbsent > 0 ? '$_teachersAbsent' : null,
-              onTap: () => _navigate(const AbsentTeachersScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.swap_horiz_outlined,
-              color: AppTheme.warning,
-              title: context.tr('teacherSFreeBells'),
-              subtitle: context.tr('subSubstitutionBellsDesc'),
-              onTap: () => _navigate(const FreeBellsScreen()),
-            ),
-            const _Divider(),
-            _FeatureTile(
-              icon: Icons.history_outlined,
-              color: AppTheme.warning,
-              title: context.tr('substitutionBells'),
-              subtitle: context.tr('subSubstitutionHistoryDesc'),
-              onTap: () => _navigate(const SubstitutionHistoryScreen()),
-            ),
-
-            // ── Leave Requests ─────────────────────────────────────────────
-            _SectionHeader(context.tr('secLeaveRequests')),
-            _LeaveRequestTile(
-              pendingCount: _pendingLeaveCount,
-              onTap: () => _navigate(const LeaveRequestsScreen(viewerRole: 'coordinator')),
-            ),
-
-            // ── Analytics ─────────────────────────────────────────────────
+            // ── Analytics & Reports (Low Frequency) ─────────────────────────────────────────────────
             _SectionHeader(context.tr('secAnalytics')),
             _FeatureTile(
               icon: Icons.analytics_outlined,
@@ -581,9 +613,7 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
               subtitle: context.tr('subAnalyticsDesc'),
               onTap: () => _navigate(const AnalyticsScreen()),
             ),
-
-            // ── Attendance Reports ─────────────────────────────────────────
-            _SectionHeader(context.tr('secReports')),
+            const _Divider(),
             _FeatureTile(
               icon: Icons.bar_chart_outlined,
               color: _cPurpleMid,
@@ -610,60 +640,21 @@ class _CoordinatorDashboardState extends State<CoordinatorDashboard> {
                 }
               },
             ),
-
-           _SectionHeader(context.tr('secReports')),
-           _FeatureTile(
-             icon: Icons.event_note_outlined,
-             color: _cPurpleMid,
-             title: context.tr('datesheetsHallTickets'),
-             subtitle: 'Create and view exam datesheets and admit cards',
-             onTap: () => _navigate(const ExamDatesheetScreen()),
-           ),
-           const _Divider(),
-           _FeatureTile(
-             icon: Icons.assessment_outlined,
-             color: _cPurpleMid,
-             title: context.tr('syllabusProgressSummary'),
-             subtitle: 'View class-wise syllabus coverage',
-             onTap: () => _navigate(const SyllabusCoverageDashboardScreen()),
-           ),
-           const _Divider(),
-           _FeatureTile(
-             icon: Icons.badge_outlined,
-             color: _cPurpleMid,
-             title: context.tr('idCardGenerator'),
-             subtitle: 'Batch generate student ID cards',
-             onTap: () => _navigate(const IdCardGeneratorScreen()),
-           ),
-            // ── Birthdays ──────────────────────────────────────────────────
-            _SectionHeader(context.tr('secBirthdays')),
-            BirthdayBanner(
-              role: 'coordinator',
-              onTap: () => _navigate(const BirthdaysScreen(
-                role: 'coordinator',
-              )),
-            ),
+            const _Divider(),
             _FeatureTile(
-              icon: Icons.cake_outlined,
-              color: AppTheme.accent,
-              title: context.tr('birthdays'),
-              subtitle: context.tr('subBirthdaysDesc'),
-              onTap: () => _navigate(const BirthdaysScreen(
-                role: 'coordinator',
-              )),
+              icon: Icons.assessment_outlined,
+              color: _cPurpleMid,
+              title: context.tr('syllabusProgressSummary'),
+              subtitle: 'View class-wise syllabus coverage',
+              onTap: () => _navigate(const SyllabusCoverageDashboardScreen()),
             ),
-
-            // ── My To-Do List ─────────────────────────────────────────────
-            _SectionHeader(context.tr('secMyTodoList')),
+            const _Divider(),
             _FeatureTile(
-              icon: Icons.checklist_outlined,
-              color: _cPurple,
-              title: context.tr('myTodoList'),
-              subtitle: context.tr('subTodoDesc'),
-              onTap: () => _navigate(TodoListScreen(
-                userId: _coordEmail,
-                role: 'coordinator',
-              )),
+              icon: Icons.badge_outlined,
+              color: _cPurpleMid,
+              title: context.tr('idCardGenerator'),
+              subtitle: 'Batch generate student ID cards',
+              onTap: () => _navigate(const IdCardGeneratorScreen()),
             ),
 
             // ── Social Media Links ─────────────────────────────────────────

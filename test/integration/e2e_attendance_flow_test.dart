@@ -224,7 +224,7 @@ void main() {
 
       // Verify database write was triggered
       verify(() => mockStudentService.saveAttendance(
-            className: 'Class 9-A A',
+            className: 'Class 9-A',
             attendance: any(named: 'attendance'),
           )).called(2);
     });
@@ -322,7 +322,7 @@ void main() {
 
       // Verify it synced to database and queue is empty
       verify(() => mockStudentService.saveAttendanceForDate(
-            className: 'Class 9-A A',
+            className: 'Class 9-A',
             attendance: any(named: 'attendance'),
             date: any(named: 'date'),
           )).called(1);

@@ -306,20 +306,47 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               _SectionHeader(context.tr('secActiveTasks')),
               _buildTasksSection(),
 
-              // ── Birthdays ─────────────────────────────────────────────
-              _SectionHeader(context.tr('secBirthdays')),
-              BirthdayBanner(
-                role: 'principal',
-                onTap: () => _navigate(const BirthdaysScreen(role: 'principal')),
-              ),
+              // ── High Frequency Approvals & Digests ──────────────────────────────
+              _SectionHeader("HIGH FREQUENCY"),
               _FeatureTile(
-                icon: Icons.cake_outlined,
-                color: AppTheme.accent,
-                title: context.tr('birthdays'),
-                subtitle: context.tr('subBirthdaysDesc'),
-                onTap: () => _navigate(const BirthdaysScreen(role: 'principal')),
+                icon: Icons.hourglass_top_outlined,
+                color: AppTheme.warning,
+                title: context.tr('leaveRequests'),
+                subtitle: context.tr('subLeaveApproveDesc'),
+                badge: _pendingLeaveCount > 0 ? '$_pendingLeaveCount' : null,
+                onTap: () => _navigate(const LeaveRequestsScreen(viewerRole: 'principal')),
               ),
               const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.summarize_outlined,
+                color: AppTheme.primary,
+                title: context.tr('todaySDigest'),
+                subtitle: context.tr('subPrincipalDigestDesc'),
+                onTap: () => _navigate(const PrincipalDigestScreen()),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.task_outlined,
+                color: AppTheme.primary,
+                title: context.tr('staffTasks'),
+                subtitle: context.tr('subStaffTasksUnifiedDesc'),
+                onTap: () => _navigate(UnifiedStaffTaskScreen(
+                  role: 'principal',
+                  userEmail: _principalEmail,
+                  userName: _principalName,
+                )),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.campaign_outlined,
+                color: AppTheme.primary,
+                title: context.tr('announcements'),
+                subtitle: context.tr('subAnnouncementsPrincipalDesc'),
+                onTap: () => _navigate(AnnouncementsScreen(
+                  viewerRole: 'principal',
+                  posterName: _principalEmail,
+                )),
+              ),
 
               // ── Analytics ─────────────────────────────────────────────
               _SectionHeader(context.tr('secAnalytics')),
@@ -330,21 +357,9 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 subtitle: context.tr('subAnalyticsDesc'),
                 onTap: () => _navigate(const AnalyticsScreen()),
               ),
-              const Divider(height: 1, indent: 72),
 
-              // ── Finance ───────────────────────────────────────────────
-              _SectionHeader(context.tr('secFinance')),
-              _FeatureTile(
-                icon: Icons.currency_rupee_outlined,
-                color: AppTheme.success,
-                title: context.tr('feeCollection'),
-                subtitle: context.tr('subFeeCollectionDesc'),
-                onTap: () => _navigate(const FeeOverviewScreen(role: 'principal')),
-              ),
-              const Divider(height: 1, indent: 72),
-
-              // ── Tools ─────────────────────────────────────────────────
-              _SectionHeader(context.tr('secTools')),
+              // ── Staff & Management (Medium Frequency) ─────────────────────────
+              _SectionHeader("STAFF & PIPELINE"),
               _FeatureTile(
                 icon: Icons.manage_accounts_outlined,
                 color: AppTheme.primary,
@@ -367,6 +382,18 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(
+                icon: Icons.rate_review_outlined,
+                color: AppTheme.primary,
+                title: context.tr('staffRemarks'),
+                subtitle: context.tr('subStaffRemarksPrincipalDesc'),
+                onTap: () => _navigate(StaffRemarksScreen(
+                  role: _sessionRole,
+                  userEmail: _principalEmail,
+                  userName: _principalName,
+                )),
+              ),
+              const Divider(height: 1, indent: 72),
+              _FeatureTile(
                 icon: Icons.assignment_ind_outlined,
                 color: AppTheme.primary,
                 title: 'Admission CRM',
@@ -381,59 +408,9 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 subtitle: context.tr('subSchoolSettingsDesc'),
                 onTap: () => _navigate(const EditSchoolSettingsScreen()),
               ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.task_outlined,
-                color: AppTheme.primary,
-                title: context.tr('staffTasks'),
-                subtitle: context.tr('subStaffTasksUnifiedDesc'),
-                onTap: () => _navigate(UnifiedStaffTaskScreen(
-                  role: 'principal',
-                  userEmail: _principalEmail,
-                  userName: _principalName,
-                )),
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.rate_review_outlined,
-                color: AppTheme.primary,
-                title: context.tr('staffRemarks'),
-                subtitle: context.tr('subStaffRemarksPrincipalDesc'),
-                onTap: () => _navigate(StaffRemarksScreen(
-                  role: _sessionRole,
-                  userEmail: _principalEmail,
-                  userName: _principalName,
-                )),
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.summarize_outlined,
-                color: AppTheme.primary,
-                title: context.tr('todaySDigest'),
-                subtitle: context.tr('subPrincipalDigestDesc'),
-                onTap: () => _navigate(const PrincipalDigestScreen()),
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.campaign_outlined,
-                color: AppTheme.primary,
-                title: context.tr('announcements'),
-                subtitle: context.tr('subAnnouncementsPrincipalDesc'),
-                onTap: () => _navigate(AnnouncementsScreen(
-                  viewerRole: 'principal',
-                  posterName: _principalEmail,
-                )),
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.hourglass_top_outlined,
-                color: AppTheme.warning,
-                title: context.tr('leaveRequests'),
-                subtitle: context.tr('subLeaveApproveDesc'),
-                badge: _pendingLeaveCount > 0 ? '$_pendingLeaveCount' : null,
-                onTap: () => _navigate(const LeaveRequestsScreen(viewerRole: 'principal')),
-              ),
-              const Divider(height: 1, indent: 72),
+
+              // ── Deletion & Warnings (Medium Frequency) ────────────────────────
+              _SectionHeader("DELETIONS & WARNINGS"),
               _FeatureTile(
                 icon: Icons.no_accounts_outlined,
                 color: AppTheme.danger,
@@ -482,7 +459,51 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 subtitle: context.tr('subDeletedStudentsDesc'),
                 onTap: () => _navigate(const DeletedStudentsScreen()),
               ),
+
+              // ── Birthdays ─────────────────────────────────────────────
+              _SectionHeader(context.tr('secBirthdays')),
+              BirthdayBanner(
+                role: 'principal',
+                onTap: () => _navigate(const BirthdaysScreen(role: 'principal')),
+              ),
+              _FeatureTile(
+                icon: Icons.cake_outlined,
+                color: AppTheme.accent,
+                title: context.tr('birthdays'),
+                subtitle: context.tr('subBirthdaysDesc'),
+                onTap: () => _navigate(const BirthdaysScreen(role: 'principal')),
+              ),
+
+              // ── Finance (Low Frequency) ───────────────────────────────────────────────
+              _SectionHeader(context.tr('secFinance')),
+              _FeatureTile(
+                icon: Icons.currency_rupee_outlined,
+                color: AppTheme.success,
+                title: context.tr('feeCollection'),
+                subtitle: context.tr('subFeeCollectionDesc'),
+                onTap: () => _navigate(const FeeOverviewScreen(role: 'principal')),
+              ),
+
+              // ── Timetable & Roster Setup (Low Frequency) ──────────────────────────────
+              _SectionHeader(context.tr('secTimetable')),
+              _FeatureTile(
+                icon: Icons.table_chart_outlined,
+                color: AppTheme.primary,
+                title: context.tr('schoolTimetable'),
+                subtitle: context.tr('subViewTimetablesDesc'),
+                onTap: () => _navigate(const MyTimetableScreen()),
+              ),
               const Divider(height: 1, indent: 72),
+              _FeatureTile(
+                icon: Icons.people_outlined,
+                color: AppTheme.primary,
+                title: context.tr('studentRecords'),
+                subtitle: context.tr('subStudentRecordsDesc'),
+                onTap: () => _navigate(const StudentDetailsScreen()),
+              ),
+
+              // ── Reports & Auditing (Low Frequency) ──────────────────────────
+              _SectionHeader("REPORTS & AUDITING"),
               _FeatureTile(
                 icon: Icons.bar_chart_outlined,
                 color: AppTheme.primary,
@@ -503,22 +524,6 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                     ));
                   }
                 },
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.table_chart_outlined,
-                color: AppTheme.primary,
-                title: context.tr('schoolTimetable'),
-                subtitle: context.tr('subViewTimetablesDesc'),
-                onTap: () => _navigate(const MyTimetableScreen()),
-              ),
-              const Divider(height: 1, indent: 72),
-              _FeatureTile(
-                icon: Icons.people_outlined,
-                color: AppTheme.primary,
-                title: context.tr('studentRecords'),
-                subtitle: context.tr('subStudentRecordsDesc'),
-                onTap: () => _navigate(const StudentDetailsScreen()),
               ),
               const Divider(height: 1, indent: 72),
               _FeatureTile(

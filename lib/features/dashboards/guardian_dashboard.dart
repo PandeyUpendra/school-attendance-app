@@ -665,6 +665,24 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         return [
           _SectionHeader(context.tr('secAcademics')),
           _FeatureTile(
+            icon: Icons.assignment_outlined,
+            color: AppTheme.primary,
+            title: context.tr('homework'),
+            subtitle: context.tr('subViewHomework'),
+            badge: _homeworkList.isNotEmpty ? '${_homeworkList.length}' : null,
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianHomeworkScreen(
+                  homeworkList: _homeworkList,
+                  className: _student?.className ?? _activeClass,
+                ),
+              ),
+            )),
+          ),
+          const _Divider(),
+          _FeatureTile(
             icon: Icons.calendar_month_outlined,
             color: AppTheme.primary,
             title: context.tr('myTimetable'),
@@ -681,41 +699,6 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                 ),
               ),
             ),
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.people_outline,
-            color: AppTheme.primary,
-            title: context.tr('subjectTeachers'),
-            subtitle: context.tr('subTeachersThisClass'),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => GuardianSubjectTeachersScreen(
-                  classTimetable: _classTimetable,
-                  teacherById: _teacherById,
-                  className: _student?.className ?? _activeClass,
-                ),
-              ),
-            ),
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.assignment_outlined,
-            color: AppTheme.primary,
-            title: context.tr('homework'),
-            subtitle: context.tr('subViewHomework'),
-            badge: _homeworkList.isNotEmpty ? '${_homeworkList.length}' : null,
-            isLocked: !_hasConsent,
-            onTap: () => _runGatedAction(() => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => GuardianHomeworkScreen(
-                  homeworkList: _homeworkList,
-                  className: _student?.className ?? _activeClass,
-                ),
-              ),
-            )),
           ),
           const _Divider(),
           _FeatureTile(
@@ -751,6 +734,23 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
               ),
             )),
           ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.people_outline,
+            color: AppTheme.primary,
+            title: context.tr('subjectTeachers'),
+            subtitle: context.tr('subTeachersThisClass'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianSubjectTeachersScreen(
+                  classTimetable: _classTimetable,
+                  teacherById: _teacherById,
+                  className: _student?.className ?? _activeClass,
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 32),
         ];
         
@@ -772,20 +772,6 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
                   studentRoll: _activeRoll,
                   studentName: _student?.name ?? 'Student',
                 ),
-              ),
-            )),
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.workspace_premium_outlined,
-            color: AppTheme.primary,
-            title: context.tr('attendanceCertificate'),
-            subtitle: context.tr('subDownloadCertificate'),
-            isLocked: !_hasConsent,
-            onTap: () => _runGatedAction(() => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => AttendanceCertificateScreen(student: _student!),
               ),
             )),
           ),
@@ -837,11 +823,39 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
               ),
             )),
           ),
+          const _Divider(),
+          _FeatureTile(
+            icon: Icons.workspace_premium_outlined,
+            color: AppTheme.primary,
+            title: context.tr('attendanceCertificate'),
+            subtitle: context.tr('subDownloadCertificate'),
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AttendanceCertificateScreen(student: _student!),
+              ),
+            )),
+          ),
           const SizedBox(height: 32),
         ];
         
       case 3: // Admin & Fees
         return [
+          _SectionHeader(context.tr('secLeaveRemarks')),
+          _FeatureTile(
+            icon: Icons.event_busy_outlined,
+            color: AppTheme.warning,
+            title: context.tr('applyForLeave'),
+            subtitle: context.tr('subSubmitLeave'),
+            isLocked: !_hasConsent,
+            onTap: () => _runGatedAction(() => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GuardianLeaveApplicationScreen(student: _student!),
+              ),
+            ).then((_) => _loadAll())),
+          ),
           _SectionHeader(context.tr('secFees')),
           _FeatureTile(
             icon: Icons.account_balance_wallet_outlined,
@@ -884,20 +898,6 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
               ),
             )),
           ),
-          _SectionHeader(context.tr('secLeaveRemarks')),
-          _FeatureTile(
-            icon: Icons.event_busy_outlined,
-            color: AppTheme.warning,
-            title: context.tr('applyForLeave'),
-            subtitle: context.tr('subSubmitLeave'),
-            isLocked: !_hasConsent,
-            onTap: () => _runGatedAction(() => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => GuardianLeaveApplicationScreen(student: _student!),
-              ),
-            ).then((_) => _loadAll())),
-          ),
           _SectionHeader(context.tr('secSchoolProfile')),
           _FeatureTile(
             icon: Icons.badge_outlined,
@@ -918,13 +918,13 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
               MaterialPageRoute(
                 builder: (_) => GuardianConsentScreen(
                   studentDocId: _studentDocId,
-                  studentName: _student!.name,
-                  guardianName: _student!.fatherName,
-                  guardianPhone: _student!.parentPhone ?? _student!.phone,
-                  guardianEmail: _student!.guardianEmail,
+                  studentName: _student?.name ?? 'Student',
+                  guardianName: _student?.fatherName ?? '',
+                  guardianPhone: _student?.parentPhone ?? _student?.phone ?? '',
+                  guardianEmail: _student?.guardianEmail,
                 ),
               ),
-            ),
+            ).then((_) => _loadAll()),
           ),
           const _Divider(),
           _FeatureTile(

@@ -174,7 +174,27 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
                   ),
                 ),
               ),
-            _SectionHeader(context.tr('sectionOverview')),
+            _SectionHeader(context.tr('sectionFinance')),
+          _FeatureTile(
+            icon: Icons.currency_rupee_outlined,
+            color: AppTheme.primary,
+            title: context.tr('feeCollection'),
+            subtitle: context.tr('feeCollectionSubtitle'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _OPFinancePage())),
+          ),
+
+          _SectionHeader(context.tr('role_principal').toUpperCase()),
+          _FeatureTile(
+            icon: Icons.admin_panel_settings_outlined,
+            color: AppTheme.primary,
+            title: context.tr('principalDashboard'),
+            subtitle: context.tr('principalDashboardSubtitle'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const PrincipalDashboard(),
+            )),
+          ),
+
+          _SectionHeader(context.tr('sectionOverview')),
           _FeatureTile(
             icon: Icons.dashboard_outlined,
             color: AppTheme.primary,
@@ -208,26 +228,6 @@ class _OwnerPrincipalHomeState extends State<OwnerPrincipalHome> {
             title: context.tr('academics'),
             subtitle: context.tr('academicsSubtitle'),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _OPAcademicsPage())),
-          ),
-
-          _SectionHeader(context.tr('sectionFinance')),
-          _FeatureTile(
-            icon: Icons.currency_rupee_outlined,
-            color: AppTheme.primary,
-            title: context.tr('feeCollection'),
-            subtitle: context.tr('feeCollectionSubtitle'),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _OPFinancePage())),
-          ),
-
-          _SectionHeader(context.tr('role_principal').toUpperCase()),
-          _FeatureTile(
-            icon: Icons.admin_panel_settings_outlined,
-            color: AppTheme.primary,
-            title: context.tr('principalDashboard'),
-            subtitle: context.tr('principalDashboardSubtitle'),
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => const PrincipalDashboard(),
-            )),
           ),
 
           _SectionHeader(context.tr('sectionManage')),
