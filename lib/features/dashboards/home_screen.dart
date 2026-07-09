@@ -410,379 +410,401 @@ class _HomeScreenState extends State<HomeScreen> {
             child: _buildSubDutyCard(),
           ),
 
-           _SectionHeader(context.tr('secAcademics')),
-           _FeatureTile(
-             icon: Icons.book_outlined,
-             color: AppTheme.primary,
-             title: context.tr('dailyClassDiary'),
-             subtitle: 'Log daily teaching activities',
-             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ClassDiaryScreen(teacher: teacher!))),
-           ),
-           const _Divider(),
-           _FeatureTile(
-             icon: Icons.library_books_outlined,
-             color: AppTheme.primary,
-             title: context.tr('studyMaterials'),
-             subtitle: 'Upload and view classroom resources',
-             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StudyMaterialUploadScreen(teacher: teacher!))),
-           ),
+            _SectionHeader(context.tr('secAcademics')),
+            _FeatureTile(
+              icon: Icons.fact_check_outlined,
+              color: AppTheme.primary,
+              title: context.tr('takeAttendance'),
+              subtitle: 'Mark attendance for ${teacher!.classTeacherOf}',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AttendanceScreen(
+                    className: teacher!.classTeacherOf!,
+                    section: teacher!.section,
+                  ),
+                ),
+              ),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.calendar_month_outlined,
+              color: AppTheme.primary,
+              title: context.tr('myTimetable'),
+              subtitle: context.tr('subTimetablePersonalDesc'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MyTimetableScreen(teacher: teacher),
+                ),
+              ),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.book_outlined,
+              color: AppTheme.primary,
+              title: context.tr('dailyClassDiary'),
+              subtitle: 'Log daily teaching activities',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ClassDiaryScreen(teacher: teacher!),
+                ),
+              ),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.swap_horiz_outlined,
+              color: AppTheme.primary,
+              title: context.tr('mySubstitutionDuties'),
+              subtitle: context.tr('subSubDutiesDesc'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SubstitutionHistoryScreen(
+                    teacherId: teacher?.id,
+                    teacherName: teacher?.name,
+                  ),
+                ),
+              ),
+            ),
             const _Divider(),
             _FeatureTile(
               icon: Icons.list_alt_outlined,
               color: AppTheme.primary,
               title: context.tr('syllabusProgress'),
               subtitle: 'Track syllabus coverage',
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SyllabusTrackerScreen(teacher: teacher!))),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SyllabusTrackerScreen(teacher: teacher!),
+                ),
+              ),
             ),
             const _Divider(),
             _FeatureTile(
-              icon: Icons.fact_check_outlined,
-            color: AppTheme.primary,
-            title: context.tr('takeAttendance'),
-            subtitle: 'Mark attendance for ${teacher!.classTeacherOf}',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    AttendanceScreen(
-                      className: teacher!.classTeacherOf!,
-                      section: teacher!.section,
-                    ),
-              ),
-            ),
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.calendar_month_outlined,
-            color: AppTheme.primary,
-            title: context.tr('myTimetable'),
-            subtitle: context.tr('subTimetablePersonalDesc'),
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(
-                    builder: (_) => MyTimetableScreen(teacher: teacher))),
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.swap_horiz_outlined,
-            color: AppTheme.primary,
-            title: context.tr('mySubstitutionDuties'),
-            subtitle: context.tr('subSubDutiesDesc'),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => SubstitutionHistoryScreen(
-                  teacherId:   teacher?.id,
-                  teacherName: teacher?.name,
-                ),
-              ),
-            ),
-          ),
-
-          _SectionHeader(context.tr('secStudents')),
-          _FeatureTile(
-            icon: Icons.people_outline,
-            color: AppTheme.primary,
-            title: context.tr('studentList'),
-            subtitle:
-                'View and manage students in ${teacher!.classTeacherOf}',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => StudentListScreen(
-                  className: teacher!.classTeacherOf!,
-                  section: teacher!.section,
-                  isClassTeacher: true,
-                  teacherId: teacher!.id,
-                  teacherName: teacher!.name,
-                  teacherEmail: teacher!.email,
-                ),
-              ),
-            ),
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.bar_chart_outlined,
-            color: AppTheme.primary,
-            title: context.tr('attendanceHistory'),
-            subtitle:
-                'Monthly reports, % per student & low-attendance flags',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => AttendanceHistoryScreen(
-                    className: teacher!.classTeacherOf!,
-                    section:   teacher!.section),
-              ),
-            ),
-          ),
-
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.person_off_outlined,
-            color: AppTheme.danger,
-            title: context.tr('deletedStudents'),
-            subtitle: 'Read-only history of removed students in your class',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DeletedStudentsScreen(
-                  classNameFilter: teacher!.classTeacherOf!,
-                  sectionFilter:   teacher!.section,
-                ),
-              ),
-            ),
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.comment_outlined,
-            color: AppTheme.primary,
-            title: context.tr('studentRemarks'),
-            subtitle: context.tr('subStudentRemarksDesc2'),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => StudentRemarksScreen(
-                  role:             'teacher',
-                  teacherClassName: teacher!.classTeacherOf,
-                  teacherSection:   teacher!.section,
-                  teacherId:        teacher!.id,
-                ),
-              ),
-            ),
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.assignment_ind_outlined,
-            color: AppTheme.primary,
-            title: 'Admission Enquiries',
-            subtitle: 'Log prospective students & follow-ups',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AdmissionCrmScreen()),
-            ),
-          ),
-
-          _SectionHeader(context.tr('secCalls')),
-          _FeatureTile(
-            icon: Icons.phone_callback_outlined,
-            color: AppTheme.primary,
-            title: context.tr('dailyCalls'),
-            subtitle: 'Track guardian calls for absent/leave students',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => DailyCallsScreen(teacher: teacher!)),
-            ),
-          ),
-
-          _SectionHeader(context.tr('secLeave')),
-          _FeatureTile(
-            icon: Icons.event_busy_outlined,
-            color: AppTheme.warning,
-            title: context.tr('applyForLeave'),
-            subtitle:
-                'Submit a leave application to coordinator or principal',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) =>
-                      LeaveApplicationScreen(teacher: teacher!)),
-            ),
-          ),
-          const _Divider(),
-          _FeatureTile(
-            icon: Icons.assignment_return_outlined,
-            color: AppTheme.accent,
-            title: context.tr('studentLeaveRequests'),
-            subtitle: context.tr('subStudentLeaveDesc'),
-            badge: _pendingStudentLeaves > 0
-                ? '$_pendingStudentLeaves'
-                : null,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => StudentLeaveRequestsScreen(
-                  studentClass: teacher!.classTeacherOf!,
-                  studentSection: teacher!.section,
-                ),
-              ),
-            ),
-          ),
-
-          _SectionHeader(context.tr('secCopyChecking')),
-          _FeatureTile(
-            icon: Icons.menu_book_outlined,
-            color: AppTheme.primary,
-            title: context.tr('copyChecking'),
-            subtitle: context.tr('subCopyCheckDesc'),
-            onTap: () {
-              if (teacher != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) =>
-                          CopyCheckingScreen(teacher: teacher!)),
-                );
-              }
-            },
-          ),
-
-          _SectionHeader(context.tr('secHomework')),
-          _FeatureTile(
-            icon: Icons.assignment_outlined,
-            color: AppTheme.primary,
-            title: context.tr('homework'),
-            subtitle: context.tr('subHomeworkDesc'),
-            onTap: () {
-              if (teacher != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => HomeworkScreen(teacher: teacher!)),
-                );
-              }
-            },
-          ),
-
-          _SectionHeader(context.tr('secExamsMarks')),
-          _FeatureTile(
-            icon: Icons.quiz_outlined,
-            color: AppTheme.primary,
-            title: context.tr('examsMarks'),
-            subtitle: context.tr('subExamsDesc'),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => ExamManagementScreen(
-                      role: 'teacher',
-                      section: teacher!.section,
-                      allowedClasses: teacher!.classTeacherOf != null
-                          ? [teacher!.classTeacherOf!]
-                          : [])),
-            ),
-          ),
-
-          _SectionHeader(context.tr('secRemarks')),
-          _FeatureTile(
-            icon: Icons.rate_review_outlined,
-            color: AppTheme.primary,
-            title: context.tr('myRemarks'),
-            subtitle: context.tr('subMyRemarksDesc'),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => StaffRemarksScreen(
-                  role: 'teacher',
-                  userEmail: teacher?.email ?? '',
-                  userName: teacher?.name ?? '',
-                  teacherId: teacher?.id,
-                ),
-              ),
-            ),
-          ),
-
-          _SectionHeader(context.tr('secMyTasks')),
-          _FeatureTile(
-            icon: Icons.task_outlined,
-            color: AppTheme.primary,
-            title: 'Tasks & Duties',
-            subtitle: 'Class duties & meeting decisions',
-            badge: (_pendingTaskCount + _pendingMeetingTasks) > 0 ? '${_pendingTaskCount + _pendingMeetingTasks}' : null,
-            onTap: () async {
-              await Navigator.push(
+              icon: Icons.library_books_outlined,
+              color: AppTheme.primary,
+              title: context.tr('studyMaterials'),
+              subtitle: 'Upload and view classroom resources',
+              onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (_) =>
-                        StaffTasksScreen(teacherId: teacher?.id)),
-              );
-              _loadNotifCount();
-            },
-          ),
+                  builder: (_) => StudyMaterialUploadScreen(teacher: teacher!),
+                ),
+              ),
+            ),
 
-          _SectionHeader(context.tr('secAnnouncements')),
-          _FeatureTile(
-            icon: Icons.campaign_outlined,
-            color: AppTheme.primary,
-            title: context.tr('noticeBoard'),
-            subtitle: context.tr('subAnnouncementsDesc'),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
+            _SectionHeader(context.tr('secCalls')),
+            _FeatureTile(
+              icon: Icons.phone_callback_outlined,
+              color: AppTheme.primary,
+              title: context.tr('dailyCalls'),
+              subtitle: 'Track guardian calls for absent/leave students',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DailyCallsScreen(teacher: teacher!),
+                ),
+              ),
+            ),
+
+            _SectionHeader(context.tr('secHomework')),
+            _FeatureTile(
+              icon: Icons.assignment_outlined,
+              color: AppTheme.primary,
+              title: context.tr('homework'),
+              subtitle: context.tr('subHomeworkDesc'),
+              onTap: () {
+                if (teacher != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => HomeworkScreen(teacher: teacher!),
+                    ),
+                  );
+                }
+              },
+            ),
+
+            _SectionHeader(context.tr('secCopyChecking')),
+            _FeatureTile(
+              icon: Icons.menu_book_outlined,
+              color: AppTheme.primary,
+              title: context.tr('copyChecking'),
+              subtitle: context.tr('subCopyCheckDesc'),
+              onTap: () {
+                if (teacher != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CopyCheckingScreen(teacher: teacher!),
+                    ),
+                  );
+                }
+              },
+            ),
+
+            _SectionHeader(context.tr('secMyTasks')),
+            _FeatureTile(
+              icon: Icons.task_outlined,
+              color: AppTheme.primary,
+              title: 'Tasks & Duties',
+              subtitle: 'Class duties & meeting decisions',
+              badge: (_pendingTaskCount + _pendingMeetingTasks) > 0
+                  ? '${_pendingTaskCount + _pendingMeetingTasks}'
+                  : null,
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => StaffTasksScreen(teacherId: teacher?.id),
+                  ),
+                );
+                _loadNotifCount();
+              },
+            ),
+
+            _SectionHeader(context.tr('secAnnouncements')),
+            _FeatureTile(
+              icon: Icons.campaign_outlined,
+              color: AppTheme.primary,
+              title: context.tr('noticeBoard'),
+              subtitle: context.tr('subAnnouncementsDesc'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
                   builder: (_) => AnnouncementsScreen(
-                      viewerRole: 'class_teacher',
-                      posterName: teacher?.email,
-                      viewerClasses: <String>{
-                        if ((teacher?.classTeacherOf ?? '').isNotEmpty)
-                          teacher!.classTeacherOf!,
-                        ...?teacher?.assignedClasses,
-                      }.toList())),
-            ),
-          ),
-
-          _SectionHeader(context.tr('secBirthdays')),
-          BirthdayBanner(
-            role: 'class_teacher',
-            className: teacher?.classTeacherOf,
-            section: teacher?.section,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => BirthdaysScreen(
-                  role: 'class_teacher',
-                  className: teacher?.classTeacherOf,
-                  section: teacher?.section,
+                    viewerRole: 'class_teacher',
+                    posterName: teacher?.email,
+                    viewerClasses: <String>{
+                      if ((teacher?.classTeacherOf ?? '').isNotEmpty)
+                        teacher!.classTeacherOf!,
+                      ...?teacher?.assignedClasses,
+                    }.toList(),
+                  ),
                 ),
               ),
             ),
-          ),
-          _FeatureTile(
-            icon: Icons.cake_outlined,
-            color: AppTheme.accent,
-            title: context.tr('birthdays'),
-            subtitle: context.tr('subBirthdaysDesc'),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => BirthdaysScreen(
-                  role: 'class_teacher',
-                  className: teacher?.classTeacherOf,
-                  section: teacher?.section,
+
+            _SectionHeader(context.tr('secStudents')),
+            _FeatureTile(
+              icon: Icons.people_outline,
+              color: AppTheme.primary,
+              title: context.tr('studentList'),
+              subtitle: 'View and manage students in ${teacher!.classTeacherOf}',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => StudentListScreen(
+                    className: teacher!.classTeacherOf!,
+                    section: teacher!.section,
+                    isClassTeacher: true,
+                    teacherId: teacher!.id,
+                    teacherName: teacher!.name,
+                    teacherEmail: teacher!.email,
+                  ),
                 ),
               ),
             ),
-          ),
-
-          _SectionHeader(context.tr('secMyTodoList')),
-          _FeatureTile(
-            icon: Icons.checklist_outlined,
-            color: AppTheme.primary,
-            title: 'My To-Do List',
-            subtitle: context.tr('subTodoDesc'),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TodoListScreen(
-                  userId: teacher?.id ?? teacher?.email ?? '',
-                  role: 'teacher',
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.comment_outlined,
+              color: AppTheme.primary,
+              title: context.tr('studentRemarks'),
+              subtitle: context.tr('subStudentRemarksDesc2'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => StudentRemarksScreen(
+                    role: 'teacher',
+                    teacherClassName: teacher!.classTeacherOf,
+                    teacherSection: teacher!.section,
+                    teacherId: teacher!.id,
+                  ),
                 ),
               ),
             ),
-          ),
-
-          // ── Social Media Links ───────────────────────────────────────
-          _SectionHeader(context.tr('socialMediaLinksTitle')),
-          _FeatureTile(
-            icon: Icons.share_outlined,
-            color: AppTheme.primary,
-            title: context.tr('socialMediaLinksTitle'),
-            subtitle: context.tr('socialMediaSubtitle'),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const SocialMediaLinksScreen(),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.assignment_ind_outlined,
+              color: AppTheme.primary,
+              title: 'Admission Enquiries',
+              subtitle: 'Log prospective students & follow-ups',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AdmissionCrmScreen()),
               ),
             ),
-          ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.bar_chart_outlined,
+              color: AppTheme.primary,
+              title: context.tr('attendanceHistory'),
+              subtitle: 'Monthly reports, % per student & low-attendance flags',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AttendanceHistoryScreen(
+                    className: teacher!.classTeacherOf!,
+                    section: teacher!.section,
+                  ),
+                ),
+              ),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.person_off_outlined,
+              color: AppTheme.danger,
+              title: context.tr('deletedStudents'),
+              subtitle: 'Read-only history of removed students in your class',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DeletedStudentsScreen(
+                    classNameFilter: teacher!.classTeacherOf!,
+                    sectionFilter: teacher!.section,
+                  ),
+                ),
+              ),
+            ),
+
+            _SectionHeader(context.tr('secRemarks')),
+            _FeatureTile(
+              icon: Icons.rate_review_outlined,
+              color: AppTheme.primary,
+              title: context.tr('myRemarks'),
+              subtitle: context.tr('subMyRemarksDesc'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => StaffRemarksScreen(
+                    role: 'teacher',
+                    userEmail: teacher?.email ?? '',
+                    userName: teacher?.name ?? '',
+                    teacherId: teacher?.id,
+                  ),
+                ),
+              ),
+            ),
+
+            _SectionHeader(context.tr('secBirthdays')),
+            BirthdayBanner(
+              role: 'class_teacher',
+              className: teacher?.classTeacherOf,
+              section: teacher?.section,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BirthdaysScreen(
+                    role: 'class_teacher',
+                    className: teacher?.classTeacherOf,
+                    section: teacher?.section,
+                  ),
+                ),
+              ),
+            ),
+            _FeatureTile(
+              icon: Icons.cake_outlined,
+              color: AppTheme.accent,
+              title: context.tr('birthdays'),
+              subtitle: context.tr('subBirthdaysDesc'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BirthdaysScreen(
+                    role: 'class_teacher',
+                    className: teacher?.classTeacherOf,
+                    section: teacher?.section,
+                  ),
+                ),
+              ),
+            ),
+
+            _SectionHeader(context.tr('secLeave')),
+            _FeatureTile(
+              icon: Icons.assignment_return_outlined,
+              color: AppTheme.accent,
+              title: context.tr('studentLeaveRequests'),
+              subtitle: context.tr('subStudentLeaveDesc'),
+              badge: _pendingStudentLeaves > 0
+                  ? '$_pendingStudentLeaves'
+                  : null,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => StudentLeaveRequestsScreen(
+                    studentClass: teacher!.classTeacherOf!,
+                    studentSection: teacher!.section,
+                  ),
+                ),
+              ),
+            ),
+            const _Divider(),
+            _FeatureTile(
+              icon: Icons.event_busy_outlined,
+              color: AppTheme.warning,
+              title: context.tr('applyForLeave'),
+              subtitle: 'Submit a leave application to coordinator or principal',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => LeaveApplicationScreen(teacher: teacher!),
+                ),
+              ),
+            ),
+
+            _SectionHeader(context.tr('secExamsMarks')),
+            _FeatureTile(
+              icon: Icons.quiz_outlined,
+              color: AppTheme.primary,
+              title: context.tr('examsMarks'),
+              subtitle: context.tr('subExamsDesc'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ExamManagementScreen(
+                    role: 'teacher',
+                    section: teacher!.section,
+                    allowedClasses: teacher!.classTeacherOf != null
+                        ? [teacher!.classTeacherOf!]
+                        : [],
+                  ),
+                ),
+              ),
+            ),
+
+            _SectionHeader(context.tr('secMyTodoList')),
+            _FeatureTile(
+              icon: Icons.checklist_outlined,
+              color: AppTheme.primary,
+              title: 'My To-Do List',
+              subtitle: context.tr('subTodoDesc'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TodoListScreen(
+                    userId: teacher?.id ?? teacher?.email ?? '',
+                    role: 'teacher',
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Social Media Links ───────────────────────────────────────
+            _SectionHeader(context.tr('socialMediaLinksTitle')),
+            _FeatureTile(
+              icon: Icons.share_outlined,
+              color: AppTheme.primary,
+              title: context.tr('socialMediaLinksTitle'),
+              subtitle: context.tr('socialMediaSubtitle'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SocialMediaLinksScreen(),
+                ),
+              ),
+            )
 
           const SizedBox(height: 32),
               ],
