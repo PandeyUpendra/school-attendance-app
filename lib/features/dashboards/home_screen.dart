@@ -210,11 +210,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final dateStr =
         '${wdays[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}';
 
-    final roleStr = t == null
-        ? 'Teacher'
-        : t.isClassTeacher && t.classTeacherOf != null
-            ? 'Class Teacher  ·  ${t.classTeacherOf}'
-            : 'Teacher  ·  ${t.subject}';
     final settings = Provider.of<SchoolSettingsProvider>(context);
 
     return ClipPath(
@@ -335,25 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 6),
-
-                // ── Teacher name ─────────────────────────────────────────
-                if (t?.name != null) ...[
-                  Text(
-                    t!.name,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        height: 1.1),
-                  ),
-                  const SizedBox(height: 3),
-                ],
-
-                Text(roleStr,
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 13)),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
 
                 // ── Stats glass card ─────────────────────────────────────
                 if (t != null)

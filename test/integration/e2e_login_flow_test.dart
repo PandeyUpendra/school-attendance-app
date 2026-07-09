@@ -269,7 +269,7 @@ void main() {
 
       // Verify redirection to HomeScreen
       expect(find.byType(HomeScreen), findsOneWidget);
-      expect(find.text('Ms. Nair'), findsOneWidget);
+      expect(find.text('My Class Today'), findsOneWidget);
     });
 
     testWidgets('Login with coordinator credentials routes to CoordinatorDashboard', (WidgetTester tester) async {
