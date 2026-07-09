@@ -62,6 +62,7 @@ class _GuardianLeaveApplicationScreenState
           .where('applicantType', isEqualTo: 'guardian')
           .where('studentClass',  isEqualTo: widget.student.className)
           .where('studentRoll',   isEqualTo: widget.student.roll)
+          .where('studentSection', isEqualTo: widget.student.section)
           .get();
       for (final doc in snap.docs) {
         final data   = doc.data();
@@ -498,6 +499,7 @@ class _GuardianLeaveApplicationScreenState
                 .where('applicantType', isEqualTo: 'guardian')
                 .where('studentClass',  isEqualTo: widget.student.className)
                 .where('studentRoll',   isEqualTo: widget.student.roll)
+                .where('studentSection', isEqualTo: widget.student.section)
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {

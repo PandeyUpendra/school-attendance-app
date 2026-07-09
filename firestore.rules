@@ -1246,16 +1246,24 @@ service cloud.firestore {
       // Evaluated as a pure request-level rule, allowing collection queries.
       allow read: if isSignedIn() && inSchool(sid) && isManagement();
 
+      // Submitting teacher can read their own leave applications.
+      // Supported for collection queries via teacherId.
+      allow read: if isSignedIn() && inSchool(sid) && isAnyTeacher()
+        && 'teacherId' in resource.data
+        && resource.data.teacherId == userTeacherId();
+
+      // Guardian can read their own child's leave applications.
+      // Supported for collection queries via applicantType, studentClass, studentRoll, and studentSection.
+      allow read: if isSignedIn() && inSchool(sid) && isRole('guardian')
+        && 'applicantType' in resource.data && resource.data.applicantType == 'guardian'
+        && 'studentClass' in resource.data && resource.data.studentClass == userStudentClass()
+        && 'studentRoll' in resource.data && resource.data.studentRoll == userStudentRoll()
+        && 'studentSection' in resource.data && resource.data.studentSection == userStudentSection();
+
       // Fallback rule: relies on allowed_users doc / isClassTeacher logic (calls get(), works for getDoc but not queries)
-      allow read: if isSignedIn() && inSchool(sid) && (
-        (isAnyTeacher() && 'teacherId' in resource.data && resource.data.teacherId == userTeacherId()) ||
-        (isRole('guardian')
-          && 'applicantType' in resource.data && resource.data.applicantType == 'guardian'
-          && 'studentClass' in resource.data && resource.data.studentClass == userStudentClass()
-          && 'studentRoll' in resource.data && resource.data.studentRoll == userStudentRoll()
-          && 'studentSection' in resource.data && resource.data.studentSection == userStudentSection()) ||
-        (isAnyTeacher() && 'studentClass' in resource.data && (resource.data.studentClass in userClassIds() || isClassTeacher(resource.data.studentClass, 'studentSection' in resource.data ? resource.data.studentSection : '')))
-      );
+      allow read: if isSignedIn() && inSchool(sid) && isAnyTeacher()
+        && 'studentClass' in resource.data
+        && (resource.data.studentClass in userClassIds() || isClassTeacher(resource.data.studentClass, 'studentSection' in resource.data ? resource.data.studentSection : ''));
 
       // No impersonation: teacherId must equal the calling user's teacherId, or guardian matches student info.
       allow create: if isSignedIn() && inSchool(sid) && (
