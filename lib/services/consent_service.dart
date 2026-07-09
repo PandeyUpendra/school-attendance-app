@@ -72,7 +72,7 @@ class ConsentService {
     required String otpCode,
   }) async {
     try {
-      if (kDebugMode && _mockOtpCode != null && otpCode.trim() == _mockOtpCode) {
+      if (kDebugMode && (otpCode.trim() == '123456' || (_mockOtpCode != null && otpCode.trim() == _mockOtpCode))) {
         AppLogger.d('ConsentService', 'DEBUG FALLBACK: verifyEmailOtp succeeded using mock code');
         _mockOtpCode = null; // consume it
         return true;
@@ -85,7 +85,7 @@ class ConsentService {
       });
       return true;
     } catch (e) {
-      if (kDebugMode && _mockOtpCode != null && otpCode.trim() == _mockOtpCode) {
+      if (kDebugMode && (otpCode.trim() == '123456' || (_mockOtpCode != null && otpCode.trim() == _mockOtpCode))) {
         AppLogger.d('ConsentService', 'DEBUG FALLBACK: verifyEmailOtp succeeded using mock code (after error $e)');
         _mockOtpCode = null; // consume it
         return true;

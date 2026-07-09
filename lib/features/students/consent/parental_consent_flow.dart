@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 
 import '../../../l10n/app_strings.dart';
 import '../../../models/parental_consent.dart';
@@ -688,6 +690,9 @@ class _OtpStep extends StatelessWidget {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: InputDecoration(
                     labelText: context.tr('enterOtp'),
+                    labelStyle: const TextStyle(letterSpacing: 1.0),
+                    hintText: '000000',
+                    hintStyle: TextStyle(letterSpacing: 8.0, color: Colors.grey.shade400),
                     border:    const OutlineInputBorder(),
                     counterText: '',
                   ),
@@ -715,6 +720,29 @@ class _OtpStep extends StatelessWidget {
                   onPressed: verifying ? null : onSendOtp,
                   child: Text(context.tr('resendOtp')),
                 ),
+                if (kDebugMode) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      border: Border.all(color: Colors.amber.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.bug_report_outlined, color: Colors.amber),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Debug Mode: If you do not receive the email, you can use mock code 123456.',
+                            style: TextStyle(fontSize: 12, color: Colors.black87),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
               if (otpError != null) ...[
                 const SizedBox(height: 8),
