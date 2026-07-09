@@ -26,6 +26,7 @@ import '../../services/student_service.dart';
 import '../../services/fee_service.dart';
 import '../../services/homework_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/push_service.dart';
 import '../../services/timetable_service.dart';
 import '../../services/base_firestore_service.dart';
 import '../../services/transport_service.dart';
@@ -437,6 +438,15 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
         _notifSub?.cancel();
         _initNotifStream();
       }
+
+      // Re-sync FCM topics for this child session (#52).
+      PushService().syncForSession(
+        role: 'guardian',
+        schoolId: BaseFirestoreService.currentSchoolId,
+        studentClass: _activeClass,
+        studentRoll: _activeRoll,
+        studentAdmissionId: _activeAdmissionId,
+      );
     } catch (e) {
       if (e.toString().contains('permission-denied') || e.toString().contains('PERMISSION_DENIED')) {
         await AuthService().clearSession();

@@ -40,6 +40,7 @@ class PushService {
     String? teacherId,
     String? studentClass,
     int? studentRoll,
+    String? studentAdmissionId,
   }) {
     final a = <String>{'all'};
     if (role == 'coordinator' || role == 'principal') a.add(role);
@@ -52,6 +53,9 @@ class PushService {
       if (studentClass != null && studentClass.isNotEmpty) {
         a.add('class:$studentClass');
         if (studentRoll != null) a.add('guardian:$studentClass:$studentRoll');
+      }
+      if (studentAdmissionId != null && studentAdmissionId.isNotEmpty) {
+        a.add('guardian_adm:$studentAdmissionId');
       }
     }
     return a.toList();
@@ -66,6 +70,7 @@ class PushService {
     String? teacherId,
     String? studentClass,
     int? studentRoll,
+    String? studentAdmissionId,
   }) async {
     try {
       final sid = (schoolId != null && schoolId.isNotEmpty)
@@ -90,6 +95,7 @@ class PushService {
         teacherId: teacherId,
         studentClass: studentClass,
         studentRoll: studentRoll,
+        studentAdmissionId: studentAdmissionId,
       ).map((aud) => topicFor(sid, aud)).toSet();
 
       final prefs = await SharedPreferences.getInstance();

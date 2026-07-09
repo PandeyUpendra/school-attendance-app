@@ -30,6 +30,7 @@ import './features/owner/owner_principal_home.dart';
 import 'services/auth_service.dart';
 import 'services/base_firestore_service.dart';
 import 'services/birthday_service.dart';
+import 'services/push_service.dart';
 import 'services/timetable_service.dart';
 import './shared/utils/app_transitions.dart';
 import './features/auth/biometric_lock_screen.dart';
@@ -73,6 +74,11 @@ void main() async {
   final messaging = FirebaseMessaging.instance;
   // Request permission asynchronously to avoid blocking startup (issue #1)
   unawaited(messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  ));
+  unawaited(messaging.setForegroundNotificationPresentationOptions(
     alert: true,
     badge: true,
     sound: true,
@@ -551,6 +557,16 @@ class _SplashGateState extends State<_SplashGate> with SingleTickerProviderState
         _go(const LoginScreen());
         return;
     }
+
+    // Ensure push topics and token are synced on startup.
+    PushService().syncForSession(
+      role: role,
+      schoolId: session['schoolId'] as String?,
+      teacherId: session['teacherId'] as String?,
+      studentClass: session['studentClass'] as String?,
+      studentRoll: session['studentRoll'] as int?,
+      studentAdmissionId: session['studentAdmissionId'] as String?,
+    );
 
     if (isBioEnabled) {
       _go(BiometricLockScreen(targetScreen: destination));

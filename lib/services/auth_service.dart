@@ -325,6 +325,7 @@ class AuthService {
       teacherId:    teacherId,
       studentClass: studentClass,
       studentRoll:  studentRoll,
+      studentAdmissionId: studentAdmissionId,
     );
 
     // Trigger legacy birthday migration
