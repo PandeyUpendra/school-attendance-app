@@ -66,6 +66,15 @@ class _GuardianRegisterScreenState extends State<GuardianRegisterScreen> {
       // 2. Perform local login since account was created on server
       await AuthService().signInWithEmail(email, password);
 
+      // Mark account active on first successful registration login.
+      final userData = await TimetableService.instance.getAllowedUserDoc(email);
+      if (userData != null) {
+        final status = userData['status'] as String?;
+        if (status == null || status == 'pending') {
+          await TimetableService.instance.markUserActive(email);
+        }
+      }
+
       // 3. Fetch linked students
       final links = await TimetableService.instance.getGuardianLinks(email);
       if (links == null || links.isEmpty) {

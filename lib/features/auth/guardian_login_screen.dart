@@ -78,6 +78,12 @@ class _GuardianLoginScreenState extends State<GuardianLoginScreen> {
         return;
       }
 
+      // Mark account active on first successful login.
+      final status = userData['status'] as String?;
+      if (status == null || status == 'pending') {
+        await TimetableService.instance.markUserActive(email);
+      }
+
       final links = await TimetableService.instance.getGuardianLinks(email);
       if (!mounted) return;
 
