@@ -1519,9 +1519,13 @@ class TimetableService extends BaseFirestoreService {
       }
     }
     // Last-resort: query by email field (covers any key scheme).
-    final query = await _allowedUsers.where('email', isEqualTo: normEmail).limit(1).get();
-    if (query.docs.isNotEmpty) {
-      return Map<String, dynamic>.from(query.docs.first.data());
+    try {
+      final query = await _allowedUsers.where('email', isEqualTo: normEmail).limit(1).get();
+      if (query.docs.isNotEmpty) {
+        return Map<String, dynamic>.from(query.docs.first.data());
+      }
+    } catch (e) {
+      AppLogger.w('TimetableService', 'Last-resort allowed_users email query failed: $e');
     }
     return null;
   }
@@ -1546,9 +1550,13 @@ class TimetableService extends BaseFirestoreService {
       }
     }
     if (doc == null || !doc.exists) {
-      final query = await _allowedUsers.where('email', isEqualTo: normEmail).limit(1).get();
-      if (query.docs.isNotEmpty) {
-        doc = query.docs.first;
+      try {
+        final query = await _allowedUsers.where('email', isEqualTo: normEmail).limit(1).get();
+        if (query.docs.isNotEmpty) {
+          doc = query.docs.first;
+        }
+      } catch (e) {
+        AppLogger.w('TimetableService', 'Last-resort getGuardianLinks email query failed: $e');
       }
     }
     if (doc == null || !doc.exists || doc.data() == null) return null;
