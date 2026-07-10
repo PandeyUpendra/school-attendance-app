@@ -50,10 +50,15 @@ class ConsentService {
     required String schoolId,
   }) async {
     try {
-      await appFunctions.httpsCallable('sendEmailOtp').call({
+      final res = await appFunctions.httpsCallable('sendEmailOtp').call({
         'email': email.trim(),
         'schoolId': schoolId.trim(),
       });
+      // Capture the mock/returned OTP if returned by the server (JSON/Emulator mode)
+      if (res.data is Map && (res.data as Map)['otp'] != null) {
+        _mockOtpCode = (res.data as Map)['otp'].toString();
+        AppLogger.d('ConsentService', 'Received OTP from emulator response: $_mockOtpCode');
+      }
     } catch (e) {
       if (kDebugMode) {
         // Fallback for debug mode when billing is disabled or cloud functions are not accessible

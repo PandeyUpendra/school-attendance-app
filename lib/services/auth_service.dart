@@ -141,35 +141,48 @@ class AuthService {
     );
   }
 
-  /// Sends a password setup / reset email using Firebase Auth's BUILT-IN email
-  /// (no SendGrid / Cloud Function). Used both for self-service "forgot
+  /// Sends a password setup / reset email via the `sendPasswordEmail` Cloud Function
+  /// (which sends via nodemailer using SMTP). Used both for self-service "forgot
   /// password" and as the first-time "set your password" invite when a
-  /// management user creates an account (the new Auth account already exists,
-  /// so the reset email doubles as the set-password email).
+  /// management user creates an account.
   ///
-  /// [invite] is kept for call-site compatibility but no longer changes behavior
-  /// — Firebase sends the same reset template either way.
+  /// Falls back to client-side Firebase Auth built-in email if the function call fails
+  /// (e.g., function not deployed yet), ensuring the user is never blocked.
   Future<void> sendPasswordEmailViaFunction(String email,
       {bool invite = false}) async {
-    await _auth.sendPasswordResetEmail(email: email.trim().toLowerCase());
+    final normEmail = email.trim().toLowerCase();
+    try {
+      await appFunctions.httpsCallable('sendPasswordEmail').call(<String, dynamic>{
+        'email': normEmail,
+        'type': invite ? 'invite' : 'reset',
+      });
+    } catch (e) {
+      AppLogger.w('AuthService', 'sendPasswordEmail Cloud Function failed ($e). Falling back to Firebase Auth built-in reset email.');
+      await _auth.sendPasswordResetEmail(email: normEmail);
+    }
   }
 
-  /// Self-service password reset via Firebase Auth's built-in email.
+  /// Self-service password reset. Calls the `sendPasswordEmail` Cloud Function
+  /// for SMTP delivery, falling back to a best-effort Firebase Auth client-side email
+  /// if the function is unreachable.
   ///
-  /// Never reveals whether the address is enrolled (#19, #84): a `user-not-found`
-  /// is swallowed and reported the same as success, and the UI shows the same
-  /// neutral "if an account exists…" message for both [sent] and [unknown].
+  /// Never reveals whether the address is enrolled to avoid account enumeration (#19, #84).
   Future<ResetResult> sendResetIfRegistered(String email) async {
     final normEmail = email.trim().toLowerCase();
     try {
-      await _auth.sendPasswordResetEmail(email: normEmail);
+      await appFunctions.httpsCallable('sendPasswordEmail').call(<String, dynamic>{
+        'email': normEmail,
+        'type': 'reset',
+      });
       return ResetResult.sent;
-    } on FirebaseAuthException catch (e) {
-      // Treat "no such user" as success so the response can't be used to
-      // enumerate enrolled families. Other errors → neutral "unknown".
-      return e.code == 'user-not-found' ? ResetResult.sent : ResetResult.unknown;
-    } catch (_) {
-      return ResetResult.unknown;
+    } catch (e) {
+      AppLogger.w('AuthService', 'sendPasswordEmail Cloud Function failed during reset ($e). Falling back to Firebase Auth built-in reset email.');
+      try {
+        await _auth.sendPasswordResetEmail(email: normEmail);
+        return ResetResult.sent;
+      } catch (_) {
+        return ResetResult.unknown;
+      }
     }
   }
 

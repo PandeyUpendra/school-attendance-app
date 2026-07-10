@@ -3293,6 +3293,9 @@ exports.sendEmailOtp = onCall(
 
     try {
       await transporter.sendMail(mailOptions);
+      if (transporter.options && transporter.options.jsonTransport) {
+        return { success: true, otp: otp };
+      }
       return { success: true };
     } catch (err) {
       logger.error("Failed to send OTP email via nodemailer", err);
@@ -3347,6 +3350,173 @@ exports.verifyEmailOtp = onCall(
     return { success: true };
   }
 );
+
+/**
+ * Callable: sendPasswordEmail({ email, type })
+ *   type "invite" → privileged: caller must be a signed-in management/teacher user.
+ *   type "reset"  → self-service: open (mirrors Firebase's own reset email),
+ *                   but never reveals whether the account exists.
+ */
+exports.sendPasswordEmail = onCall(
+  { cors: true, region: "asia-south1", enforceAppCheck: false },
+  async (request) => {
+    const db = admin.firestore();
+    const email = String(request.data && request.data.email ? request.data.email : "")
+      .trim()
+      .toLowerCase();
+    const type = request.data && request.data.type === "invite" ? "invite" : "reset";
+
+    if (!email || !EMAIL_RE.test(email)) {
+      throw new HttpsError("invalid-argument", "A valid email address is required.");
+    }
+
+    // Privileged path: only authenticated management/teacher users may invite others.
+    if (type === "invite") {
+      if (!request.auth || !request.auth.token || !request.auth.token.email) {
+        throw new HttpsError("unauthenticated", "Sign in required to send invites.");
+      }
+      const callerEmail = String(request.auth.token.email).toLowerCase();
+      const snap = await db.collection("allowed_users").doc(callerEmail).get();
+      if (snap.exists && (snap.get("status") === "suspended" || snap.get("status") === "disabled")) {
+        throw new HttpsError("permission-denied", "User account is suspended or disabled.");
+      }
+      const callerRole = resolveCallerRole(callerEmail, snap) || request.auth.token.role;
+      const INVITE_ROLES = ["admin", "owner", "ownerPrincipal", "principal", "coordinator", "teacher", "subjectTeacher"];
+      if (!INVITE_ROLES.includes(callerRole)) {
+        throw new HttpsError("permission-denied", "You are not allowed to invite users.");
+      }
+      
+      // School cross-access check
+      const callerSchoolId = snap.exists ? snap.get("schoolId") : request.auth.token.schoolId;
+      const isAdmin = callerRole === "admin" || ROOT_ADMIN_EMAILS.includes(callerEmail);
+      
+      const targetSnap = await db.collection("allowed_users").doc(email).get();
+      if (targetSnap.exists) {
+        const targetSchoolId = targetSnap.get("schoolId");
+        if (!isAdmin && targetSchoolId && targetSchoolId !== callerSchoolId) {
+          throw new HttpsError("permission-denied", "You cannot invite users from another school.");
+        }
+      }
+    }
+
+    // Self-service reset: only send for emails registered in the school system,
+    // but NEVER reveal whether the email exists. Unregistered emails get the same
+    // neutral { ok: true } response.
+    let schoolId = null;
+    const reg = await db.collection("allowed_users").doc(email).get();
+    if (!reg.exists) {
+      return { ok: true, registered: false };
+    }
+    schoolId = reg.get("schoolId");
+
+    // Generate the password setup/reset link via the Admin SDK.
+    let link;
+    try {
+      link = await admin.auth().generatePasswordResetLink(email);
+    } catch (err) {
+      // The account is registered in allowed_users but has no Firebase Auth
+      // login yet. Report it as registered so the client knows, but skip email.
+      if (err && err.code === "auth/user-not-found") {
+        logger.info("sendPasswordEmail: registered but no auth account", { type });
+        return { ok: true, registered: true };
+      }
+      logger.error("generatePasswordResetLink failed", err);
+      throw new HttpsError("internal", "Could not generate the password link.");
+    }
+
+    // If type is invite and schoolId is not resolved, try resolving it from the caller
+    if (!schoolId && type === "invite" && request.auth) {
+      const callerEmail = String(request.auth.token.email).toLowerCase();
+      const callerSnap = await db.collection("allowed_users").doc(callerEmail).get();
+      if (callerSnap.exists) {
+        schoolId = callerSnap.get("schoolId");
+      }
+    }
+
+    // Get school name for branding
+    let schoolName = "Klassivo";
+    let logoUrl = "";
+    if (schoolId) {
+      try {
+        const schoolSettingsSnap = await db.collection("schools").doc(schoolId)
+          .collection("settings").doc("school").get();
+        if (schoolSettingsSnap.exists && schoolSettingsSnap.data()) {
+          const settings = schoolSettingsSnap.data();
+          schoolName = settings.schoolName || "Klassivo";
+          logoUrl = settings.logoUrl || "";
+        }
+      } catch (err) {
+        logger.error("Failed to fetch school settings for password email branding", err);
+      }
+    }
+
+    // Send email via nodemailer SMTP transporter
+    const transporter = await createMailTransporter(db, schoolId);
+
+    const mailFrom = process.env.MAIL_FROM || "noreply@yourschooldomain.com";
+    const mailFromName = process.env.MAIL_FROM_NAME || schoolName;
+    const subject =
+      type === "invite"
+        ? `Setup Your Password - ${schoolName}`
+        : `Reset Your Password - ${schoolName}`;
+
+    const intro =
+      type === "invite"
+        ? `An account has been created for you on ${schoolName}. Use the link below to set up your password and log into the app.`
+        : `We received a request to reset your password for ${schoolName}. Use the link below to set a new password.`;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(schoolName)}" style="max-height: 80px; margin-bottom: 10px;" />` : ''}
+          <h2 style="color: #003D33; margin: 0;">${escapeHtml(schoolName)}</h2>
+          <p style="color: #666; margin: 5px 0 0 0;">Account Access</p>
+        </div>
+        
+        <div style="background-color: #f5f7f6; padding: 20px; border-radius: 6px; text-align: center; margin-bottom: 20px;">
+          <p style="font-size: 15px; color: #333; margin-top: 0;">${escapeHtml(intro)}</p>
+          <div style="margin: 20px 0;">
+            <a href="${link}" style="background-color: #003D33; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">
+              ${type === "invite" ? "Set Password" : "Reset Password"}
+            </a>
+          </div>
+          <p style="font-size: 12px; color: #666; margin-bottom: 0;">This link is valid for a limited time. If you did not request this, you can safely ignore this email.</p>
+        </div>
+        
+        <div style="word-break: break-all; font-size: 12px; color: #666; margin-bottom: 20px; text-align: center;">
+          Or copy and paste this URL into your browser:<br/>
+          <a href="${link}" style="color: #003D33;">${link}</a>
+        </div>
+
+        <div style="text-align: center; border-top: 1px solid #eeeeee; padding-top: 15px; font-size: 11px; color: #888;">
+          This is an automated security message. Please do not reply directly to this email.
+        </div>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: `"${mailFromName}" <${mailFrom}>`,
+      to: email,
+      subject: subject,
+      text: `${intro}\n\nLink: ${link}\n\nIf you did not request this, please ignore.`,
+      html: htmlContent,
+    };
+
+    if (transporter.options && transporter.options.jsonTransport) {
+      logger.info(`[sendPasswordEmail] (JSON Transport / Emulator) Password link for ${email} (${type}) is: ${link}`);
+      return { ok: true, registered: true, link: link };
+    }
+
+    try {
+      await transporter.sendMail(mailOptions);
+      return { ok: true, registered: true };
+    } catch (err) {
+      logger.error("Failed to send password email via nodemailer", err);
+      throw new HttpsError("internal", `Failed to send email: ${err.message}`);
+    }
+  }
+);
+
 
 
 
