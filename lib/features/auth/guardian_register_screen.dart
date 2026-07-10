@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../../theme.dart';
 import '../../l10n/app_strings.dart';
 import '../../services/auth_service.dart';
@@ -110,7 +112,13 @@ class _GuardianRegisterScreenState extends State<GuardianRegisterScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = e.toString().replaceAll('Exception: ', '').replaceAll('FirebaseException: ', '');
+        if (e is FirebaseFunctionsException) {
+          _error = e.message ?? e.code;
+        } else if (e is FirebaseException) {
+          _error = e.message ?? e.code;
+        } else {
+          _error = e.toString().replaceAll('Exception: ', '').replaceAll('FirebaseException: ', '');
+        }
       });
     }
   }

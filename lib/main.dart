@@ -8,6 +8,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -50,6 +52,22 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Enable local emulator connection if compiled with --dart-define=USE_EMULATOR=true
+  const bool useEmulator = bool.fromEnvironment('USE_EMULATOR', defaultValue: false);
+  if (useEmulator) {
+    const String emulatorHost = String.fromEnvironment('EMULATOR_HOST', defaultValue: 'localhost');
+    try {
+      await FirebaseAuth.instance.useAuthEmulator(emulatorHost, 9099);
+      FirebaseFirestore.instance.useFirestoreEmulator(emulatorHost, 8080);
+      await FirebaseStorage.instance.useStorageEmulator(emulatorHost, 9199);
+      FirebaseFunctions.instanceFor(region: 'asia-south1').useFunctionsEmulator(emulatorHost, 5001);
+      FirebaseFunctions.instance.useFunctionsEmulator(emulatorHost, 5001);
+      debugPrint('Firebase configured to use local emulator at $emulatorHost');
+    } catch (e) {
+      debugPrint('Failed to configure Firebase Emulator: $e');
+    }
+  }
 
   // Crash reporting (#71): route Flutter framework errors and uncaught async
   // errors to Crashlytics so production crashes are visible.
