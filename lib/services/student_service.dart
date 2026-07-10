@@ -956,6 +956,16 @@ class StudentService extends BaseFirestoreService {
     bool serverDone = false;
     try {
       serverDone = await _serverDeleteStudent(className, section, roll);
+      if (serverDone) {
+        // Double-check if the student document was actually deleted.
+        // If the server function returned ok: true but had a doc ID mismatch or bug,
+        // we must fall back to the client cascade to complete the deletion.
+        final doubleCheck = await _repo.fetchByRoll(className, section, roll);
+        if (doubleCheck != null) {
+          serverDone = false;
+          AppLogger.w('StudentService', 'Server deleteStudent returned ok, but student still exists. Falling back to client cascade.');
+        }
+      }
     } catch (e) {
       AppLogger.e('StudentService',
           'server deleteStudent failed, falling back to client cascade: $e', e);
@@ -1214,29 +1224,48 @@ class StudentService extends BaseFirestoreService {
   Future<List<Map<String, dynamic>>> getPendingDeletionRequests() =>
       _repo.getPendingDeletionRequests();
 
-  /// Principal approves a deletion request: deletes each student and their
-  /// guardian access, then marks the request as approved.
   Future<void> approveDeletionRequest(String requestId) async {
-    try {
-      final callable = appFunctions.httpsCallable('approveDeletionRequest');
-      final res = await callable.call(<String, dynamic>{
-        'schoolId': _schoolId,
-        'requestId': requestId,
-      });
-      final data = res.data;
-      if (data is Map && data['ok'] == true) {
-        return;
-      }
-    } catch (e, stack) {
-      AppLogger.e('StudentService', 'Cloud approveDeletionRequest failed, falling back to client-side loop: $e', e, stack);
-    }
-
     final data = await _repo.getDeletionRequest(requestId);
     if (data == null) return;
     final list = (data['students'] as List?)
             ?.map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
             .whereType<Map<String, dynamic>>()
             .toList() ?? [];
+
+    try {
+      final callable = appFunctions.httpsCallable('approveDeletionRequest');
+      final res = await callable.call(<String, dynamic>{
+        'schoolId': _schoolId,
+        'requestId': requestId,
+      });
+      final resData = res.data;
+      if (resData is Map && resData['ok'] == true) {
+        // Double-check if the students were actually deleted.
+        // If the server function returned ok: true but failed to delete some/all students
+        // (due to document ID mismatches or server-side bugs), we must fall back to the
+        // client-side cascade to ensure they are deleted.
+        bool allDeleted = true;
+        for (final s in list) {
+          final roll      = (s['roll']      as num?)?.toInt() ?? 0;
+          final className = (s['className'] as String?) ?? '';
+          final section   = (s['section']   as String?) ?? '';
+          if (roll > 0 && className.isNotEmpty) {
+            final student = await _repo.fetchByRoll(className, section, roll);
+            if (student != null) {
+              allDeleted = false;
+              AppLogger.w('StudentService', 'Cloud approveDeletionRequest returned ok, but student ${student.id} still exists. Running client fallback.');
+              await removeStudent(roll, className, section: section);
+            }
+          }
+        }
+        if (allDeleted) {
+          return;
+        }
+      }
+    } catch (e, stack) {
+      AppLogger.e('StudentService', 'Cloud approveDeletionRequest failed, falling back to client-side loop: $e', e, stack);
+    }
+
     final futures = <Future<void>>[];
     for (final s in list) {
       final roll      = (s['roll']      as num?)?.toInt() ?? 0;
