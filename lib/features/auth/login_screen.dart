@@ -8,6 +8,7 @@ import '../../services/auth_service.dart';
 import '../../services/timetable_service.dart';
 import '../../services/base_firestore_service.dart';
 import '../../shared/utils/validators.dart';
+import '../../shared/utils/app_logger.dart';
 import '../../l10n/app_strings.dart';
 import '../../shared/widgets/email_text_form_field.dart';
 import '../dashboards/coordinator_dashboard.dart';
@@ -182,12 +183,14 @@ class _LoginScreenState extends State<LoginScreen> {
       await _routeToDashboard(role, email, teacherId);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
+      AppLogger.e('LoginScreen', 'FirebaseAuthException during login: ${e.code} - ${e.message}', e);
       setState(() {
         _loading = false;
         _error   = AuthService.friendlyAuthError(e);
       });
-    } catch (_) {
+    } catch (e, stack) {
       if (!mounted) return;
+      AppLogger.e('LoginScreen', 'Generic exception during login: $e', e, stack);
       setState(() {
         _loading = false;
         // Don't assume connectivity — this branch also catches config/
