@@ -54,7 +54,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   final _classCtrl = TextEditingController();
 
   Map<String, dynamic> _rawSettings = {};
-  String _selectedClassForBells = 'Default';
+  final Set<String> _selectedClassesForBells = {};
   bool _useCustomBells = false;
 
   List<_Bell> _bells = [];
@@ -150,7 +150,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     final duration = _rawSettings['periodDuration'] as int? ?? 45;
     final lunchAfter = _rawSettings['lunchAfterPeriod'] as int? ?? 4;
 
-    if (_selectedClassForBells == 'Default') {
+    if (_selectedClassesForBells.isEmpty) {
       _useCustomBells = false;
       final bellsRaw = _rawSettings['bells'] as List? ?? [];
       _bells = _loadBellsListFromRaw(
@@ -162,9 +162,17 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       );
     } else {
       final classBells = _rawSettings['classBells'] as Map<String, dynamic>?;
-      if (classBells != null && classBells.containsKey(_selectedClassForBells)) {
+      String? firstWithCustom;
+      for (final cls in _selectedClassesForBells) {
+        if (classBells != null && classBells.containsKey(cls)) {
+          firstWithCustom = cls;
+          break;
+        }
+      }
+
+      if (firstWithCustom != null) {
         _useCustomBells = true;
-        final bellsRaw = classBells[_selectedClassForBells] as List? ?? [];
+        final bellsRaw = classBells![firstWithCustom] as List? ?? [];
         _bells = _loadBellsListFromRaw(
           bellsRaw,
           firstBellTime: ftStr,
@@ -187,11 +195,11 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     }
   }
 
-  void _reorderTimetableEntries(int oldIdx, int newIdx, {String? targetClass}) {
+  void _reorderTimetableEntries(int oldIdx, int newIdx, {Set<String>? targetClasses}) {
     final newTimetable = <String, Map<String, Map<int, TimetableEntry>>>{};
 
     _timetable.forEach((className, dayMap) {
-      if (targetClass != null && className != targetClass) {
+      if (targetClasses != null && !targetClasses.contains(className)) {
         newTimetable[className] = dayMap;
         return;
       }
@@ -600,7 +608,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       periodDuration = firstNonLunch.durationMinutes;
     }
 
-    if (_selectedClassForBells == 'Default') {
+    if (_selectedClassesForBells.isEmpty) {
       newSettings['bells'] = bellsData;
       newSettings['numberOfBells'] = _bells.length;
       newSettings['firstBellTime'] = firstBell;
@@ -609,10 +617,12 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       newSettings['periodDuration'] = periodDuration;
     } else {
       final classBells = Map<String, dynamic>.from(newSettings['classBells'] as Map? ?? {});
-      if (_useCustomBells) {
-        classBells[_selectedClassForBells] = bellsData;
-      } else {
-        classBells.remove(_selectedClassForBells);
+      for (final cls in _selectedClassesForBells) {
+        if (_useCustomBells) {
+          classBells[cls] = bellsData;
+        } else {
+          classBells.remove(cls);
+        }
       }
       newSettings['classBells'] = classBells;
     }
@@ -623,7 +633,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     await _service.saveSettings(BaseFirestoreService.currentSchoolId ?? 'default_school', newSettings);
     await _service.saveFullTimetable(_timetable);
 
-    if (_selectedClassForBells == 'Default') {
+    if (_selectedClassesForBells.isEmpty) {
       try {
         await SchoolSettingsService().updateAcademicSettings({
           'periodsPerDay': periodsCount,
@@ -840,40 +850,79 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   }
 
   Widget _buildBellSection() {
-    final isEditingAllowed = _settingsEditing && (_selectedClassForBells == 'Default' || _useCustomBells);
+    final hasSelectedClasses = _selectedClassesForBells.isNotEmpty;
+    final isEditingAllowed = _settingsEditing && (!hasSelectedClasses || _useCustomBells);
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      DropdownButtonFormField<String>(
-        value: _selectedClassForBells,
-        decoration: InputDecoration(
-          labelText: 'Configure Bell Schedule for',
-          labelStyle: const TextStyle(fontSize: 13, color: AppTheme.primaryMid),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      Text(
+        'Configure Bell Schedule for:',
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: AppTheme.primaryMid,
         ),
-        items: [
-          const DropdownMenuItem(value: 'Default', child: Text('Default (All Classes)')),
-          ..._classes.map((c) => DropdownMenuItem(value: c, child: Text(c))),
+      ),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          FilterChip(
+            label: const Text('Default (All Classes)'),
+            selected: !hasSelectedClasses,
+            selectedColor: AppTheme.primary.withValues(alpha: 0.15),
+            checkmarkColor: AppTheme.primary,
+            labelStyle: TextStyle(
+              fontSize: 12,
+              fontWeight: !hasSelectedClasses ? FontWeight.bold : FontWeight.normal,
+              color: !hasSelectedClasses ? AppTheme.primary : Colors.black87,
+            ),
+            onSelected: (selected) {
+              if (selected) {
+                setState(() {
+                  _selectedClassesForBells.clear();
+                  _loadBellsForSelectedConfig();
+                });
+              }
+            },
+          ),
+          ..._classes.map((cls) {
+            final isSelected = _selectedClassesForBells.contains(cls);
+            return FilterChip(
+              label: Text(cls),
+              selected: isSelected,
+              selectedColor: AppTheme.primary.withValues(alpha: 0.15),
+              checkmarkColor: AppTheme.primary,
+              labelStyle: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? AppTheme.primary : Colors.black87,
+              ),
+              onSelected: (selected) {
+                setState(() {
+                  if (selected) {
+                    _selectedClassesForBells.add(cls);
+                  } else {
+                    _selectedClassesForBells.remove(cls);
+                  }
+                  _loadBellsForSelectedConfig();
+                });
+              },
+            );
+          }),
         ],
-        onChanged: (val) {
-          if (val != null) {
-            setState(() {
-              _selectedClassForBells = val;
-              _loadBellsForSelectedConfig();
-            });
-          }
-        },
       ),
       const SizedBox(height: 12),
-      if (_selectedClassForBells != 'Default') ...[
+      if (hasSelectedClasses) ...[
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(
-            'Use custom bell schedule for $_selectedClassForBells',
+            'Use custom bell schedule for selected classes (${_selectedClassesForBells.join(', ')})',
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
           ),
           subtitle: Text(
             _useCustomBells
-                ? 'Editing custom bells for $_selectedClassForBells'
+                ? 'Editing custom bells for selected classes'
                 : 'Inheriting school default bell schedule',
             style: const TextStyle(fontSize: 11, color: Colors.grey),
           ),
@@ -913,6 +962,28 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                   });
                 }
               : null,
+        ),
+        const SizedBox(height: 12),
+      ] else ...[
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.shade100),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Configuring Default Schedule. This will apply to all classes unless a custom schedule is configured for them.',
+                  style: TextStyle(fontSize: 11, color: Colors.blue.shade900),
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 12),
       ],
@@ -959,7 +1030,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
               _reorderTimetableEntries(
                 old,
                 neu,
-                targetClass: _selectedClassForBells == 'Default' ? null : _selectedClassForBells,
+                targetClasses: _selectedClassesForBells.isEmpty ? null : _selectedClassesForBells,
               );
               _cascadeFrom(0);
             });
@@ -983,7 +1054,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     final start = _startOf(i);
     final end = _endOf(i);
     final isLunch = bell.isLunch;
-    final isEditingAllowed = _settingsEditing && (_selectedClassForBells == 'Default' || _useCustomBells);
+    final isEditingAllowed = _settingsEditing && (_selectedClassesForBells.isEmpty || _useCustomBells);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
