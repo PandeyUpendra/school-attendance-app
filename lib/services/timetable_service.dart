@@ -380,6 +380,37 @@ class TimetableService extends BaseFirestoreService {
     await _settings.doc('main').set(settings, SetOptions(merge: true));
   }
 
+  /// Returns the custom bells list for a specific class if configured,
+  /// otherwise returns the default bells list.
+  List<Map<String, dynamic>> getBellsForClass(Map<String, dynamic> settings, String className) {
+    final classBells = settings['classBells'] as Map<String, dynamic>?;
+    if (classBells != null && classBells.containsKey(className)) {
+      final list = classBells[className] as List?;
+      if (list != null && list.isNotEmpty) {
+        return List<Map<String, dynamic>>.from(list.map((e) => Map<String, dynamic>.from(e as Map)));
+      }
+    }
+    final defaultBells = settings['bells'] as List?;
+    if (defaultBells != null && defaultBells.isNotEmpty) {
+      return List<Map<String, dynamic>>.from(defaultBells.map((e) => Map<String, dynamic>.from(e as Map)));
+    }
+    return [];
+  }
+
+  /// Returns the maximum number of bells across all classes (including defaults).
+  int getMaxBellsCount(Map<String, dynamic> settings) {
+    int maxCount = (settings['bells'] as List?)?.length ?? 8;
+    final classBells = settings['classBells'] as Map<String, dynamic>?;
+    if (classBells != null) {
+      for (final list in classBells.values) {
+        if (list is List && list.length > maxCount) {
+          maxCount = list.length;
+        }
+      }
+    }
+    return maxCount;
+  }
+
   /// Drops the in-memory settings cache so the next [getSettings] re-fetches.
   /// Call this after another service (e.g. SchoolSettingsService, when the
   /// owner edits the class list) writes to settings/main, so screens reading
@@ -444,6 +475,11 @@ class TimetableService extends BaseFirestoreService {
       batch.set(_tt.doc(clsEntry.key), {'data': data});
     }
     await batch.commit();
+  }
+
+  Future<void> saveFullTimetable(
+      Map<String, Map<String, Map<int, TimetableEntry>>> tt) async {
+    await _saveTimetable(tt);
   }
 
   Future<String?> findClash({

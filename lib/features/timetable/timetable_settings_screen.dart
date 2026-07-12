@@ -13,17 +13,19 @@ import '../../shared/utils/app_transitions.dart';
 // ── Bell model ────────────────────────────────────────────────────────────────
 
 class _Bell {
+  final Key key;
   int startMinutes; // absolute minutes from midnight (e.g. 8*60 = 480 = 08:00)
   int durationMinutes;
   bool isLunch;
   String name; // custom label, e.g. "Diary Bell" or "Assembly"
 
   _Bell({
+    Key? key,
     required this.startMinutes,
     required this.durationMinutes,
     this.isLunch = false,
     this.name = '',
-  });
+  }) : key = key ?? UniqueKey();
 }
 
 // ── Teacher picker wrapper ────────────────────────────────────────────────────
@@ -50,6 +52,10 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   final _service = TimetableService.instance;
   late final TabController _tabCtrl;
   final _classCtrl = TextEditingController();
+
+  Map<String, dynamic> _rawSettings = {};
+  String _selectedClassForBells = 'Default';
+  bool _useCustomBells = false;
 
   List<_Bell> _bells = [];
   List<String> _classes = [];
@@ -85,27 +91,23 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
 
   // ── Data loading ───────────────────────────────────────────────────────────
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    final settings = await _service.getSettings();
-    final teachers = await _service.getTeachers();
-    final tt = await _service.getTimetable();
-    if (!mounted) return;
+  List<_Bell> _loadBellsListFromRaw(
+    List bellsRaw, {
+    String firstBellTime = '08:00',
+    int periodsPerDay = 8,
+    int periodDuration = 45,
+    int lunchAfterPeriod = 4,
+  }) {
+    final ftParts = firstBellTime.split(':');
+    int defaultStart = (int.tryParse(ftParts[0]) ?? 8) * 60 +
+        (int.tryParse(ftParts.length > 1 ? ftParts[1] : '0') ?? 0);
 
-    final bellsRaw = settings['bells'] as List? ?? [];
-    final ftStr = settings['firstBellTime'] as String? ?? '08:00';
-    final ftParts = ftStr.split(':');
-    int defaultStart =
-        (int.tryParse(ftParts[0]) ?? 8) * 60 + (int.tryParse(ftParts.length > 1 ? ftParts[1] : '0') ?? 0);
-
-    List<_Bell> bells;
+    List<_Bell> bells = [];
     if (bellsRaw.isNotEmpty) {
-      bells = [];
       int cursor = defaultStart;
       for (final b in bellsRaw) {
         final m = b as Map<String, dynamic>;
         final dur = m['duration'] as int? ?? 45;
-        // Use stored 'start' if available, else cascade from cursor
         int start = cursor;
         if (m['start'] != null) {
           final sp = (m['start'] as String).split(':');
@@ -121,35 +123,117 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
         cursor = start + dur;
       }
     } else {
-      final periods = settings['periodsPerDay'] as int? ?? settings['numberOfBells'] as int? ?? 8;
-      final duration = settings['periodDuration'] as int? ?? 45;
-      final lunchAfter = settings['lunchAfterPeriod'] as int? ?? 4;
-
-      bells = [];
       int cursor = defaultStart;
-      for (int i = 1; i <= periods; i++) {
+      for (int i = 1; i <= periodsPerDay; i++) {
         bells.add(_Bell(
           startMinutes: cursor,
-          durationMinutes: duration,
+          durationMinutes: periodDuration,
         ));
-        cursor += duration;
+        cursor += periodDuration;
 
-        if (i == lunchAfter) {
+        if (i == lunchAfterPeriod) {
           bells.add(_Bell(
             startMinutes: cursor,
-            durationMinutes: 30, // default lunch duration
+            durationMinutes: 30,
             isLunch: true,
           ));
           cursor += 30;
         }
       }
     }
+    return bells;
+  }
+
+  void _loadBellsForSelectedConfig() {
+    final ftStr = _rawSettings['firstBellTime'] as String? ?? '08:00';
+    final periods = _rawSettings['periodsPerDay'] as int? ?? _rawSettings['numberOfBells'] as int? ?? 8;
+    final duration = _rawSettings['periodDuration'] as int? ?? 45;
+    final lunchAfter = _rawSettings['lunchAfterPeriod'] as int? ?? 4;
+
+    if (_selectedClassForBells == 'Default') {
+      _useCustomBells = false;
+      final bellsRaw = _rawSettings['bells'] as List? ?? [];
+      _bells = _loadBellsListFromRaw(
+        bellsRaw,
+        firstBellTime: ftStr,
+        periodsPerDay: periods,
+        periodDuration: duration,
+        lunchAfterPeriod: lunchAfter,
+      );
+    } else {
+      final classBells = _rawSettings['classBells'] as Map<String, dynamic>?;
+      if (classBells != null && classBells.containsKey(_selectedClassForBells)) {
+        _useCustomBells = true;
+        final bellsRaw = classBells[_selectedClassForBells] as List? ?? [];
+        _bells = _loadBellsListFromRaw(
+          bellsRaw,
+          firstBellTime: ftStr,
+          periodsPerDay: periods,
+          periodDuration: duration,
+          lunchAfterPeriod: lunchAfter,
+        );
+      } else {
+        _useCustomBells = false;
+        // Preview of default bells
+        final bellsRaw = _rawSettings['bells'] as List? ?? [];
+        _bells = _loadBellsListFromRaw(
+          bellsRaw,
+          firstBellTime: ftStr,
+          periodsPerDay: periods,
+          periodDuration: duration,
+          lunchAfterPeriod: lunchAfter,
+        );
+      }
+    }
+  }
+
+  void _reorderTimetableEntries(int oldIdx, int newIdx, {String? targetClass}) {
+    final newTimetable = <String, Map<String, Map<int, TimetableEntry>>>{};
+
+    _timetable.forEach((className, dayMap) {
+      if (targetClass != null && className != targetClass) {
+        newTimetable[className] = dayMap;
+        return;
+      }
+
+      final newDayMap = <String, Map<int, TimetableEntry>>{};
+      dayMap.forEach((day, bellMap) {
+        final newBellMap = <int, TimetableEntry>{};
+        bellMap.forEach((bellNum, entry) {
+          int idx = bellNum - 1;
+          int targetIdx;
+          if (idx == oldIdx) {
+            targetIdx = newIdx;
+          } else if (oldIdx < newIdx && idx > oldIdx && idx <= newIdx) {
+            targetIdx = idx - 1;
+          } else if (oldIdx > newIdx && idx >= newIdx && idx < oldIdx) {
+            targetIdx = idx + 1;
+          } else {
+            targetIdx = idx;
+          }
+          newBellMap[targetIdx + 1] = entry;
+        });
+        newDayMap[day] = newBellMap;
+      });
+      newTimetable[className] = newDayMap;
+    });
+
+    _timetable = newTimetable;
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final settings = await _service.getSettings();
+    final teachers = await _service.getTeachers();
+    final tt = await _service.getTimetable();
+    if (!mounted) return;
 
     setState(() {
-      _bells = bells;
+      _rawSettings = settings;
       _classes = List<String>.from(settings['classes'] as List);
       _teachers = teachers;
       _timetable = tt;
+      _loadBellsForSelectedConfig();
       _loading = false;
     });
     _scanConflicts();
@@ -492,6 +576,8 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           'start': _fmt(_startOf(i)),
           'name': _bells[i].name,
         });
+
+    final newSettings = Map<String, dynamic>.from(_rawSettings);
     final firstBell = _bells.isNotEmpty ? _fmt(_startOf(0)) : '08:00';
 
     int periodsCount = 0;
@@ -514,28 +600,46 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       periodDuration = firstNonLunch.durationMinutes;
     }
 
-    await _service.saveSettings(BaseFirestoreService.currentSchoolId ?? 'default_school', {
-      'numberOfBells': _bells.length,
-      'classes': _classes,
-      'firstBellTime': firstBell,
-      'bells': bellsData,
-      'periodsPerDay': periodsCount,
-      'lunchAfterPeriod': foundLunch ? lunchAfter : 0,
-      'periodDuration': periodDuration,
-    });
+    if (_selectedClassForBells == 'Default') {
+      newSettings['bells'] = bellsData;
+      newSettings['numberOfBells'] = _bells.length;
+      newSettings['firstBellTime'] = firstBell;
+      newSettings['periodsPerDay'] = periodsCount;
+      newSettings['lunchAfterPeriod'] = foundLunch ? lunchAfter : 0;
+      newSettings['periodDuration'] = periodDuration;
+    } else {
+      final classBells = Map<String, dynamic>.from(newSettings['classBells'] as Map? ?? {});
+      if (_useCustomBells) {
+        classBells[_selectedClassForBells] = bellsData;
+      } else {
+        classBells.remove(_selectedClassForBells);
+      }
+      newSettings['classBells'] = classBells;
+    }
 
-    try {
-      await SchoolSettingsService().updateAcademicSettings({
-        'periodsPerDay': periodsCount,
-        'lunchAfterPeriod': foundLunch ? lunchAfter : 0,
-        'periodDuration': periodDuration,
-      });
-    } catch (_) {
-      // Ignore if user has no write access to academic settings
+    newSettings['classes'] = _classes;
+
+    // Save settings and updated timetable (in case they reordered bells)
+    await _service.saveSettings(BaseFirestoreService.currentSchoolId ?? 'default_school', newSettings);
+    await _service.saveFullTimetable(_timetable);
+
+    if (_selectedClassForBells == 'Default') {
+      try {
+        await SchoolSettingsService().updateAcademicSettings({
+          'periodsPerDay': periodsCount,
+          'lunchAfterPeriod': foundLunch ? lunchAfter : 0,
+          'periodDuration': periodDuration,
+        });
+      } catch (_) {
+        // Ignore if user has no write access to academic settings
+      }
     }
 
     if (!mounted) return;
-    setState(() => _settingsEditing = false);
+    setState(() {
+      _rawSettings = newSettings;
+      _settingsEditing = false;
+    });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
           content: Text(context.tr('settingsSavedSuccess')),
@@ -561,11 +665,32 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           SnackBar(content: Text(context.tr('addTeachersFirst'))));
       return;
     }
+    final classBells = _service.getBellsForClass(_rawSettings, cls);
     final bellIdx = bell - 1;
-    final bellLabel = _bellLabel(bellIdx);
-    final timeRange = bellIdx < _bells.length
-        ? '${_fmt12(_startOf(bellIdx))} – ${_fmt12(_endOf(bellIdx))}'
-        : '';
+    if (bellIdx >= classBells.length) return;
+
+    final isLunch = classBells[bellIdx]['isLunch'] as bool? ?? false;
+    final duration = classBells[bellIdx]['duration'] as int? ?? 45;
+    final startStr = classBells[bellIdx]['start'] as String? ?? '08:00';
+    final parts = startStr.split(':');
+    final startMinutes = (int.tryParse(parts[0]) ?? 8) * 60 + (int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0);
+    
+    final startTodo = TimeOfDay(hour: (startMinutes ~/ 60) % 24, minute: startMinutes % 60);
+    final endMinutes = startMinutes + duration;
+    final endTodo = TimeOfDay(hour: (endMinutes ~/ 60) % 24, minute: endMinutes % 60);
+    
+    final timeRange = '${_fmt12(startTodo)} – ${_fmt12(endTodo)}';
+
+    int displayNum = 0;
+    for (int i = 0; i <= bellIdx; i++) {
+      if (!(classBells[i]['isLunch'] as bool? ?? false)) {
+        displayNum++;
+      }
+    }
+    final bellLabel = isLunch
+        ? context.tr('lunchBreak')
+        : context.tr('bellWithNum').replaceAll('{num}', displayNum.toString());
+
     // Collect per-day entries for this class+bell
     final cellEntries = <String, TimetableEntry?>{
       for (final day in _days) day: _timetable[cls]?[day]?[bell],
@@ -715,29 +840,104 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   }
 
   Widget _buildBellSection() {
+    final isEditingAllowed = _settingsEditing && (_selectedClassForBells == 'Default' || _useCustomBells);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      DropdownButtonFormField<String>(
+        value: _selectedClassForBells,
+        decoration: InputDecoration(
+          labelText: 'Configure Bell Schedule for',
+          labelStyle: const TextStyle(fontSize: 13, color: AppTheme.primaryMid),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+        items: [
+          const DropdownMenuItem(value: 'Default', child: Text('Default (All Classes)')),
+          ..._classes.map((c) => DropdownMenuItem(value: c, child: Text(c))),
+        ],
+        onChanged: (val) {
+          if (val != null) {
+            setState(() {
+              _selectedClassForBells = val;
+              _loadBellsForSelectedConfig();
+            });
+          }
+        },
+      ),
+      const SizedBox(height: 12),
+      if (_selectedClassForBells != 'Default') ...[
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(
+            'Use custom bell schedule for $_selectedClassForBells',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text(
+            _useCustomBells
+                ? 'Editing custom bells for $_selectedClassForBells'
+                : 'Inheriting school default bell schedule',
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+          value: _useCustomBells,
+          activeColor: AppTheme.primary,
+          onChanged: _settingsEditing
+              ? (val) {
+                  setState(() {
+                    _useCustomBells = val;
+                    if (val) {
+                      final ftStr = _rawSettings['firstBellTime'] as String? ?? '08:00';
+                      final periods = _rawSettings['periodsPerDay'] as int? ?? _rawSettings['numberOfBells'] as int? ?? 8;
+                      final duration = _rawSettings['periodDuration'] as int? ?? 45;
+                      final lunchAfter = _rawSettings['lunchAfterPeriod'] as int? ?? 4;
+                      final defaultBellsRaw = _rawSettings['bells'] as List? ?? [];
+                      _bells = _loadBellsListFromRaw(
+                        defaultBellsRaw,
+                        firstBellTime: ftStr,
+                        periodsPerDay: periods,
+                        periodDuration: duration,
+                        lunchAfterPeriod: lunchAfter,
+                      );
+                    } else {
+                      final ftStr = _rawSettings['firstBellTime'] as String? ?? '08:00';
+                      final periods = _rawSettings['periodsPerDay'] as int? ?? _rawSettings['numberOfBells'] as int? ?? 8;
+                      final duration = _rawSettings['periodDuration'] as int? ?? 45;
+                      final lunchAfter = _rawSettings['lunchAfterPeriod'] as int? ?? 4;
+                      final defaultBellsRaw = _rawSettings['bells'] as List? ?? [];
+                      _bells = _loadBellsListFromRaw(
+                        defaultBellsRaw,
+                        firstBellTime: ftStr,
+                        periodsPerDay: periods,
+                        periodDuration: duration,
+                        lunchAfterPeriod: lunchAfter,
+                      );
+                    }
+                  });
+                }
+              : null,
+        ),
+        const SizedBox(height: 12),
+      ],
       Row(children: [
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(context.tr('bellSchedule'),
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             const SizedBox(height: 2),
             Text(
-              _settingsEditing
+              isEditingAllowed
                   ? context.tr('tapTimeToEdit')
                   : context.tr('pressEditToModify'),
               style: const TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ]),
         ),
-        if (_settingsEditing && !_hasLunchBell)
+        if (isEditingAllowed && !_hasLunchBell)
           TextButton.icon(
             onPressed: _addLunchBell,
             icon: const Icon(Icons.restaurant, size: 16),
             label: Text(context.tr('lunch')),
             style: TextButton.styleFrom(foregroundColor: Colors.orange),
           ),
-        if (_settingsEditing)
+        if (isEditingAllowed)
           TextButton.icon(
             onPressed: _addBell,
             icon: const Icon(Icons.add, size: 16),
@@ -746,7 +946,35 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           ),
       ]),
       const SizedBox(height: 10),
-      ...List.generate(_bells.length, (i) => _bellRow(i)),
+      if (isEditingAllowed)
+        ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _bells.length,
+          onReorder: (old, neu) {
+            if (neu > old) neu--;
+            setState(() {
+              final item = _bells.removeAt(old);
+              _bells.insert(neu, item);
+              _reorderTimetableEntries(
+                old,
+                neu,
+                targetClass: _selectedClassForBells == 'Default' ? null : _selectedClassForBells,
+              );
+              _cascadeFrom(0);
+            });
+          },
+          itemBuilder: (context, i) {
+            return Container(
+              key: ValueKey(_bells[i].key),
+              child: _bellRow(i),
+            );
+          },
+        )
+      else
+        Column(
+          children: List.generate(_bells.length, (i) => _bellRow(i)),
+        ),
     ]);
   }
 
@@ -755,6 +983,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
     final start = _startOf(i);
     final end = _endOf(i);
     final isLunch = bell.isLunch;
+    final isEditingAllowed = _settingsEditing && (_selectedClassForBells == 'Default' || _useCustomBells);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -767,6 +996,11 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Row(children: [
+          if (isEditingAllowed)
+            const Padding(
+              padding: EdgeInsets.only(right: 6),
+              child: Icon(Icons.drag_handle, color: Colors.grey, size: 20),
+            ),
           // Bell number / lunch icon badge
           Container(
             width: 34,
@@ -793,7 +1027,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                 children: [
                   // Bell label row — tappable to edit name in edit mode
                   GestureDetector(
-                    onTap: _settingsEditing && !isLunch
+                    onTap: isEditingAllowed && !isLunch
                         ? () => _editBellName(i)
                         : null,
                     child: Row(children: [
@@ -806,7 +1040,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                                 ? Colors.orange.shade800
                                 : Colors.black87),
                       ),
-                      if (_settingsEditing && !isLunch) ...[
+                      if (isEditingAllowed && !isLunch) ...[
                         const SizedBox(width: 4),
                         Icon(Icons.edit, size: 10, color: Colors.grey.shade400),
                       ],
@@ -814,7 +1048,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                   ),
                   // Time row — tappable to edit time
                   GestureDetector(
-                    onTap: _settingsEditing ? () => _pickBellStartTime(i) : null,
+                    onTap: isEditingAllowed ? () => _pickBellStartTime(i) : null,
                     child: Row(children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -836,7 +1070,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                       Text('  –  ${_fmt12(end)}',
                           style: TextStyle(
                               fontSize: 12, color: Colors.grey.shade500)),
-                      if (_settingsEditing) ...[
+                      if (isEditingAllowed) ...[
                         const SizedBox(width: 4),
                         Icon(Icons.access_time, size: 10, color: Colors.grey.shade400),
                       ],
@@ -847,7 +1081,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
 
           // Duration chip (tappable only in edit mode)
           GestureDetector(
-            onTap: _settingsEditing ? () => _editBellDuration(i) : null,
+            onTap: isEditingAllowed ? () => _editBellDuration(i) : null,
             child: Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -869,7 +1103,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
           const SizedBox(width: 6),
 
           // Remove — only visible in edit mode
-          if (_settingsEditing)
+          if (isEditingAllowed)
             GestureDetector(
               onTap: _bells.length > 1 ? () => _removeBell(i) : null,
               child: Icon(Icons.remove_circle_outline,
@@ -1120,7 +1354,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
 
   Widget _buildGrid() {
     const clsW = 86.0, cellW = 112.0, cellH = 92.0, hdrH = 50.0;
-    final n = _bells.length;
+    final maxBells = _service.getMaxBellsCount(_rawSettings);
 
     return SingleChildScrollView(
       child: SingleChildScrollView(
@@ -1130,7 +1364,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
             children: [
               Row(children: [
                 _hdrCell(context.tr('class'), clsW, hdrH, isCorner: true),
-                for (int b = 1; b <= n; b++) _bellHdrCell(b - 1, cellW, hdrH),
+                for (int b = 1; b <= maxBells; b++) _bellHdrCell(b - 1, cellW, hdrH),
               ]),
               for (int i = 0; i < _classes.length; i++)
                 Row(children: [
@@ -1149,7 +1383,7 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                         style: const TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 12)),
                   ),
-                  for (int b = 1; b <= n; b++)
+                  for (int b = 1; b <= maxBells; b++)
                     _dataCell(_classes[i], b, cellW, cellH, i.isEven),
                 ]),
             ]),
@@ -1177,9 +1411,25 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
   }
 
   Widget _bellHdrCell(int idx, double w, double h) {
-    final isLunch = idx < _bells.length && _bells[idx].isLunch;
-    final start = idx < _bells.length ? _fmt12(_startOf(idx)) : '';
-    final end = idx < _bells.length ? _fmt12(_endOf(idx)) : '';
+    final defaultBells = _rawSettings['bells'] as List? ?? [];
+    final isLunch = idx < defaultBells.length && (defaultBells[idx]['isLunch'] as bool? ?? false);
+    final label = isLunch
+        ? '🍽 ${context.tr('lunch')}'
+        : context.tr('bellWithNum').replaceAll('{num}', (idx + 1).toString());
+
+    String timeRange = '';
+    if (idx < defaultBells.length) {
+      final b = defaultBells[idx] as Map;
+      final startStr = b['start'] as String? ?? '08:00';
+      final duration = b['duration'] as int? ?? 45;
+      final parts = startStr.split(':');
+      final startMinutes = (int.tryParse(parts[0]) ?? 8) * 60 + (int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0);
+      final startTodo = TimeOfDay(hour: (startMinutes ~/ 60) % 24, minute: startMinutes % 60);
+      final endMinutes = startMinutes + duration;
+      final endTodo = TimeOfDay(hour: (endMinutes ~/ 60) % 24, minute: endMinutes % 60);
+      timeRange = '${_fmt12(startTodo)}–${_fmt12(endTodo)}';
+    }
+
     return Container(
       width: w,
       height: h,
@@ -1194,21 +1444,36 @@ class _TimetableSettingsScreenState extends State<TimetableSettingsScreen>
                 : AppTheme.primaryDark),
       ),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text(isLunch ? '🍽 ${context.tr('lunch')}' : context.tr('bellWithNum').replaceAll('{num}', _bellDisplayNumber(idx).toString()),
+        Text(label,
             style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 11)),
-        if (start.isNotEmpty)
-          Text('$start–$end',
+        if (timeRange.isNotEmpty)
+          Text(timeRange,
               style: const TextStyle(color: Colors.white70, fontSize: 9)),
       ]),
     );
   }
 
   Widget _dataCell(String cls, int bell, double w, double h, bool even) {
+    final classBells = _service.getBellsForClass(_rawSettings, cls);
     final bellIdx = bell - 1;
-    final isLunch = bellIdx < _bells.length && _bells[bellIdx].isLunch;
+    if (bellIdx >= classBells.length) {
+      // This class does not have this period/bell
+      return Container(
+        width: w,
+        height: h,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: const Text('—', style: TextStyle(color: Colors.grey)),
+      );
+    }
+
+    final isLunch = classBells[bellIdx]['isLunch'] as bool? ?? false;
 
     // Aggregate across all days — use the first teacher found (Mon → Sat priority)
     Teacher? teacher;

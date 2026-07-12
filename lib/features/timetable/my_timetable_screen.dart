@@ -24,8 +24,8 @@ class MyTimetableScreen extends StatefulWidget {
 
 class _MyTimetableScreenState extends State<MyTimetableScreen> {
   final _service = TimetableService.instance;
+  Map<String, dynamic> _rawSettings = {};
   List<String>  _classes  = [];
-  int           _bellCount = 8;
   List<Map<String, dynamic>> _bells = [];
   Map<String, Map<String, Map<int, TimetableEntry>>> _timetable = {};
   List<Teacher> _teachers = [];
@@ -66,25 +66,13 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
     }
 
     setState(() {
+      _rawSettings = settings;
       _classes   = List<String>.from(settings['classes'] as List);
       _bells     = bells;
-      _bellCount = bells.length;
       _timetable = tt;
       _teachers  = teachers;
       _loading   = false;
     });
-  }
-
-  bool _isLunchBell(int zeroIdx) =>
-      zeroIdx < _bells.length &&
-      (_bells[zeroIdx]['isLunch'] as bool? ?? false);
-
-  int _bellDisplayNumber(int zeroIdx) {
-    int count = 0;
-    for (int i = 0; i <= zeroIdx; i++) {
-      if (!(_bells[i]['isLunch'] as bool? ?? false)) count++;
-    }
-    return count;
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -110,6 +98,13 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
     return idx < 0 ? Colors.grey.shade300 : _palette[idx % _palette.length];
   }
 
+  String _fmt12(TimeOfDay t) {
+    final h = t.hour == 0 ? 12 : (t.hour > 12 ? t.hour - 12 : t.hour);
+    final m = t.minute.toString().padLeft(2, '0');
+    final period = t.hour < 12 ? 'AM' : 'PM';
+    return '$h:$m $period';
+  }
+
   /// Personal view: for [_selectedDay], return list of (bell, className, subject)
   /// where this teacher is assigned.
   List<_PersonalSlot> get _mySlots {
@@ -118,15 +113,38 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
     if (tid == null) return [];
     final slots = <_PersonalSlot>[];
     for (final cls in _classes) {
-      for (int b = 1; b <= _bellCount; b++) {
-        if (_isLunchBell(b - 1)) continue; // skip lunch positions
+      final classBells = _service.getBellsForClass(_rawSettings, cls);
+      for (int b = 1; b <= classBells.length; b++) {
+        final bMap = classBells[b - 1];
+        final isLunch = bMap['isLunch'] as bool? ?? false;
+        if (isLunch) continue; // skip lunch positions
         final entry = _timetable[cls]?[_selectedDay]?[b];
         if (entry?.teacherId == tid) {
+          // Format start and end time
+          String timeStr = '';
+          try {
+            final startStr = bMap['start'] as String? ?? '08:00';
+            final duration = bMap['duration'] as int? ?? 45;
+            final parts = startStr.split(':');
+            final startMinutes = (int.tryParse(parts[0]) ?? 8) * 60 + (int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0);
+            
+            final startTodo = TimeOfDay(hour: (startMinutes ~/ 60) % 24, minute: startMinutes % 60);
+            final endMinutes = startMinutes + duration;
+            final endTodo = TimeOfDay(hour: (endMinutes ~/ 60) % 24, minute: endMinutes % 60);
+            timeStr = '${_fmt12(startTodo)}–${_fmt12(endTodo)}';
+          } catch (_) {}
+
+          int displayNum = 0;
+          for (int i = 0; i < b; i++) {
+            if (!(classBells[i]['isLunch'] as bool? ?? false)) displayNum++;
+          }
+
           slots.add(_PersonalSlot(
             bell:      b,
-            bellDisplayNum: _bellDisplayNumber(b - 1),
+            bellDisplayNum: displayNum,
             className: cls,
             subject:   _subjectLabel(entry),
+            timeRange: timeStr,
           ));
         }
       }
@@ -136,6 +154,14 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
   }
 
   // ── PDF generation ───────────────────────────────────────────────────────────
+
+  int _bellDisplayNumberForClassBells(List classBells, int zeroIdx) {
+    int count = 0;
+    for (int i = 0; i <= zeroIdx; i++) {
+      if (i < classBells.length && !(classBells[i]['isLunch'] as bool? ?? false)) count++;
+    }
+    return count;
+  }
 
   Future<void> _sharePdf(String? forClass) async {
     final settings = Provider.of<SchoolSettingsProvider>(context, listen: false);
@@ -164,51 +190,61 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
                 color: PdfTheme.primary),
           ),
           pw.SizedBox(height: 12),
-          for (final cls in classes) ...[
-            if (classes.length > 1)
-              pw.Text(cls,
-                  style: pw.TextStyle(
-                      fontSize: 13, fontWeight: pw.FontWeight.bold)),
-            if (classes.length > 1) pw.SizedBox(height: 6),
-            pw.Table(
-              border: pw.TableBorder.all(color: PdfTheme.primaryLight),
-              columnWidths: {
-                0: const pw.FixedColumnWidth(60),
-                for (int b = 1; b <= _bellCount; b++)
-                  b: const pw.FlexColumnWidth(1),
-              },
+          ...classes.map((cls) {
+            final classBells = _service.getBellsForClass(_rawSettings, cls);
+            final classBellCount = classBells.length;
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                // Header
-                pw.TableRow(
-                  decoration:
-                      const pw.BoxDecoration(color: PdfTheme.primary),
+                if (classes.length > 1) ...[
+                  pw.Text(cls,
+                      style: pw.TextStyle(
+                          fontSize: 13, fontWeight: pw.FontWeight.bold)),
+                  pw.SizedBox(height: 6),
+                ],
+                pw.Table(
+                  border: pw.TableBorder.all(color: PdfTheme.primaryLight),
+                  columnWidths: {
+                    0: const pw.FixedColumnWidth(60),
+                    for (int b = 1; b <= classBellCount; b++)
+                      b: const pw.FlexColumnWidth(1),
+                  },
                   children: [
-                    _pdfCell('Day', bold: true, light: true),
-                    for (int b = 1; b <= _bellCount; b++)
-                      _pdfCell(
-                        _isLunchBell(b - 1)
-                            ? 'Lunch'
-                            : 'Bell ${_bellDisplayNumber(b - 1)}',
-                        bold: true,
-                        light: true,
-                      ),
+                    // Header
+                    pw.TableRow(
+                      decoration:
+                          const pw.BoxDecoration(color: PdfTheme.primary),
+                      children: [
+                        _pdfCell('Day', bold: true, light: true),
+                        for (int b = 1; b <= classBellCount; b++)
+                          _pdfCell(
+                            (classBells[b - 1]['isLunch'] as bool? ?? false)
+                                ? 'Lunch'
+                                : 'Bell ${_bellDisplayNumberForClassBells(classBells, b - 1)}',
+                            bold: true,
+                            light: true,
+                          ),
+                      ],
+                    ),
+                    // Days
+                    for (final day in _days)
+                      pw.TableRow(children: [
+                        _pdfCell(day, bold: true),
+                        for (int b = 1; b <= classBellCount; b++)
+                          _pdfCell(
+                            (classBells[b - 1]['isLunch'] as bool? ?? false)
+                                ? 'Lunch'
+                                : (_subjectLabel(_timetable[cls]?[day]?[b]).isEmpty
+                                    ? '—'
+                                    : _subjectLabel(_timetable[cls]?[day]?[b])),
+                          ),
+                      ]),
                   ],
                 ),
-                // Days
-                for (final day in _days)
-                  pw.TableRow(children: [
-                    _pdfCell(day, bold: true),
-                    for (int b = 1; b <= _bellCount; b++)
-                      _pdfCell(
-                        _subjectLabel(_timetable[cls]?[day]?[b]).isEmpty
-                            ? '—'
-                            : _subjectLabel(_timetable[cls]?[day]?[b]),
-                      ),
-                  ]),
+                if (classes.length > 1) pw.SizedBox(height: 16),
               ],
-            ),
-            if (classes.length > 1) pw.SizedBox(height: 16),
-          ],
+            );
+          }),
         ],
       ),
     );
@@ -314,6 +350,7 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
   // ── Full school grid (coordinator) ───────────────────────────────────────────
 
   Widget _buildFullGrid(BuildContext context) {
+    final maxBells = _service.getMaxBellsCount(_rawSettings);
     final regularBells =
         _bells.where((b) => !(b['isLunch'] as bool? ?? false)).length;
     return Column(children: [
@@ -338,19 +375,17 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
               children: [
                 Row(children: [
                   _HeaderCell(context.tr('classLabel'), width: 90, isCorner: true),
-                  for (int b = 1; b <= _bellCount; b++)
-                    _isLunchBell(b - 1)
-                        ? const _LunchHeaderCell(width: 110)
-                        : _HeaderCell(
-                            'Bell ${_bellDisplayNumber(b - 1)}',
-                            width: 110),
+                  for (int b = 1; b <= maxBells; b++)
+                    _HeaderCell(
+                        context.tr('bellWithNum').replaceAll('{num}', b.toString()),
+                        width: 110),
                 ]),
                 for (int i = 0; i < _classes.length; i++)
                   GestureDetector(
                     onTap: () => _showPdfOptions(context, cls: _classes[i]),
                     child: Row(children: [
                       Container(
-                        width: 90, height: 58,
+                        width: 90, height: 72,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: i % 2 == 0
@@ -364,18 +399,36 @@ class _MyTimetableScreenState extends State<MyTimetableScreen> {
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600)),
                       ),
-                      for (int b = 1; b <= _bellCount; b++)
-                        _isLunchBell(b - 1)
-                            ? _LunchCell(isEven: i % 2 == 0)
-                            : _ReadCell(
-                                name:    _teacherName(
-                                    _timetable[_classes[i]]?[_selectedDay]?[b]),
-                                subject: _subjectLabel(
-                                    _timetable[_classes[i]]?[_selectedDay]?[b]),
-                                color:   _teacherColor(
-                                    _timetable[_classes[i]]?[_selectedDay]?[b]),
-                                isEven:  i % 2 == 0,
+                      for (int b = 1; b <= maxBells; b++) ...[
+                        Builder(builder: (context) {
+                          final classBells = _service.getBellsForClass(_rawSettings, _classes[i]);
+                          final bellIdx = b - 1;
+                          if (bellIdx >= classBells.length) {
+                            return Container(
+                              width: 110, height: 72,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                border: Border.all(color: Colors.grey.shade200),
                               ),
+                              child: const Text('—', style: TextStyle(color: Colors.grey)),
+                            );
+                          }
+                          final isLunch = classBells[bellIdx]['isLunch'] as bool? ?? false;
+                          if (isLunch) {
+                            return _LunchCell(isEven: i % 2 == 0);
+                          }
+                          return _ReadCell(
+                            name:    _teacherName(
+                                _timetable[_classes[i]]?[_selectedDay]?[b]),
+                            subject: _subjectLabel(
+                                _timetable[_classes[i]]?[_selectedDay]?[b]),
+                            color:   _teacherColor(
+                                _timetable[_classes[i]]?[_selectedDay]?[b]),
+                            isEven:  i % 2 == 0,
+                          );
+                        }),
+                      ],
                     ]),
                   ),
               ],
@@ -492,11 +545,13 @@ class _PersonalSlot {
   final int    bellDisplayNum;
   final String className;
   final String subject;
+  final String timeRange;
   const _PersonalSlot({
     required this.bell,
     required this.bellDisplayNum,
     required this.className,
     required this.subject,
+    required this.timeRange,
   });
 }
 
@@ -537,13 +592,22 @@ class _PersonalSlotCard extends StatelessWidget {
             Text(slot.className,
                 style: const TextStyle(
                     fontSize: 15, fontWeight: FontWeight.w600)),
+            if (slot.timeRange.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                slot.timeRange,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ],
           ]),
         ),
-        Text('Bell ${slot.bellDisplayNum}',
-            style: const TextStyle(
-                fontSize: 11,
-                color: AppTheme.primaryMid,
-                fontWeight: FontWeight.w500)),
+        Text(
+          slot.subject.isNotEmpty ? slot.subject : 'Bell ${slot.bellDisplayNum}',
+          style: const TextStyle(
+              fontSize: 12,
+              color: AppTheme.primaryMid,
+              fontWeight: FontWeight.w600),
+        ),
       ]),
     );
   }
@@ -605,27 +669,7 @@ class _HeaderCell extends StatelessWidget {
   }
 }
 
-class _LunchHeaderCell extends StatelessWidget {
-  final double width;
-  const _LunchHeaderCell({required this.width});
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width, height: 42,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Colors.orange.shade700,
-        border: Border.all(color: Colors.orange.shade900),
-      ),
-      child: const Text('🍽 Lunch',
-          style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              fontSize: 11)),
-    );
-  }
-}
 
 class _LunchCell extends StatelessWidget {
   final bool isEven;
@@ -634,7 +678,7 @@ class _LunchCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 110, height: 58,
+      width: 110, height: 72,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: Colors.orange.shade50,

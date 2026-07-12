@@ -382,7 +382,7 @@ class _GuardianDashboardState extends State<GuardianDashboard> {
       if (!mounted) return;
 
       final bells = List<Map<String, dynamic>>.from(
-        ((ttSettings['bells'] as List?) ?? [])
+        _ttService.getBellsForClass(ttSettings, _activeClass)
             .map((e) => Map<String, dynamic>.from(e as Map)),
       );
 
