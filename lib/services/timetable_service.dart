@@ -161,8 +161,9 @@ class TimetableService extends BaseFirestoreService {
         );
       }
 
-      if (existingRole != null && existingRole.isNotEmpty && existingRole != 'teacher') {
-        throw RoleConflictException(normEmail, existingRole, 'teacher');
+      final targetRole = teacher.isClassTeacher ? 'teacher' : 'subjectTeacher';
+      if (existingRole != null && existingRole.isNotEmpty && existingRole != targetRole) {
+        throw RoleConflictException(normEmail, existingRole, targetRole);
       }
     }
 
@@ -199,7 +200,7 @@ class TimetableService extends BaseFirestoreService {
     // Write allowed_users entry keyed by email so login's role lookup
     // succeeds and syncUserClaims fires correctly.
     await _allowedUsers.doc(normEmail).set({
-      'role':      'teacher',
+      'role':      teacher.isClassTeacher ? 'teacher' : 'subjectTeacher',
       'email':     normEmail,
       'name':      teacher.name,
       'teacherId': teacher.id,
@@ -1065,8 +1066,9 @@ class TimetableService extends BaseFirestoreService {
         );
       }
 
-      if (existingRole != null && existingRole.isNotEmpty && existingRole != 'teacher') {
-        throw RoleConflictException(normEmail, existingRole, 'teacher');
+      final targetRole = teacher.isClassTeacher ? 'teacher' : 'subjectTeacher';
+      if (existingRole != null && existingRole.isNotEmpty && existingRole != targetRole) {
+        throw RoleConflictException(normEmail, existingRole, targetRole);
       }
     }
 
@@ -1077,7 +1079,7 @@ class TimetableService extends BaseFirestoreService {
     // classIds is included so the rule-side isClassTeacher(cls) check passes
     // for teachers provisioned through the Send Login Invite path.
     await _allowedUsers.doc(normEmail).set({
-      'role':      'teacher',
+      'role':      teacher.isClassTeacher ? 'teacher' : 'subjectTeacher',
       'email':     normEmail,
       'name':      teacher.name,
       'teacherId': teacher.id,

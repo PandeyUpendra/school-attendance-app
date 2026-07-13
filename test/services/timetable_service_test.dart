@@ -24,7 +24,7 @@ void main() {
   });
 
   group('TimetableService addTeacher Tests', () {
-    test('addTeacher works and does not throw exception even if HTTP Auth signup fails', () async {
+    test('addTeacher works and does not throw exception even if HTTP Auth signup fails (Subject Teacher)', () async {
       final teacher = Teacher(
         id: 'teacher_test_id',
         name: 'Jane Doe',
@@ -55,6 +55,26 @@ void main() {
           .get();
       expect(allowedUserDoc.exists, isTrue);
       expect(allowedUserDoc.data()?['name'], 'Jane Doe');
+      expect(allowedUserDoc.data()?['role'], 'subjectTeacher');
+    });
+
+    test('addTeacher writes role "teacher" for a Class Teacher', () async {
+      final teacher = Teacher(
+        id: 'class_teacher_id',
+        name: 'John Smith',
+        subject: 'Science',
+        email: 'john.smith@school.test',
+        isClassTeacher: true,
+        schoolId: 'test_school',
+      );
+
+      await service.addTeacher('test_school', teacher);
+
+      final allowedUserDoc = await fakeDb
+          .collection('allowed_users')
+          .doc('john.smith@school.test')
+          .get();
+      expect(allowedUserDoc.exists, isTrue);
       expect(allowedUserDoc.data()?['role'], 'teacher');
     });
   });

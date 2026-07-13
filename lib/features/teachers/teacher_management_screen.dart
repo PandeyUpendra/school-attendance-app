@@ -487,7 +487,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
         await _service.addAllowedUser(
           teacher.email,
           '', // auto-generates a secure temp password
-          'teacher',
+          teacher.isClassTeacher ? 'teacher' : 'subjectTeacher',
           name:     teacher.name,
           schoolId: schoolId,
           classIds:  _service.classIdsFor(teacher),
@@ -515,7 +515,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
         await _service.addAllowedUser(
           newEmail,
           '', // auto-generates a secure temp password
-          'teacher',
+          teacher.isClassTeacher ? 'teacher' : 'subjectTeacher',
           name:     teacher.name,
           schoolId: schoolId,
           classIds:  _service.classIdsFor(teacher),
@@ -788,7 +788,7 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
             await _service.addAllowedUser(
               t.email,
               '', // auto-generates a secure temp password
-              'teacher',
+              t.isClassTeacher ? 'teacher' : 'subjectTeacher',
               name:     t.name,
               schoolId: sid,
               classIds:  _service.classIdsFor(t),
