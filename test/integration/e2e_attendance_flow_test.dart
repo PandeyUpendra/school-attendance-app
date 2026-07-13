@@ -195,10 +195,6 @@ void main() {
       await tester.tap(find.text('Take Attendance for Today'));
       await tester.pumpAndSettle();
 
-      // Switch to Swipe View
-      await tester.tap(find.byIcon(Icons.style));
-      await tester.pumpAndSettle();
-
       // Verify student 1 rendered on page 0
       expect(find.text('Alice'), findsOneWidget);
 
@@ -269,10 +265,6 @@ void main() {
 
       // Tap Take Attendance for Today
       await tester.tap(find.text('Take Attendance for Today'));
-      await tester.pumpAndSettle();
-
-      // Switch to Swipe View
-      await tester.tap(find.byIcon(Icons.style));
       await tester.pumpAndSettle();
 
       // Scroll to page 2 (Summary Card)

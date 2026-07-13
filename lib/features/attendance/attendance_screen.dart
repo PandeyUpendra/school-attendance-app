@@ -100,7 +100,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
   bool _soundEnabled = true;
   bool _vibrationEnabled = true;
   bool _autoMarkPresent = false;
-  bool _isListView = true; // Default to exceptions-only list view
 
   // Pager & Stats
   final PageController _pageController = PageController();
@@ -1080,17 +1079,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
             onPressed: _markAllPresent,
             tooltip: context.tr('markAllPresent'),
           ),
-        if (!_isListView && _students.isNotEmpty && _currentIndex < _students.length)
+        if (_isMarking && _students.isNotEmpty && _currentIndex < _students.length)
           IconButton(
             icon: const Icon(Icons.search, color: Colors.white),
             onPressed: _showSearchRollDialog,
             tooltip: context.tr('searchByRoll'),
           ),
-        IconButton(
-          icon: Icon(_isListView ? Icons.style : Icons.list, color: Colors.white),
-          onPressed: () => setState(() => _isListView = !_isListView),
-          tooltip: _isListView ? 'Switch to Swipe View' : 'Switch to List View',
-        ),
         IconButton(
           icon: const Icon(Icons.settings, color: Colors.white),
           onPressed: _showSettingsDialog,
@@ -1171,10 +1165,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
               child: _banner(AppTheme.primaryMid, Icons.sync_outlined, '$_classPendingCount offline record${_classPendingCount > 1 ? "s" : ""} for this class — Tap to sync'),
             ),
 
-          if (_isListView)
-            _buildListView()
-          else
-            // ── Main Student Section: Vertical Swipe Card System ──────────────
+          // ── Main Student Section: Vertical Swipe Card System ──────────────
             Expanded(
               child: PageView.builder(
                 scrollDirection: Axis.vertical,
@@ -1271,159 +1262,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
     );
   }
 
-  Widget _buildListView() {
-    return Expanded(
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: _students.length,
-              itemBuilder: (context, index) {
-                final s = _students[index];
-                final status = _attendance[s.roll] ?? '';
-                
-                Color rowBgColor = Colors.white;
-                if (status == 'Present') rowBgColor = Colors.green.shade50.withValues(alpha: 0.1);
-                if (status == 'Absent') rowBgColor = Colors.red.shade50.withValues(alpha: 0.1);
-                if (status == 'Leave') rowBgColor = Colors.amber.shade50.withValues(alpha: 0.1);
-
-                return Container(
-                  color: rowBgColor,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: CircleAvatar(
-                      backgroundColor: _getStatusColor(status).withValues(alpha: 0.1),
-                      foregroundColor: _getStatusColor(status),
-                      child: Text(
-                        '${s.roll}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    title: Text(
-                      s.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
-                    subtitle: Text(
-                      'Father: ${s.fatherName}',
-                      style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _listViewStatusButton(s.roll, 'Present', 'P', Colors.green),
-                        const SizedBox(width: 8),
-                        _listViewStatusButton(s.roll, 'Leave', 'L', Colors.amber),
-                        const SizedBox(width: 8),
-                        _listViewStatusButton(s.roll, 'Absent', 'A', Colors.red),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          // Bottom save action bar
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-              border: const Border(top: BorderSide(color: AppTheme.border)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      setState(() {
-                        for (final s in _students) {
-                          if (_attendance[s.roll] == '') {
-                            _attendance[s.roll] = 'Present';
-                          }
-                        }
-                        _dirty = true;
-                      });
-                      _triggerFeedback();
-                    },
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: const BorderSide(color: AppTheme.primary),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    child: const Text('Mark Rest Present'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _saving ? null : _save,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    child: _saving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
-                        : const Text('Save Attendance', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Color _getStatusColor(String status) {
-    if (status == 'Present') return Colors.green;
-    if (status == 'Absent') return Colors.red;
-    if (status == 'Leave') return Colors.amber;
-    return Colors.grey;
-  }
-
-  Widget _listViewStatusButton(int roll, String status, String label, Color color) {
-    final active = _attendance[roll] == status;
-    return InkWell(
-      onTap: () {
-        _setStatus(roll, status);
-        _triggerFeedback();
-        _saveQuietly();
-      },
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: active ? color : color.withValues(alpha: 0.05),
-          border: Border.all(color: color, width: 1.5),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            color: active ? Colors.white : color,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _banner(Color color, IconData icon, String text) => Container(
     width: double.infinity, color: color,
