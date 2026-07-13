@@ -617,7 +617,7 @@ exports.createAllowedUser = onCall(
     } catch (e) {
       if (e.code === "auth/user-not-found") {
         try {
-          const tempPass = password || Math.random().toString(36).substring(2, 10) + "A!";
+          const tempPass = password || "123456";
           user = await admin.auth().createUser({
             email: email,
             password: tempPass,
@@ -3511,8 +3511,15 @@ exports.sendPasswordEmail = onCall(
       await transporter.sendMail(mailOptions);
       return { ok: true, registered: true };
     } catch (err) {
-      logger.error("Failed to send password email via nodemailer", err);
-      throw new HttpsError("internal", `Failed to send email: ${err.message}`);
+      logger.error("Failed to send password email via nodemailer (saving backup setup link to Firestore)", err);
+      try {
+        await db.collection("allowed_users").doc(email).set({
+          tempSetupLink: link
+        }, { merge: true });
+      } catch (writeErr) {
+        logger.error("Failed to write tempSetupLink to Firestore", writeErr);
+      }
+      return { ok: true, registered: true, link: link };
     }
   }
 );

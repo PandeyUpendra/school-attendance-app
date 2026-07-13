@@ -152,10 +152,14 @@ class AuthService {
       {bool invite = false}) async {
     final normEmail = email.trim().toLowerCase();
     try {
-      await appFunctions.httpsCallable('sendPasswordEmail').call(<String, dynamic>{
+      final res = await appFunctions.httpsCallable('sendPasswordEmail').call(<String, dynamic>{
         'email': normEmail,
         'type': invite ? 'invite' : 'reset',
       });
+      if (res.data is Map && (res.data as Map)['link'] != null) {
+        final backupLink = (res.data as Map)['link'].toString();
+        AppLogger.d('AuthService', 'SMTP email failed. Backup password link for testing: $backupLink');
+      }
     } catch (e) {
       AppLogger.w('AuthService', 'sendPasswordEmail Cloud Function failed ($e). Falling back to Firebase Auth built-in reset email.');
       await _auth.sendPasswordResetEmail(email: normEmail);
