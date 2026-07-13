@@ -914,7 +914,6 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                                   MaterialPageRoute(
                                     builder: (_) => TeacherDetailScreen(
                                       teacher: t,
-                                      color:   color,
                                       onEdit: () async {
                                         Navigator.pop(context);
                                         await _openDialog(existing: t);
@@ -1085,14 +1084,12 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
 
 class TeacherDetailScreen extends StatefulWidget {
   final Teacher      teacher;
-  final Color        color;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const TeacherDetailScreen({
     super.key,
     required this.teacher,
-    required this.color,
     required this.onEdit,
     required this.onDelete,
   });
@@ -1223,7 +1220,7 @@ class _TeacherDetailScreenState extends State<TeacherDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final t = widget.teacher;
-    final c = widget.color;
+    const c = AppTheme.primary;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
