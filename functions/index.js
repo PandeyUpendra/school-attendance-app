@@ -1673,7 +1673,7 @@ exports.syncCommsConsent = onDocumentWritten(
       const commsConsent = consentDocsGrantComms(consentsSnap.docs);
       await db.collection("schools").doc(sid)
         .collection("students").doc(studentId)
-        .set({ commsConsent }, { merge: true });
+        .update({ commsConsent });
     } catch (err) {
       logger.warn(`[syncCommsConsent] failed for ${sid}/${studentId}`, err && err.message);
     }

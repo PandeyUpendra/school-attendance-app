@@ -356,7 +356,9 @@ class FirestoreStudentRepository implements StudentRepository {
     if (!doc.exists) return false;
     final data = doc.data();
     if (data == null) return false;
-    return data['promoted'] != true;
+    return data['promoted'] != true &&
+        data.containsKey('name') &&
+        data['name'].toString().trim().isNotEmpty;
   }
 
   @override

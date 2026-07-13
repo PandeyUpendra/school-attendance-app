@@ -11,7 +11,7 @@ import '../../l10n/app_strings.dart';
 import './announcements_screen.dart';
 import '../leave/leave_application_screen.dart';
 import '../leave/leave_requests_screen.dart';
-import '../tasks/staff_tasks_screen.dart';
+import '../tasks/unified_staff_task_screen.dart';
 import '../substitution/substitution_history_screen.dart';
 import '../meeting/teacher_meeting_tasks_screen.dart';
 import '../leave/guardian_leave_application_screen.dart';
@@ -274,7 +274,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'task':
         if (widget.teacherId != null) {
           await Navigator.push(context, MaterialPageRoute(
-            builder: (_) => StaffTasksScreen(teacherId: widget.teacherId),
+            builder: (_) => UnifiedStaffTaskScreen(
+              role: widget.role,
+              userEmail: _myEmail ?? widget.teacher?.email ?? '',
+              teacherId: widget.teacherId,
+              userName: _myName ?? widget.teacher?.name ?? '',
+            ),
           ));
         }
         break;
