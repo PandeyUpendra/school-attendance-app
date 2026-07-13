@@ -417,89 +417,76 @@ class _SectionPickerScreen extends StatelessWidget {
               style: const TextStyle(fontSize: 12, color: Colors.white70)),
         ]),
       ),
-      body: Column(children: [
-        Container(
-          color: AppTheme.primary,
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-          child: const Text(
-            'Select a section to view its students',
-            style: TextStyle(color: Colors.white70, fontSize: 13),
-          ),
-        ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: teachers.length,
-            separatorBuilder: (_, __) =>
-                const Divider(height: 1, indent: 70),
-            itemBuilder: (_, i) {
-              final t     = teachers[i];
-              final count = studentCounts[t.id] ?? 0;
-              final label = t.section.trim().isEmpty
-                  ? 'No Section'
-                  : 'Section ${t.section}';
-              return InkWell(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => StudentListScreen(
-                      className:      t.classTeacherOf!,
-                      section:        t.section,
-                      teacherId:      t.id,
-                      isClassTeacher: false,
-                    ),
+      body: ListView.separated(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: teachers.length,
+        separatorBuilder: (_, __) =>
+            const Divider(height: 1, indent: 70),
+        itemBuilder: (_, i) {
+          final t     = teachers[i];
+          final count = studentCounts[t.id] ?? 0;
+          final label = t.section.trim().isEmpty
+              ? 'No Section'
+              : 'Section ${t.section}';
+          return InkWell(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StudentListScreen(
+                  className:      t.classTeacherOf!,
+                  section:        t.section,
+                  teacherId:      t.id,
+                  isClassTeacher: false,
+                ),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 14),
+              child: Row(children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryLight.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.group_outlined,
+                      color: AppTheme.primary, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label,
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(t.name,
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500)),
+                      Text(
+                        count == 0
+                            ? 'No students yet'
+                            : '$count student${count == 1 ? '' : 's'}',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade400),
+                      ),
+                    ],
                   ),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                  child: Row(children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryLight.withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.group_outlined,
-                          color: AppTheme.primary, size: 22),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(label,
-                              style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 2),
-                          Text(t.name,
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade500)),
-                          Text(
-                            count == 0
-                                ? 'No students yet'
-                                : '$count student${count == 1 ? '' : 's'}',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade400),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right,
-                        color: Colors.grey.shade400),
-                  ]),
-                ),
-              );
-            },
-          ),
-        ),
-      ]),
+                Icon(Icons.chevron_right,
+                    color: Colors.grey.shade400),
+              ]),
+            ),
+          );
+        },
+      ),
     );
   }
 }
