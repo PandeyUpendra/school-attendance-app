@@ -564,8 +564,11 @@ class _AssignTabState extends State<_AssignTab> {
                                 : email;
                         _selectedIsCoordinator = true;
                       } else {
-                        _selectedTeacherName =
-                            _teachers.firstWhere((t) => t.id == v).name;
+                        final teacher = _teachers.firstWhere(
+                          (t) => t.id == v,
+                          orElse: () => const Teacher(id: '', name: 'Unknown Teacher', subject: '', email: ''),
+                        );
+                        _selectedTeacherName = teacher.name.isNotEmpty ? teacher.name : 'Unknown Teacher';
                         _selectedIsCoordinator = false;
                       }
                     });

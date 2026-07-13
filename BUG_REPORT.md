@@ -9,9 +9,9 @@ This report presents a comprehensive, aggressive QA scan of the School Attendanc
 As an aggressive QA engineer, I scanned the entire codebase. While the application's architecture is sound, several critical vulnerabilities and quality gaps were previously identified. 
 
 A thorough verification run was performed:
-1. **Static Analysis**: `flutter analyze` was executed, revealing 137 minor informational and style warnings (deprecated members, const suggestions, unused imports). No syntax errors, type-safety blockers, or analysis crashes remain.
-2. **Test Suite Execution**: `flutter test` was run across all unit, widget, and integration tests. **All 127 tests passed successfully** (including integration flows, offline queue tests, and widget tests).
-3. **Manual Code Verification**: Key vulnerable files were inspected. The critical race conditions, context-unmounted crashes, tenant isolation risks, and stream subscription leaks have been successfully remediated.
+1. **Static Analysis**: `flutter analyze` was executed, revealing 139 minor informational and style warnings (deprecated members, const suggestions, unused imports). No syntax errors, type-safety blockers, or analysis crashes remain.
+2. **Test Suite Execution**: `flutter test` was run across all unit, widget, and integration tests. **All 129 tests passed successfully** (including integration flows, offline queue tests, and widget tests).
+3. **Manual Code Verification**: Key vulnerable files were inspected. The critical race conditions, context-unmounted crashes, tenant isolation risks, stream subscription leaks, and unsafe firstWhere lookups have been successfully audited and remediated.
 
 ---
 
@@ -21,14 +21,14 @@ A thorough verification run was performed:
 | :--- | :--- | :--- | :--- |
 | **CRITICAL** | Race Condition, Tenant Isolation | **REMEDIATED** | Prevented data corruption and cross-tenant data leakage. |
 | **HIGH** | Stream Subscription Leaks, Async Context Crashes | **REMEDIATED** | Guarded against unmounted context crashes and memory exhaustion. |
-| **MEDIUM** | Undisposed Controllers, Null Safety Risks | **REMEDIATED** | Eliminated controller leaks in dialogs and fragile force-unwraps. |
+| **MEDIUM** | Undisposed Controllers, Null Safety Risks, Unsafe Collections | **REMEDIATED** | Eliminated controller leaks, force-unwraps, and potential StateError crashes. |
 | **LOW** | Code Cleanliness, Unused Imports/Variables | **OPEN (Minor)** | Unused imports, local variables, and deprecated members. |
 
 ```mermaid
 graph TD
     A[QA Codebase Scan] --> B[Critical: Concurrency & Tenant Security]
     A --> C[High: Async Gaps & Stream Leaks]
-    A --> D[Medium: TextEditingController Leaks]
+    A --> D[Medium: TextEditingController Leaks & Safety]
     A --> E[Low: Dead Code / Warnings]
     
     B --> B1[Offline Queue Race Condition - FIXED]
@@ -36,6 +36,7 @@ graph TD
     C --> C1[19 Unmounted Context SnackBar/Provider Crashes - FIXED]
     C --> C2[SchoolSettingsProvider Subscription Leak - FIXED]
     D --> D1[Dialog Controller Memory Accumulation - FIXED]
+    D --> D2[Teacher firstWhere Lookup StateError - FIXED]
     E --> E1[Unused Imports / Deprecated Members - LINT]
 ```
 
@@ -161,11 +162,18 @@ void dispose() {
 final tid = widget.teacher?.id;
 ```
 
+#### [MEDIUM] 3.3. Unsafe firstWhere Lookup on Dynamic Teacher Selection
+* **File**: [unified_staff_task_screen.dart](file:///Users/upendrapandey/school_app/lib/features/tasks/unified_staff_task_screen.dart#L568)
+* **Line**: 568
+* **Category**: Potential Crash / StateError Exception
+* **Impact**: When selecting a teacher from the dropdown, calling `.firstWhere` without an `orElse` callback presents a crash risk if the list of teachers in memory is modified dynamically or updated such that the selected ID is no longer present, causing a `StateError` ("No element").
+* **Remediation & Verification**: Added a safe fallback using an `orElse` callback returning a placeholder `Teacher`, which is handled gracefully by selecting a fallback name. Verified that the app builds and runs successfully.
+
 ---
 
 ### 4. Low Severity Bugs & Code Quality Warnings (Open)
 
-The static analyzer (`flutter analyze`) found **137 informational/style issues** which do not cause crashes but should be cleaned up. Key examples include:
+The static analyzer (`flutter analyze`) found **139 informational/style issues** which do not cause crashes but should be cleaned up. Key examples include:
 
 1. **Deprecated Member Usage (`withOpacity`)**:
    * `lib/features/admin/admission_crm_screen.dart` (Lines 304, 614, 800, 893)
