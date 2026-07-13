@@ -158,7 +158,9 @@ class AuthService {
       });
       if (res.data is Map && (res.data as Map)['link'] != null) {
         final backupLink = (res.data as Map)['link'].toString();
-        AppLogger.d('AuthService', 'SMTP email failed. Backup password link for testing: $backupLink');
+        AppLogger.w('AuthService', 'SMTP email failed/mocked. Backup password link for testing: $backupLink');
+        // Trigger fallback so the user actually receives the email
+        await _auth.sendPasswordResetEmail(email: normEmail);
       }
     } catch (e) {
       AppLogger.w('AuthService', 'sendPasswordEmail Cloud Function failed ($e). Falling back to Firebase Auth built-in reset email.');
@@ -174,10 +176,14 @@ class AuthService {
   Future<ResetResult> sendResetIfRegistered(String email) async {
     final normEmail = email.trim().toLowerCase();
     try {
-      await appFunctions.httpsCallable('sendPasswordEmail').call(<String, dynamic>{
+      final res = await appFunctions.httpsCallable('sendPasswordEmail').call(<String, dynamic>{
         'email': normEmail,
         'type': 'reset',
       });
+      if (res.data is Map && (res.data as Map)['link'] != null) {
+        // Trigger fallback so the user actually receives the email
+        await _auth.sendPasswordResetEmail(email: normEmail);
+      }
       return ResetResult.sent;
     } catch (e) {
       AppLogger.w('AuthService', 'sendPasswordEmail Cloud Function failed during reset ($e). Falling back to Firebase Auth built-in reset email.');

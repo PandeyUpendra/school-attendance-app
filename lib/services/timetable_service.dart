@@ -167,55 +167,25 @@ class TimetableService extends BaseFirestoreService {
       }
     }
 
-    // Purge any stale Auth record before creating
-    await _purgeStaleAuthRecord(normEmail);
-
     await _teachers.doc(teacher.id).set(teacher.toJson());
 
-    // Create Firebase Auth account via REST first (does not displace current admin session).
-    // The UID is not tracked — the allowed_users doc is keyed by email.
-    final tempPassword = generateSecurePassword();
-    try {
-      final res = await http.post(
-        Uri.parse(
-            'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$_firebaseApiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email':             normEmail,
-          'password':          tempPassword,
-          'returnSecureToken': false,
-        }),
-      );
-      final body    = jsonDecode(res.body) as Map<String, dynamic>;
-      final errCode = (body['error'] as Map?)?['message'] as String? ?? '';
-      if (body['localId'] == null && errCode != 'EMAIL_EXISTS') {
-        AppLogger.w('TimetableService',
-            'Firebase Auth creation warning for $normEmail during addTeacher: $errCode');
-      }
-    } catch (e) {
-      AppLogger.w('TimetableService',
-          'Firebase Auth creation failed for $normEmail during addTeacher (non-fatal): $e');
+    if (BaseFirestoreService.mockDb != null) {
+      // In unit tests: do direct mock write to allowed_users
+      await _allowedUsers.doc(normEmail).set({
+        'role':      teacher.isClassTeacher ? 'teacher' : 'subjectTeacher',
+        'email':     normEmail,
+        'name':      teacher.name,
+        'teacherId': teacher.id,
+        'schoolId':  schoolId,
+        'classIds':  classIdsFor(teacher),
+        'status':    'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      return;
     }
 
-    // Write allowed_users entry keyed by email so login's role lookup
-    // succeeds and syncUserClaims fires correctly.
-    await _allowedUsers.doc(normEmail).set({
-      'role':      teacher.isClassTeacher ? 'teacher' : 'subjectTeacher',
-      'email':     normEmail,
-      'name':      teacher.name,
-      'teacherId': teacher.id,
-      'schoolId':  schoolId,
-      'classIds':  classIdsFor(teacher),
-      'status':    'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    // Send invitation / password-setup email.
-    try {
-      await AuthService().sendPasswordEmailViaFunction(normEmail, invite: true);
-    } catch (_) {
-      // Non-fatal.
-    }
+    // In production: do NOT write allowed_users directly from the client.
+    // The UI calls addAllowedUser() which will invoke the Cloud Function securely.
   }
 
   Future<void> updateTeacher(String schoolId, Teacher teacher) async {
@@ -1072,46 +1042,36 @@ class TimetableService extends BaseFirestoreService {
       }
     }
 
-    // Purge any stale Auth record before creating
-    await _purgeStaleAuthRecord(normEmail);
+    if (BaseFirestoreService.mockDb != null) {
+      // Purge any stale Auth record before creating
+      await _purgeStaleAuthRecord(normEmail);
 
-    // Ensure allowed_users doc exists with the correct role.
-    // classIds is included so the rule-side isClassTeacher(cls) check passes
-    // for teachers provisioned through the Send Login Invite path.
-    await _allowedUsers.doc(normEmail).set({
-      'role':      teacher.isClassTeacher ? 'teacher' : 'subjectTeacher',
-      'email':     normEmail,
-      'name':      teacher.name,
-      'teacherId': teacher.id,
-      'schoolId':  effectiveSchoolId,
-      'classIds':  classIdsFor(teacher),
-      'status':    'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+      // In unit tests: do direct mock write and signUp simulation
+      await _allowedUsers.doc(normEmail).set({
+        'role':      teacher.isClassTeacher ? 'teacher' : 'subjectTeacher',
+        'email':     normEmail,
+        'name':      teacher.name,
+        'teacherId': teacher.id,
+        'schoolId':  effectiveSchoolId,
+        'classIds':  classIdsFor(teacher),
+        'status':    'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
-    // Create Firebase Auth account (no-op if already exists).
-    final tempPassword = generateSecurePassword();
-    try {
-      final res = await http.post(
-        Uri.parse(
-            'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$_firebaseApiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email':             normEmail,
-          'password':          tempPassword,
-          'returnSecureToken': false,
-        }),
-      );
-      final body    = jsonDecode(res.body) as Map<String, dynamic>;
-      final errCode = (body['error'] as Map?)?['message'] as String? ?? '';
-      if (errCode != 'EMAIL_EXISTS' && body['localId'] == null) {
-        AppLogger.d('TimetableService',
-            'Firebase Auth creation warning for $normEmail: $errCode');
-      }
-    } catch (_) {}
+      await AuthService().sendPasswordEmailViaFunction(normEmail, invite: true);
+      return;
+    }
 
-    // Send invitation / password-setup email.
-    await AuthService().sendPasswordEmailViaFunction(normEmail, invite: true);
+    // In production: provision securely via the Cloud Function
+    await addAllowedUser(
+      normEmail,
+      '', // auto-generates a secure temp password
+      teacher.isClassTeacher ? 'teacher' : 'subjectTeacher',
+      name: teacher.name,
+      schoolId: effectiveSchoolId,
+      classIds: classIdsFor(teacher),
+      teacherId: teacher.id,
+    );
   }
 
   /// Provisions Firebase Auth + allowed_users for a guardian email set on a
