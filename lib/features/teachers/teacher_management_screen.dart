@@ -780,25 +780,31 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
           AppLogger.w('TeacherManagement', 'Duplicate check read failed for ${t.email}: $e');
         }
       }
-      await _service.addTeacher(sid, t);
-      // Create Auth account with secure auto-generated temp password.
-      if (t.email.isNotEmpty) {
-        try {
-          await _service.addAllowedUser(
-            t.email,
-            '', // auto-generates a secure temp password
-            'teacher',
-            name:     t.name,
-            schoolId: sid,
-            classIds:  _service.classIdsFor(t),
-            teacherId: t.id,
-          );
-        } catch (e) {
-          AppLogger.e('TeacherManagement',
-              'addAllowedUser failed for ${t.email} during CSV import: $e', e);
+      try {
+        await _service.addTeacher(sid, t);
+        // Create Auth account with secure auto-generated temp password.
+        if (t.email.isNotEmpty) {
+          try {
+            await _service.addAllowedUser(
+              t.email,
+              '', // auto-generates a secure temp password
+              'teacher',
+              name:     t.name,
+              schoolId: sid,
+              classIds:  _service.classIdsFor(t),
+              teacherId: t.id,
+            );
+          } catch (e) {
+            AppLogger.e('TeacherManagement',
+                'addAllowedUser failed for ${t.email} during CSV import: $e', e);
+          }
         }
+        imported++;
+      } catch (e, stack) {
+        AppLogger.e('TeacherManagement',
+            'Failed to import teacher "${t.name}": $e', e, stack);
+        skipped++;
       }
-      imported++;
     }
     await _load();
     if (!mounted) return;

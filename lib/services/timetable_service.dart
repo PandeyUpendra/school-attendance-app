@@ -33,12 +33,11 @@ class RoleConflictException implements Exception {
 }
 
 class TimetableService extends BaseFirestoreService {
-  static final _db = FirebaseFirestore.instance;
-
   // allowed_users stays at the Firestore root — it is the user→school mapping
   // table and must be readable before schoolId is known (login flow reads it
   // to determine which school the user belongs to).
-  static final _allowedUsers = _db.collection('allowed_users');
+  CollectionReference<Map<String, dynamic>> get _allowedUsers =>
+      db.collection('allowed_users');
 
   static TimetableService? _instance;
   TimetableService._();
@@ -189,18 +188,12 @@ class TimetableService extends BaseFirestoreService {
       final body    = jsonDecode(res.body) as Map<String, dynamic>;
       final errCode = (body['error'] as Map?)?['message'] as String? ?? '';
       if (body['localId'] == null && errCode != 'EMAIL_EXISTS') {
-        throw Exception('Firebase Auth creation failed for $normEmail: $errCode');
+        AppLogger.w('TimetableService',
+            'Firebase Auth creation warning for $normEmail during addTeacher: $errCode');
       }
     } catch (e) {
-      // If an existing account is found (EMAIL_EXISTS), that's fine — we just
-      // need the allowed_users doc to exist. If Auth creation truly failed and
-      // no existing account was found, propagate the error.
-      if (existingDoc == null || !existingDoc.exists) {
-        final query = await _allowedUsers.where('email', isEqualTo: normEmail).limit(1).get();
-        if (query.docs.isEmpty) {
-          throw Exception('Firebase Auth creation failed and no existing account found: $e');
-        }
-      }
+      AppLogger.w('TimetableService',
+          'Firebase Auth creation failed for $normEmail during addTeacher (non-fatal): $e');
     }
 
     // Write allowed_users entry keyed by email so login's role lookup
@@ -255,7 +248,7 @@ class TimetableService extends BaseFirestoreService {
 
     // Scrub teacher from every timetable slot
     final snap  = await _tt.get();
-    final batch = _db.batch();
+    final batch = db.batch();
     for (final doc in snap.docs) {
       final raw = Map<String, dynamic>.from(
           (doc.data()['data'] as Map?) ?? {});
@@ -464,7 +457,7 @@ class TimetableService extends BaseFirestoreService {
 
   Future<void> _saveTimetable(
       Map<String, Map<String, Map<int, TimetableEntry>>> tt) async {
-    final batch = _db.batch();
+    final batch = db.batch();
     for (final clsEntry in tt.entries) {
       final data = clsEntry.value.map(
         (day, bells) => MapEntry(
