@@ -593,7 +593,8 @@ exports.createAllowedUser = onCall(
         );
       }
 
-      if (existingRole !== role) {
+      const isTeacherRole = (r) => r === "teacher" || r === "subjectTeacher";
+      if (existingRole !== role && !(isTeacherRole(existingRole) && isTeacherRole(role))) {
         throw new HttpsError(
           "already-exists",
           `This email is already in use under a different role (${existingRole}).`,
@@ -636,7 +637,7 @@ exports.createAllowedUser = onCall(
     const data = {
       role: role,
       email: email,
-      status: "pending",
+      status: docSnap.exists ? (docSnap.data().status || "pending") : "pending",
       schoolId: schoolId,
       name: name || "",
       createdByEmail: request.data.createdByEmail ? String(request.data.createdByEmail).trim().toLowerCase() : callerEmail,
@@ -771,6 +772,14 @@ exports.updateUserMetadata = onCall(
       }
       if (request.data.teacherId !== undefined) {
         updates.teacherId = String(request.data.teacherId).trim();
+      }
+      if (request.data.role !== undefined) {
+        const newRole = String(request.data.role).trim();
+        if (newRole === "teacher" || newRole === "subjectTeacher") {
+          updates.role = newRole;
+        } else {
+          throw new HttpsError("invalid-argument", "Invalid role for teacher.");
+        }
       }
     }
 

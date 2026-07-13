@@ -199,6 +199,7 @@ class TimetableService extends BaseFirestoreService {
         'name': teacher.name,
         'classIds': classIdsFor(teacher),
         'teacherId': teacher.id,
+        'role': teacher.isClassTeacher ? 'teacher' : 'subjectTeacher',
       });
     } catch (e) {
       AppLogger.e('TimetableService', 'updateTeacher allowed_users update failed: $e', e);
@@ -599,6 +600,7 @@ class TimetableService extends BaseFirestoreService {
   /// invoking the [deleteAccount] Cloud Function. This prevents recreated emails from
   /// logging in using old/stale credentials, enforcing a fresh password setup via email.
   Future<void> _purgeStaleAuthRecord(String email) async {
+    if (BaseFirestoreService.mockDb != null) return;
     final normEmail = email.toLowerCase().trim();
     DocumentSnapshot<Map<String, dynamic>>? existingDoc;
     try {
@@ -1037,8 +1039,11 @@ class TimetableService extends BaseFirestoreService {
       }
 
       final targetRole = teacher.isClassTeacher ? 'teacher' : 'subjectTeacher';
+      bool isTeacherRole(String? r) => r == 'teacher' || r == 'subjectTeacher';
       if (existingRole != null && existingRole.isNotEmpty && existingRole != targetRole) {
-        throw RoleConflictException(normEmail, existingRole, targetRole);
+        if (!isTeacherRole(existingRole) || !isTeacherRole(targetRole)) {
+          throw RoleConflictException(normEmail, existingRole, targetRole);
+        }
       }
     }
 

@@ -150,6 +150,10 @@ class AuthService {
   /// (e.g., function not deployed yet), ensuring the user is never blocked.
   Future<void> sendPasswordEmailViaFunction(String email,
       {bool invite = false}) async {
+    if (BaseFirestoreService.mockDb != null) {
+      AppLogger.d('AuthService', 'Mock invite/reset email sent for $email (unit test)');
+      return;
+    }
     final normEmail = email.trim().toLowerCase();
     try {
       final res = await appFunctions.httpsCallable('sendPasswordEmail').call(<String, dynamic>{

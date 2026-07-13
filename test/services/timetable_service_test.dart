@@ -77,5 +77,36 @@ void main() {
       expect(allowedUserDoc.exists, isTrue);
       expect(allowedUserDoc.data()?['role'], 'teacher');
     });
+
+    test('provisionTeacherLoginAccess handles transition between teacher and subjectTeacher without throwing', () async {
+      final teacher = Teacher(
+        id: 'class_teacher_id',
+        name: 'John Smith',
+        subject: 'Science',
+        email: 'john.smith@school.test',
+        isClassTeacher: true, // target role: teacher
+        schoolId: 'test_school',
+      );
+
+      // Pre-fill as subjectTeacher
+      await fakeDb.collection('allowed_users').doc('john.smith@school.test').set({
+        'role': 'subjectTeacher',
+        'email': 'john.smith@school.test',
+        'name': 'John Smith',
+        'teacherId': 'class_teacher_id',
+        'schoolId': 'test_school',
+        'status': 'active',
+      });
+
+      // This should succeed because switching roles between teacher and subjectTeacher is allowed
+      await service.provisionTeacherLoginAccess(teacher);
+
+      final allowedUserDoc = await fakeDb
+          .collection('allowed_users')
+          .doc('john.smith@school.test')
+          .get();
+      expect(allowedUserDoc.exists, isTrue);
+      expect(allowedUserDoc.data()?['role'], 'teacher');
+    });
   });
 }
