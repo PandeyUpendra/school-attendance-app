@@ -489,8 +489,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> with RouteAware {
       _students     = students;
       _alreadySaved = saved.isNotEmpty;
       for (final s in students) {
-        // Default to saved status, approved leave, or default to Present
-        _attendance[s.roll] = saved[s.roll] ?? approvedLeaves[s.roll] ?? 'Present';
+        // Default to saved status, approved leave, or default to Present/Absent based on already saved state
+        _attendance[s.roll] = saved[s.roll] ?? approvedLeaves[s.roll] ?? (_alreadySaved ? 'Absent' : 'Present');
       }
       // Seed the last-persisted snapshot so the first save only notifies
       // genuinely new absences (#74).
